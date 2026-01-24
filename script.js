@@ -4,7 +4,7 @@ const websites = [
   "https://silverhawk.web.id/utel",
   "https://silverhawk.web.id/mnj",
   "https://silverhawk.web.id/sepeda",
-  "https://silverhawk.web.id/cellphone",
+  "https://silverhawk.web.id/ponsel",
   "https://silverhawk.web.id/websiswa",
   "https://silverhawk.web.id/travel",
   "https://silverhawk.web.id/educate",
