@@ -4,7 +4,7 @@ const websites = [
   "https://silverhawk.web.id/utel",
   "https://silverhawk.web.id/mnj",
   "https://silverhawk.web.id/sepeda",
-  "https://silverhawk.web.id/ponsel",
+  "https://silverhawk.web.id/cellphone",
   "https://silverhawk.web.id/websiswa",
   "https://silverhawk.web.id/travel",
   "https://silverhawk.web.id/educate",
@@ -15,7 +15,7 @@ const websites = [
 ];
 
 // API Screenshot
-const apiKey = "44ccf5"; 
+const apiKey = "44ccf5";
 const dimension = "1024x768";
 
 // Elemen utama
@@ -29,10 +29,16 @@ const hoverOverlay = document.getElementById("hoverOverlay");
 const hoverImg = document.getElementById("hoverImg");
 const hoverLink = document.getElementById("hoverLink");
 
+function hideHoverOverlay() {
+  hoverOverlay.style.display = "none";
+  hoverImg.src = "";
+  hoverLink.href = "#";
+}
+
 // Buat slide & dot
 websites.forEach((url, index) => {
   const imgSrc = `https://api.screenshotmachine.com?key=${apiKey}&url=${encodeURIComponent(url)}&dimension=${dimension}`;
-  
+
   const slide = document.createElement("div");
   slide.className = "slide";
   slide.innerHTML = `
@@ -52,11 +58,7 @@ websites.forEach((url, index) => {
 });
 
 // Tutup overlay jika mouse keluar dari area overlay (karena ukurannya = gambar)
-hoverOverlay.addEventListener("mouseleave", () => {
-  hoverOverlay.style.display = "none";
-  hoverImg.src = "";
-  hoverLink.href = "#";
-});
+hoverOverlay.addEventListener("mouseleave", hideHoverOverlay);
 
 // Dot navigation
 websites.forEach((url, index) => {
@@ -135,6 +137,15 @@ playPauseBtn.addEventListener("click", () => {
 // Pause on hover slider
 sliderElement.addEventListener("mouseenter", () => { if (isPlaying) stopAutoSlide(); });
 sliderElement.addEventListener("mouseleave", () => { if (isPlaying) startAutoSlide(); });
+
+// Area yang harus mematikan overlay
+const hideOverlayAreas = document.querySelectorAll(
+  "header, footer, .nav, .dots, .controls"
+);
+
+hideOverlayAreas.forEach(el => {
+  el.addEventListener("mouseenter", hideHoverOverlay);
+});
 
 // Start autoplay
 startAutoSlide();
