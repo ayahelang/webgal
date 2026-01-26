@@ -47,7 +47,7 @@ header h1 {
 }
 
 .slide {
-  min-width: calc(100% / 3);
+  min-width: calc(100% / 3); /* default: 3 gambar */
   padding: 0.5rem;
 }
 
@@ -145,4 +145,42 @@ footer {
   color: #fff;
   margin-top: 2rem;
   font-size: 0.85rem;
+}
+
+/* ======================
+   📱 RESPONSIVE DESIGN
+   ====================== */
+@media (max-width: 1024px) {
+  .slide {
+    min-width: 50%; /* Tablet landscape: 2 gambar per slide */
+  }
+}
+
+@media (max-width: 768px) {
+  .slide {
+    min-width: 50%; /* Tablet portrait: 2 gambar per slide */
+  }
+  header h1 {
+    font-size: 1.6rem;
+  }
+  #playPauseBtn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .slide {
+    min-width: 100%; /* HP kecil: 1 gambar per slide */
+  }
+  header h1 {
+    font-size: 1.3rem;
+  }
+  .nav {
+    padding: 0.6rem;
+  }
+  .dot {
+    height: 10px;
+    width: 10px;
+  }
 }
