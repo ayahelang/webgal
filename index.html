@@ -1,45 +1,96 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Silverhawk Network</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#081018">
+  <meta name="description" content="Galeri Web Kreasi Santriwati SMA PMA — kumpulan karya Web Design santriwati kelas 51 dan 52.">
+  <title>Web Kreasi Santriwati — Silverhawk Gallery</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header>
-    <h1>Silverhawk Network</h1>
+  <div class="bg-grid"></div>
+  <div class="orb orb-a"></div><div class="orb orb-b"></div>
+
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Silverhawk Gallery">
+      <span class="brand-mark">SH</span>
+      <span><b>Silverhawk</b><small>Student Web Gallery</small></span>
+    </a>
+    <div class="status"><i></i> Gallery Online</div>
   </header>
 
-  <section class="slider-container">
-    <button class="nav prev">&#10094;</button>
-    <div class="slider" id="slider">
-      <div class="slides" id="slides">
-        <!-- Konten slide otomatis dari script.js -->
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">SMA PMA • WEB DESIGN</div>
+        <h1>Ide mereka.<br><span>Web mereka.</span></h1>
+        <p>Galeri karya digital santriwati yang dirancang, dikembangkan, dan dipresentasikan sebagai bagian dari proses belajar Web Design.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#gallery">Jelajahi Karya <span>↓</span></a>
+          <button class="btn btn-ghost" id="randomBtn">Karya Acak ✦</button>
+        </div>
       </div>
-    </div>
-    <button class="nav next">&#10095;</button>
+      <div class="hero-art" aria-hidden="true">
+        <div class="glass-stack">
+          <div class="mini-card mini-one"><span>WEB</span><b>CREATE</b><small>BUILD • TEST • SHARE</small></div>
+          <div class="mini-card mini-two"><span>01</span><b>IDE →</b><small>REAL WEBSITE</small></div>
+          <div class="mini-card mini-three"><span>SH</span><b>GALLERY</b><small>STUDENT EDITION</small></div>
+        </div>
+      </div>
+    </section>
 
-    <!-- Dot navigation -->
-    <div class="dots" id="dots"></div>
+    <section class="stats" id="stats">
+      <div><strong id="studentCount">—</strong><span>Santriwati</span></div>
+      <div><strong id="workCount">—</strong><span>Website</span></div>
+      <div><strong id="classCount">2</strong><span>Kelas</span></div>
+      <div><strong id="categoryCount">—</strong><span>Kategori</span></div>
+    </section>
 
-    <!-- Tombol Play/Pause -->
-    <div class="controls">
-      <button id="playPauseBtn">⏸ Pause</button>
-    </div>
-  </section>
+    <section class="gallery-section" id="gallery">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">THE COLLECTION</div>
+          <h2>Temukan karya yang kamu cari.</h2>
+        </div>
+        <p class="muted">Cari nama santriwati, nama proyek, atau tema website.</p>
+      </div>
 
-  <!-- Overlay hover -->
-  <div id="hoverOverlay" class="hover-overlay">
-    <a id="hoverLink" href="#" target="_blank" rel="noopener noreferrer">
-      <img id="hoverImg" src="" alt="Preview">
-    </a>
-  </div>
+      <div class="toolbar">
+        <label class="search">
+          <span>⌕</span>
+          <input id="searchInput" type="search" placeholder="Cari nama, website, kategori..." autocomplete="off">
+          <kbd>Ctrl K</kbd>
+        </label>
+        <div class="filters" role="group" aria-label="Filter kelas">
+          <button class="filter active" data-class="all">Semua</button>
+          <button class="filter" data-class="51">Kelas 51</button>
+          <button class="filter" data-class="52">Kelas 52</button>
+        </div>
+        <select id="sortSelect" class="sort" aria-label="Urutkan">
+          <option value="name">A–Z Nama</option>
+          <option value="class">Kelas</option>
+          <option value="works">Jumlah Karya</option>
+        </select>
+      </div>
+
+      <div id="resultInfo" class="result-info"></div>
+      <div id="galleryGrid" class="gallery-grid"></div>
+      <div id="emptyState" class="empty" hidden>
+        <div class="empty-icon">⌕</div>
+        <h3>Karyanya belum ditemukan</h3>
+        <p>Coba nama yang lebih singkat atau hapus filter pencarian.</p>
+        <button class="btn btn-ghost" id="clearBtn">Reset pencarian</button>
+      </div>
+    </section>
+  </main>
 
   <footer>
-    <p>© 2025 Silverhawk Network. All rights reserved.</p>
+    <div><span class="brand-mark small">SH</span><b>Silverhawk Student Web Gallery</b></div>
+    <span>© 2026 • SMA PMA • Web Design & SMM</span>
   </footer>
 
-  <script src="script.js"></script>
+  <script src="data/fallback.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
