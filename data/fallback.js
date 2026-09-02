@@ -3,7 +3,7 @@ window.GALLERY_DATA = {
     "title": "Galeri Web Kreasi Santriwati",
     "subtitle": "Kumpulan karya Web Design santriwati SMA PMA",
     "brand": "Silverhawk",
-    "source": "Data kelas 51 & 52 + pembaruan Classroom Agustus 2026"
+    "source": "Data kelas 51 & 52 + pembaruan Classroom (catur, display masjid, aplikasi baru)"
   },
   "students": [
     {
@@ -21,6 +21,52 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/51-1-1.svg"
+        },
+        {
+          "title": "Ahay Squy",
+          "url": "https://nindyacantiqq.github.io/ahaysquy/",
+          "category": "Web Kreatif",
+          "tags": [
+            "kreatif"
+          ],
+          "description": "Website Ahay Squy.",
+          "thumb": "data/thumbs/51-1-2.svg"
+        },
+        {
+          "title": "Caroval Pasta",
+          "url": "https://nindyacantiqq.github.io/carovalpasta/#proses",
+          "category": "Kuliner",
+          "tags": [
+            "pasta",
+            "kuliner",
+            "cafe"
+          ],
+          "description": "Website kuliner Caroval Pasta karya Anindya.",
+          "thumb": "data/thumbs/51-1-3.svg"
+        },
+        {
+          "title": "Tropy Mixx",
+          "url": "https://nindyhaa.github.io/tropymixx/#mixer",
+          "category": "Game",
+          "tags": [
+            "game",
+            "minuman",
+            "mixer"
+          ],
+          "description": "Game mixer minuman Tropy Mixx.",
+          "thumb": "data/thumbs/51-1-4.svg"
+        },
+        {
+          "title": "Tropicaly Cafe",
+          "url": "https://nindyhaa.github.io/tropicaly/",
+          "category": "Kuliner",
+          "tags": [
+            "cafe",
+            "tropical",
+            "kuliner"
+          ],
+          "description": "Website Cafe Tropicaly karya Anindya.",
+          "thumb": "data/thumbs/51-1-5.svg"
         }
       ]
     },
@@ -75,6 +121,39 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Website kreasi bertema kuliner dengan fokus pada tampilan produk, informasi, dan pengalaman pengunjung.",
           "thumb": "data/thumbs/51-4-1.svg"
+        },
+        {
+          "title": "Display Masjid Al-Amin",
+          "url": "https://hafizakhaira-2.github.io/Displaymasjidalamin/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid Al-Amin.",
+          "thumb": "data/thumbs/51-4-2.svg"
+        },
+        {
+          "title": "To Do List Our Routine",
+          "url": "https://hafizakhaira-2.github.io/Todolist/",
+          "category": "Produktivitas",
+          "tags": [
+            "todo",
+            "routine"
+          ],
+          "description": "Aplikasi to-do list routine.",
+          "thumb": "data/thumbs/51-4-3.svg"
+        },
+        {
+          "title": "Hafiza Car Showroom",
+          "url": "https://hafizakhaira-2.github.io/Hafiza-car/",
+          "category": "Otomotif",
+          "tags": [
+            "mobil",
+            "showroom"
+          ],
+          "description": "Showroom mobil Hafiza.",
+          "thumb": "data/thumbs/51-4-4.svg"
         }
       ]
     },
@@ -93,6 +172,28 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Eksplorasi desain web bertema fashion, beauty, produk, atau brand dengan identitas visual buatan santriwati.",
           "thumb": "data/thumbs/51-5-1.svg"
+        },
+        {
+          "title": "Hampers Pernikahan",
+          "url": "https://haniffahamallia.github.io/hampers-pernikahan/",
+          "category": "E-Commerce",
+          "tags": [
+            "hampers",
+            "wedding"
+          ],
+          "description": "Website hampers pernikahan.",
+          "thumb": "data/thumbs/51-5-2.svg"
+        },
+        {
+          "title": "Travel Planner",
+          "url": "https://haniffahamallia.github.io/travelplanner/",
+          "category": "Travel",
+          "tags": [
+            "travel",
+            "planner"
+          ],
+          "description": "Aplikasi travel planner.",
+          "thumb": "data/thumbs/51-5-3.svg"
         }
       ]
     },
@@ -111,6 +212,17 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/51-6-1.svg"
+        },
+        {
+          "title": "Tika Belajar",
+          "url": "https://tykaaskya.github.io/Tikaabljr/",
+          "category": "Edukasi",
+          "tags": [
+            "belajar",
+            "edukasi"
+          ],
+          "description": "Website belajar Tika.",
+          "thumb": "data/thumbs/51-6-2.svg"
         }
       ]
     },
@@ -129,6 +241,29 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Eksplorasi desain web bertema fashion, beauty, produk, atau brand dengan identitas visual buatan santriwati.",
           "thumb": "data/thumbs/51-7-1.svg"
+        },
+        {
+          "title": "Miftahul Jannah",
+          "url": "https://khansabloom.github.io/miftahuljannah/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid Miftahul Jannah.",
+          "thumb": "data/thumbs/51-7-2.svg"
+        },
+        {
+          "title": "Flower Garden",
+          "url": "https://khansabloom.github.io/flower-garden/",
+          "category": "Game",
+          "tags": [
+            "garden",
+            "game",
+            "tanaman"
+          ],
+          "description": "Game menyiram tanaman Flower Garden.",
+          "thumb": "data/thumbs/51-7-3.svg"
         }
       ]
     },
@@ -147,6 +282,17 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/51-8-1.svg"
+        },
+        {
+          "title": "Sushi Rush",
+          "url": "https://lathifahkhairunnisa.github.io/sushirush/",
+          "category": "Game",
+          "tags": [
+            "sushi",
+            "game"
+          ],
+          "description": "Game Sushi Rush.",
+          "thumb": "data/thumbs/51-8-2.svg"
         }
       ]
     },
@@ -201,6 +347,17 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Website kreasi bertema kuliner dengan fokus pada tampilan produk, informasi, dan pengalaman pengunjung.",
           "thumb": "data/thumbs/51-11-1.svg"
+        },
+        {
+          "title": "Nadwe Lifestyle",
+          "url": "https://naysillanadine.github.io/nadwelifestyle/",
+          "category": "Lifestyle",
+          "tags": [
+            "lifestyle",
+            "fashion"
+          ],
+          "description": "Website lifestyle Nadwe.",
+          "thumb": "data/thumbs/51-11-2.svg"
         }
       ]
     },
@@ -219,6 +376,40 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/51-12-1.svg"
+        },
+        {
+          "title": "Masjid Al-Hanna",
+          "url": "https://heynitara.github.io/masjidalhanna/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid Al-Hanna.",
+          "thumb": "data/thumbs/51-12-2.svg"
+        },
+        {
+          "title": "Hey Nitaly",
+          "url": "https://heynitara.github.io/heynitaly/",
+          "category": "E-Commerce",
+          "tags": [
+            "toko",
+            "fashion"
+          ],
+          "description": "Toko kedua Donita - Hey Nitaly.",
+          "thumb": "data/thumbs/51-12-3.svg"
+        },
+        {
+          "title": "Muslimah Study with Nita",
+          "url": "https://heynitara.github.io/muslimahstudywithnita/",
+          "category": "Edukasi",
+          "tags": [
+            "belajar",
+            "muslimah",
+            "game"
+          ],
+          "description": "Game belajar muslimah.",
+          "thumb": "data/thumbs/51-12-4.svg"
         }
       ]
     },
@@ -237,6 +428,28 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/51-13-1.svg"
+        },
+        {
+          "title": "Al Mujahidin Digital",
+          "url": "https://kyaraezstudio.github.io/almujahidindigital/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid Al Mujahidin Digital.",
+          "thumb": "data/thumbs/51-13-2.svg"
+        },
+        {
+          "title": "Rezz Journal",
+          "url": "https://kyaraezstudio.github.io/rezzjournal/",
+          "category": "Web Kreatif",
+          "tags": [
+            "journal",
+            "diary"
+          ],
+          "description": "Journal digital Rezz.",
+          "thumb": "data/thumbs/51-13-3.svg"
         }
       ]
     },
@@ -273,6 +486,17 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Karya web bertema edukasi dan konten yang dirancang sebagai latihan desain serta penyajian informasi.",
           "thumb": "data/thumbs/51-15-1.svg"
+        },
+        {
+          "title": "Matcha Cafe",
+          "url": "https://salsasena.github.io/matchacafe/",
+          "category": "Kuliner",
+          "tags": [
+            "cafe",
+            "matcha"
+          ],
+          "description": "Website Matcha Cafe.",
+          "thumb": "data/thumbs/51-15-2.svg"
         }
       ]
     },
@@ -309,6 +533,17 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/51-17-1.svg"
+        },
+        {
+          "title": "Masjid Display",
+          "url": "https://shafiyyahaz.github.io/masjiddisplay/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid karya Shafiyyah.",
+          "thumb": "data/thumbs/51-17-2.svg"
         }
       ]
     },
@@ -401,6 +636,28 @@ window.GALLERY_DATA = {
           ],
           "description": "Eksperimen web interaktif/game untuk melatih logika, antarmuka, dan pengalaman pengguna.",
           "thumb": "data/thumbs/52-21-3.svg"
+        },
+        {
+          "title": "Mushola Al-Aziz",
+          "url": "https://adindadwimulia.github.io/musholaalaziz-/",
+          "category": "Display Masjid",
+          "tags": [
+            "mushola",
+            "display"
+          ],
+          "description": "Display mushola Al-Aziz dengan fitur jadwal sholat.",
+          "thumb": "data/thumbs/52-21-4.svg"
+        },
+        {
+          "title": "Pink Puzzle",
+          "url": "https://adindadwimulia.github.io/pinkpuzzle/",
+          "category": "Game",
+          "tags": [
+            "puzzle",
+            "game"
+          ],
+          "description": "Game puzzle pink.",
+          "thumb": "data/thumbs/52-21-5.svg"
         }
       ]
     },
@@ -431,6 +688,39 @@ window.GALLERY_DATA = {
           ],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/52-22-2.svg"
+        },
+        {
+          "title": "Seoul Central Mosque",
+          "url": "https://aneirasyz03.github.io/seoulcentralmosque/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "grok"
+          ],
+          "description": "Display masjid Seoul Central dari Grok.",
+          "thumb": "data/thumbs/52-22-3.svg"
+        },
+        {
+          "title": "Mosque Ver 2",
+          "url": "https://aneirasyz03.github.io/mosquever2/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "chatgpt"
+          ],
+          "description": "Display masjid versi 2 dari ChatGPT.",
+          "thumb": "data/thumbs/52-22-4.svg"
+        },
+        {
+          "title": "Catur W0w0",
+          "url": "https://aneirasyz03.github.io/caturw0w0/",
+          "category": "Game",
+          "tags": [
+            "catur",
+            "game"
+          ],
+          "description": "Game Catur Jawa versi Aneira.",
+          "thumb": "data/thumbs/52-22-5.svg"
         }
       ]
     },
@@ -449,6 +739,50 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Eksplorasi desain web bertema fashion, beauty, produk, atau brand dengan identitas visual buatan santriwati.",
           "thumb": "data/thumbs/52-23-1.svg"
+        },
+        {
+          "title": "Masjid Al-Hikmah",
+          "url": "https://carissachikal.github.io/masjid-al-hikmah/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid Al-Hikmah.",
+          "thumb": "data/thumbs/52-23-2.svg"
+        },
+        {
+          "title": "Escape Room",
+          "url": "https://carissachikal.github.io/Escape-Room/",
+          "category": "Game",
+          "tags": [
+            "game",
+            "interaktif"
+          ],
+          "description": "Game Escape Room interaktif.",
+          "thumb": "data/thumbs/52-23-3.svg"
+        },
+        {
+          "title": "Fun Trip",
+          "url": "https://carissachikal.github.io/FunTrip/",
+          "category": "Travel",
+          "tags": [
+            "travel",
+            "fun"
+          ],
+          "description": "Website Fun Trip.",
+          "thumb": "data/thumbs/52-23-4.svg"
+        },
+        {
+          "title": "Moody",
+          "url": "https://carissachikal.github.io/Moody/",
+          "category": "Web Kreatif",
+          "tags": [
+            "mood",
+            "kreatif"
+          ],
+          "description": "Aplikasi Moody.",
+          "thumb": "data/thumbs/52-23-5.svg"
         }
       ]
     },
@@ -467,6 +801,17 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Eksplorasi website musik yang menonjolkan konten, identitas visual, dan pengalaman interaktif.",
           "thumb": "data/thumbs/52-24-1.svg"
+        },
+        {
+          "title": "Masjid Al-Iman",
+          "url": "https://chelseacoonera.github.io/Al-Iman-/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid Al-Iman.",
+          "thumb": "data/thumbs/52-24-2.svg"
         }
       ]
     },
@@ -497,6 +842,29 @@ window.GALLERY_DATA = {
           ],
           "description": "Eksperimen web interaktif/game untuk melatih logika, antarmuka, dan pengalaman pengguna.",
           "thumb": "data/thumbs/52-25-2.svg"
+        },
+        {
+          "title": "Masjid Baiturrahman",
+          "url": "https://dinahanoom.github.io/masjidbaiturrahman/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Aplikasi display jadwal sholat & informasi masjid.",
+          "thumb": "data/thumbs/52-25-3.svg"
+        },
+        {
+          "title": "Dina Tajweed",
+          "url": "https://dinahanoom.github.io/dinatajweed/",
+          "category": "Edukasi",
+          "tags": [
+            "tajweed",
+            "belajar",
+            "quran"
+          ],
+          "description": "Aplikasi belajar tajweed.",
+          "thumb": "data/thumbs/52-25-4.svg"
         }
       ]
     },
@@ -515,6 +883,17 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/52-26-1.svg"
+        },
+        {
+          "title": "Masjid Baitul Jannah",
+          "url": "https://firzhalwaa.github.io/mosquebaituljannah/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid Baitul Jannah.",
+          "thumb": "data/thumbs/52-26-2.svg"
         }
       ]
     },
@@ -557,6 +936,17 @@ window.GALLERY_DATA = {
           ],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/52-27-3.svg"
+        },
+        {
+          "title": "Masjid Al-Fitr",
+          "url": "https://hanidhanif.github.io/masjidalfitr/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid Al-Fitr dari GPT.",
+          "thumb": "data/thumbs/52-27-4.svg"
         }
       ]
     },
@@ -587,6 +977,28 @@ window.GALLERY_DATA = {
           ],
           "description": "Eksperimen web interaktif/game untuk melatih logika, antarmuka, dan pengalaman pengguna.",
           "thumb": "data/thumbs/52-28-2.svg"
+        },
+        {
+          "title": "Masjid An-Nur",
+          "url": "https://hafinzahislamimadinah.github.io/masjid-annur/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid An-Nur.",
+          "thumb": "data/thumbs/52-28-3.svg"
+        },
+        {
+          "title": "Fotocopy 2",
+          "url": "https://hafinzahislamimadinah.github.io/fotocopy2/",
+          "category": "Web Kreatif",
+          "tags": [
+            "usaha",
+            "layanan"
+          ],
+          "description": "Website layanan fotocopy.",
+          "thumb": "data/thumbs/52-28-4.svg"
         }
       ]
     },
@@ -613,6 +1025,27 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/52-29-2.svg"
+        },
+        {
+          "title": "Masjid At-Taqwa",
+          "url": "https://khansanidapma.github.io/attaqwa/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid At-Taqwa.",
+          "thumb": "data/thumbs/52-29-3.svg"
+        },
+        {
+          "title": "Apa Aja Lah",
+          "url": "https://khansanidapma.github.io/apaajalah/",
+          "category": "Web Kreatif",
+          "tags": [
+            "kreatif"
+          ],
+          "description": "Website kreatif Apa Aja Lah.",
+          "thumb": "data/thumbs/52-29-4.svg"
         }
       ]
     },
@@ -643,6 +1076,28 @@ window.GALLERY_DATA = {
           ],
           "description": "Eksperimen web interaktif/game untuk melatih logika, antarmuka, dan pengalaman pengguna.",
           "thumb": "data/thumbs/52-30-2.svg"
+        },
+        {
+          "title": "Masjid An-Nur",
+          "url": "https://kanja41-a11y.github.io/masjid-an-nur/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid An-Nur karya Khanza.",
+          "thumb": "data/thumbs/52-30-3.svg"
+        },
+        {
+          "title": "Creative NJA",
+          "url": "https://kanja41-a11y.github.io/creativenja/",
+          "category": "Web Kreatif",
+          "tags": [
+            "kreatif",
+            "studio"
+          ],
+          "description": "Website kreatif NJA.",
+          "thumb": "data/thumbs/52-30-4.svg"
         }
       ]
     },
@@ -691,6 +1146,29 @@ window.GALLERY_DATA = {
           ],
           "description": "Eksperimen web interaktif/game untuk melatih logika, antarmuka, dan pengalaman pengguna.",
           "thumb": "data/thumbs/52-32-2.svg"
+        },
+        {
+          "title": "Masjid Al-Fatih",
+          "url": "https://nazwafebrianm.github.io/masjid-al-fatih/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid Al-Fatih.",
+          "thumb": "data/thumbs/52-32-3.svg"
+        },
+        {
+          "title": "Simulasi SNBT",
+          "url": "https://nazwafebrianm.github.io/simulasi-SNBT/",
+          "category": "Edukasi",
+          "tags": [
+            "snbt",
+            "simulasi",
+            "ujian"
+          ],
+          "description": "Simulasi SNBT.",
+          "thumb": "data/thumbs/52-32-4.svg"
         }
       ]
     },
@@ -721,6 +1199,39 @@ window.GALLERY_DATA = {
           ],
           "description": "Eksperimen web interaktif/game untuk melatih logika, antarmuka, dan pengalaman pengguna.",
           "thumb": "data/thumbs/52-33-2.svg"
+        },
+        {
+          "title": "Masjid Maulana Al-Madinah",
+          "url": "https://rezkyanandaa.github.io/Masjid-Maulana-Al-Madinah/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid Maulana Al-Madinah.",
+          "thumb": "data/thumbs/52-33-3.svg"
+        },
+        {
+          "title": "Kyaa Travel",
+          "url": "https://rezkyanandaa.github.io/kyaatravel/",
+          "category": "Travel",
+          "tags": [
+            "travel",
+            "wisata"
+          ],
+          "description": "Website travel Kyaa.",
+          "thumb": "data/thumbs/52-33-4.svg"
+        },
+        {
+          "title": "Little Mall",
+          "url": "https://rezkyanandaa.github.io/little.mall/",
+          "category": "E-Commerce",
+          "tags": [
+            "mall",
+            "toko"
+          ],
+          "description": "Website Little Mall.",
+          "thumb": "data/thumbs/52-33-5.svg"
         }
       ]
     },
@@ -751,6 +1262,38 @@ window.GALLERY_DATA = {
           ],
           "description": "Eksperimen web interaktif/game untuk melatih logika, antarmuka, dan pengalaman pengguna.",
           "thumb": "data/thumbs/52-34-2.svg"
+        },
+        {
+          "title": "Masjid Baitus Salam",
+          "url": "https://rinduputr.github.io/Masjid-Baitus-Salam/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid karya Rindu.",
+          "thumb": "data/thumbs/52-34-3.svg"
+        },
+        {
+          "title": "Creamy Cafe",
+          "url": "https://rinduputr.github.io/Creamy-Caf-/",
+          "category": "Kuliner",
+          "tags": [
+            "cafe",
+            "kuliner"
+          ],
+          "description": "Website Creamy Cafe.",
+          "thumb": "data/thumbs/52-34-4.svg"
+        },
+        {
+          "title": "Nuv Cafe",
+          "url": "https://rinduputr.github.io/Nuv-Caf-/",
+          "category": "Kuliner",
+          "tags": [
+            "cafe"
+          ],
+          "description": "Website Nuv Cafe.",
+          "thumb": "data/thumbs/52-34-5.svg"
         }
       ]
     },
@@ -760,7 +1303,7 @@ window.GALLERY_DATA = {
       "class": "52",
       "school": "SMA PMA",
       "role": "Santriwati",
-      "aiTool": "",
+      "aiTool": "Claude AI",
       "works": [
         {
           "title": "MaiMORA Dress",
@@ -791,6 +1334,28 @@ window.GALLERY_DATA = {
           ],
           "description": "Eksperimen web interaktif/game untuk melatih logika, antarmuka, dan pengalaman pengguna.",
           "thumb": "data/thumbs/52-35-3.svg"
+        },
+        {
+          "title": "Mosque Al-Mujib (Claude)",
+          "url": "https://rismajian.github.io/mosque-al-mujib_by-MaiMORA_02/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "claude"
+          ],
+          "description": "Display masjid Al-Mujib versi Claude.",
+          "thumb": "data/thumbs/52-35-4.svg"
+        },
+        {
+          "title": "Mosque Al-Mujib (ChatGPT)",
+          "url": "https://rismajian.github.io/mosque-al-mujib_by-MaiMORA/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "chatgpt"
+          ],
+          "description": "Display masjid Al-Mujib versi ChatGPT.",
+          "thumb": "data/thumbs/52-35-5.svg"
         }
       ]
     },
@@ -821,6 +1386,28 @@ window.GALLERY_DATA = {
           ],
           "description": "Eksperimen web interaktif/game untuk melatih logika, antarmuka, dan pengalaman pengguna.",
           "thumb": "data/thumbs/52-36-2.svg"
+        },
+        {
+          "title": "Musholla Khairunnisa",
+          "url": "https://syifaazkasyrfh.github.io/Musholla--khairunnisa-/",
+          "category": "Display Masjid",
+          "tags": [
+            "mushola",
+            "display"
+          ],
+          "description": "Display mushola Khairunnisa.",
+          "thumb": "data/thumbs/52-36-3.svg"
+        },
+        {
+          "title": "Game Travel",
+          "url": "https://syifaazkasyrfh.github.io/game-travel-/",
+          "category": "Game",
+          "tags": [
+            "game",
+            "travel"
+          ],
+          "description": "Game travel interaktif.",
+          "thumb": "data/thumbs/52-36-4.svg"
         }
       ]
     },
@@ -863,6 +1450,28 @@ window.GALLERY_DATA = {
           ],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/52-37-3.svg"
+        },
+        {
+          "title": "El Madina Mosque",
+          "url": "https://thaniaaulia.github.io/elmadinamosque/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Aplikasi display masjid modern.",
+          "thumb": "data/thumbs/52-37-4.svg"
+        },
+        {
+          "title": "Ramen Yow",
+          "url": "https://thaniaaulia.github.io/ramenyow/",
+          "category": "Kuliner",
+          "tags": [
+            "ramen",
+            "kuliner"
+          ],
+          "description": "Website ramen.",
+          "thumb": "data/thumbs/52-37-5.svg"
         }
       ]
     },
@@ -889,6 +1498,29 @@ window.GALLERY_DATA = {
           "tags": [],
           "description": "Eksplorasi desain web bertema fashion, beauty, produk, atau brand dengan identitas visual buatan santriwati.",
           "thumb": "data/thumbs/52-38-2.svg"
+        },
+        {
+          "title": "Ar-Rahman Digital",
+          "url": "https://viorinealinesia.github.io/ar-rahmanndigitall/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid Ar-Rahman digital.",
+          "thumb": "data/thumbs/52-38-3.svg"
+        },
+        {
+          "title": "Rin's Spa and Salon",
+          "url": "https://viorinealinesia.github.io/rin-s-spa-and-salon/",
+          "category": "Beauty",
+          "tags": [
+            "spa",
+            "salon",
+            "beauty"
+          ],
+          "description": "Website spa & salon.",
+          "thumb": "data/thumbs/52-38-4.svg"
         }
       ]
     },
@@ -919,6 +1551,28 @@ window.GALLERY_DATA = {
           ],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/52-39-2.svg"
+        },
+        {
+          "title": "Masjid Agung Raudhatul Dunya",
+          "url": "https://wifajelita.github.io/Masjidagungraudhatuldunya/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid karya Wifa.",
+          "thumb": "data/thumbs/52-39-3.svg"
+        },
+        {
+          "title": "Twilight Journal",
+          "url": "https://wifajelita.github.io/TwilightJournal/",
+          "category": "Web Kreatif",
+          "tags": [
+            "journal",
+            "diary"
+          ],
+          "description": "Journal digital Twilight.",
+          "thumb": "data/thumbs/52-39-4.svg"
         }
       ]
     },
@@ -960,6 +1614,72 @@ window.GALLERY_DATA = {
           ],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/52-40-3.svg"
+        },
+        {
+          "title": "Masjid Al-Jabar (ChatGPT)",
+          "url": "https://yasminindira.github.io/masjidaljabar/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "chatgpt"
+          ],
+          "description": "Display masjid Al-Jabar versi ChatGPT.",
+          "thumb": "data/thumbs/52-40-4.svg"
+        },
+        {
+          "title": "Masjid Al-Jabar (Claude)",
+          "url": "https://yasminindira.github.io/masjidaljabar3/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "claude"
+          ],
+          "description": "Display masjid Al-Jabar versi Claude.",
+          "thumb": "data/thumbs/52-40-5.svg"
+        },
+        {
+          "title": "Sistem Tubuh",
+          "url": "https://yasminindira.github.io/sistemtubuh/",
+          "category": "Edukasi",
+          "tags": [
+            "biologi",
+            "tubuh",
+            "edukasi"
+          ],
+          "description": "Website sistem tubuh manusia.",
+          "thumb": "data/thumbs/52-40-6.svg"
+        }
+      ]
+    },
+    {
+      "id": "52-41",
+      "name": "Nikeisha Belva Azzahra",
+      "class": "52",
+      "school": "SMA PMA",
+      "role": "Santriwati",
+      "aiTool": "",
+      "works": [
+        {
+          "title": "Masjid Azzahra",
+          "url": "https://nikeishabelva.github.io/masjidazzahra/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid",
+            "display"
+          ],
+          "description": "Display masjid karya Belva.",
+          "thumb": "data/thumbs/52-41-1.svg"
+        },
+        {
+          "title": "Barbies School",
+          "url": "https://nikeishabelva.github.io/barbiesschool/",
+          "category": "Edukasi",
+          "tags": [
+            "sekolah",
+            "game"
+          ],
+          "description": "Aplikasi sekolah Barbie.",
+          "thumb": "data/thumbs/52-41-2.svg"
         }
       ]
     }
