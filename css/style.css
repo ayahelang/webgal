@@ -27,3 +27,80 @@ footer{max-width:1240px;margin:auto;padding:22px 24px 35px;border-top:1px solid 
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 
 .thumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.68;filter:saturate(.8) contrast(1.05);transition:.5s;z-index:0}.card:hover .thumb{transform:scale(1.045);opacity:.82}.cover-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,10,14,.18),rgba(4,10,14,.9) 88%);z-index:1}.cover-top,.cover-title{z-index:2}.cover-title{position:absolute;left:18px;right:18px;bottom:16px;display:flex;align-items:end;justify-content:space-between;gap:10px}.cover-title h3{margin:0;font-size:25px;letter-spacing:-1.2px;line-height:1}.cover-title span{font-size:9px;color:#b9d5de;white-space:nowrap}.works-title{font-size:9px;letter-spacing:1.5px;color:#78939e;margin:16px 0 8px;display:flex;justify-content:space-between}.works-title span{color:#5e7d89}.work-list{display:grid;gap:6px}.work-choice{display:grid;grid-template-columns:27px 1fr auto 18px;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.025);transition:.18s}.work-choice:hover{border-color:rgba(126,226,247,.4);background:rgba(126,226,247,.06);transform:translateX(2px)}.work-choice>span{font-size:9px;color:#607e89}.work-choice b{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.work-choice small{font-size:8px;color:#75909b;white-space:nowrap}.work-choice em{font-style:normal;color:#8feaff}.card-link{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:13px;border-top:1px solid var(--line);font-size:11px;color:#a9eafa;font-weight:700}
+
+
+/* ===== Silverhawk Tooltip (live meta) ===== */
+.sh-tooltip{
+  position:fixed;
+  z-index:9999;
+  pointer-events:none;
+  max-width:300px;
+  min-width:180px;
+  padding:10px 13px;
+  border-radius:12px;
+  font-size:12px;
+  font-weight:500;
+  line-height:1.45;
+  color:#061016;
+  background:linear-gradient(145deg,#f0fdff 0%,#b8eefc 100%);
+  border:1px solid rgba(120,220,245,.55);
+  box-shadow:0 12px 36px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.1);
+  opacity:0;
+  transform:translateY(5px) scale(.96);
+  transition:opacity .15s ease, transform .15s ease;
+  white-space:normal;
+  word-break:break-word;
+}
+.sh-tooltip.visible{
+  opacity:1;
+  transform:translateY(0) scale(1);
+}
+.sh-tooltip .tip-title{
+  font-weight:700;
+  font-size:13px;
+  letter-spacing:-.2px;
+  margin-bottom:3px;
+  color:#041015;
+}
+.sh-tooltip .tip-desc{
+  font-size:11px;
+  color:#1a3a46;
+  opacity:.9;
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.sh-tooltip .tip-loading{
+  margin-top:6px;
+  font-size:10px;
+  color:#2a6a7a;
+  font-style:italic;
+}
+.sh-tooltip .tip-source{
+  margin-top:6px;
+  font-size:9px;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+  color:#1e5c6c;
+  opacity:.75;
+}
+.sh-tooltip::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  bottom:-5px;
+  width:10px;height:10px;
+  background:#c5f0fc;
+  border-right:1px solid rgba(120,220,245,.55);
+  border-bottom:1px solid rgba(120,220,245,.55);
+  transform:translateX(-50%) rotate(45deg);
+}
+.sh-tooltip.below::after{
+  bottom:auto;
+  top:-5px;
+  border-right:none;
+  border-bottom:none;
+  border-left:1px solid rgba(120,220,245,.55);
+  border-top:1px solid rgba(120,220,245,.55);
+}
