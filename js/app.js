@@ -44,7 +44,7 @@
 
     // immediate fallback content
     const safeTitle = fallbackTitle || "Website";
-    const safeDesc  = fallbackDesc || "";
+    const safeDesc  = fallbackDesc || "Karya website siswa dari galeri Silverhawk.";
     renderTipContent(`
       <div class="tip-title">${escapeHtml(safeTitle)}</div>
       ${safeDesc ? `<div class="tip-desc">${escapeHtml(safeDesc)}</div>` : ""}
@@ -61,7 +61,7 @@
         renderTipContent(`
           <div class="tip-title">${escapeHtml(m.title || safeTitle)}</div>
           <div class="tip-desc">${escapeHtml(m.description || safeDesc || "Tidak ada deskripsi")}</div>
-          <div class="tip-source">dari website</div>
+          <div class="tip-source">INFO WEBSITE • HOVER / FOCUS</div>
         `);
         placeTip(target);
       } else if(m.status === "fail"){
@@ -95,7 +95,7 @@
           renderTipContent(`
             <div class="tip-title">${escapeHtml(title)}</div>
             <div class="tip-desc">${escapeHtml(description || "Tidak ada deskripsi")}</div>
-            <div class="tip-source">dari website</div>
+            <div class="tip-source">INFO WEBSITE • HOVER / FOCUS</div>
           `);
           placeTip(target);
         }
@@ -153,7 +153,7 @@
          data-tip-title="${escapeAttr(w.title)}"
          data-tip-desc="${escapeAttr(w.description || w.category)}"
          data-tip-url="${escapeAttr(w.url)}">
-        <span>${String(i+1).padStart(2,"0")}</span><b>${w.title}</b><small>${w.category}</small><em>↗</em>
+        <span>${String(i+1).padStart(2,"0")}</span><b>${w.title}</b><small>${w.category}</small><em title="Hover untuk melihat info">↗</em>
       </a>`).join("");
   }
   function escapeAttr(str){
