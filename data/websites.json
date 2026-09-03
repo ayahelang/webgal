@@ -1380,6 +1380,18 @@
           ],
           "description": "Display masjid Al-Mujib versi ChatGPT.",
           "thumb": "data/thumbs/52-35-5.svg"
+        },
+        {
+          "title": "STUDYGAME MaiMora",
+          "url": "https://rismajian.github.io/STUDYGAME_MaiMora/",
+          "category": "Game Edukasi",
+          "tags": [
+            "game",
+            "edukasi",
+            "study"
+          ],
+          "description": "Game edukasi interaktif karya Risma Jian Humaira untuk belajar sambil bermain.",
+          "thumb": "https://opengraph.githubassets.com/1/rismajian/STUDYGAME_MaiMora"
         }
       ]
     },
