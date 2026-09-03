@@ -3,7 +3,8 @@
     "title": "Galeri Web Kreasi Santriwati",
     "subtitle": "Kumpulan karya Web Design santriwati SMA PMA",
     "brand": "Silverhawk",
-    "source": "Data kelas 51 & 52 + pembaruan Classroom (catur, display masjid, aplikasi baru)"
+    "source": "Data kelas 51 & 52 + pembaruan Classroom terbaru (website, catur, display masjid, aplikasi baru)",
+    "updated": "2026-09-03"
   },
   "students": [
     {
@@ -721,6 +722,18 @@
           ],
           "description": "Game Catur Jawa versi Aneira.",
           "thumb": "data/thumbs/52-22-5.svg"
+        },
+        {
+          "title": "Titip Dulu 00",
+          "url": "https://aneirasyz03.github.io/titipdulu00/",
+          "category": "Produktivitas",
+          "tags": [
+            "penjengukan",
+            "list",
+            "organisasi"
+          ],
+          "description": "Website untuk membantu membuat dan mengelola list penjengukan.",
+          "thumb": "data/thumbs/52-22-6.svg"
         }
       ]
     },
@@ -947,6 +960,17 @@
           ],
           "description": "Display masjid Al-Fitr dari GPT.",
           "thumb": "data/thumbs/52-27-4.svg"
+        },
+        {
+          "title": "Garden Up F",
+          "url": "https://hanidhanif.github.io/gardenupf/",
+          "category": "Web Kreatif",
+          "tags": [
+            "garden",
+            "kreatif"
+          ],
+          "description": "Website kreasi bertema garden dengan eksplorasi tampilan visual dan pengalaman pengguna.",
+          "thumb": "data/thumbs/52-27-5.svg"
         }
       ]
     },
