@@ -3,7 +3,7 @@
     "title": "Galeri Web Kreasi Santriwati",
     "subtitle": "Kumpulan karya Web Design santriwati SMA PMA",
     "brand": "Silverhawk",
-    "source": "Data kelas 51 & 52 + pembaruan Classroom terbaru (website, catur, display masjid, aplikasi baru)",
+    "source": "Data kelas 51 & 52 + update Google Docs Sept 2026",
     "updated": "2026-09-03"
   },
   "students": [
@@ -86,6 +86,37 @@
           "tags": [],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/51-2-1.svg"
+        },
+        {
+          "title": "Bintang Fairy",
+          "url": "https://bintangside.github.io/bintangfairy/",
+          "category": "Web Kreatif",
+          "tags": [
+            "fairy"
+          ],
+          "description": "Karya website Bintang Fairy oleh Bintang Pertiwi.",
+          "thumb": "data/thumbs/51-2-2.svg"
+        },
+        {
+          "title": "Bintang Game",
+          "url": "https://bintangside.github.io/game/",
+          "category": "Game",
+          "tags": [
+            "game"
+          ],
+          "description": "Karya website Bintang Game oleh Bintang Pertiwi.",
+          "thumb": "data/thumbs/51-2-3.svg"
+        },
+        {
+          "title": "Prayer",
+          "url": "https://bintangside.github.io/prayer/",
+          "category": "Display Masjid",
+          "tags": [
+            "prayer",
+            "sholat"
+          ],
+          "description": "Karya website Prayer oleh Bintang Pertiwi.",
+          "thumb": "data/thumbs/51-2-4.svg"
         }
       ]
     },
@@ -155,6 +186,40 @@
           ],
           "description": "Showroom mobil Hafiza.",
           "thumb": "data/thumbs/51-4-4.svg"
+        },
+        {
+          "title": "Tebak Lanjutan Ayat",
+          "url": "https://hafizakhaira-2.github.io/tebaklanjutanayat",
+          "category": "Game",
+          "tags": [
+            "quran",
+            "game",
+            "tebak"
+          ],
+          "description": "Karya website Tebak Lanjutan Ayat oleh Hafiza Khaira.",
+          "thumb": "data/thumbs/51-4-5.svg"
+        },
+        {
+          "title": "CV Argo Pratama",
+          "url": "https://hafizakhaira-2.github.io/CVARGOPRATAMA/",
+          "category": "Web Kreatif",
+          "tags": [
+            "cv",
+            "profil"
+          ],
+          "description": "Karya website CV Argo Pratama oleh Hafiza Khaira.",
+          "thumb": "data/thumbs/51-4-6.svg"
+        },
+        {
+          "title": "Otak Random",
+          "url": "https://hafizakhaira-2.github.io/OTAKRANDOM/",
+          "category": "Game",
+          "tags": [
+            "game",
+            "random"
+          ],
+          "description": "Karya website Otak Random oleh Hafiza Khaira.",
+          "thumb": "data/thumbs/51-4-7.svg"
         }
       ]
     },
@@ -224,6 +289,26 @@
           ],
           "description": "Website belajar Tika.",
           "thumb": "data/thumbs/51-6-2.svg"
+        },
+        {
+          "title": "Tikaaak Monkey",
+          "url": "https://tykaaskya.github.io/tikaaak/",
+          "category": "Web Kreatif",
+          "tags": [
+            "monkey"
+          ],
+          "description": "Karya website Tikaaak Monkey oleh Kartika Chandra.",
+          "thumb": "data/thumbs/51-6-3.svg"
+        },
+        {
+          "title": "Tiikka Masjid",
+          "url": "https://tykaaskya.github.io/tiikka/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid"
+          ],
+          "description": "Karya website Tiikka Masjid oleh Kartika Chandra.",
+          "thumb": "data/thumbs/51-6-4.svg"
         }
       ]
     },
@@ -294,6 +379,24 @@
           ],
           "description": "Game Sushi Rush.",
           "thumb": "data/thumbs/51-8-2.svg"
+        },
+        {
+          "title": "Nusa Journey",
+          "url": "https://lathifahkhairunnisa.github.io/nusajourney/",
+          "category": "Travel",
+          "tags": [
+            "travel"
+          ],
+          "description": "Karya website Nusa Journey oleh Lathifah Khairunnisa.",
+          "thumb": "data/thumbs/51-8-3.svg"
+        },
+        {
+          "title": "Yoiimania",
+          "url": "https://lathifahkhairunnisa.github.io/yoiimania/",
+          "category": "Web Kreatif",
+          "tags": [],
+          "description": "Karya website Yoiimania oleh Lathifah Khairunnisa.",
+          "thumb": "data/thumbs/51-8-4.svg"
         }
       ]
     },
@@ -330,6 +433,35 @@
           "tags": [],
           "description": "Website kreasi bertema kuliner dengan fokus pada tampilan produk, informasi, dan pengalaman pengunjung.",
           "thumb": "data/thumbs/51-10-1.svg"
+        },
+        {
+          "title": "Ndyaa Azkar",
+          "url": "https://nadyaicecream.github.io/ndyaaazkar/",
+          "category": "Edukasi",
+          "tags": [
+            "azkar",
+            "dzikir"
+          ],
+          "description": "Karya website Ndyaa Azkar oleh Nadya Wafa.",
+          "thumb": "data/thumbs/51-10-2.svg"
+        },
+        {
+          "title": "Ndy Chik",
+          "url": "https://nadyaicecream.github.io/ndychik/",
+          "category": "Web Kreatif",
+          "tags": [],
+          "description": "Karya website Ndy Chik oleh Nadya Wafa.",
+          "thumb": "data/thumbs/51-10-3.svg"
+        },
+        {
+          "title": "Nd Life",
+          "url": "https://nadyaicecream.github.io/nd.life/",
+          "category": "Lifestyle",
+          "tags": [
+            "life"
+          ],
+          "description": "Karya website Nd Life oleh Nadya Wafa.",
+          "thumb": "data/thumbs/51-10-4.svg"
         }
       ]
     },
@@ -359,6 +491,32 @@
           ],
           "description": "Website lifestyle Nadwe.",
           "thumb": "data/thumbs/51-11-2.svg"
+        },
+        {
+          "title": "Laucess",
+          "url": "https://naysillanadine.github.io/laucess/",
+          "category": "Web Kreatif",
+          "tags": [],
+          "description": "Karya website Laucess oleh Naysilla Nadine.",
+          "thumb": "data/thumbs/51-11-3.svg"
+        },
+        {
+          "title": "Nad Inverse",
+          "url": "https://naysillanadine.github.io/nadinverse/#home",
+          "category": "Web Kreatif",
+          "tags": [],
+          "description": "Karya website Nad Inverse oleh Naysilla Nadine.",
+          "thumb": "data/thumbs/51-11-4.svg"
+        },
+        {
+          "title": "Princess Travel",
+          "url": "https://naysillanadine.github.io/princesstravel/#paket",
+          "category": "Travel",
+          "tags": [
+            "travel"
+          ],
+          "description": "Karya website Princess Travel oleh Naysilla Nadine.",
+          "thumb": "data/thumbs/51-11-5.svg"
         }
       ]
     },
@@ -411,6 +569,17 @@
           ],
           "description": "Game belajar muslimah.",
           "thumb": "data/thumbs/51-12-4.svg"
+        },
+        {
+          "title": "Nita Murajaah",
+          "url": "https://heynitara.github.io/nitamurajaah/",
+          "category": "Edukasi",
+          "tags": [
+            "murajaah",
+            "quran"
+          ],
+          "description": "Karya website Nita Murajaah oleh Putri Donita.",
+          "thumb": "data/thumbs/51-12-5.svg"
         }
       ]
     },
@@ -451,6 +620,16 @@
           ],
           "description": "Journal digital Rezz.",
           "thumb": "data/thumbs/51-13-3.svg"
+        },
+        {
+          "title": "Our Jurnal",
+          "url": "https://kyaraezstudio.github.io/OURJURNAL/",
+          "category": "Web Kreatif",
+          "tags": [
+            "journal"
+          ],
+          "description": "Karya website Our Jurnal oleh Rezkya Putri Novianti.",
+          "thumb": "data/thumbs/51-13-4.svg"
         }
       ]
     },
@@ -498,6 +677,26 @@
           ],
           "description": "Website Matcha Cafe.",
           "thumb": "data/thumbs/51-15-2.svg"
+        },
+        {
+          "title": "Display Masjid",
+          "url": "https://salsasena.github.io/displaymasjid/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid"
+          ],
+          "description": "Karya website Display Masjid oleh Salsabila Kirana.",
+          "thumb": "data/thumbs/51-15-3.svg"
+        },
+        {
+          "title": "SK Entertainment",
+          "url": "https://salsasena.github.io/SKentertaint/",
+          "category": "Web Kreatif",
+          "tags": [
+            "entertainment"
+          ],
+          "description": "Karya website SK Entertainment oleh Salsabila Kirana.",
+          "thumb": "data/thumbs/51-15-4.svg"
         }
       ]
     },
@@ -563,6 +762,26 @@
           "tags": [],
           "description": "Website kreatif bertema kerajinan dan brand personal dengan eksplorasi visual.",
           "thumb": "data/thumbs/51-18-1.svg"
+        },
+        {
+          "title": "Dei Coffee",
+          "url": "https://taniaamandacrafty.github.io/deicoffe/",
+          "category": "Kuliner",
+          "tags": [
+            "coffee"
+          ],
+          "description": "Karya website Dei Coffee oleh Tania Amanda.",
+          "thumb": "data/thumbs/51-18-2.svg"
+        },
+        {
+          "title": "Digital Time",
+          "url": "https://taniaamandacrafty.github.io/digitaltime/",
+          "category": "Produktivitas",
+          "tags": [
+            "time"
+          ],
+          "description": "Karya website Digital Time oleh Tania Amanda.",
+          "thumb": "data/thumbs/51-18-3.svg"
         }
       ]
     },
@@ -599,6 +818,37 @@
           "tags": [],
           "description": "Karya website siswa sebagai bagian dari latihan Web Design dan pengembangan kreativitas digital.",
           "thumb": "data/thumbs/51-20-1.svg"
+        },
+        {
+          "title": "Harbore",
+          "url": "https://ziyasing.github.io/Harbore-/#clock",
+          "category": "Web Kreatif",
+          "tags": [
+            "clock"
+          ],
+          "description": "Karya website Harbore oleh Ziya Ulhaq.",
+          "thumb": "data/thumbs/51-20-2.svg"
+        },
+        {
+          "title": "Kalimba Dreams",
+          "url": "https://ziyasing.github.io/kalimba.dreams/",
+          "category": "Musik",
+          "tags": [
+            "kalimba",
+            "musik"
+          ],
+          "description": "Karya website Kalimba Dreams oleh Ziya Ulhaq.",
+          "thumb": "data/thumbs/51-20-3.svg"
+        },
+        {
+          "title": "Hani's Birthday",
+          "url": "https://ziyasing.github.io/hani-s-B-DAY/",
+          "category": "Web Kreatif",
+          "tags": [
+            "birthday"
+          ],
+          "description": "Karya website Hani's Birthday oleh Ziya Ulhaq.",
+          "thumb": "data/thumbs/51-20-4.svg"
         }
       ]
     },
@@ -1391,7 +1641,7 @@
             "study"
           ],
           "description": "Game edukasi interaktif karya Risma Jian Humaira untuk belajar sambil bermain.",
-          "thumb": "https://opengraph.githubassets.com/1/rismajian/STUDYGAME_MaiMora"
+          "thumb": "data/thumbs/52-35-6.svg"
         }
       ]
     },
