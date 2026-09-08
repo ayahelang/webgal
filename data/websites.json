@@ -3,7 +3,7 @@
     "title": "Galeri Web Kreasi Santriwati",
     "subtitle": "Kumpulan karya Web Design santriwati SMA PMA",
     "brand": "Silverhawk",
-    "source": "Data kelas 51 & 52 + update Google Docs Sept 2026 (kls 51+52)",
+    "source": "Data kelas 51 & 52 + update Google Docs + Skills Map Sept 2026",
     "updated": "2026-09-03"
   },
   "students": [
@@ -2183,6 +2183,18 @@
           ],
           "description": "Karya website Tumbly oleh Nikeisha Belva Azzahra.",
           "thumb": "data/thumbs/52-41-6.svg"
+        },
+        {
+          "title": "Bloomie",
+          "url": "https://nikeishabelva.github.io/bloomie/",
+          "category": "E-Commerce",
+          "tags": [
+            "bunga",
+            "toko",
+            "flower"
+          ],
+          "description": "Toko bunga digital Bloomie karya Nikeisha.",
+          "thumb": "data/thumbs/52-41-7.svg"
         }
       ]
     }
