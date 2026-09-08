@@ -1,257 +1,341 @@
 {
   "meta": {
     "title": "Nilai Tambah Proses — Refleksi Pembelajaran",
-    "subtitle": "Nilai tambahan dari kelengkapan refleksi What We Have Learnt (kelas 51 & 52).",
+    "subtitle": "Nilai tambahan dari kelengkapan refleksi What We Have Learnt dan jumlah website di gallery.",
     "updated": "2026-09-08",
-    "note": "Nilai ini bersifat proses dan dapat berubah seiring pembaruan refleksi santriwati. Rincian perhitungan bersifat internal guru.",
-    "docsUrl": "https://docs.google.com/document/d/12zjFUs-ZihCvIqeINS8YbXF8revUSnQmZO2y7Njqe8k/edit?usp=sharing"
+    "note": "Nilai ini bersifat proses dan dapat berubah seiring pembaruan refleksi serta karya di gallery.",
+    "docsUrl": "https://docs.google.com/document/d/12zjFUs-ZihCvIqeINS8YbXF8revUSnQmZO2y7Njqe8k/edit?usp=sharing",
+    "maxWorks": 8,
+    "worksRule": "Jumlah website terbanyak saat ini (8) = 100%."
   },
   "students": [
     {
       "id": "51-12",
       "name": "Putri Donita",
       "class": "51",
-      "bonus": 100
+      "bonus": 100,
+      "works": 5,
+      "worksBonus": 62
     },
     {
       "id": "51-5",
       "name": "Haniffah Amallia",
       "class": "51",
-      "bonus": 99
+      "bonus": 99,
+      "works": 3,
+      "worksBonus": 38
     },
     {
       "id": "51-4",
       "name": "Hafiza Khaira",
       "class": "51",
-      "bonus": 91
+      "bonus": 91,
+      "works": 7,
+      "worksBonus": 88
     },
     {
       "id": "51-7",
       "name": "Khansa Aura",
       "class": "51",
-      "bonus": 88
+      "bonus": 88,
+      "works": 3,
+      "worksBonus": 38
     },
     {
       "id": "51-6",
       "name": "Kartika Chandra",
       "class": "51",
-      "bonus": 87
+      "bonus": 87,
+      "works": 4,
+      "worksBonus": 50
     },
     {
       "id": "51-10",
       "name": "Nadya Wafa",
       "class": "51",
-      "bonus": 86
+      "bonus": 86,
+      "works": 4,
+      "worksBonus": 50
     },
     {
       "id": "51-3",
       "name": "Bunga Fella",
       "class": "51",
-      "bonus": 83
+      "bonus": 83,
+      "works": 1,
+      "worksBonus": 12
     },
     {
       "id": "51-13",
       "name": "Rezkya Putri Novianti",
       "class": "51",
-      "bonus": 82
+      "bonus": 82,
+      "works": 4,
+      "worksBonus": 50
     },
     {
       "id": "51-2",
       "name": "Bintang Pertiwi",
       "class": "51",
-      "bonus": 80
+      "bonus": 80,
+      "works": 4,
+      "worksBonus": 50
     },
     {
       "id": "51-16",
       "name": "Samsa Baina Sabiha",
       "class": "51",
-      "bonus": 79
+      "bonus": 79,
+      "works": 1,
+      "worksBonus": 12
     },
     {
       "id": "51-1",
       "name": "Anindya Yahya",
       "class": "51",
-      "bonus": 78
+      "bonus": 78,
+      "works": 5,
+      "worksBonus": 62
     },
     {
       "id": "51-9",
       "name": "Lubna Anindya",
       "class": "51",
-      "bonus": 78
+      "bonus": 78,
+      "works": 1,
+      "worksBonus": 12
     },
     {
       "id": "51-8",
       "name": "Lathifah Khairunnisa",
       "class": "51",
-      "bonus": 74
+      "bonus": 74,
+      "works": 4,
+      "worksBonus": 50
     },
     {
       "id": "51-15",
       "name": "Salsabila Kirana",
       "class": "51",
-      "bonus": 68
+      "bonus": 68,
+      "works": 4,
+      "worksBonus": 50
     },
     {
       "id": "51-18",
       "name": "Tania Amanda",
       "class": "51",
-      "bonus": 67
+      "bonus": 67,
+      "works": 3,
+      "worksBonus": 38
     },
     {
       "id": "51-19",
       "name": "Widiya Sari",
       "class": "51",
-      "bonus": 65
+      "bonus": 65,
+      "works": 1,
+      "worksBonus": 12
     },
     {
       "id": "51-20",
       "name": "Ziya Ulhaq",
       "class": "51",
-      "bonus": 64
+      "bonus": 64,
+      "works": 4,
+      "worksBonus": 50
     },
     {
       "id": "51-17",
       "name": "Shafiyyah Az-zahra",
       "class": "51",
-      "bonus": 57
+      "bonus": 57,
+      "works": 2,
+      "worksBonus": 25
     },
     {
       "id": "51-11",
       "name": "Naysilla Nadine",
       "class": "51",
-      "bonus": 52
+      "bonus": 52,
+      "works": 5,
+      "worksBonus": 62
     },
     {
       "id": "51-14",
       "name": "Rily Avfianca",
       "class": "51",
-      "bonus": 0
+      "bonus": 0,
+      "works": 1,
+      "worksBonus": 12
     },
     {
       "id": "52-34",
       "name": "Rindu Putri Yasmin",
       "class": "52",
-      "bonus": 92
+      "bonus": 92,
+      "works": 5,
+      "worksBonus": 62
     },
     {
       "id": "52-22",
       "name": "Aneira Syiami Zulfa",
       "class": "52",
-      "bonus": 90
+      "bonus": 90,
+      "works": 6,
+      "worksBonus": 75
     },
     {
       "id": "52-40",
       "name": "Yasmin Indira Dewi",
       "class": "52",
-      "bonus": 84
+      "bonus": 84,
+      "works": 7,
+      "worksBonus": 88
     },
     {
       "id": "52-25",
       "name": "Dina Aulia Khairunisa",
       "class": "52",
-      "bonus": 75
+      "bonus": 75,
+      "works": 5,
+      "worksBonus": 62
     },
     {
       "id": "52-26",
       "name": "Firzaa Halwa Izzatii",
       "class": "52",
-      "bonus": 72
+      "bonus": 72,
+      "works": 2,
+      "worksBonus": 25
     },
     {
       "id": "52-39",
       "name": "Wifa Jelita Putri",
       "class": "52",
-      "bonus": 71
+      "bonus": 71,
+      "works": 5,
+      "worksBonus": 62
     },
     {
       "id": "52-37",
       "name": "Thania Aulia Salsabila",
       "class": "52",
-      "bonus": 70
+      "bonus": 70,
+      "works": 6,
+      "worksBonus": 75
     },
     {
       "id": "52-32",
       "name": "Nazwa Febrian Maulida",
       "class": "52",
-      "bonus": 63
+      "bonus": 63,
+      "works": 5,
+      "worksBonus": 62
     },
     {
       "id": "52-41",
       "name": "Nikeisha Belva Azzahra",
       "class": "52",
-      "bonus": 62
+      "bonus": 62,
+      "works": 7,
+      "worksBonus": 88
     },
     {
       "id": "52-29",
       "name": "Khansa Nida Nafisah",
       "class": "52",
-      "bonus": 61
+      "bonus": 61,
+      "works": 6,
+      "worksBonus": 75
     },
     {
       "id": "52-35",
       "name": "Risma Jian Humaira",
       "class": "52",
-      "bonus": 60
+      "bonus": 60,
+      "works": 6,
+      "worksBonus": 75
     },
     {
       "id": "52-30",
       "name": "Khanza Hazirah",
       "class": "52",
-      "bonus": 59
+      "bonus": 59,
+      "works": 6,
+      "worksBonus": 75
     },
     {
       "id": "52-21",
       "name": "Adinda Dwi Muliasari",
       "class": "52",
-      "bonus": 58
+      "bonus": 58,
+      "works": 8,
+      "worksBonus": 100
     },
     {
       "id": "52-28",
       "name": "Hafinzah Islami Madinah",
       "class": "52",
-      "bonus": 56
+      "bonus": 56,
+      "works": 8,
+      "worksBonus": 100
     },
     {
       "id": "52-23",
       "name": "Carissa Chikal Maghfirah",
       "class": "52",
-      "bonus": 55
+      "bonus": 55,
+      "works": 5,
+      "worksBonus": 62
     },
     {
       "id": "52-38",
       "name": "Viorine Allinesia",
       "class": "52",
-      "bonus": 53
+      "bonus": 53,
+      "works": 4,
+      "worksBonus": 50
     },
     {
       "id": "52-24",
       "name": "Chelsea Conera",
       "class": "52",
-      "bonus": 51
+      "bonus": 51,
+      "works": 2,
+      "worksBonus": 25
     },
     {
       "id": "52-31",
       "name": "Najla Sa'adah",
       "class": "52",
-      "bonus": 49
+      "bonus": 49,
+      "works": 1,
+      "worksBonus": 12
     },
     {
       "id": "52-33",
       "name": "Rezkya Ananda Putri",
       "class": "52",
-      "bonus": 48
+      "bonus": 48,
+      "works": 5,
+      "worksBonus": 62
     },
     {
       "id": "52-27",
       "name": "Fitriani Ramadhani",
       "class": "52",
-      "bonus": 0
+      "bonus": 0,
+      "works": 6,
+      "worksBonus": 75
     },
     {
       "id": "52-36",
       "name": "Syifa Azka",
       "class": "52",
-      "bonus": 0
+      "bonus": 0,
+      "works": 4,
+      "worksBonus": 50
     }
   ]
 }
