@@ -3,7 +3,7 @@
     "title": "Galeri Web Kreasi Santriwati",
     "subtitle": "Kumpulan karya Web Design santriwati SMA PMA",
     "brand": "Silverhawk",
-    "source": "Data kelas 51 & 52 + update Google Docs Sept 2026",
+    "source": "Data kelas 51 & 52 + update Google Docs Sept 2026 (kls 51+52)",
     "updated": "2026-09-03"
   },
   "students": [
@@ -909,6 +909,36 @@
           ],
           "description": "Game puzzle pink.",
           "thumb": "data/thumbs/52-21-5.svg"
+        },
+        {
+          "title": "Bakmi Mulia Jatiasih",
+          "url": "https://adindadwimulia.github.io/bakmimuliajatiasih/",
+          "category": "Kuliner",
+          "tags": [
+            "bakmi"
+          ],
+          "description": "Karya website Bakmi Mulia Jatiasih oleh Adinda Dwi Muliasari.",
+          "thumb": "data/thumbs/52-21-6.svg"
+        },
+        {
+          "title": "Happy Birthday Hani",
+          "url": "https://adindadwimulia.github.io/happybirhtdayhaniii/",
+          "category": "Web Kreatif",
+          "tags": [
+            "birthday"
+          ],
+          "description": "Karya website Happy Birthday Hani oleh Adinda Dwi Muliasari.",
+          "thumb": "data/thumbs/52-21-7.svg"
+        },
+        {
+          "title": "Mushola Al-Aziz",
+          "url": "https://adindadwimulia.github.io/musholaalaziz/",
+          "category": "Display Masjid",
+          "tags": [
+            "mushola"
+          ],
+          "description": "Karya website Mushola Al-Aziz oleh Adinda Dwi Muliasari.",
+          "thumb": "data/thumbs/52-21-8.svg"
         }
       ]
     },
@@ -1128,6 +1158,16 @@
           ],
           "description": "Aplikasi belajar tajweed.",
           "thumb": "data/thumbs/52-25-4.svg"
+        },
+        {
+          "title": "Catur Jawa",
+          "url": "https://dinahanoom.github.io/caturjawa/",
+          "category": "Game",
+          "tags": [
+            "catur"
+          ],
+          "description": "Karya website Catur Jawa oleh Dina Aulia Khairunisa.",
+          "thumb": "data/thumbs/52-25-5.svg"
         }
       ]
     },
@@ -1221,6 +1261,17 @@
           ],
           "description": "Website kreasi bertema garden dengan eksplorasi tampilan visual dan pengalaman pengguna.",
           "thumb": "data/thumbs/52-27-5.svg"
+        },
+        {
+          "title": "Hi Club Swim",
+          "url": "https://hanidhanif.github.io/hiclubswim/",
+          "category": "Lifestyle",
+          "tags": [
+            "swim",
+            "club"
+          ],
+          "description": "Karya website Hi Club Swim oleh Fitriani Ramadhani.",
+          "thumb": "data/thumbs/52-27-6.svg"
         }
       ]
     },
@@ -1273,6 +1324,46 @@
           ],
           "description": "Website layanan fotocopy.",
           "thumb": "data/thumbs/52-28-4.svg"
+        },
+        {
+          "title": "Hafinzah Fotocopy",
+          "url": "https://hafinzahislamimadinah.github.io/hafinzahfotocopyy/",
+          "category": "Web Kreatif",
+          "tags": [
+            "fotocopy"
+          ],
+          "description": "Karya website Hafinzah Fotocopy oleh Hafinzah Islami Madinah.",
+          "thumb": "data/thumbs/52-28-5.svg"
+        },
+        {
+          "title": "Masjid An-Nur Shobar Rahman",
+          "url": "https://hafinzahislamimadinah.github.io/masjid-annur-shobar-rahman/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid"
+          ],
+          "description": "Karya website Masjid An-Nur Shobar Rahman oleh Hafinzah Islami Madinah.",
+          "thumb": "data/thumbs/52-28-6.svg"
+        },
+        {
+          "title": "Fotocopy",
+          "url": "https://hafinzahislamimadinah.github.io/fotocopy/",
+          "category": "Web Kreatif",
+          "tags": [
+            "fotocopy"
+          ],
+          "description": "Karya website Fotocopy oleh Hafinzah Islami Madinah.",
+          "thumb": "data/thumbs/52-28-7.svg"
+        },
+        {
+          "title": "Game Shafhaf",
+          "url": "https://hafinzahislamimadinah.github.io/gameshafhaf/",
+          "category": "Game",
+          "tags": [
+            "game"
+          ],
+          "description": "Karya website Game Shafhaf oleh Hafinzah Islami Madinah.",
+          "thumb": "data/thumbs/52-28-8.svg"
         }
       ]
     },
@@ -1320,6 +1411,26 @@
           ],
           "description": "Website kreatif Apa Aja Lah.",
           "thumb": "data/thumbs/52-29-4.svg"
+        },
+        {
+          "title": "Cookiees",
+          "url": "https://khansanidapma.github.io/cookiees/",
+          "category": "Kuliner",
+          "tags": [
+            "cookie"
+          ],
+          "description": "Karya website Cookiees oleh Khansa Nida Nafisah.",
+          "thumb": "data/thumbs/52-29-5.svg"
+        },
+        {
+          "title": "Catur Jawa",
+          "url": "https://khansanidapma.github.io/caturjawa/",
+          "category": "Game",
+          "tags": [
+            "catur"
+          ],
+          "description": "Karya website Catur Jawa oleh Khansa Nida Nafisah.",
+          "thumb": "data/thumbs/52-29-6.svg"
         }
       ]
     },
@@ -1372,6 +1483,26 @@
           ],
           "description": "Website kreatif NJA.",
           "thumb": "data/thumbs/52-30-4.svg"
+        },
+        {
+          "title": "Dream NJA",
+          "url": "https://kanja41-a11y.github.io/dreamnja/",
+          "category": "Web Kreatif",
+          "tags": [
+            "dream"
+          ],
+          "description": "Karya website Dream NJA oleh Khanza Hazirah.",
+          "thumb": "data/thumbs/52-30-5.svg"
+        },
+        {
+          "title": "Anim CHR",
+          "url": "https://kanja41-a11y.github.io/AnimCHR/",
+          "category": "Web Kreatif",
+          "tags": [
+            "animasi"
+          ],
+          "description": "Karya website Anim CHR oleh Khanza Hazirah.",
+          "thumb": "data/thumbs/52-30-6.svg"
         }
       ]
     },
@@ -1443,6 +1574,16 @@
           ],
           "description": "Simulasi SNBT.",
           "thumb": "data/thumbs/52-32-4.svg"
+        },
+        {
+          "title": "Masjid Al-Faruq",
+          "url": "https://nazwafebrianm.github.io/masjid-al-faruq/",
+          "category": "Display Masjid",
+          "tags": [
+            "masjid"
+          ],
+          "description": "Karya website Masjid Al-Faruq oleh Nazwa Febrian Maulida.",
+          "thumb": "data/thumbs/52-32-5.svg"
         }
       ]
     },
@@ -1758,6 +1899,16 @@
           ],
           "description": "Website ramen.",
           "thumb": "data/thumbs/52-37-5.svg"
+        },
+        {
+          "title": "Our Games Puzzle",
+          "url": "https://thaniaaulia.github.io/ourgamespuzzle/",
+          "category": "Game",
+          "tags": [
+            "puzzle"
+          ],
+          "description": "Karya website Our Games Puzzle oleh Thania Aulia Salsabila.",
+          "thumb": "data/thumbs/52-37-6.svg"
         }
       ]
     },
@@ -1859,6 +2010,17 @@
           ],
           "description": "Journal digital Twilight.",
           "thumb": "data/thumbs/52-39-4.svg"
+        },
+        {
+          "title": "Bartender Simulation",
+          "url": "https://wifajelita.github.io/BartenderSimulation/",
+          "category": "Game",
+          "tags": [
+            "bartender",
+            "simulasi"
+          ],
+          "description": "Karya website Bartender Simulation oleh Wifa Jelita Putri.",
+          "thumb": "data/thumbs/52-39-5.svg"
         }
       ]
     },
@@ -1934,6 +2096,16 @@
           ],
           "description": "Website sistem tubuh manusia.",
           "thumb": "data/thumbs/52-40-6.svg"
+        },
+        {
+          "title": "Humann",
+          "url": "https://yasminindira.github.io/humann/",
+          "category": "Web Kreatif",
+          "tags": [
+            "human"
+          ],
+          "description": "Karya website Humann oleh Yasmin Indira Dewi.",
+          "thumb": "data/thumbs/52-40-7.svg"
         }
       ]
     },
@@ -1966,6 +2138,51 @@
           ],
           "description": "Aplikasi sekolah Barbie.",
           "thumb": "data/thumbs/52-41-2.svg"
+        },
+        {
+          "title": "Belva Bakes",
+          "url": "https://nikeishabelva.github.io/belva-bakes-/",
+          "category": "Kuliner",
+          "tags": [
+            "toko",
+            "roti",
+            "bakery"
+          ],
+          "description": "Karya website Belva Bakes oleh Nikeisha Belva Azzahra.",
+          "thumb": "data/thumbs/52-41-3.svg"
+        },
+        {
+          "title": "Barbie Nails",
+          "url": "https://nikeishabelva.github.io/barbienails/",
+          "category": "Beauty",
+          "tags": [
+            "nail",
+            "art"
+          ],
+          "description": "Karya website Barbie Nails oleh Nikeisha Belva Azzahra.",
+          "thumb": "data/thumbs/52-41-4.svg"
+        },
+        {
+          "title": "Squishyyy",
+          "url": "https://nikeishabelva.github.io/squishyyy/",
+          "category": "E-Commerce",
+          "tags": [
+            "squishy",
+            "toko"
+          ],
+          "description": "Karya website Squishyyy oleh Nikeisha Belva Azzahra.",
+          "thumb": "data/thumbs/52-41-5.svg"
+        },
+        {
+          "title": "Tumbly",
+          "url": "https://nikeishabelva.github.io/tumbly/",
+          "category": "E-Commerce",
+          "tags": [
+            "tumbler",
+            "toko"
+          ],
+          "description": "Karya website Tumbly oleh Nikeisha Belva Azzahra.",
+          "thumb": "data/thumbs/52-41-6.svg"
         }
       ]
     }
