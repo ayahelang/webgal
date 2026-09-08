@@ -187,3 +187,7 @@ footer{max-width:1240px;margin:auto;padding:22px 24px 35px;border-top:1px solid 
 .bonus-bar i{display:block;height:8px;border-radius:99px;max-width:110px}
 .bonus-bar span{font-size:13px;font-weight:700;color:#dffbff;min-width:28px}
 @media (max-width:640px){.bonus-row{grid-template-columns:1fr;gap:6px}.bonus-bar i{max-width:100%;flex:1}}
+
+.bonus-row-2{grid-template-columns:70px 1.2fr 1fr 1fr}
+.bonus-metric small{display:block;font-size:10px;color:#7f97a3;margin-bottom:4px;letter-spacing:.3px}
+@media (max-width:800px){.bonus-row-2{grid-template-columns:1fr}}

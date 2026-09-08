@@ -28,17 +28,23 @@
     </section>
     <section class="stats" id="sumStats" style="margin-bottom:28px"></section>
     <section>
-      <div class="toolbar" style="margin-bottom:16px">
+      <div class="toolbar" style="margin-bottom:16px;flex-wrap:wrap;gap:10px">
         <div class="filters" role="group">
           <button class="filter active" data-class="all">Semua</button>
           <button class="filter" data-class="51">Kelas 51</button>
           <button class="filter" data-class="52">Kelas 52</button>
         </div>
         <select id="sortSelect" class="sort">
-          <option value="bonus">Nilai tertinggi</option>
+          <option value="bonus">Refleksi tertinggi</option>
+          <option value="works">Website tertinggi</option>
           <option value="name">A–Z Nama</option>
           <option value="class">Kelas</option>
         </select>
+        <div class="filters" role="group" aria-label="Unduh nilai">
+          <button class="filter" type="button" id="dl51">Unduh Kls 51</button>
+          <button class="filter" type="button" id="dl52">Unduh Kls 52</button>
+          <button class="filter" type="button" id="dlAll">Unduh Semua</button>
+        </div>
       </div>
       <div id="list" class="bonus-list"></div>
     </section>
