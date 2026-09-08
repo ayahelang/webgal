@@ -177,3 +177,13 @@ footer{max-width:1240px;margin:auto;padding:22px 24px 35px;border-top:1px solid 
 .doc-card small{font-size:12px;color:#8aa0ab;line-height:1.45}
 .doc-card em{margin-top:8px;font-style:normal;font-size:11px;color:#a9eafa;font-weight:700}
 @media (max-width:700px){.docs-grid{grid-template-columns:1fr}}
+
+/* Refleksi bonus */
+.bonus-list{display:flex;flex-direction:column;gap:8px}
+.bonus-row{display:grid;grid-template-columns:70px 1fr 160px;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.03)}
+.badge-kelas{font-size:10px;letter-spacing:.5px;padding:4px 7px;border-radius:7px;border:1px solid var(--line);color:#9bb4c0}
+.bonus-name{font-weight:600;font-size:14px;color:#e8f4f8}
+.bonus-bar{display:flex;align-items:center;gap:8px}
+.bonus-bar i{display:block;height:8px;border-radius:99px;max-width:110px}
+.bonus-bar span{font-size:13px;font-weight:700;color:#dffbff;min-width:28px}
+@media (max-width:640px){.bonus-row{grid-template-columns:1fr;gap:6px}.bonus-bar i{max-width:100%;flex:1}}

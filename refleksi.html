@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#081018">
+  <title>Nilai Proses Refleksi — Silverhawk</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-skills">
+  <div class="bg-grid"></div>
+  <div class="orb orb-a"></div><div class="orb orb-b"></div>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Student Web Gallery</small></span></a>
+    <nav class="topnav">
+      <a href="index.html">Gallery</a>
+      <a href="skills.html">Skills Map</a>
+      <a href="kisi-kisi.html">Kisi-Kisi STS</a>
+      <a href="refleksi.html" class="active">Nilai Proses</a>
+    </nav>
+  </header>
+  <main class="skills-main">
+    <section class="skills-hero">
+      <div class="eyebrow">PROCESS BONUS · WHAT WE HAVE LEARNT</div>
+      <h1>Nilai Tambah Proses</h1>
+      <p class="skills-lead" id="lead"></p>
+      <p class="muted" id="updated" style="margin-top:8px"></p>
+    </section>
+    <section class="stats" id="sumStats" style="margin-bottom:28px"></section>
+    <section>
+      <div class="toolbar" style="margin-bottom:16px">
+        <div class="filters" role="group">
+          <button class="filter active" data-class="all">Semua</button>
+          <button class="filter" data-class="51">Kelas 51</button>
+          <button class="filter" data-class="52">Kelas 52</button>
+        </div>
+        <select id="sortSelect" class="sort">
+          <option value="bonus">Nilai tertinggi</option>
+          <option value="name">A–Z Nama</option>
+          <option value="class">Kelas</option>
+        </select>
+      </div>
+      <div id="list" class="bonus-list"></div>
+    </section>
+  </main>
+  <footer>
+    <div><span class="brand-mark small">SH</span><b>Silverhawk</b></div>
+    <span>© 2026 · SMA PMA · SMM</span>
+  </footer>
+  <script src="js/refleksi.js"></script>
+</body>
+</html>
