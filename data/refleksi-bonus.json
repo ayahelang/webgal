@@ -1,0 +1,257 @@
+{
+  "meta": {
+    "title": "Nilai Tambah Proses — Refleksi Pembelajaran",
+    "subtitle": "Nilai tambahan dari kelengkapan refleksi What We Have Learnt (kelas 51 & 52).",
+    "updated": "2026-09-08",
+    "note": "Nilai ini bersifat proses dan dapat berubah seiring pembaruan refleksi santriwati. Rincian perhitungan bersifat internal guru.",
+    "docsUrl": "https://docs.google.com/document/d/12zjFUs-ZihCvIqeINS8YbXF8revUSnQmZO2y7Njqe8k/edit?usp=sharing"
+  },
+  "students": [
+    {
+      "id": "51-12",
+      "name": "Putri Donita",
+      "class": "51",
+      "bonus": 100
+    },
+    {
+      "id": "51-5",
+      "name": "Haniffah Amallia",
+      "class": "51",
+      "bonus": 99
+    },
+    {
+      "id": "51-4",
+      "name": "Hafiza Khaira",
+      "class": "51",
+      "bonus": 91
+    },
+    {
+      "id": "51-7",
+      "name": "Khansa Aura",
+      "class": "51",
+      "bonus": 88
+    },
+    {
+      "id": "51-6",
+      "name": "Kartika Chandra",
+      "class": "51",
+      "bonus": 87
+    },
+    {
+      "id": "51-10",
+      "name": "Nadya Wafa",
+      "class": "51",
+      "bonus": 86
+    },
+    {
+      "id": "51-3",
+      "name": "Bunga Fella",
+      "class": "51",
+      "bonus": 83
+    },
+    {
+      "id": "51-13",
+      "name": "Rezkya Putri Novianti",
+      "class": "51",
+      "bonus": 82
+    },
+    {
+      "id": "51-2",
+      "name": "Bintang Pertiwi",
+      "class": "51",
+      "bonus": 80
+    },
+    {
+      "id": "51-16",
+      "name": "Samsa Baina Sabiha",
+      "class": "51",
+      "bonus": 79
+    },
+    {
+      "id": "51-1",
+      "name": "Anindya Yahya",
+      "class": "51",
+      "bonus": 78
+    },
+    {
+      "id": "51-9",
+      "name": "Lubna Anindya",
+      "class": "51",
+      "bonus": 78
+    },
+    {
+      "id": "51-8",
+      "name": "Lathifah Khairunnisa",
+      "class": "51",
+      "bonus": 74
+    },
+    {
+      "id": "51-15",
+      "name": "Salsabila Kirana",
+      "class": "51",
+      "bonus": 68
+    },
+    {
+      "id": "51-18",
+      "name": "Tania Amanda",
+      "class": "51",
+      "bonus": 67
+    },
+    {
+      "id": "51-19",
+      "name": "Widiya Sari",
+      "class": "51",
+      "bonus": 65
+    },
+    {
+      "id": "51-20",
+      "name": "Ziya Ulhaq",
+      "class": "51",
+      "bonus": 64
+    },
+    {
+      "id": "51-17",
+      "name": "Shafiyyah Az-zahra",
+      "class": "51",
+      "bonus": 57
+    },
+    {
+      "id": "51-11",
+      "name": "Naysilla Nadine",
+      "class": "51",
+      "bonus": 52
+    },
+    {
+      "id": "51-14",
+      "name": "Rily Avfianca",
+      "class": "51",
+      "bonus": 0
+    },
+    {
+      "id": "52-34",
+      "name": "Rindu Putri Yasmin",
+      "class": "52",
+      "bonus": 92
+    },
+    {
+      "id": "52-22",
+      "name": "Aneira Syiami Zulfa",
+      "class": "52",
+      "bonus": 90
+    },
+    {
+      "id": "52-40",
+      "name": "Yasmin Indira Dewi",
+      "class": "52",
+      "bonus": 84
+    },
+    {
+      "id": "52-25",
+      "name": "Dina Aulia Khairunisa",
+      "class": "52",
+      "bonus": 75
+    },
+    {
+      "id": "52-26",
+      "name": "Firzaa Halwa Izzatii",
+      "class": "52",
+      "bonus": 72
+    },
+    {
+      "id": "52-39",
+      "name": "Wifa Jelita Putri",
+      "class": "52",
+      "bonus": 71
+    },
+    {
+      "id": "52-37",
+      "name": "Thania Aulia Salsabila",
+      "class": "52",
+      "bonus": 70
+    },
+    {
+      "id": "52-32",
+      "name": "Nazwa Febrian Maulida",
+      "class": "52",
+      "bonus": 63
+    },
+    {
+      "id": "52-41",
+      "name": "Nikeisha Belva Azzahra",
+      "class": "52",
+      "bonus": 62
+    },
+    {
+      "id": "52-29",
+      "name": "Khansa Nida Nafisah",
+      "class": "52",
+      "bonus": 61
+    },
+    {
+      "id": "52-35",
+      "name": "Risma Jian Humaira",
+      "class": "52",
+      "bonus": 60
+    },
+    {
+      "id": "52-30",
+      "name": "Khanza Hazirah",
+      "class": "52",
+      "bonus": 59
+    },
+    {
+      "id": "52-21",
+      "name": "Adinda Dwi Muliasari",
+      "class": "52",
+      "bonus": 58
+    },
+    {
+      "id": "52-28",
+      "name": "Hafinzah Islami Madinah",
+      "class": "52",
+      "bonus": 56
+    },
+    {
+      "id": "52-23",
+      "name": "Carissa Chikal Maghfirah",
+      "class": "52",
+      "bonus": 55
+    },
+    {
+      "id": "52-38",
+      "name": "Viorine Allinesia",
+      "class": "52",
+      "bonus": 53
+    },
+    {
+      "id": "52-24",
+      "name": "Chelsea Conera",
+      "class": "52",
+      "bonus": 51
+    },
+    {
+      "id": "52-31",
+      "name": "Najla Sa'adah",
+      "class": "52",
+      "bonus": 49
+    },
+    {
+      "id": "52-33",
+      "name": "Rezkya Ananda Putri",
+      "class": "52",
+      "bonus": 48
+    },
+    {
+      "id": "52-27",
+      "name": "Fitriani Ramadhani",
+      "class": "52",
+      "bonus": 0
+    },
+    {
+      "id": "52-36",
+      "name": "Syifa Azka",
+      "class": "52",
+      "bonus": 0
+    }
+  ]
+}
