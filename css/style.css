@@ -166,3 +166,14 @@ footer{max-width:1240px;margin:auto;padding:22px 24px 35px;border-top:1px solid 
   .skill-head{display:none}
   .skill-level{margin:4px 0}
 }
+
+/* Curriculum download cards */
+.skills-docs{margin-top:48px}
+.docs-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}
+.doc-card{display:flex;flex-direction:column;gap:6px;padding:18px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(145deg,rgba(17,30,39,.9),rgba(7,13,18,.94));transition:.2s}
+.doc-card:hover{border-color:rgba(125,227,255,.35);transform:translateY(-3px);box-shadow:0 16px 40px rgba(0,0,0,.25)}
+.doc-icon{font-size:10px;letter-spacing:1.5px;font-weight:800;color:#7de3ff}
+.doc-card b{font-size:15px;color:#eef7fb}
+.doc-card small{font-size:12px;color:#8aa0ab;line-height:1.45}
+.doc-card em{margin-top:8px;font-style:normal;font-size:11px;color:#a9eafa;font-weight:700}
+@media (max-width:700px){.docs-grid{grid-template-columns:1fr}}
