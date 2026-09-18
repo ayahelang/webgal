@@ -1,6 +1,5 @@
 /**
- * Silverhawk Gallery — Supabase data layer
- * Gallery load: Supabase dulu, fallback JSON jika belum dikonfigurasi / offline.
+ * Silverhawk Gallery — Supabase data layer (revisi)
  */
 (function (global) {
   function cfg() {
@@ -12,12 +11,12 @@
   }
   function client() {
     if (!enabled()) return null;
-    if (!global.supabase || !global.supabase.createClient) {
-      console.warn("Supabase JS SDK belum dimuat");
-      return null;
-    }
+    if (!global.supabase || !global.supabase.createClient) return null;
     if (!global.__gallerySb) {
-      global.__gallerySb = global.supabase.createClient(String(cfg().url).replace(/\/$/, ""), cfg().anonKey);
+      global.__gallerySb = global.supabase.createClient(
+        String(cfg().url).replace(/\/$/, ""),
+        cfg().anonKey
+      );
     }
     return global.__gallerySb;
   }
@@ -28,6 +27,10 @@
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
+  }
+
+  function normUrl(u) {
+    return String(u || "").trim().replace(/\/+$/, "").toLowerCase();
   }
 
   async function getSubmitCode() {
@@ -60,7 +63,7 @@
       .select("id,label,label_norm")
       .single();
     if (error) {
-      if (String(error.message || "").includes("duplicate") || error.code === "23505") {
+      if (error.code === "23505" || String(error.message || "").includes("duplicate")) {
         const { data: again } = await sb.from("gallery_angkatan").select("id,label,label_norm").eq("label_norm", ln).maybeSingle();
         if (again) return { row: again, created: false };
       }
@@ -78,11 +81,13 @@
     }
     const nm = String(name || "").trim();
     if (nm.length < 2) throw new Error("Nama terlalu pendek.");
-    const links = (websites || []).map((w) => ({
-      title: String(w.title || "Website").trim() || "Website",
-      url: String(w.url || "").trim(),
-      category: String(w.category || "Web Kreatif").trim() || "Web Kreatif",
-    })).filter((w) => /^https?:\/\//i.test(w.url));
+    const links = (websites || [])
+      .map((w) => ({
+        title: String(w.title || "Website").trim() || "Website",
+        url: String(w.url || "").trim(),
+        category: String(w.category || "Web Kreatif").trim() || "Web Kreatif",
+      }))
+      .filter((w) => /^https?:\/\//i.test(w.url));
     if (!links.length) throw new Error("Minimal satu URL website valid (http/https).");
 
     let angkatanId;
@@ -91,7 +96,9 @@
       angkatanId = row.id;
     } else {
       const list = await listAngkatan();
-      const found = list.find((a) => a.id === angkatanLabel || a.label === angkatanLabel || a.label_norm === normLabel(angkatanLabel));
+      const found = list.find(
+        (a) => a.id === angkatanLabel || a.label === angkatanLabel || a.label_norm === normLabel(angkatanLabel)
+      );
       if (!found) throw new Error("Angkatan tidak ditemukan.");
       angkatanId = found.id;
     }
@@ -134,51 +141,147 @@
     return { alumniId, added, skipped: links.length - added };
   }
 
-  /** Ubah baris DB → format GALLERY_DATA lama agar app.js lama tetap jalan */
-  async function fetchGalleryData() {
+  async function fetchGalleryFromDb() {
     const sb = client();
     if (!sb) return null;
+
+    // Query terpisah agar tidak gagal karena relasi nested
     const { data: alumni, error: e1 } = await sb
       .from("gallery_alumni")
-      .select("id,name,school,role,legacy_id,angkatan_id, gallery_angkatan(label), gallery_websites(id,title,url,category,description,tags,created_at)");
+      .select("id,name,school,role,legacy_id,class_code,angkatan_id,avatar_emoji");
     if (e1) throw e1;
-    const students = (alumni || []).map((a, idx) => {
-      const label = (a.gallery_angkatan && a.gallery_angkatan.label) || "—";
-      const classCode = String(label).replace(/^Kelas\s+/i, "").trim() || label;
-      const works = (a.gallery_websites || []).map((w, i) => ({
-        title: w.title,
-        url: w.url,
-        category: w.category || "Web Kreatif",
-        tags: w.tags || [],
-        description: w.description || "",
-        thumb: "", // thumbnail dinamis di UI
-      }));
-      return {
-        id: a.legacy_id || a.id,
-        name: a.name,
-        class: classCode,
-        school: a.school || "SMA PMA",
-        role: a.role || "Alumni",
-        aiTool: "",
-        works,
-      };
-    }).filter((s) => s.works && s.works.length);
+    if (!alumni || !alumni.length) return { students: [] };
+
+    const { data: angkatan, error: e2 } = await sb.from("gallery_angkatan").select("id,label,label_norm");
+    if (e2) throw e2;
+    const angMap = Object.fromEntries((angkatan || []).map((a) => [a.id, a]));
+
+    const { data: websites, error: e3 } = await sb
+      .from("gallery_websites")
+      .select("id,alumni_id,title,url,category,description,tags");
+    if (e3) throw e3;
+
+    const byAlumni = {};
+    (websites || []).forEach((w) => {
+      if (!byAlumni[w.alumni_id]) byAlumni[w.alumni_id] = [];
+      byAlumni[w.alumni_id].push(w);
+    });
+
+    const students = alumni
+      .map((a) => {
+        const ang = angMap[a.angkatan_id] || {};
+        const label = ang.label || "";
+        const classCode = a.class_code || String(label).replace(/^Kelas\s+/i, "").replace(/\s*·.*$/, "").trim() || label;
+        const works = (byAlumni[a.id] || []).map((w) => ({
+          title: w.title,
+          url: w.url,
+          category: w.category || "Web Kreatif",
+          tags: w.tags || [],
+          description: w.description || "",
+          thumb: "", // di-generate otomatis di UI
+        }));
+        // angkatan year hint
+        let angkatanYear = "";
+        const m = String(label).match(/20\d{2}/);
+        if (m) angkatanYear = m[0];
+        return {
+          id: a.legacy_id || a.id,
+          name: a.name,
+          class: classCode,
+          classLabel: label || classCode,
+          angkatan: angkatanYear,
+          school: a.school || "SMA PMA",
+          role: a.role || "Alumni",
+          aiTool: "",
+          avatar: a.avatar_emoji || "🎓",
+          works,
+        };
+      })
+      .filter((s) => s.works && s.works.length);
+
     return {
       meta: {
         title: "Galeri Web Kreasi Santriwati",
-        subtitle: "Kenang-kenangan karya digital — live dari database",
+        subtitle: "Data live Supabase",
         brand: "Silverhawk",
-        source: "Supabase gallery_*",
+        source: "Supabase",
         updated: new Date().toISOString().slice(0, 10),
       },
       students,
     };
   }
 
+  /** Gabungkan DB + JSON: URL unik, JSON tidak boleh hilang */
+  function mergeGallery(jsonData, dbData) {
+    const base = jsonData && jsonData.students ? jsonData : { meta: {}, students: [] };
+    const extra = dbData && dbData.students ? dbData.students : [];
+
+    // index JSON by name+class and collect all urls
+    const urlOwner = new Map();
+    const students = base.students.map((s) => {
+      const copy = {
+        ...s,
+        angkatan: s.angkatan || "2025",
+        classLabel: s.classLabel || `Kelas ${s.class} · 2025`,
+        works: (s.works || []).map((w) => ({ ...w })),
+      };
+      copy.works.forEach((w) => urlOwner.set(normUrl(w.url), true));
+      return copy;
+    });
+
+    const byKey = new Map();
+    students.forEach((s) => {
+      byKey.set(normLabel(s.name) + "|" + String(s.class), s);
+    });
+
+    extra.forEach((s) => {
+      const key = normLabel(s.name) + "|" + String(s.class);
+      let target = byKey.get(key);
+      if (!target) {
+        // coba match nama saja
+        for (const [k, st] of byKey) {
+          if (k.startsWith(normLabel(s.name) + "|")) {
+            target = st;
+            break;
+          }
+        }
+      }
+      if (!target) {
+        const neu = { ...s, works: [] };
+        students.push(neu);
+        byKey.set(key, neu);
+        target = neu;
+      }
+      (s.works || []).forEach((w) => {
+        const u = normUrl(w.url);
+        if (!u || urlOwner.has(u)) return;
+        urlOwner.set(u, true);
+        target.works.push({ ...w });
+      });
+    });
+
+    return {
+      meta: {
+        ...(base.meta || {}),
+        ...(dbData && dbData.meta ? { source: "JSON + Supabase (merged)" } : {}),
+        updated: new Date().toISOString().slice(0, 10),
+      },
+      students,
+    };
+  }
+
+  async function fetchGalleryData() {
+    return fetchGalleryFromDb();
+  }
+
   async function listChat({ angkatanId, limit }) {
     const sb = client();
     if (!sb) return [];
-    let q = sb.from("gallery_chat").select("id,angkatan_id,author_name,body,created_at").order("created_at", { ascending: true }).limit(limit || 100);
+    let q = sb
+      .from("gallery_chat")
+      .select("id,angkatan_id,author_name,avatar_emoji,body,created_at")
+      .order("created_at", { ascending: true })
+      .limit(limit || 100);
     if (angkatanId) q = q.eq("angkatan_id", angkatanId);
     else q = q.is("angkatan_id", null);
     const { data, error } = await q;
@@ -186,7 +289,7 @@
     return data || [];
   }
 
-  async function sendChat({ angkatanId, authorName, body }) {
+  async function sendChat({ angkatanId, authorName, body, avatarEmoji }) {
     const sb = client();
     if (!sb) throw new Error("Supabase belum dikonfigurasi");
     const name = String(authorName || "").trim() || "Anonim";
@@ -196,6 +299,7 @@
       author_name: name.slice(0, 60),
       body: text.slice(0, 1000),
       angkatan_id: angkatanId || null,
+      avatar_emoji: (avatarEmoji || "💬").slice(0, 8),
     };
     const { data, error } = await sb.from("gallery_chat").insert(row).select("*").single();
     if (error) throw error;
@@ -205,9 +309,7 @@
   function subscribeChat({ angkatanId, onInsert }) {
     const sb = client();
     if (!sb) return () => {};
-    const filter = angkatanId
-      ? `angkatan_id=eq.${angkatanId}`
-      : "angkatan_id=is.null";
+    const filter = angkatanId ? `angkatan_id=eq.${angkatanId}` : "angkatan_id=is.null";
     const channel = sb
       .channel("gallery-chat-" + (angkatanId || "global"))
       .on(
@@ -217,7 +319,55 @@
       )
       .subscribe();
     return () => {
-      try { sb.removeChannel(channel); } catch (_) {}
+      try {
+        sb.removeChannel(channel);
+      } catch (_) {}
+    };
+  }
+
+  /** Presence: is typing */
+  function joinTypingChannel({ roomKey, userName, avatarEmoji, onSync }) {
+    const sb = client();
+    if (!sb) return { setTyping() {}, leave() {} };
+    const channel = sb.channel("typing-" + (roomKey || "global"), {
+      config: { presence: { key: userName || "anon-" + Math.random().toString(36).slice(2, 8) } },
+    });
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        const people = [];
+        Object.values(state).forEach((arr) => {
+          (arr || []).forEach((p) => people.push(p));
+        });
+        onSync && onSync(people);
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({
+            name: userName || "Anonim",
+            avatar: avatarEmoji || "💬",
+            typing: false,
+            at: Date.now(),
+          });
+        }
+      });
+
+    return {
+      async setTyping(isTyping) {
+        try {
+          await channel.track({
+            name: userName || "Anonim",
+            avatar: avatarEmoji || "💬",
+            typing: !!isTyping,
+            at: Date.now(),
+          });
+        } catch (_) {}
+      },
+      leave() {
+        try {
+          sb.removeChannel(channel);
+        } catch (_) {}
+      },
     };
   }
 
@@ -229,9 +379,13 @@
     ensureAngkatan,
     submitAlumni,
     fetchGalleryData,
+    fetchGalleryFromDb,
+    mergeGallery,
     listChat,
     sendChat,
     subscribeChat,
+    joinTypingChannel,
     normLabel,
+    normUrl,
   };
 })(window);

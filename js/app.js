@@ -125,21 +125,27 @@
   }
 
   async function loadData(){
-    // 1) Supabase (data dinamis alumni)
+    let jsonData = null;
+    try {
+      if (window.GALLERY_DATA) jsonData = window.GALLERY_DATA;
+      else jsonData = await (await fetch("data/websites.json",{cache:"no-store"})).json();
+    } catch (e) {
+      console.warn("JSON load failed", e);
+      jsonData = { meta:{}, students:[] };
+    }
+    let dbData = null;
     try {
       if (window.GalleryDB && GalleryDB.enabled()) {
-        const live = await GalleryDB.fetchGalleryData();
-        if (live && live.students && live.students.length) {
-          console.info("Gallery data from Supabase", live.students.length);
-          return live;
-        }
+        dbData = await GalleryDB.fetchGalleryFromDb();
       }
     } catch (e) {
-      console.warn("Supabase gallery load failed, fallback JSON", e);
+      console.warn("Supabase gallery load failed, pakai JSON", e);
     }
-    // 2) Fallback embed / static JSON (migrasi belum dijalankan)
-    if(window.GALLERY_DATA) return window.GALLERY_DATA;
-    return await (await fetch("data/websites.json",{cache:"no-store"})).json();
+    if (window.GalleryDB && typeof GalleryDB.mergeGallery === "function") {
+      return GalleryDB.mergeGallery(jsonData, dbData);
+    }
+    if (dbData && dbData.students && dbData.students.length) return dbData;
+    return jsonData;
   }
   const allWorks=()=>state.data.students.flatMap(s=>s.works.map(w=>({...w,student:s})));
   function updateStats(){
@@ -172,6 +178,31 @@
   function escapeAttr(str){
     return String(str||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
   }
+
+  function autoThumb(title, url){
+    const t = String(title||"Web").slice(0,28);
+    let host = "";
+    try { host = new URL(url).hostname.replace(/^www\./,""); } catch(e){}
+    let seed = 0;
+    for (let i=0;i<(t+host).length;i++) seed += (t+host).charCodeAt(i);
+    const hues = [200,160,280,320,30,190];
+    const h = hues[seed % hues.length];
+    const h2 = (h+40)%360;
+    const esc = (s)=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400">'
+      + '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+      + '<stop offset="0%" stop-color="hsl('+h+',55%,28%)"/>'
+      + '<stop offset="100%" stop-color="hsl('+h2+',50%,16%)"/></linearGradient></defs>'
+      + '<rect width="640" height="400" fill="url(#g)"/>'
+      + '<circle cx="520" cy="80" r="90" fill="rgba(255,255,255,0.06)"/>'
+      + '<circle cx="80" cy="340" r="120" fill="rgba(0,0,0,0.12)"/>'
+      + '<text x="32" y="56" fill="rgba(255,255,255,0.45)" font-family="system-ui,sans-serif" font-size="14" font-weight="700" letter-spacing="2">SILVERHAWK</text>'
+      + '<text x="32" y="200" fill="#e8f4f8" font-family="system-ui,sans-serif" font-size="28" font-weight="700">'+esc(t)+'</text>'
+      + '<text x="32" y="236" fill="rgba(200,230,240,0.7)" font-family="system-ui,sans-serif" font-size="14">'+esc(host)+'</text>'
+      + '</svg>';
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  }
+
   function card(s,index){
     const w=s.works[0], ai=s.aiTool?` • ${s.aiTool}`:"";
     const tags=[w.category,...(w.tags||[]),...(s.aiTool?["eksperimen AI"]:[])].filter(Boolean).slice(0,4);
@@ -180,13 +211,13 @@
         data-tip-desc="${escapeAttr((s.name) + (w.description ? " — " + w.description : ""))}"
         data-tip-url="${escapeAttr(w.url)}">
       <div class="cover">
-        <img class="thumb" src="${w.thumb}" data-site="${w.url}" alt="Thumbnail ${w.title}">
+        <img class="thumb" src="${(w.thumb && String(w.thumb).trim()) ? w.thumb : autoThumb(w.title, w.url)}" data-site="${w.url}" alt="Thumbnail ${w.title}" loading="lazy">
         <div class="cover-overlay"></div>
         <div class="cover-top"><span class="pill">${w.category}</span><span class="cover-number">${String(index+1).padStart(2,"0")}</span></div>
         <div class="cover-title"><h3 title="${escapeAttr(w.title)}">${w.title}</h3><span>${s.works.length} karya</span></div>
       </div>
       <div class="card-body">
-        <div class="student-row"><div class="student">${s.name}</div><span class="class-badge">KELAS ${s.class}</span></div>
+        <div class="student-row"><div class="student">${s.name}</div><span class="class-badge">${s.classLabel || ("KELAS " + s.class)}</span></div>
         <p class="card-desc">${w.description}${ai}</p>
         <div class="meta-row">${tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>
         ${s.works.length>1?`<div class="works-title">PILIH KARYA <span>${s.works.length} PROJECT</span></div><div class="work-list">${workButtons(s)}</div>`:
@@ -232,7 +263,7 @@
     }));
     bindTooltips(document);
   }
-  async async function init(){
+  async function init(){
     try{state.data=await loadData();updateStats();render();}
     catch(e){$("#galleryGrid").innerHTML=`<div class="empty"><h3>Data galeri belum dapat dimuat</h3></div>`;return;}
     $("#searchInput").addEventListener("input",e=>{state.query=e.target.value;render();});

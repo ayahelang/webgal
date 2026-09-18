@@ -1,29 +1,18 @@
-# Silverhawk Web Gallery — Alumni Edition
+# Silverhawk Web Gallery — Alumni Edition (revisi)
 
-## Fitur baru
-- Input karya alumni (kode akses) + multi URL
-- Angkatan unik (anti-dobel)
-- Live chat per angkatan / lintas angkatan
-- Data dinamis di **Supabase** (JSON tetap sebagai fallback)
+## Perbaikan
+- Data JSON angkatan **2025** (kelas 51 & 52 aktif) **tidak hilang**: digabung dengan Supabase
+- Thumbnail **otomatis** (SVG) jika file thumb tidak ada — termasuk input alumni
+- Label angkatan 2024 / 2025
+- Chat: **is typing** + **avatar emoji**
 
-## Setup Supabase (rekomendasi)
-1. Buat project gratis di https://supabase.com (boleh project sama dengan CBT)
-2. SQL Editor → jalankan `supabase-gallery-setup.sql` (skema + migrasi data JSON)
-3. Database → Replication → enable `gallery_chat` untuk realtime
-4. Project Settings → API → salin URL + anon key ke `data/supabase-config.js`
-5. Ganti `submit_code` di tabel `gallery_settings` (default seed: SilverhawkAlumni2026)
+## Setup ulang SQL
+Jalankan lagi `supabase-gallery-setup.sql` di SQL Editor (aman: on conflict do nothing).
 
-## Mengapa Supabase?
-- Gratis (tier free)
-- Realtime chat
-- Postgres andal
-- Sudah dipakai CBT Silverhawk
+Enable Realtime:
+- `gallery_chat` (pesan)
+- Presence dipakai channel `typing-*` (otomatis)
 
-Alternatif: Firebase (Realtime DB), Appwrite, PocketBase self-host.
-
-## File penting
-- `supabase-gallery-setup.sql` — skema + migrasi 41 santriwati / 175 website
-- `data/supabase-config.js` — kredensial
-- `js/db.js` — layer data
-- `submit.html` — form alumni
-- `chat.html` — chat
+## Thumbnail
+File `data/thumbs/*.svg` hanya cache visual lama.
+Karya baru / tanpa thumb → `autoThumb(title,url)` di browser (tanpa upload gambar).

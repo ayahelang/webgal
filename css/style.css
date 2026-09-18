@@ -201,3 +201,9 @@ footer{max-width:1240px;margin:auto;padding:22px 24px 35px;border-top:1px solid 
 .chat-bubble strong{color:#dffbff}
 .chat-bubble small{color:#7f97a3;margin-left:6px;font-weight:400}
 .chat-bubble.mine{outline:1px solid rgba(125,227,255,.25)}
+
+.chat-bubble{display:flex;gap:10px;align-items:flex-start}
+.chat-av{width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.chat-body{min-width:0}
+.typing-line{min-height:18px;font-size:12px;color:#7de3ff;font-style:italic;opacity:.9}
+.thumb{object-fit:cover;width:100%;height:100%;background:#0d1824}

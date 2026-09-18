@@ -22,18 +22,26 @@
     <section class="skills-hero">
       <div class="eyebrow">LIVE CHAT</div>
       <h1>Obrolan kenang-kenangan</h1>
-      <p class="skills-lead">Pilih ruang per angkatan atau lintas angkatan. Pesan realtime via Supabase.</p>
+      <p class="skills-lead">Per angkatan atau lintas angkatan. Ada indikator <b>sedang mengetik</b> dan avatar emoji.</p>
     </section>
     <div class="summary-card" style="display:grid;gap:12px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
         <label class="field"><span>Nama tampilan</span>
           <input id="chatName" type="text" maxlength="40" placeholder="Nama kamu">
+        </label>
+        <label class="field"><span>Avatar emoji</span>
+          <select id="chatAvatar">
+            <option>🎓</option><option>💬</option><option>🌟</option><option>🦋</option>
+            <option>🌸</option><option>🚀</option><option>💜</option><option>🌙</option>
+            <option>🔥</option><option>✨</option><option>🦊</option><option>🍀</option>
+          </select>
         </label>
         <label class="field"><span>Ruang chat</span>
           <select id="chatRoom"></select>
         </label>
       </div>
       <div id="chatLog" class="chat-log"></div>
+      <div id="typingLine" class="typing-line" aria-live="polite"></div>
       <form id="chatForm" style="display:flex;gap:8px">
         <input id="chatInput" type="text" maxlength="1000" placeholder="Tulis pesan..." style="flex:1" autocomplete="off">
         <button class="btn btn-primary" type="submit">Kirim</button>
