@@ -125,6 +125,19 @@
   }
 
   async function loadData(){
+    // 1) Supabase (data dinamis alumni)
+    try {
+      if (window.GalleryDB && GalleryDB.enabled()) {
+        const live = await GalleryDB.fetchGalleryData();
+        if (live && live.students && live.students.length) {
+          console.info("Gallery data from Supabase", live.students.length);
+          return live;
+        }
+      }
+    } catch (e) {
+      console.warn("Supabase gallery load failed, fallback JSON", e);
+    }
+    // 2) Fallback embed / static JSON (migrasi belum dijalankan)
     if(window.GALLERY_DATA) return window.GALLERY_DATA;
     return await (await fetch("data/websites.json",{cache:"no-store"})).json();
   }
@@ -219,7 +232,7 @@
     }));
     bindTooltips(document);
   }
-  async function init(){
+  async async function init(){
     try{state.data=await loadData();updateStats();render();}
     catch(e){$("#galleryGrid").innerHTML=`<div class="empty"><h3>Data galeri belum dapat dimuat</h3></div>`;return;}
     $("#searchInput").addEventListener("input",e=>{state.query=e.target.value;render();});
