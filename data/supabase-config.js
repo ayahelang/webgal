@@ -4,5 +4,5 @@ window.GALLERY_SUPABASE = {
   url: "https://upnnjidobuujhvevfyaa.supabase.co",          // contoh: https://xxxx.supabase.co
   anonKey: "sb_publishable_Eq3QRGvkOEbc1ygpx8BATw_k0vgzHDz",      // anon/public key
   // fallback jika settings DB belum terbaca
-  defaultSubmitCode: "SilverhawkAlumni2026"
+  defaultSubmitCode: "Bismillaah2024"
 };
