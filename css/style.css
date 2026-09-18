@@ -195,7 +195,39 @@ footer{max-width:1240px;margin:auto;padding:22px 24px 35px;border-top:1px solid 
 /* Alumni form + chat */
 .field{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#9db5c0}
 .field input,.field select,input[type=text],input[type=url],input[type=password],input[type=search],select,textarea{
-  background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:#e8f4f8;font:inherit}
+  background:#0e1a24;
+  border:1px solid #3a5566;
+  border-radius:12px;
+  padding:10px 12px;
+  color:#f0f7fb;
+  font:inherit;
+  color-scheme: dark;
+}
+.field input::placeholder,
+input::placeholder{color:#7f9aaa;opacity:1}
+.field select,
+select{
+  background-color:#0e1a24;
+  color:#f0f7fb;
+}
+.field select option,
+select option{
+  background-color:#0e1a24;
+  color:#f0f7fb;
+}
+.field select option:checked,
+.field select option:hover,
+select option:checked,
+select option:hover{
+  background-color:#1a3344;
+  color:#ffffff;
+}
+/* native dropdown on some browsers */
+select:focus,input:focus,textarea:focus{
+  outline:2px solid #5ec8ff;
+  outline-offset:1px;
+  border-color:#5ec8ff;
+}
 .chat-log{height:min(55vh,420px);overflow:auto;border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(0,0,0,.2);display:flex;flex-direction:column;gap:8px}
 .chat-bubble{padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);font-size:13px;line-height:1.45}
 .chat-bubble strong{color:#dffbff}
