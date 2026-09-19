@@ -43,6 +43,8 @@
           <a class="btn btn-ghost" href="kisi-kisi.html">Kisi-Kisi STS</a>
           <a class="btn btn-ghost" href="submit.html">Input Alumni</a>
           <a class="btn btn-ghost" href="chat.html">Chat</a>
+          <a class="btn btn-ghost" href="stats.html">Statistik</a>
+          <a class="btn btn-ghost" href="about.html">About</a>
         </div>
       </div>
       <div class="hero-art" aria-hidden="true">
@@ -112,6 +114,13 @@
   <script src="js/profile-status.js"></script>
   <script src="js/auth-ui.js"></script>
 
+  <script src="js/social.js"></script>
   <script src="js/app.js"></script>
+  <script>
+    if (window.GalleryDB && GalleryDB.enabled()) {
+      GalleryDB.trackEvent("visit", { page: "home" });
+      GalleryDB.joinPresenceOnline(function(){});
+    }
+  </script>
 </body>
 </html>

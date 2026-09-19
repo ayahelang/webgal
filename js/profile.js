@@ -27,6 +27,7 @@
       $("#av").hidden = false;
     }
     await GalleryDB.upsertMyProfileFromSession();
+    try { GalleryDB.trackEvent("signup", { email: u.email }); } catch(e) {}
     const prof = await GalleryDB.getMyProfile();
     if (prof) {
       if (prof.linked_student_name) $("#linkForm [name=studentName]").value = prof.linked_student_name;

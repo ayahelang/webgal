@@ -271,3 +271,18 @@ select:focus,input:focus,textarea:focus{
 .sh-profile-meta b{font-size:12px;color:#e8f4f8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sh-profile-meta small{font-size:10px;color:#8aa3b0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .admin-avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid rgba(125,227,255,.35)}
+
+.react-bar{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.react-btn{border:1px solid var(--line);background:rgba(0,0,0,.2);border-radius:999px;padding:5px 10px;font-size:12px;cursor:pointer;color:#c5d8e0}
+.react-btn.love-red,.react-btn.cmt-red{color:#ff8a9a}
+.react-btn.love-blue,.react-btn.cmt-blue{color:#7db8ff}
+.react-btn:hover{border-color:#5ec8ff}
+.sh-modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px}
+.sh-modal[hidden]{display:none!important}
+.sh-modal-card{background:#0e1a24;border:1px solid var(--line);border-radius:18px;padding:18px;max-width:420px;width:100%;position:relative;display:grid;gap:10px}
+.sh-modal-x{position:absolute;right:10px;top:8px;border:0;background:transparent;color:#9db5c0;font-size:22px;cursor:pointer}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.stat-card .stat-num{font-size:1.8rem;font-weight:800;color:#e8f4f8;margin:6px 0}
+.stats-online{font-size:1.05rem}
+.about-hero{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.about-avatar{width:88px;height:88px;border-radius:24px;background:linear-gradient(135deg,#1a4a5c,#0d2840);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.4rem;color:#7de3ff;border:1px solid rgba(125,227,255,.35)}

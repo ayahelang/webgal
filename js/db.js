@@ -887,6 +887,218 @@
   }
 
 
+
+  // ----- Social: love & comment + stats -----
+  function sessionId() {
+    try {
+      let s = localStorage.getItem("sh_sid");
+      if (!s) {
+        s = "s-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem("sh_sid", s);
+      }
+      return s;
+    } catch (e) {
+      return "anon";
+    }
+  }
+
+  async function trackEvent(eventType, meta) {
+    const sb = client();
+    if (!sb) return;
+    let userId = null;
+    try {
+      const sess = await getSession();
+      if (sess && sess.user) userId = sess.user.id;
+    } catch (e) {}
+    try {
+      await sb.from("gallery_events").insert({
+        event_type: eventType,
+        session_id: sessionId(),
+        user_id: userId,
+        meta: meta || {},
+      });
+    } catch (e) {
+      console.warn("trackEvent", e);
+    }
+  }
+
+  async function countReactions(targetType, targetId) {
+    const sb = client();
+    if (!sb) return { loveRed: 0, loveBlue: 0, commentRed: 0, commentBlue: 0 };
+    const { data, error } = await sb
+      .from("gallery_reactions")
+      .select("reaction_type,is_registered")
+      .eq("target_type", targetType)
+      .eq("target_id", String(targetId));
+    if (error) throw error;
+    const c = { loveRed: 0, loveBlue: 0, commentRed: 0, commentBlue: 0 };
+    (data || []).forEach((r) => {
+      if (r.reaction_type === "love") {
+        if (r.is_registered) c.loveBlue++;
+        else c.loveRed++;
+      } else if (r.reaction_type === "comment") {
+        if (r.is_registered) c.commentBlue++;
+        else c.commentRed++;
+      }
+    });
+    return c;
+  }
+
+  async function listComments(targetType, targetId) {
+    const sb = client();
+    const { data, error } = await sb
+      .from("gallery_reactions")
+      .select("*")
+      .eq("target_type", targetType)
+      .eq("target_id", String(targetId))
+      .eq("reaction_type", "comment")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function addLove(targetType, targetId, authorName) {
+    const sb = client();
+    if (!sb) throw new Error("Supabase belum siap");
+    let userId = null;
+    let isReg = false;
+    let name = String(authorName || "").trim();
+    try {
+      const sess = await getSession();
+      if (sess && sess.user) {
+        userId = sess.user.id;
+        isReg = true;
+        const meta = sess.user.user_metadata || {};
+        name = name || meta.full_name || meta.name || sess.user.email || "User";
+        await upsertMyProfileFromSession();
+      }
+    } catch (e) {}
+    if (!isReg && name.length < 2) throw new Error("Isi nama dulu (atau login Google).");
+
+    const row = {
+      target_type: targetType,
+      target_id: String(targetId),
+      reaction_type: "love",
+      is_registered: isReg,
+      author_name: name.slice(0, 60),
+      author_user_id: userId,
+      body: "",
+    };
+    const { error } = await sb.from("gallery_reactions").insert(row);
+    if (error) {
+      if (error.code === "23505") throw new Error("Kamu sudah memberi love pada karya ini.");
+      throw error;
+    }
+    await trackEvent(isReg ? "love_blue" : "love_red", { targetType, targetId });
+    return countReactions(targetType, targetId);
+  }
+
+  async function addComment(targetType, targetId, authorName, body) {
+    const sb = client();
+    if (!sb) throw new Error("Supabase belum siap");
+    const text = String(body || "").trim();
+    if (text.length < 2) throw new Error("Komentar terlalu pendek.");
+    let userId = null;
+    let isReg = false;
+    let name = String(authorName || "").trim();
+    try {
+      const sess = await getSession();
+      if (sess && sess.user) {
+        userId = sess.user.id;
+        isReg = true;
+        const meta = sess.user.user_metadata || {};
+        name = name || meta.full_name || meta.name || sess.user.email || "User";
+        await upsertMyProfileFromSession();
+      }
+    } catch (e) {}
+    if (!isReg && name.length < 2) throw new Error("Isi nama dulu (atau login Google).");
+
+    const { error } = await sb.from("gallery_reactions").insert({
+      target_type: targetType,
+      target_id: String(targetId),
+      reaction_type: "comment",
+      is_registered: isReg,
+      author_name: name.slice(0, 60),
+      author_user_id: userId,
+      body: text.slice(0, 500),
+    });
+    if (error) throw error;
+    await trackEvent(isReg ? "comment_blue" : "comment_red", { targetType, targetId });
+    return countReactions(targetType, targetId);
+  }
+
+  async function getStatsSummary() {
+    const sb = client();
+    if (!sb) return null;
+    const sinceToday = new Date();
+    sinceToday.setHours(0, 0, 0, 0);
+    const isoToday = sinceToday.toISOString();
+
+    async function countType(type, since) {
+      let q = sb.from("gallery_events").select("id", { count: "exact", head: true }).eq("event_type", type);
+      if (since) q = q.gte("created_at", since);
+      const { count, error } = await q;
+      if (error) return 0;
+      return count || 0;
+    }
+
+    const types = ["visit", "click", "signup", "love_red", "love_blue", "comment_red", "comment_blue"];
+    const all = {};
+    const today = {};
+    for (const ty of types) {
+      all[ty] = await countType(ty, null);
+      today[ty] = await countType(ty, isoToday);
+    }
+
+    // reactions totals as backup
+    const { data: reacts } = await sb.from("gallery_reactions").select("reaction_type,is_registered");
+    let lr = 0, lb = 0, cr = 0, cb = 0;
+    (reacts || []).forEach((r) => {
+      if (r.reaction_type === "love") r.is_registered ? lb++ : lr++;
+      if (r.reaction_type === "comment") r.is_registered ? cb++ : cr++;
+    });
+    if (all.love_red < lr) all.love_red = lr;
+    if (all.love_blue < lb) all.love_blue = lb;
+    if (all.comment_red < cr) all.comment_red = cr;
+    if (all.comment_blue < cb) all.comment_blue = cb;
+
+    // profiles = signup
+    const { count: profiles } = await sb.from("gallery_profiles").select("id", { count: "exact", head: true });
+    if ((profiles || 0) > all.signup) all.signup = profiles || 0;
+
+    return { all, today };
+  }
+
+  function joinPresenceOnline(onCount) {
+    const sb = client();
+    if (!sb) return { leave() {} };
+    const channel = sb.channel("gallery-online", {
+      config: { presence: { key: sessionId() } },
+    });
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        let n = 0;
+        Object.values(state).forEach((arr) => {
+          n += (arr || []).length;
+        });
+        onCount && onCount(n);
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({ at: Date.now(), path: location.pathname });
+        }
+      });
+    return {
+      leave() {
+        try {
+          sb.removeChannel(channel);
+        } catch (e) {}
+      },
+    };
+  }
+
   global.GalleryDB = {
     enabled,
     client,

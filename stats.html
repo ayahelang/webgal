@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Statistik — Silverhawk Gallery</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-skills">
+  <div class="bg-grid"></div>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Insights</small></span></a>
+    <nav class="topnav">
+      <a href="index.html">Gallery</a>
+      <a href="stats.html" class="active">Statistik</a>
+      <a href="about.html">About</a>
+    </nav>
+  </header>
+  <main class="skills-main">
+    <section class="skills-hero">
+      <div class="eyebrow">ANALYTICS</div>
+      <h1>Statistik pengunjung</h1>
+      <p class="skills-lead">Ringkasan kunjungan, interaksi love & komentar, serta pengguna online.</p>
+    </section>
+    <div class="stats-online summary-card" style="margin-bottom:16px">
+      <strong id="onlineNow">—</strong> pengunjung sedang online
+    </div>
+    <div class="stats-grid" id="statsGrid"></div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data/supabase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/profile-status.js"></script>
+  <script src="js/auth-ui.js"></script>
+  <script src="js/stats-page.js"></script>
+</body>
+</html>

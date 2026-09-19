@@ -220,6 +220,7 @@
         <div class="student-row"><div class="student">${s.name}</div><span class="class-badge">${s.classLabel || ("KELAS " + s.class)}</span></div>
         <p class="card-desc">${w.description}${ai}</p>
         <div class="meta-row">${tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>
+        ${window.SHSocial ? SHSocial.barHtml("website", (w.url||w.title), {loveRed:0,loveBlue:0,commentRed:0,commentBlue:0}) : ""}
         ${s.works.length>1?`<div class="works-title">PILIH KARYA <span>${s.works.length} PROJECT</span></div><div class="work-list">${workButtons(s)}</div>`:
           `<a class="card-link" href="${w.url}" target="_blank" rel="noopener noreferrer"><span>Buka website</span><span>↗</span></a>`}
       </div>
@@ -258,6 +259,10 @@
     $("#resultInfo").textContent=`${list.length} santriwati ditampilkan • ${allWorks().length} karya dalam galeri`;
     $("#emptyState").hidden=list.length!==0;
     document.querySelectorAll(".thumb").forEach(loadScreenshot);
+    if (window.SHSocial) { SHSocial.bind(document); SHSocial.hydrate(document); }
+    document.querySelectorAll("a.work-choice, a.card-link").forEach(a=>{
+      a.addEventListener("click",()=>{ try{ GalleryDB.trackEvent("click",{url:a.href}); }catch(e){} });
+    });
     document.querySelectorAll(".work-choice").forEach(a=>a.addEventListener("click",e=>{
       e.stopPropagation();
     }));

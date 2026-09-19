@@ -19,6 +19,7 @@
         <span class="pill">${esc(catName)}</span>
         <h3>${esc(v.title)}</h3>
         ${v.owner_name ? `<p class="muted">Karya: ${esc(v.owner_name)}</p>` : ""}${v.description ? `<p>${esc(v.description)}</p>` : ""}
+        ${window.SHSocial ? SHSocial.barHtml("video", v.id, {}) : ""}
         <a href="${esc(v.url)}" target="_blank" rel="noopener">Buka sumber ↗</a>
       </div>
     </article>`;
@@ -27,6 +28,7 @@
   function render() {
     const list = cat ? all.filter((v) => v.category_id === cat) : all;
     grid.innerHTML = list.map(card).join("");
+    if (window.SHSocial) { SHSocial.bind(grid); SHSocial.hydrate(grid); }
     $("#videoEmpty").hidden = list.length > 0;
   }
 
