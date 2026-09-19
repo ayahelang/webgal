@@ -1,4 +1,4 @@
-/** Topbar: avatar Google + nama + status login */
+/** Topbar: avatar Google + nama (tanpa tombol Karya — ada di Profil) */
 (function () {
   function $(s, r) {
     return (r || document).querySelector(s);
@@ -28,7 +28,7 @@
         </a>`;
         const btn = bar.querySelector("#shTopLogin");
         if (btn) {
-          btn.addEventListener("click", (e) => {
+          btn.addEventListener("click", () => {
             try {
               sessionStorage.setItem("sh_return", location.href);
             } catch (err) {}
@@ -62,8 +62,7 @@
             <small>${escapeHtml(statusLabel)}</small>
           </span>
         </a>
-        <a class="btn btn-ghost" href="my-works.html" style="padding:6px 10px;font-size:12px">Karya</a>
-        ${isAdm ? `<a class="btn btn-ghost" href="admin.html" style="padding:6px 10px;font-size:12px">Admin</a>` : ""}
+        ${isAdm ? `<a class="btn btn-ghost nav-admin" href="admin.html" style="padding:6px 10px;font-size:12px">Admin</a>` : ""}
       `;
     } catch (e) {
       console.warn(e);

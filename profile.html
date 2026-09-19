@@ -50,17 +50,24 @@
         </div>
       </div>
       <form id="linkForm" style="display:grid;gap:10px">
-        <label class="field"><span>Nama siswa (sesuai gallery)</span>
-          <input name="studentName" required placeholder="Nama lengkap">
-        </label>
-        <label class="field"><span>Tahun angkatan</span>
-          <input name="angkatanYear" type="number" min="2018" max="2040" required placeholder="2025">
-        </label>
-        <label class="field"><span>Kelas</span>
-          <select name="classCode">
-            <option value="51">Kelas 51</option>
-            <option value="52">Kelas 52</option>
+        <label class="field"><span>1. Tahun angkatan</span>
+          <select name="angkatanYear" id="angkatanYear" required>
+            <option value="">— pilih tahun —</option>
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
           </select>
+        </label>
+        <label class="field"><span>2. Kelas</span>
+          <select name="classCode" id="classCode" required disabled>
+            <option value="">— pilih angkatan dulu —</option>
+          </select>
+        </label>
+        <label class="field"><span>3. Nama siswa</span>
+          <select name="studentNameSelect" id="studentNameSelect" disabled>
+            <option value="">— pilih kelas dulu —</option>
+          </select>
+          <input name="studentNameCustom" id="studentNameCustom" type="text" maxlength="80" placeholder="Atau ketik nama (hanya angkatan 2024)" style="margin-top:8px;display:none">
+          <small id="nameHint" class="muted" style="margin-top:4px"></small>
         </label>
         <button class="btn btn-primary" type="submit">Simpan tautan</button>
       </form>
