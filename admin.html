@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#081018">
   <title>Panel Admin — Silverhawk Gallery</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -21,18 +20,25 @@
     <section class="skills-hero">
       <div class="eyebrow">ADMIN</div>
       <h1>Panel Admin</h1>
-      <p class="skills-lead">Login Google hanya untuk email yang diizinkan. Kelola data user, angkatan, dan video.</p>
+      <p class="skills-lead">Login Google. Kelola video, data user, dan undang admin tambahan.</p>
     </section>
 
-    <div id="gate" class="summary-card" style="display:grid;gap:12px;max-width:420px">
-      <p class="muted" id="gateMsg">Masuk dengan Google menggunakan akun admin yang terdaftar.</p>
-      <button type="button" class="btn btn-primary" id="btnGoogle">Login with Google</button>
-      <p class="muted" style="font-size:12px">Akun diizinkan: admin@silverhawk.web.id · teddyskom63@guru.sma.belajar.id · ted834r@gmail.com</p>
+    <div id="gate" class="summary-card" style="display:grid;gap:12px;max-width:440px">
+      <p class="muted" id="gateMsg">Masuk dengan akun Google yang diizinkan sebagai admin.</p>
+      <button type="button" class="btn-google" id="btnGoogle">
+        <span class="g-icon" aria-hidden="true"></span>
+        Login with Google
+      </button>
+      <p class="muted" style="font-size:12px">Akun utama: admin@silverhawk.web.id · teddyskom63@guru.sma.belajar.id · ted834r@gmail.com</p>
     </div>
 
     <div id="panel" hidden>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px">
-        <span id="adminEmail" class="muted"></span>
+      <div class="admin-who summary-card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px">
+        <img id="adminAvatar" alt="" class="admin-avatar" hidden>
+        <div>
+          <div id="adminName" style="font-weight:700"></div>
+          <div id="adminEmail" class="muted" style="font-size:13px"></div>
+        </div>
         <button type="button" class="btn btn-ghost" id="btnLogout">Keluar</button>
       </div>
       <div class="filters" style="margin-bottom:16px" id="adminTabs">
@@ -40,18 +46,19 @@
         <button class="filter" data-tab="websites">Website user</button>
         <button class="filter" data-tab="alumni">Alumni</button>
         <button class="filter" data-tab="angkatan">Angkatan</button>
+        <button class="filter" data-tab="users">Users & Admin</button>
       </div>
 
       <section data-panel="videos" class="summary-card admin-pane">
         <h3>Tambah video (YouTube / Dailymotion)</h3>
         <form id="videoForm" style="display:grid;gap:10px;margin-top:12px">
-          <label class="field"><span>Judul</span><input name="title" required placeholder="Judul video"></label>
-          <label class="field"><span>URL</span><input name="url" required placeholder="https://youtube.com/... atau dailymotion"></label>
+          <label class="field"><span>Judul</span><input name="title" required></label>
+          <label class="field"><span>URL</span><input name="url" required placeholder="https://youtube.com/... "></label>
           <label class="field"><span>Kategori</span><select name="categoryId" id="vidCat"></select></label>
-          <label class="field"><span>Deskripsi</span><input name="description" placeholder="Opsional"></label>
+          <label class="field"><span>Deskripsi</span><input name="description"></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary" type="submit">Simpan video</button>
-            <button class="btn btn-ghost" type="button" id="btnAddCat">+ Kategori baru</button>
+            <button class="btn btn-ghost" type="button" id="btnAddCat">+ Kategori</button>
           </div>
         </form>
         <p id="vidStatus" class="muted" style="font-size:13px"></p>
@@ -62,22 +69,34 @@
         <h3>Website dari input user</h3>
         <div id="webList" class="admin-list"></div>
       </section>
-
       <section data-panel="alumni" class="summary-card admin-pane" hidden>
-        <h3>Data alumni / santriwati (DB)</h3>
+        <h3>Alumni / santriwati (DB)</h3>
         <div id="alumniList" class="admin-list"></div>
       </section>
-
       <section data-panel="angkatan" class="summary-card admin-pane" hidden>
         <h3>Angkatan</h3>
-        <p class="muted" style="font-size:13px">Hapus hanya jika tidak ada data terkait. Idealnya hanya Angkatan 2024 & 2025.</p>
         <div id="angList" class="admin-list"></div>
+      </section>
+      <section data-panel="users" class="summary-card admin-pane" hidden>
+        <h3>User Google & undangan admin</h3>
+        <p class="muted" style="font-size:13px">Klik pengguna → centang hak akses → jadikan admin tambahan. User terdaftar: riwayat chat tidak dihapus setelah 7 hari.</p>
+        <div id="userList" class="admin-list"></div>
+        <div id="permBox" class="summary-card" hidden style="margin-top:12px;display:grid;gap:8px">
+          <strong id="permTarget"></strong>
+          <div id="permChecks" style="display:grid;gap:6px"></div>
+          <div style="display:flex;gap:8px">
+            <button type="button" class="btn btn-primary" id="btnSaveAdmin">Simpan sebagai admin</button>
+            <button type="button" class="btn btn-ghost" id="btnRevokeAdmin">Cabut admin</button>
+          </div>
+        </div>
       </section>
     </div>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="data/supabase-config.js"></script>
   <script src="js/db.js"></script>
+  <script src="js/profile-status.js"></script>
+  <script src="js/auth-ui.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>

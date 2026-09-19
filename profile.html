@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Profil — Silverhawk Gallery</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-skills">
+  <div class="bg-grid"></div>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Profil</small></span></a>
+    <nav class="topnav">
+      <a href="index.html">Gallery</a>
+      <a href="chat.html">Chat</a>
+      <a href="profile.html" class="active">Profil</a>
+    </nav>
+  </header>
+  <main class="skills-main">
+    <section class="skills-hero">
+      <div class="eyebrow">PROFIL</div>
+      <h1>Akun Google & identitas</h1>
+      <p class="skills-lead">Login Google. Tautkan nama siswa + angkatan agar status tampil otomatis. User terdaftar: chat tidak dihapus setelah 7 hari.</p>
+    </section>
+
+    <div id="out" class="summary-card" style="display:grid;gap:12px;max-width:480px">
+      <button type="button" class="btn-google" id="btnLogin">
+        <span class="g-icon"></span> Login with Google
+      </button>
+    </div>
+
+    <div id="in" class="summary-card" hidden style="display:grid;gap:14px;max-width:520px">
+      <div style="display:flex;gap:12px;align-items:center">
+        <img id="av" class="admin-avatar" alt="" hidden>
+        <div>
+          <div id="nm" style="font-weight:700"></div>
+          <div id="em" class="muted" style="font-size:13px"></div>
+          <div id="st" style="margin-top:6px;color:#7de3ff;font-size:13px"></div>
+        </div>
+      </div>
+      <form id="linkForm" style="display:grid;gap:10px">
+        <label class="field"><span>Nama siswa (sesuai gallery)</span>
+          <input name="studentName" required placeholder="Nama lengkap">
+        </label>
+        <label class="field"><span>Tahun angkatan</span>
+          <input name="angkatanYear" type="number" min="2018" max="2040" required placeholder="2025">
+        </label>
+        <label class="field"><span>Kelas</span>
+          <select name="classCode">
+            <option value="51">Kelas 51</option>
+            <option value="52">Kelas 52</option>
+          </select>
+        </label>
+        <button class="btn btn-primary" type="submit">Simpan tautan</button>
+      </form>
+      <p id="msg" class="muted" style="font-size:13px"></p>
+      <button type="button" class="btn btn-ghost" id="btnOut">Keluar</button>
+    </div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data/supabase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/profile-status.js"></script>
+  <script src="js/auth-ui.js"></script>
+  <script src="js/profile.js"></script>
+</body>
+</html>

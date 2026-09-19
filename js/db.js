@@ -293,8 +293,13 @@
     const session = await getSession();
     if (!session || !session.user) return { ok: false, reason: "not_logged_in" };
     const email = session.user.email || "";
-    if (!isAdminEmail(email)) return { ok: false, reason: "forbidden", email };
-    return { ok: true, email, session };
+    try { await upsertMyProfileFromSession(); } catch (e) { console.warn(e); }
+    if (isAdminEmail(email)) return { ok: true, email, session, main: true };
+    try {
+      const prof = await getMyProfile();
+      if (prof && prof.is_admin) return { ok: true, email, session, main: false, permissions: prof.permissions || {} };
+    } catch (e) {}
+    return { ok: false, reason: "forbidden", email };
   }
 
   // ----- Admin CRUD helpers -----
@@ -434,6 +439,16 @@
   }
   async function sendChat({ angkatanId, authorName, body, avatarEmoji }) {
     const sb = client();
+    let userId = null;
+    let isReg = false;
+    try {
+      const sess = await getSession();
+      if (sess && sess.user) {
+        userId = sess.user.id;
+        isReg = true;
+        await upsertMyProfileFromSession();
+      }
+    } catch (e) {}
     const { data, error } = await sb
       .from("gallery_chat")
       .insert({
@@ -441,6 +456,8 @@
         body: String(body || "").trim().slice(0, 1000),
         angkatan_id: angkatanId || null,
         avatar_emoji: (avatarEmoji || "💬").slice(0, 8),
+        user_id: userId,
+        is_registered: isReg,
       })
       .select("*")
       .single();
@@ -493,6 +510,131 @@
     };
   }
 
+
+  // ----- Profiles & admin roles -----
+  async function upsertMyProfileFromSession() {
+    const sb = client();
+    if (!sb) return null;
+    const session = await getSession();
+    if (!session || !session.user) return null;
+    const u = session.user;
+    const meta = u.user_metadata || {};
+    const email = (u.email || "").toLowerCase();
+    const row = {
+      id: u.id,
+      email,
+      display_name: meta.full_name || meta.name || "",
+      avatar_url: meta.avatar_url || meta.picture || "",
+      updated_at: new Date().toISOString(),
+    };
+    // seed is_admin from config allowlist on first touch
+    const { data: existing } = await sb.from("gallery_profiles").select("id,is_admin,permissions").eq("id", u.id).maybeSingle();
+    if (!existing) {
+      row.is_admin = isAdminEmail(email);
+      row.permissions = row.is_admin
+        ? Object.fromEntries((cfg().adminPermissionKeys || []).map((k) => [k, true]))
+        : {};
+      row.created_at = new Date().toISOString();
+    }
+    const { data, error } = await sb.from("gallery_profiles").upsert(row, { onConflict: "id" }).select("*").single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function getMyProfile() {
+    const sb = client();
+    if (!sb) return null;
+    const session = await getSession();
+    if (!session || !session.user) return null;
+    const { data, error } = await sb.from("gallery_profiles").select("*").eq("id", session.user.id).maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  async function updateMyLink({ studentName, angkatanYear, classCode }) {
+    const sb = client();
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Belum login");
+    const { data, error } = await sb
+      .from("gallery_profiles")
+      .update({
+        linked_student_name: String(studentName || "").trim(),
+        linked_angkatan_year: parseInt(angkatanYear, 10) || null,
+        linked_class_code: String(classCode || "").trim(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", session.user.id)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function isCurrentUserAdmin() {
+    const session = await getSession();
+    if (!session || !session.user) return false;
+    if (isAdminEmail(session.user.email)) return true;
+    const prof = await getMyProfile();
+    return !!(prof && prof.is_admin);
+  }
+
+  async function currentPermissions() {
+    const session = await getSession();
+    if (!session || !session.user) return {};
+    if (isAdminEmail(session.user.email)) {
+      return Object.fromEntries((cfg().adminPermissionKeys || []).map((k) => [k, true]));
+    }
+    const prof = await getMyProfile();
+    if (prof && prof.is_admin) return prof.permissions || {};
+    return {};
+  }
+
+  async function hasPermission(key) {
+    const p = await currentPermissions();
+    return !!p[key];
+  }
+
+  async function listRegisteredUsers() {
+    const sb = client();
+    const { data, error } = await sb.from("gallery_profiles").select("*").order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function setUserAdmin(userId, { isAdmin, permissions }) {
+    const sb = client();
+    if (!(await hasPermission("manage_admins")) && !(await isCurrentUserAdmin())) {
+      // main allowlist always can
+      const session = await getSession();
+      if (!session || !isAdminEmail(session.user.email)) throw new Error("Tidak berhak mengelola admin");
+    }
+    const { data, error } = await sb
+      .from("gallery_profiles")
+      .update({
+        is_admin: !!isAdmin,
+        permissions: permissions || {},
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  // override requireAdmin to also accept is_admin profiles
+  async function requireAdmin() {
+    const session = await getSession();
+    if (!session || !session.user) return { ok: false, reason: "not_logged_in" };
+    const email = session.user.email || "";
+    await upsertMyProfileFromSession();
+    if (isAdminEmail(email)) return { ok: true, email, session, main: true };
+    const prof = await getMyProfile();
+    if (prof && prof.is_admin) return { ok: true, email, session, main: false, permissions: prof.permissions || {} };
+    return { ok: false, reason: "forbidden", email };
+  }
+
+
   global.GalleryDB = {
     enabled,
     client,
@@ -526,5 +668,13 @@
     subscribeChat,
     joinTypingChannel,
     normLabel,
+    upsertMyProfileFromSession,
+    getMyProfile,
+    updateMyLink,
+    isCurrentUserAdmin,
+    currentPermissions,
+    hasPermission,
+    listRegisteredUsers,
+    setUserAdmin,
   };
 })(window);
