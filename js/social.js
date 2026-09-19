@@ -92,41 +92,38 @@
 
   function bind(scope) {
     const root = scope || document;
-    // toggle icons via title (work-choice / .work-title-toggle)
-    root.querySelectorAll(".work-choice, .work-title-toggle").forEach((a) => {
+    // Toggle HANYA jika klik judul putih (<b>), bar lain tetap buka website
+    root.querySelectorAll(".work-choice").forEach((a) => {
       if (a.dataset.socialToggle) return;
       a.dataset.socialToggle = "1";
-      a.addEventListener("click", (e) => {
-        // jika klik untuk buka website (modifier / middle) biarkan
-        // toggle icons: klik judul → expand/collapse; prevent open only when toggling?
-        // User: click title toggles icons. Second behavior: open website?
-        // Spec: title click = toggle icons (and conversely). Opening website: via ↗ or second intention.
-        // We'll: click title toggles; Ctrl/meta/middle still open; also ↗ opens.
-        const row = a.closest(".work-row");
-        if (!row) return;
-        const bar = row.querySelector(".react-mini");
-        if (!bar) return;
-        // always toggle on plain click; use em[title] or data-open for open
-        if (e.target.closest("em.open-site") || e.metaKey || e.ctrlKey || e.button === 1) {
-          return; // let browser open
-        }
-        e.preventDefault();
-        e.stopPropagation();
-        const open = bar.hasAttribute("hidden");
-        // collapse others optional? keep independent
-        if (open) {
-          bar.removeAttribute("hidden");
-          bar.classList.remove("is-collapsed");
-          if (window.GalleryDB) {
-            GalleryDB.countReactions(bar.dataset.tt, bar.dataset.tid).then((c) => setCounts(bar, c)).catch(() => {});
+      const title = a.querySelector("b");
+      if (title) {
+        title.style.cursor = "pointer";
+        title.title = "Klik judul: tampilkan/sembunyikan love & komentar";
+        title.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const row = a.closest(".work-row");
+          if (!row) return;
+          const bar = row.querySelector(".react-mini");
+          if (!bar) return;
+          const open = bar.hasAttribute("hidden");
+          if (open) {
+            bar.removeAttribute("hidden");
+            bar.classList.remove("is-collapsed");
+            if (window.GalleryDB) {
+              GalleryDB.countReactions(bar.dataset.tt, bar.dataset.tid)
+                .then((c) => setCounts(bar, c))
+                .catch(() => {});
+            }
+          } else {
+            bar.setAttribute("hidden", "");
+            bar.classList.add("is-collapsed");
+            const panel = row.querySelector(".cmt-panel");
+            if (panel) panel.hidden = true;
           }
-        } else {
-          bar.setAttribute("hidden", "");
-          bar.classList.add("is-collapsed");
-          const panel = row.querySelector(".cmt-panel");
-          if (panel) panel.hidden = true;
-        }
-      });
+        });
+      }
     });
 
     root.querySelectorAll(".react-mini").forEach((bar) => {
