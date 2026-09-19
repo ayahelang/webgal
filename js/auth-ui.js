@@ -41,6 +41,7 @@
             ${statusLabel ? `<small>${escapeHtml(statusLabel)}</small>` : `<small>${escapeHtml(u.email || "")}</small>`}
           </span>
         </a>
+        `<a class="btn btn-ghost" href="my-works.html" style="padding:6px 10px;font-size:12px">Karya</a>` +
         ${isAdm ? `<a class="btn btn-ghost" href="admin.html" style="padding:6px 10px;font-size:12px">Admin</a>` : ""}
       `;
     } catch (e) {

@@ -347,28 +347,280 @@
     let platform = "other";
     let embed = u;
     let id = null;
-    // YouTube
-    let m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/i);
+    let m;
+    m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/i);
     if (m) {
       platform = "youtube";
       id = m[1];
       embed = "https://www.youtube.com/embed/" + id;
+      return { platform, embed_url: embed, id };
     }
-    // Dailymotion
-    m = u.match(/dailymotion\.com\/(?:video|embed\/video)\/([a-zA-Z0-9]+)/i);
-    if (!id && m) {
+    m = u.match(/dailymotion\.com\/(?:video|embed\/video)\/([a-zA-Z0-9]+)/i) || u.match(/dai\.ly\/([a-zA-Z0-9]+)/i);
+    if (m) {
       platform = "dailymotion";
       id = m[1];
       embed = "https://www.dailymotion.com/embed/video/" + id;
+      return { platform, embed_url: embed, id };
     }
-    m = u.match(/dai\.ly\/([a-zA-Z0-9]+)/i);
-    if (!id && m) {
-      platform = "dailymotion";
-      id = m[1];
-      embed = "https://www.dailymotion.com/embed/video/" + id;
+    if (/tiktok\.com\//i.test(u)) {
+      platform = "tiktok";
+      embed = u; // oEmbed dipakai untuk meta; embed iframe via player jika perlu
+      return { platform, embed_url: embed, id: null };
+    }
+    if (/instagram\.com\//i.test(u)) {
+      platform = "instagram";
+      return { platform, embed_url: u, id: null };
+    }
+    if (/facebook\.com\/|fb\.watch\//i.test(u)) {
+      platform = "facebook";
+      return { platform, embed_url: u, id: null };
     }
     return { platform, embed_url: embed, id };
   }
+
+  async function fetchVideoMeta(url) {
+    const parsed = parseVideoUrl(url);
+    const tryUrls = [];
+    if (parsed.platform === "youtube") {
+      tryUrls.push("https://www.youtube.com/oembed?format=json&url=" + encodeURIComponent(url));
+    } else if (parsed.platform === "dailymotion") {
+      tryUrls.push("https://www.dailymotion.com/services/oembed?url=" + encodeURIComponent(url));
+    } else if (parsed.platform === "tiktok") {
+      tryUrls.push("https://www.tiktok.com/oembed?url=" + encodeURIComponent(url));
+    }
+    // generic fallback
+    tryUrls.push("https://noembed.com/embed?url=" + encodeURIComponent(url));
+
+    for (const endpoint of tryUrls) {
+      try {
+        const res = await fetch(endpoint);
+        if (!res.ok) continue;
+        const j = await res.json();
+        const title = j.title || j.author_name || "";
+        const description = j.author_name
+          ? ("Oleh " + j.author_name + (j.provider_name ? " · " + j.provider_name : ""))
+          : (j.provider_name || "");
+        if (title || description) {
+          return {
+            title: title || "Video",
+            description: description || "",
+            thumbnail: j.thumbnail_url || "",
+            platform: parsed.platform,
+            embed_url: parsed.embed_url,
+            provider: j.provider_name || parsed.platform,
+          };
+        }
+      } catch (e) {
+        /* coba endpoint berikutnya */
+      }
+    }
+    let host = "";
+    try { host = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
+    return {
+      title: host ? ("Video · " + host) : "Video",
+      description: "",
+      thumbnail: "",
+      platform: parsed.platform,
+      embed_url: parsed.embed_url,
+      provider: parsed.platform,
+    };
+  }
+
+  async function resolveMyAlumni() {
+    const sb = client();
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Belum login Google");
+    const prof = await getMyProfile();
+    if (!prof || !prof.linked_student_name || !prof.linked_angkatan_year) {
+      throw new Error("Tautkan dulu nama siswa + angkatan di halaman Profil.");
+    }
+    const year = String(prof.linked_angkatan_year);
+    const classCode = String(prof.linked_class_code || "51");
+    // cari angkatan
+    let angList = await listAngkatan({ mainOnly: false });
+    let ang = angList.find((a) => a.label_norm === "angkatan-" + year || a.label.includes(year));
+    if (!ang) {
+      const created = await ensureAngkatan("Angkatan " + year);
+      ang = created.row;
+    }
+    const nameNorm = normLabel(prof.linked_student_name);
+    let { data: al } = await sb
+      .from("gallery_alumni")
+      .select("id")
+      .eq("name_norm", nameNorm)
+      .eq("angkatan_id", ang.id)
+      .maybeSingle();
+    if (!al) {
+      const ins = await sb
+        .from("gallery_alumni")
+        .insert({
+          name: prof.linked_student_name,
+          name_norm: nameNorm,
+          angkatan_id: ang.id,
+          class_code: classCode,
+          role: "Santriwati / Alumni",
+        })
+        .select("id")
+        .single();
+      if (ins.error) throw ins.error;
+      al = ins.data;
+    } else {
+      await sb.from("gallery_alumni").update({ class_code: classCode }).eq("id", al.id);
+    }
+    await sb.from("gallery_profiles").update({ linked_alumni_id: al.id }).eq("id", session.user.id);
+    return { alumniId: al.id, profile: prof, angkatan: ang, classCode };
+  }
+
+  async function myWebsites() {
+    const { alumniId } = await resolveMyAlumni();
+    const sb = client();
+    const { data, error } = await sb
+      .from("gallery_websites")
+      .select("*")
+      .eq("alumni_id", alumniId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function addMyWebsite({ title, url, category }) {
+    const { alumniId } = await resolveMyAlumni();
+    const sb = client();
+    const { data, error } = await sb
+      .from("gallery_websites")
+      .insert({
+        alumni_id: alumniId,
+        title: title || "Website",
+        url,
+        category: category || "Web Kreatif",
+        description: "Dikelola pemilik akun Google.",
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function updateMyWebsite(id, { title, url, category }) {
+    const { alumniId } = await resolveMyAlumni();
+    const sb = client();
+    const { data, error } = await sb
+      .from("gallery_websites")
+      .update({
+        title: title || "Website",
+        url,
+        category: category || "Web Kreatif",
+      })
+      .eq("id", id)
+      .eq("alumni_id", alumniId)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function deleteMyWebsite(id) {
+    const { alumniId } = await resolveMyAlumni();
+    const sb = client();
+    const { error } = await sb.from("gallery_websites").delete().eq("id", id).eq("alumni_id", alumniId);
+    if (error) throw error;
+  }
+
+  async function myVideos() {
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Belum login");
+    const sb = client();
+    const { data, error } = await sb
+      .from("gallery_videos")
+      .select("*, gallery_video_categories(name,slug)")
+      .eq("owner_user_id", session.user.id)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function addMyVideo({ title, url, description, categoryId }) {
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Belum login Google");
+    const prof = await getMyProfile();
+    if (!prof || !prof.linked_student_name) {
+      throw new Error("Tautkan nama + angkatan di Profil dulu.");
+    }
+    const meta = await fetchVideoMeta(url);
+    const parsed = parseVideoUrl(url);
+    // YouTube/Dailymotion wajib embed; sosmed lain simpan link + meta
+    if (parsed.platform === "other") {
+      // still allow if meta found
+    }
+    const finalTitle = (title && String(title).trim()) || meta.title || "Video";
+    const finalDesc =
+      (description && String(description).trim()) ||
+      meta.description ||
+      ("Karya " + prof.linked_student_name + " · Angkatan " + (prof.linked_angkatan_year || ""));
+
+    // default kategori Karya Siswa
+    let catId = categoryId;
+    if (!catId) {
+      const cats = await listVideoCategories();
+      const ks = cats.find((c) => c.slug === "karya-siswa");
+      catId = ks ? ks.id : (cats[0] && cats[0].id) || null;
+    }
+
+    const sb = client();
+    const { data, error } = await sb
+      .from("gallery_videos")
+      .insert({
+        title: finalTitle,
+        url,
+        platform: meta.platform || parsed.platform,
+        embed_url: parsed.embed_url || url,
+        category_id: catId,
+        description: finalDesc,
+        created_by: session.user.email || "",
+        owner_user_id: session.user.id,
+        owner_name: prof.linked_student_name,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function updateMyVideo(id, { title, url, description }) {
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Belum login");
+    const patch = {};
+    if (url) {
+      const meta = await fetchVideoMeta(url);
+      const parsed = parseVideoUrl(url);
+      patch.url = url;
+      patch.platform = meta.platform || parsed.platform;
+      patch.embed_url = parsed.embed_url || url;
+      if (!title) patch.title = meta.title;
+      if (!description) patch.description = meta.description;
+    }
+    if (title) patch.title = title;
+    if (description) patch.description = description;
+    const sb = client();
+    const { data, error } = await sb
+      .from("gallery_videos")
+      .update(patch)
+      .eq("id", id)
+      .eq("owner_user_id", session.user.id)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function deleteMyVideo(id) {
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Belum login");
+    const sb = client();
+    const { error } = await sb.from("gallery_videos").delete().eq("id", id).eq("owner_user_id", session.user.id);
+    if (error) throw error;
+  }
+
 
   async function listVideoCategories() {
     const sb = client();

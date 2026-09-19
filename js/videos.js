@@ -18,7 +18,7 @@
       <div class="video-meta">
         <span class="pill">${esc(catName)}</span>
         <h3>${esc(v.title)}</h3>
-        ${v.description ? `<p>${esc(v.description)}</p>` : ""}
+        ${v.owner_name ? `<p class="muted">Karya: ${esc(v.owner_name)}</p>` : ""}${v.description ? `<p>${esc(v.description)}</p>` : ""}
         <a href="${esc(v.url)}" target="_blank" rel="noopener">Buka sumber ↗</a>
       </div>
     </article>`;

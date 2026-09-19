@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Karya Saya — Silverhawk Gallery</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-skills">
+  <div class="bg-grid"></div>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Karya Saya</small></span></a>
+    <nav class="topnav">
+      <a href="index.html">Gallery</a>
+      <a href="videos.html">Galeri Video</a>
+      <a href="my-works.html" class="active">Karya Saya</a>
+      <a href="profile.html">Profil</a>
+    </nav>
+  </header>
+  <main class="skills-main">
+    <section class="skills-hero">
+      <div class="eyebrow">MY WORKS</div>
+      <h1>Kelola karya saya</h1>
+      <p class="skills-lead">Login Google + tautkan nama/angkatan di Profil. Website & video otomatis terkait identitasmu — tanpa mengisi ulang kelas/angkatan.</p>
+    </section>
+
+    <div id="needLogin" class="summary-card" style="max-width:480px">
+      <p class="muted">Silakan login dan tautkan profil dulu.</p>
+      <p><a class="btn btn-primary" href="profile.html">Ke halaman Profil</a></p>
+    </div>
+
+    <div id="works" hidden>
+      <div class="filters" style="margin-bottom:14px" id="tabs">
+        <button class="filter active" data-tab="web">Website saya</button>
+        <button class="filter" data-tab="vid">Video saya</button>
+      </div>
+
+      <section data-pane="web" class="summary-card">
+        <h3>Tambah / ubah website</h3>
+        <form id="webForm" style="display:grid;gap:10px;margin-top:10px">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Judul</span><input name="title" placeholder="Judul karya"></label>
+          <label class="field"><span>URL</span><input name="url" type="url" required placeholder="https://..."></label>
+          <label class="field"><span>Kategori</span>
+            <input name="category" placeholder="Web Kreatif">
+          </label>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" type="submit">Simpan website</button>
+            <button class="btn btn-ghost" type="button" id="webReset">Batal edit</button>
+          </div>
+        </form>
+        <p id="webMsg" class="muted" style="font-size:13px"></p>
+        <div id="webList" class="admin-list"></div>
+      </section>
+
+      <section data-pane="vid" class="summary-card" hidden>
+        <h3>Tambah / ubah video</h3>
+        <p class="muted" style="font-size:13px">YouTube, Dailymotion, TikTok, Instagram, Facebook. Judul/deskripsi kosong → diisi otomatis dari info video bila tersedia.</p>
+        <form id="vidForm" style="display:grid;gap:10px;margin-top:10px">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>URL video</span><input name="url" type="url" required placeholder="https://youtube.com/... atau tiktok/ig/fb"></label>
+          <label class="field"><span>Judul (opsional)</span><input name="title" placeholder="Kosongkan = ambil dari platform"></label>
+          <label class="field"><span>Deskripsi (opsional)</span><input name="description" placeholder="Kosongkan = otomatis"></label>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" type="submit">Simpan video</button>
+            <button class="btn btn-ghost" type="button" id="vidReset">Batal edit</button>
+          </div>
+        </form>
+        <p id="vidMsg" class="muted" style="font-size:13px"></p>
+        <div id="vidList" class="admin-list"></div>
+      </section>
+    </div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data/supabase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/profile-status.js"></script>
+  <script src="js/auth-ui.js"></script>
+  <script src="js/my-works.js"></script>
+</body>
+</html>
