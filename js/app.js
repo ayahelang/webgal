@@ -1,5 +1,6 @@
 (() => {
-  const state = { data:null, query:"", classFilter:"all", sort:"name" };
+  const ACTIVE_YEAR = String(new Date().getFullYear() - 1); // 2026 → 2025 masih belajar
+  const state = { data:null, query:"", classFilter:"y:"+ACTIVE_YEAR, sort:"name" };
   const $ = s => document.querySelector(s);
 
   // ===== Tooltip + live meta cache =====
@@ -148,17 +149,67 @@
     return jsonData;
   }
   const allWorks=()=>state.data.students.flatMap(s=>s.works.map(w=>({...w,student:s})));
+  function studentYear(s){
+    return String(s.angkatan || s.year || "2025");
+  }
+  function cohortKey(s){
+    return studentYear(s) + "-" + String(s.class || "");
+  }
   function updateStats(){
     const ss=state.data.students, ww=allWorks();
-    $("#studentCount").textContent=ss.length; $("#workCount").textContent=ww.length;
-    $("#classCount").textContent=new Set(ss.map(s=>s.class)).size;
+    $("#studentCount").textContent=ss.length;
+    $("#workCount").textContent=ww.length;
+    // 4 kelompok: 51/52 × 2024/2025
+    $("#classCount").textContent=new Set(ss.map(cohortKey)).size;
     $("#categoryCount").textContent=new Set(ww.map(w=>w.category)).size;
   }
   function matches(s){
-    if(state.classFilter!=="all"&&s.class!==state.classFilter)return false;
+    const f = state.classFilter;
+    const y = studentYear(s);
+    const c = String(s.class || "");
+    if(f === "all"){
+      /* semua angkatan */
+    } else if(f.startsWith("y:")){
+      if(y !== f.slice(2)) return false;
+    } else if(f.startsWith("c:")){
+      // c:2025-51
+      if(cohortKey(s) !== f.slice(2)) return false;
+    } else {
+      // legacy data-class=51
+      if(c !== f) return false;
+    }
     const q=state.query.trim().toLowerCase(); if(!q)return true;
-    const hay=[s.name,s.class,s.aiTool||"",...s.works.flatMap(w=>[w.title,w.category,w.description,w.url,(w.tags||[]).join(" ")])].join(" ").toLowerCase();
+    const hay=[s.name,s.class,y,s.angkatanLabel||"",s.aiTool||"",...s.works.flatMap(w=>[w.title,w.category,w.description,w.url,(w.tags||[]).join(" ")])].join(" ").toLowerCase();
     return hay.includes(q);
+  }
+  function buildFilters(){
+    const host = document.getElementById("classFilters");
+    if(!host || !state.data) return;
+    const years = [...new Set(state.data.students.map(studentYear))].sort().reverse();
+    const cohorts = [...new Set(state.data.students.map(cohortKey))].sort();
+    let html = `<button type="button" class="filter" data-filter="all">Semua</button>`;
+    // default group: angkatan aktif
+    html += `<button type="button" class="filter" data-filter="y:${ACTIVE_YEAR}">Angkatan ${ACTIVE_YEAR}</button>`;
+    cohorts.forEach(ck => {
+      const [yy, cc] = ck.split("-");
+      const label = `${cc} · ${yy}`;
+      html += `<button type="button" class="filter" data-filter="c:${ck}">${label}</button>`;
+    });
+    // other full years if not active
+    years.forEach(yy => {
+      if(yy === ACTIVE_YEAR) return;
+      html += `<button type="button" class="filter" data-filter="y:${yy}">Angkatan ${yy}</button>`;
+    });
+    host.innerHTML = html;
+    host.querySelectorAll(".filter").forEach(b => {
+      b.classList.toggle("active", b.dataset.filter === state.classFilter);
+      b.addEventListener("click", () => {
+        host.querySelectorAll(".filter").forEach(x => x.classList.remove("active"));
+        b.classList.add("active");
+        state.classFilter = b.dataset.filter;
+        render();
+      });
+    });
   }
   function sorted(a){
     return [...a].sort((x,y)=>state.sort==="class"?(x.class.localeCompare(y.class)||x.name.localeCompare(y.name)):
@@ -225,7 +276,7 @@
         <div class="cover-title"><h3 title="${escapeAttr(w.title)}">${w.title}</h3><span>${s.works.length} karya</span></div>
       </div>
       <div class="card-body">
-        <div class="student-row"><div class="student">${s.name}</div><span class="class-badge">${s.classLabel || ("KELAS " + s.class)}</span></div>
+        <div class="student-row"><div class="student">${s.name}</div><span class="class-badge">${s.classLabel || ("Kelas " + s.class + " · " + studentYear(s))}</span></div>
         <p class="card-desc">${w.description}${ai}</p>
         <div class="meta-row">${tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>
         <div class="works-title">KARYA <span>${s.works.length} LINK</span></div>
@@ -262,8 +313,9 @@
   }
   function render(){
     const list=sorted(state.data.students.filter(matches));
+    const worksShown = list.reduce((n,s)=>n+(s.works||[]).length,0);
     $("#galleryGrid").innerHTML=list.map(card).join("");
-    $("#resultInfo").textContent=`${list.length} santriwati ditampilkan • ${allWorks().length} karya dalam galeri`;
+    $("#resultInfo").textContent=`${list.length} santriwati ditampilkan • ${worksShown} karya (filter aktif) · total ${allWorks().length} di database`;
     $("#emptyState").hidden=list.length!==0;
     document.querySelectorAll(".thumb").forEach(loadScreenshot);
     if (window.SHSocial) { SHSocial.bind(document); SHSocial.hydrate(document); }
@@ -276,16 +328,17 @@
     bindTooltips(document);
   }
   async function init(){
-    try{state.data=await loadData();updateStats();render();}
+    try{state.data=await loadData();updateStats();buildFilters();render();}
     catch(e){$("#galleryGrid").innerHTML=`<div class="empty"><h3>Data galeri belum dapat dimuat</h3></div>`;return;}
     $("#searchInput").addEventListener("input",e=>{state.query=e.target.value;render();});
-    document.querySelectorAll(".filter").forEach(b=>b.addEventListener("click",()=>{
-      document.querySelectorAll(".filter").forEach(x=>x.classList.remove("active"));b.classList.add("active");
-      state.classFilter=b.dataset.class;render();
-    }));
     $("#sortSelect").addEventListener("change",e=>{state.sort=e.target.value;render();});
-    $("#clearBtn").addEventListener("click",()=>{$("#searchInput").value="";state.query="";state.classFilter="all";
-      document.querySelectorAll(".filter").forEach(x=>x.classList.toggle("active",x.dataset.class==="all"));render();});
+    $("#clearBtn").addEventListener("click",()=>{
+      $("#searchInput").value="";
+      state.query="";
+      state.classFilter="y:"+ACTIVE_YEAR;
+      buildFilters();
+      render();
+    });
     $("#randomBtn").addEventListener("click",()=>{const s=state.data.students[Math.floor(Math.random()*state.data.students.length)];
       const w=s.works[Math.floor(Math.random()*s.works.length)];window.open(w.url,"_blank","noopener,noreferrer");});
     addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("#searchInput").focus();}});
