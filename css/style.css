@@ -239,3 +239,17 @@ select:focus,input:focus,textarea:focus{
 .chat-body{min-width:0}
 .typing-line{min-height:18px;font-size:12px;color:#7de3ff;font-style:italic;opacity:.9}
 .thumb{object-fit:cover;width:100%;height:100%;background:#0d1824}
+
+.nav-profile{font-size:18px;opacity:.9}
+.video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:18px}
+.video-card{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:rgba(255,255,255,.03);display:flex;flex-direction:column}
+.video-frame{position:relative;aspect-ratio:16/9;background:#000}
+.video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.video-meta{padding:14px 16px 16px;display:grid;gap:8px}
+.video-meta h3{margin:0;font-size:1.05rem;color:#e8f4f8}
+.video-meta p{margin:0;font-size:13px;color:#9db5c0}
+.video-meta a{font-size:12px;color:#7de3ff}
+.admin-list{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.admin-row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.15);font-size:13px}
+.admin-row button{border:1px solid var(--line);background:rgba(255,80,80,.12);color:#ffb4b4;border-radius:8px;padding:6px 10px;cursor:pointer}
+@media (max-width:640px){.video-grid{grid-template-columns:1fr}}

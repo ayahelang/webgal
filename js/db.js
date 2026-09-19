@@ -1,5 +1,5 @@
 /**
- * Silverhawk Gallery — Supabase data layer (revisi)
+ * Silverhawk Gallery — data layer
  */
 (function (global) {
   function cfg() {
@@ -28,10 +28,12 @@
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
   }
-
   function normUrl(u) {
     return String(u || "").trim().replace(/\/+$/, "").toLowerCase();
   }
+
+  const MAIN_ANGKATAN = ["angkatan-2024", "angkatan-2025"];
+  const CLASS_OPTIONS = ["51", "52"];
 
   async function getSubmitCode() {
     const sb = client();
@@ -41,12 +43,18 @@
     return (data && data.value) || cfg().defaultSubmitCode || "";
   }
 
-  async function listAngkatan() {
+  async function listAngkatan({ mainOnly } = { mainOnly: true }) {
     const sb = client();
     if (!sb) return [];
     const { data, error } = await sb.from("gallery_angkatan").select("id,label,label_norm,created_at").order("label");
     if (error) throw error;
-    return data || [];
+    let rows = data || [];
+    if (mainOnly !== false) {
+      rows = rows.filter((a) => MAIN_ANGKATAN.includes(a.label_norm) || /^angkatan-20\d{2}$/.test(a.label_norm));
+      // prefer exact main labels first
+      rows.sort((a, b) => a.label.localeCompare(b.label));
+    }
+    return rows;
   }
 
   async function ensureAngkatan(label) {
@@ -63,7 +71,7 @@
       .select("id,label,label_norm")
       .single();
     if (error) {
-      if (error.code === "23505" || String(error.message || "").includes("duplicate")) {
+      if (error.code === "23505") {
         const { data: again } = await sb.from("gallery_angkatan").select("id,label,label_norm").eq("label_norm", ln).maybeSingle();
         if (again) return { row: again, created: false };
       }
@@ -72,15 +80,16 @@
     return { row: data, created: true };
   }
 
-  async function submitAlumni({ code, name, angkatanLabel, createNew, websites }) {
+  async function submitAlumni({ code, name, angkatanId, classCode, createNew, angkatanLabel, websites }) {
     const sb = client();
-    if (!sb) throw new Error("Supabase belum dikonfigurasi. Hubungi admin gallery.");
+    if (!sb) throw new Error("Supabase belum dikonfigurasi.");
     const expected = await getSubmitCode();
-    if (!code || String(code).trim() !== String(expected).trim()) {
-      throw new Error("Kode akses salah.");
-    }
+    if (!code || String(code).trim() !== String(expected).trim()) throw new Error("Kode akses salah.");
     const nm = String(name || "").trim();
     if (nm.length < 2) throw new Error("Nama terlalu pendek.");
+    const cls = String(classCode || "").trim();
+    if (!CLASS_OPTIONS.includes(cls)) throw new Error("Pilih kelas 51 atau 52.");
+
     const links = (websites || [])
       .map((w) => ({
         title: String(w.title || "Website").trim() || "Website",
@@ -88,35 +97,37 @@
         category: String(w.category || "Web Kreatif").trim() || "Web Kreatif",
       }))
       .filter((w) => /^https?:\/\//i.test(w.url));
-    if (!links.length) throw new Error("Minimal satu URL website valid (http/https).");
+    if (!links.length) throw new Error("Minimal satu URL website valid.");
 
-    let angkatanId;
+    let aid = angkatanId;
     if (createNew) {
       const { row } = await ensureAngkatan(angkatanLabel);
-      angkatanId = row.id;
-    } else {
-      const list = await listAngkatan();
-      const found = list.find(
-        (a) => a.id === angkatanLabel || a.label === angkatanLabel || a.label_norm === normLabel(angkatanLabel)
-      );
-      if (!found) throw new Error("Angkatan tidak ditemukan.");
-      angkatanId = found.id;
+      aid = row.id;
     }
+    if (!aid) throw new Error("Pilih angkatan.");
 
     const nameNorm = normLabel(nm);
+    // unique per name + angkatan (class stored on row)
     let alumniId;
     const { data: existAl } = await sb
       .from("gallery_alumni")
-      .select("id")
+      .select("id,class_code")
       .eq("name_norm", nameNorm)
-      .eq("angkatan_id", angkatanId)
+      .eq("angkatan_id", aid)
       .maybeSingle();
     if (existAl) {
       alumniId = existAl.id;
+      await sb.from("gallery_alumni").update({ class_code: cls }).eq("id", alumniId);
     } else {
       const { data: al, error: e1 } = await sb
         .from("gallery_alumni")
-        .insert({ name: nm, name_norm: nameNorm, angkatan_id: angkatanId, role: "Alumni" })
+        .insert({
+          name: nm,
+          name_norm: nameNorm,
+          angkatan_id: aid,
+          class_code: cls,
+          role: "Alumni",
+        })
         .select("id")
         .single();
       if (e1) throw e1;
@@ -130,10 +141,10 @@
         title: w.title,
         url: w.url,
         category: w.category,
-        description: "Ditambahkan alumni via form gallery.",
+        description: "Ditambahkan via form gallery.",
       });
       if (error) {
-        if (error.code === "23505" || String(error.message || "").includes("duplicate")) continue;
+        if (error.code === "23505") continue;
         throw error;
       }
       added++;
@@ -144,8 +155,6 @@
   async function fetchGalleryFromDb() {
     const sb = client();
     if (!sb) return null;
-
-    // Query terpisah agar tidak gagal karena relasi nested
     const { data: alumni, error: e1 } = await sb
       .from("gallery_alumni")
       .select("id,name,school,role,legacy_id,class_code,angkatan_id,avatar_emoji");
@@ -160,7 +169,6 @@
       .from("gallery_websites")
       .select("id,alumni_id,title,url,category,description,tags");
     if (e3) throw e3;
-
     const byAlumni = {};
     (websites || []).forEach((w) => {
       if (!byAlumni[w.alumni_id]) byAlumni[w.alumni_id] = [];
@@ -170,75 +178,62 @@
     const students = alumni
       .map((a) => {
         const ang = angMap[a.angkatan_id] || {};
-        const label = ang.label || "";
-        const classCode = a.class_code || String(label).replace(/^Kelas\s+/i, "").replace(/\s*·.*$/, "").trim() || label;
+        const classCode = a.class_code || "—";
+        let angkatanYear = "";
+        const m = String(ang.label || "").match(/20\d{2}/);
+        if (m) angkatanYear = m[0];
         const works = (byAlumni[a.id] || []).map((w) => ({
           title: w.title,
           url: w.url,
           category: w.category || "Web Kreatif",
           tags: w.tags || [],
           description: w.description || "",
-          thumb: "", // di-generate otomatis di UI
+          thumb: "",
         }));
-        // angkatan year hint
-        let angkatanYear = "";
-        const m = String(label).match(/20\d{2}/);
-        if (m) angkatanYear = m[0];
         return {
           id: a.legacy_id || a.id,
           name: a.name,
           class: classCode,
-          classLabel: label || classCode,
+          classLabel: `Kelas ${classCode} · ${ang.label || ""}`.trim(),
           angkatan: angkatanYear,
+          angkatanLabel: ang.label || "",
           school: a.school || "SMA PMA",
           role: a.role || "Alumni",
           aiTool: "",
           avatar: a.avatar_emoji || "🎓",
           works,
+          _dbId: a.id,
         };
       })
       .filter((s) => s.works && s.works.length);
 
     return {
-      meta: {
-        title: "Galeri Web Kreasi Santriwati",
-        subtitle: "Data live Supabase",
-        brand: "Silverhawk",
-        source: "Supabase",
-        updated: new Date().toISOString().slice(0, 10),
-      },
+      meta: { title: "Gallery", source: "Supabase", updated: new Date().toISOString().slice(0, 10) },
       students,
     };
   }
 
-  /** Gabungkan DB + JSON: URL unik, JSON tidak boleh hilang */
   function mergeGallery(jsonData, dbData) {
     const base = jsonData && jsonData.students ? jsonData : { meta: {}, students: [] };
     const extra = dbData && dbData.students ? dbData.students : [];
-
-    // index JSON by name+class and collect all urls
     const urlOwner = new Map();
     const students = base.students.map((s) => {
       const copy = {
         ...s,
         angkatan: s.angkatan || "2025",
-        classLabel: s.classLabel || `Kelas ${s.class} · 2025`,
+        classLabel: s.classLabel || `Kelas ${s.class} · Angkatan 2025`,
         works: (s.works || []).map((w) => ({ ...w })),
       };
       copy.works.forEach((w) => urlOwner.set(normUrl(w.url), true));
       return copy;
     });
-
     const byKey = new Map();
-    students.forEach((s) => {
-      byKey.set(normLabel(s.name) + "|" + String(s.class), s);
-    });
+    students.forEach((s) => byKey.set(normLabel(s.name) + "|" + String(s.class), s));
 
     extra.forEach((s) => {
       const key = normLabel(s.name) + "|" + String(s.class);
       let target = byKey.get(key);
       if (!target) {
-        // coba match nama saja
         for (const [k, st] of byKey) {
           if (k.startsWith(normLabel(s.name) + "|")) {
             target = st;
@@ -259,21 +254,170 @@
         target.works.push({ ...w });
       });
     });
-
     return {
-      meta: {
-        ...(base.meta || {}),
-        ...(dbData && dbData.meta ? { source: "JSON + Supabase (merged)" } : {}),
-        updated: new Date().toISOString().slice(0, 10),
-      },
+      meta: { ...(base.meta || {}), source: "JSON + Supabase (merged)", updated: new Date().toISOString().slice(0, 10) },
       students,
     };
   }
 
-  async function fetchGalleryData() {
-    return fetchGalleryFromDb();
+  // ----- Auth admin (Supabase Google) -----
+  function isAdminEmail(email) {
+    const list = (cfg().adminEmails || []).map((e) => String(e).toLowerCase().trim());
+    return list.includes(String(email || "").toLowerCase().trim());
   }
 
+  async function getSession() {
+    const sb = client();
+    if (!sb) return null;
+    const { data } = await sb.auth.getSession();
+    return data.session || null;
+  }
+
+  async function signInWithGoogle() {
+    const sb = client();
+    if (!sb) throw new Error("Supabase belum dikonfigurasi");
+    const redirectTo = window.location.origin + window.location.pathname.replace(/[^/]+$/, "admin.html");
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo, queryParams: { prompt: "select_account" } },
+    });
+    if (error) throw error;
+  }
+
+  async function signOut() {
+    const sb = client();
+    if (sb) await sb.auth.signOut();
+  }
+
+  async function requireAdmin() {
+    const session = await getSession();
+    if (!session || !session.user) return { ok: false, reason: "not_logged_in" };
+    const email = session.user.email || "";
+    if (!isAdminEmail(email)) return { ok: false, reason: "forbidden", email };
+    return { ok: true, email, session };
+  }
+
+  // ----- Admin CRUD helpers -----
+  async function adminListAlumni() {
+    const sb = client();
+    const { data, error } = await sb
+      .from("gallery_alumni")
+      .select("id,name,class_code,role,angkatan_id,created_at, gallery_angkatan(label)")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+  async function adminDeleteAlumni(id) {
+    const sb = client();
+    const { error } = await sb.from("gallery_alumni").delete().eq("id", id);
+    if (error) throw error;
+  }
+  async function adminListWebsites() {
+    const sb = client();
+    const { data, error } = await sb
+      .from("gallery_websites")
+      .select("id,title,url,category,alumni_id,created_at, gallery_alumni(name)")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    return data || [];
+  }
+  async function adminDeleteWebsite(id) {
+    const sb = client();
+    const { error } = await sb.from("gallery_websites").delete().eq("id", id);
+    if (error) throw error;
+  }
+  async function adminListAngkatanAll() {
+    return listAngkatan({ mainOnly: false });
+  }
+  async function adminDeleteAngkatan(id) {
+    const sb = client();
+    const { error } = await sb.from("gallery_angkatan").delete().eq("id", id);
+    if (error) throw error;
+  }
+
+  // ----- Videos -----
+  function parseVideoUrl(url) {
+    const u = String(url || "").trim();
+    let platform = "other";
+    let embed = u;
+    let id = null;
+    // YouTube
+    let m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/i);
+    if (m) {
+      platform = "youtube";
+      id = m[1];
+      embed = "https://www.youtube.com/embed/" + id;
+    }
+    // Dailymotion
+    m = u.match(/dailymotion\.com\/(?:video|embed\/video)\/([a-zA-Z0-9]+)/i);
+    if (!id && m) {
+      platform = "dailymotion";
+      id = m[1];
+      embed = "https://www.dailymotion.com/embed/video/" + id;
+    }
+    m = u.match(/dai\.ly\/([a-zA-Z0-9]+)/i);
+    if (!id && m) {
+      platform = "dailymotion";
+      id = m[1];
+      embed = "https://www.dailymotion.com/embed/video/" + id;
+    }
+    return { platform, embed_url: embed, id };
+  }
+
+  async function listVideoCategories() {
+    const sb = client();
+    if (!sb) return [];
+    const { data, error } = await sb.from("gallery_video_categories").select("*").order("name");
+    if (error) throw error;
+    return data || [];
+  }
+  async function addVideoCategory(name) {
+    const sb = client();
+    const slug = normLabel(name);
+    const { data, error } = await sb.from("gallery_video_categories").insert({ name, slug }).select("*").single();
+    if (error) throw error;
+    return data;
+  }
+  async function listVideos({ categoryId } = {}) {
+    const sb = client();
+    if (!sb) return [];
+    let q = sb
+      .from("gallery_videos")
+      .select("id,title,url,platform,embed_url,description,created_at,category_id, gallery_video_categories(name,slug)")
+      .order("created_at", { ascending: false });
+    if (categoryId) q = q.eq("category_id", categoryId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  }
+  async function addVideo({ title, url, categoryId, description, createdBy }) {
+    const sb = client();
+    const parsed = parseVideoUrl(url);
+    if (parsed.platform === "other") throw new Error("Link harus YouTube atau Dailymotion.");
+    const { data, error } = await sb
+      .from("gallery_videos")
+      .insert({
+        title: title || "Video",
+        url,
+        platform: parsed.platform,
+        embed_url: parsed.embed_url,
+        category_id: categoryId || null,
+        description: description || "",
+        created_by: createdBy || "",
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+  async function deleteVideo(id) {
+    const sb = client();
+    const { error } = await sb.from("gallery_videos").delete().eq("id", id);
+    if (error) throw error;
+  }
+
+  // Chat (unchanged API)
   async function listChat({ angkatanId, limit }) {
     const sb = client();
     if (!sb) return [];
@@ -288,35 +432,28 @@
     if (error) throw error;
     return data || [];
   }
-
   async function sendChat({ angkatanId, authorName, body, avatarEmoji }) {
     const sb = client();
-    if (!sb) throw new Error("Supabase belum dikonfigurasi");
-    const name = String(authorName || "").trim() || "Anonim";
-    const text = String(body || "").trim();
-    if (!text) throw new Error("Pesan kosong");
-    const row = {
-      author_name: name.slice(0, 60),
-      body: text.slice(0, 1000),
-      angkatan_id: angkatanId || null,
-      avatar_emoji: (avatarEmoji || "💬").slice(0, 8),
-    };
-    const { data, error } = await sb.from("gallery_chat").insert(row).select("*").single();
+    const { data, error } = await sb
+      .from("gallery_chat")
+      .insert({
+        author_name: String(authorName || "Anonim").slice(0, 60),
+        body: String(body || "").trim().slice(0, 1000),
+        angkatan_id: angkatanId || null,
+        avatar_emoji: (avatarEmoji || "💬").slice(0, 8),
+      })
+      .select("*")
+      .single();
     if (error) throw error;
     return data;
   }
-
   function subscribeChat({ angkatanId, onInsert }) {
     const sb = client();
     if (!sb) return () => {};
     const filter = angkatanId ? `angkatan_id=eq.${angkatanId}` : "angkatan_id=is.null";
     const channel = sb
       .channel("gallery-chat-" + (angkatanId || "global"))
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "gallery_chat", filter },
-        (payload) => onInsert && onInsert(payload.new)
-      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "gallery_chat", filter }, (payload) => onInsert && onInsert(payload.new))
       .subscribe();
     return () => {
       try {
@@ -324,8 +461,6 @@
       } catch (_) {}
     };
   }
-
-  /** Presence: is typing */
   function joinTypingChannel({ roomKey, userName, avatarEmoji, onSync }) {
     const sb = client();
     if (!sb) return { setTyping() {}, leave() {} };
@@ -336,31 +471,18 @@
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState();
         const people = [];
-        Object.values(state).forEach((arr) => {
-          (arr || []).forEach((p) => people.push(p));
-        });
+        Object.values(state).forEach((arr) => (arr || []).forEach((p) => people.push(p)));
         onSync && onSync(people);
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          await channel.track({
-            name: userName || "Anonim",
-            avatar: avatarEmoji || "💬",
-            typing: false,
-            at: Date.now(),
-          });
+          await channel.track({ name: userName || "Anonim", avatar: avatarEmoji || "💬", typing: false, at: Date.now() });
         }
       });
-
     return {
       async setTyping(isTyping) {
         try {
-          await channel.track({
-            name: userName || "Anonim",
-            avatar: avatarEmoji || "💬",
-            typing: !!isTyping,
-            at: Date.now(),
-          });
+          await channel.track({ name: userName || "Anonim", avatar: avatarEmoji || "💬", typing: !!isTyping, at: Date.now() });
         } catch (_) {}
       },
       leave() {
@@ -374,18 +496,35 @@
   global.GalleryDB = {
     enabled,
     client,
+    CLASS_OPTIONS,
     getSubmitCode,
     listAngkatan,
     ensureAngkatan,
     submitAlumni,
-    fetchGalleryData,
     fetchGalleryFromDb,
+    fetchGalleryData: fetchGalleryFromDb,
     mergeGallery,
+    isAdminEmail,
+    getSession,
+    signInWithGoogle,
+    signOut,
+    requireAdmin,
+    adminListAlumni,
+    adminDeleteAlumni,
+    adminListWebsites,
+    adminDeleteWebsite,
+    adminListAngkatanAll,
+    adminDeleteAngkatan,
+    parseVideoUrl,
+    listVideoCategories,
+    addVideoCategory,
+    listVideos,
+    addVideo,
+    deleteVideo,
     listChat,
     sendChat,
     subscribeChat,
     joinTypingChannel,
     normLabel,
-    normUrl,
   };
 })(window);

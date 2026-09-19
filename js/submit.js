@@ -36,12 +36,14 @@
 
   async function loadAngkatan() {
     if (!window.GalleryDB || !GalleryDB.enabled()) {
-      status.textContent = "Supabase belum dikonfigurasi. Isi data/supabase-config.js dulu.";
+      status.textContent = "Supabase belum dikonfigurasi.";
       return;
     }
     try {
-      const list = await GalleryDB.listAngkatan();
-      sel.innerHTML = list.map((a) => `<option value="${a.id}">${a.label}</option>`).join("") || '<option value="">— belum ada —</option>';
+      const list = await GalleryDB.listAngkatan({ mainOnly: true });
+      sel.innerHTML =
+        list.map((a) => `<option value="${a.id}">${a.label}</option>`).join("") ||
+        '<option value="">— belum ada —</option>';
     } catch (e) {
       status.textContent = "Gagal memuat angkatan: " + (e.message || e);
     }
@@ -59,7 +61,6 @@
     btn.disabled = true;
     status.textContent = "Menyimpan...";
     try {
-      if (!GalleryDB.enabled()) throw new Error("Supabase belum dikonfigurasi");
       const fd = new FormData(ev.target);
       const mode = fd.get("mode");
       const websites = [...linksBox.querySelectorAll(".link-row")].map((row) => ({
@@ -69,11 +70,16 @@
       const result = await GalleryDB.submitAlumni({
         code: fd.get("code"),
         name: fd.get("name"),
+        classCode: fd.get("classCode"),
         createNew: mode === "new",
-        angkatanLabel: mode === "new" ? fd.get("angkatanNew") : fd.get("angkatanId"),
+        angkatanId: mode === "existing" ? fd.get("angkatanId") : null,
+        angkatanLabel: mode === "new" ? fd.get("angkatanNew") : null,
         websites,
       });
-      status.textContent = `Berhasil. Website baru: ${result.added}` + (result.skipped ? `, dilewati (duplikat URL): ${result.skipped}` : "") + ". Lihat di Gallery.";
+      status.textContent =
+        `Berhasil. Website baru: ${result.added}` +
+        (result.skipped ? `, dilewati (duplikat): ${result.skipped}` : "") +
+        ". Lihat di Gallery.";
       ev.target.reset();
       linksBox.innerHTML = "";
       linkRow();

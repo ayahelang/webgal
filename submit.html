@@ -14,16 +14,17 @@
     <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Student Web Gallery</small></span></a>
     <nav class="topnav">
       <a href="index.html">Gallery</a>
+      <a href="videos.html">Galeri Video</a>
       <a href="submit.html" class="active">Input Alumni</a>
       <a href="chat.html">Chat</a>
-      <a href="skills.html">Skills Map</a>
+      <a href="admin.html" class="nav-profile" title="Admin">👤</a>
     </nav>
   </header>
   <main class="skills-main">
     <section class="skills-hero">
       <div class="eyebrow">ALUMNI ARCHIVE</div>
       <h1>Tambah karya website</h1>
-      <p class="skills-lead">Untuk alumni yang punya kode akses. Boleh lebih dari satu link. Angkatan baru hanya bisa dibuat jika belum ada (anti-dobel).</p>
+      <p class="skills-lead">Pilih <b>Angkatan</b> dulu (2024 / 2025), lalu <b>Kelas 51 atau 52</b>. Nama kelas sama, tetapi beda angkatan di database.</p>
     </section>
     <form id="alumniForm" class="summary-card" style="display:grid;gap:14px">
       <label class="field"><span>Kode akses</span>
@@ -43,8 +44,16 @@
           </label>
         </div>
         <select id="angkatanSelect" name="angkatanId" style="margin-top:8px;width:100%"></select>
-        <input id="angkatanNew" name="angkatanNew" type="text" maxlength="40" placeholder="Contoh: 2024 atau Kelas 53" style="margin-top:8px;width:100%;display:none">
+        <input id="angkatanNew" name="angkatanNew" type="text" maxlength="40" placeholder="Contoh: Angkatan 2026" style="margin-top:8px;width:100%;display:none">
       </div>
+      <label class="field"><span>Kelas (dalam angkatan terpilih)</span>
+        <select id="classSelect" name="classCode" required>
+          <option value="">— pilih kelas —</option>
+          <option value="51">Kelas 51</option>
+          <option value="52">Kelas 52</option>
+        </select>
+        <small style="color:#7f97a3;margin-top:4px">Kelas 51 angkatan 2024 ≠ Kelas 51 angkatan 2025 di database.</small>
+      </label>
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-size:13px;color:#9db5c0">Website (boleh lebih dari satu)</span>

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#081018">
+  <title>Panel Admin — Silverhawk Gallery</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-skills">
+  <div class="bg-grid"></div>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Admin</small></span></a>
+    <nav class="topnav">
+      <a href="index.html">Gallery</a>
+      <a href="videos.html">Galeri Video</a>
+      <a href="admin.html" class="active">Admin</a>
+    </nav>
+  </header>
+  <main class="skills-main">
+    <section class="skills-hero">
+      <div class="eyebrow">ADMIN</div>
+      <h1>Panel Admin</h1>
+      <p class="skills-lead">Login Google hanya untuk email yang diizinkan. Kelola data user, angkatan, dan video.</p>
+    </section>
+
+    <div id="gate" class="summary-card" style="display:grid;gap:12px;max-width:420px">
+      <p class="muted" id="gateMsg">Masuk dengan Google menggunakan akun admin yang terdaftar.</p>
+      <button type="button" class="btn btn-primary" id="btnGoogle">Login with Google</button>
+      <p class="muted" style="font-size:12px">Akun diizinkan: admin@silverhawk.web.id · teddyskom63@guru.sma.belajar.id · ted834r@gmail.com</p>
+    </div>
+
+    <div id="panel" hidden>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px">
+        <span id="adminEmail" class="muted"></span>
+        <button type="button" class="btn btn-ghost" id="btnLogout">Keluar</button>
+      </div>
+      <div class="filters" style="margin-bottom:16px" id="adminTabs">
+        <button class="filter active" data-tab="videos">Video</button>
+        <button class="filter" data-tab="websites">Website user</button>
+        <button class="filter" data-tab="alumni">Alumni</button>
+        <button class="filter" data-tab="angkatan">Angkatan</button>
+      </div>
+
+      <section data-panel="videos" class="summary-card admin-pane">
+        <h3>Tambah video (YouTube / Dailymotion)</h3>
+        <form id="videoForm" style="display:grid;gap:10px;margin-top:12px">
+          <label class="field"><span>Judul</span><input name="title" required placeholder="Judul video"></label>
+          <label class="field"><span>URL</span><input name="url" required placeholder="https://youtube.com/... atau dailymotion"></label>
+          <label class="field"><span>Kategori</span><select name="categoryId" id="vidCat"></select></label>
+          <label class="field"><span>Deskripsi</span><input name="description" placeholder="Opsional"></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" type="submit">Simpan video</button>
+            <button class="btn btn-ghost" type="button" id="btnAddCat">+ Kategori baru</button>
+          </div>
+        </form>
+        <p id="vidStatus" class="muted" style="font-size:13px"></p>
+        <div id="vidList" class="admin-list"></div>
+      </section>
+
+      <section data-panel="websites" class="summary-card admin-pane" hidden>
+        <h3>Website dari input user</h3>
+        <div id="webList" class="admin-list"></div>
+      </section>
+
+      <section data-panel="alumni" class="summary-card admin-pane" hidden>
+        <h3>Data alumni / santriwati (DB)</h3>
+        <div id="alumniList" class="admin-list"></div>
+      </section>
+
+      <section data-panel="angkatan" class="summary-card admin-pane" hidden>
+        <h3>Angkatan</h3>
+        <p class="muted" style="font-size:13px">Hapus hanya jika tidak ada data terkait. Idealnya hanya Angkatan 2024 & 2025.</p>
+        <div id="angList" class="admin-list"></div>
+      </section>
+    </div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data/supabase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
