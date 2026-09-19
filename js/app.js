@@ -166,14 +166,22 @@
       x.name.localeCompare(y.name,"id"));
   }
   function workButtons(s){
-    return s.works.map((w,i)=>`
+    return s.works.map((w,i)=>{
+      const tid = w.url || (s.id + "-" + i);
+      const react = window.SHSocial
+        ? SHSocial.miniBarHtml("website", tid)
+        : "";
+      return `<div class="work-row" data-work-url="${escapeAttr(w.url)}">
       <a class="work-choice ${i===0?"active":""}" data-index="${i}"
          href="${w.url}" target="_blank" rel="noopener noreferrer"
          data-tip-title="${escapeAttr(w.title)}"
          data-tip-desc="${escapeAttr(w.description || w.category)}"
          data-tip-url="${escapeAttr(w.url)}">
-        <span>${String(i+1).padStart(2,"0")}</span><b>${w.title}</b><small>${w.category}</small><em title="Hover untuk melihat info">↗</em>
-      </a>`).join("");
+        <span>${String(i+1).padStart(2,"0")}</span><b>${w.title}</b><small>${w.category}</small><em title="Buka website">↗</em>
+      </a>
+      ${react}
+    </div>`;
+    }).join("");
   }
   function escapeAttr(str){
     return String(str||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
@@ -220,9 +228,8 @@
         <div class="student-row"><div class="student">${s.name}</div><span class="class-badge">${s.classLabel || ("KELAS " + s.class)}</span></div>
         <p class="card-desc">${w.description}${ai}</p>
         <div class="meta-row">${tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>
-        ${window.SHSocial ? SHSocial.barHtml("website", (w.url||w.title), {loveRed:0,loveBlue:0,commentRed:0,commentBlue:0}) : ""}
-        ${s.works.length>1?`<div class="works-title">PILIH KARYA <span>${s.works.length} PROJECT</span></div><div class="work-list">${workButtons(s)}</div>`:
-          `<a class="card-link" href="${w.url}" target="_blank" rel="noopener noreferrer"><span>Buka website</span><span>↗</span></a>`}
+        <div class="works-title">KARYA <span>${s.works.length} LINK</span></div>
+        <div class="work-list">${workButtons(s)}</div>
       </div>
     </article>`;
   }

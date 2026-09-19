@@ -1,5 +1,6 @@
 /**
- * Love (merah=anon / biru=login) + komentar + modal
+ * Love/komentar per-link — gaya sosmed (toggle, ikon putih → merah/biru)
+ * Nama tamu: sekali per kunjungan (sessionStorage)
  */
 (function (global) {
   function esc(s) {
@@ -7,38 +8,6 @@
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/"/g, "&quot;");
-  }
-
-  function ensureModal() {
-    let m = document.getElementById("sh-social-modal");
-    if (m) return m;
-    m = document.createElement("div");
-    m.id = "sh-social-modal";
-    m.className = "sh-modal";
-    m.hidden = true;
-    m.innerHTML = `
-      <div class="sh-modal-card">
-        <button type="button" class="sh-modal-x" aria-label="Tutup">×</button>
-        <h3 id="sh-modal-title">Interaksi</h3>
-        <p id="sh-modal-hint" class="muted" style="font-size:13px"></p>
-        <label class="field" id="sh-name-wrap"><span>Nama</span>
-          <input id="sh-author-name" type="text" maxlength="60" placeholder="Nama kamu">
-        </label>
-        <label class="field" id="sh-body-wrap" hidden><span>Komentar</span>
-          <textarea id="sh-comment-body" rows="3" maxlength="500" placeholder="Tulis komentar..."></textarea>
-        </label>
-        <button type="button" class="btn btn-primary" id="sh-modal-go">Kirim</button>
-        <p id="sh-modal-err" class="muted" style="font-size:12px;color:#ffb4b4"></p>
-        <div id="sh-comment-list" class="admin-list" style="margin-top:12px;max-height:220px;overflow:auto"></div>
-      </div>`;
-    document.body.appendChild(m);
-    m.querySelector(".sh-modal-x").onclick = () => {
-      m.hidden = true;
-    };
-    m.addEventListener("click", (e) => {
-      if (e.target === m) m.hidden = true;
-    });
-    return m;
   }
 
   async function isLoggedIn() {
@@ -51,123 +20,225 @@
     }
   }
 
-  function barHtml(targetType, targetId, counts) {
-    const c = counts || {};
-    return `<div class="react-bar" data-tt="${esc(targetType)}" data-tid="${esc(targetId)}">
-      <button type="button" class="react-btn love-red" data-act="love" title="Love (tamu)">♥ <span class="n-lr">${c.loveRed || 0}</span></button>
-      <button type="button" class="react-btn love-blue" data-act="love" title="Love (login)">♥ <span class="n-lb">${c.loveBlue || 0}</span></button>
-      <button type="button" class="react-btn cmt-red" data-act="comment" title="Komentar (tamu)">💬 <span class="n-cr">${c.commentRed || 0}</span></button>
-      <button type="button" class="react-btn cmt-blue" data-act="comment" title="Komentar (login)">💬 <span class="n-cb">${c.commentBlue || 0}</span></button>
-    </div>`;
+  /** Ikon di kanan tiap baris link */
+  function miniBarHtml(targetType, targetId) {
+    const loved = GalleryDB.hasLovedLocal && GalleryDB.hasLovedLocal(targetType, targetId);
+    // loved flag doesn't know red vs blue without parsing — stored as id|red/blue
+    let mineRed = false,
+      mineBlue = false;
+    try {
+      const raw = sessionStorage.getItem("sh_love_" + targetType + "_" + targetId);
+      if (raw) {
+        if (raw.endsWith("|blue")) mineBlue = true;
+        else mineRed = true;
+      }
+    } catch (e) {}
+    return `<div class="react-mini" data-tt="${esc(targetType)}" data-tid="${esc(targetId)}">
+      <button type="button" class="rm-btn rm-love-r ${mineRed ? "is-on" : ""}" data-act="love-red" title="Love (tamu)">
+        <span class="ic">♥</span> <span class="n-lr">0</span>
+      </button>
+      <button type="button" class="rm-btn rm-love-b ${mineBlue ? "is-on" : ""}" data-act="love-blue" title="Love (login Google)">
+        <span class="ic">♥</span> <span class="n-lb">0</span>
+      </button>
+      <button type="button" class="rm-btn rm-cmt-r" data-act="comment-red" title="Komentar (tamu)">
+        <span class="ic">💬</span> <span class="n-cr">0</span>
+      </button>
+      <button type="button" class="rm-btn rm-cmt-b" data-act="comment-blue" title="Komentar (login)">
+        <span class="ic">💬</span> <span class="n-cb">0</span>
+      </button>
+    </div>
+    <div class="cmt-panel" data-tt="${esc(targetType)}" data-tid="${esc(targetId)}" hidden></div>`;
   }
 
-  function applyCounts(bar, c) {
+  function barHtml(tt, tid) {
+    return miniBarHtml(tt, tid);
+  }
+
+  function setCounts(bar, c) {
     if (!bar || !c) return;
-    const set = (sel, v) => {
+    const s = (sel, v) => {
       const el = bar.querySelector(sel);
       if (el) el.textContent = v;
     };
-    set(".n-lr", c.loveRed || 0);
-    set(".n-lb", c.loveBlue || 0);
-    set(".n-cr", c.commentRed || 0);
-    set(".n-cb", c.commentBlue || 0);
+    s(".n-lr", c.loveRed || 0);
+    s(".n-lb", c.loveBlue || 0);
+    s(".n-cr", c.commentRed || 0);
+    s(".n-cb", c.commentBlue || 0);
   }
 
-  async function hydrate(root) {
+  function setLoveOn(bar, active, isBlue) {
+    const r = bar.querySelector(".rm-love-r");
+    const b = bar.querySelector(".rm-love-b");
+    if (!active) {
+      r && r.classList.remove("is-on");
+      b && b.classList.remove("is-on");
+      return;
+    }
+    if (isBlue) {
+      b && b.classList.add("is-on");
+      r && r.classList.remove("is-on");
+    } else {
+      r && r.classList.add("is-on");
+      b && b.classList.remove("is-on");
+    }
+  }
+
+  async function hydrate(scope) {
     if (!window.GalleryDB || !GalleryDB.enabled()) return;
-    const bars = (root || document).querySelectorAll(".react-bar");
+    const bars = (scope || document).querySelectorAll(".react-mini");
     for (const bar of bars) {
       try {
         const c = await GalleryDB.countReactions(bar.dataset.tt, bar.dataset.tid);
-        applyCounts(bar, c);
+        setCounts(bar, c);
       } catch (e) {}
     }
   }
 
-  function bind(root) {
-    (root || document).querySelectorAll(".react-bar").forEach((bar) => {
+  function bind(scope) {
+    (scope || document).querySelectorAll(".react-mini").forEach((bar) => {
       if (bar.dataset.bound) return;
       bar.dataset.bound = "1";
-      bar.querySelectorAll(".react-btn").forEach((btn) => {
+      bar.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      bar.querySelectorAll(".rm-btn").forEach((btn) => {
         btn.addEventListener("click", (e) => {
           e.preventDefault();
           e.stopPropagation();
-          openModal(bar.dataset.tt, bar.dataset.tid, btn.dataset.act);
+          onAct(bar, btn.dataset.act);
         });
       });
     });
   }
 
-  async function openModal(targetType, targetId, act) {
-    const m = ensureModal();
-    const logged = await isLoggedIn();
-    m.hidden = false;
-    m.dataset.tt = targetType;
-    m.dataset.tid = targetId;
-    m.dataset.act = act;
-
-    const nameWrap = document.getElementById("sh-name-wrap");
-    const bodyWrap = document.getElementById("sh-body-wrap");
-    const title = document.getElementById("sh-modal-title");
-    const hint = document.getElementById("sh-modal-hint");
-    const err = document.getElementById("sh-modal-err");
-    err.textContent = "";
-
-    if (act === "love") {
-      title.textContent = "Berikan love";
-      bodyWrap.hidden = true;
-      hint.textContent = logged
-        ? "Kamu login → love biru. Satu love per akun per karya."
-        : "Tanpa login → love merah. Isi nama, atau login Google untuk love biru.";
-    } else {
-      title.textContent = "Tulis komentar";
-      bodyWrap.hidden = false;
-      hint.textContent = logged
-        ? "Kamu login → komentar biru."
-        : "Tanpa login → komentar merah. Isi nama + komentar.";
+  async function ensureGuestName() {
+    let name = GalleryDB.getGuestName ? GalleryDB.getGuestName() : "";
+    if (name && name.length >= 2) return name;
+    name = prompt("Nama kamu (disimpan sekali selama kunjungan ini):");
+    if (name === null) return null;
+    name = String(name).trim();
+    if (name.length < 2) {
+      alert("Nama terlalu pendek.");
+      return null;
     }
-    nameWrap.style.display = logged ? "none" : "flex";
+    if (GalleryDB.setGuestName) GalleryDB.setGuestName(name);
+    return name;
+  }
 
-    // load comments preview
-    const list = document.getElementById("sh-comment-list");
-    list.innerHTML = "Memuat komentar...";
+  async function onAct(bar, act) {
+    const tt = bar.dataset.tt;
+    const tid = bar.dataset.tid;
+    const logged = await isLoggedIn();
+
+    if (act === "love-red" || act === "love-blue") {
+      if (act === "love-blue" && !logged) {
+        if (confirm("Love biru membutuhkan login Google. Buka halaman Profil untuk login?")) {
+          location.href = "profile.html";
+        }
+        return;
+      }
+      if (act === "love-red" && logged) {
+        // user logged in still can use red? Spec: red = no login, blue = login.
+        // If logged in clicking red → treat as blue toggle for simplicity? Or block?
+        // User said red is without login. If logged in, prefer blue path when clicking either.
+      }
+      let name = "";
+      if (!logged && act === "love-red") {
+        // if already has local love, toggle off without name
+        const has = GalleryDB.hasLovedLocal && GalleryDB.hasLovedLocal(tt, tid);
+        if (!has) {
+          name = await ensureGuestName();
+          if (name === null) return;
+        }
+      }
+      try {
+        const res = await GalleryDB.toggleLove(tt, tid, name);
+        setCounts(bar, res.counts);
+        setLoveOn(bar, res.active, !!res.isRegistered || act === "love-blue");
+      } catch (e) {
+        alert(e.message || String(e));
+      }
+      return;
+    }
+
+    // comments
+    if (act === "comment-blue" && !logged) {
+      if (confirm("Komentar biru membutuhkan login Google. Buka Profil untuk login?")) {
+        location.href = "profile.html";
+      }
+      return;
+    }
+    if (act === "comment-red" && !logged) {
+      const n = await ensureGuestName();
+      if (n === null) return;
+    }
+
+    const panel =
+      (bar.nextElementSibling && bar.nextElementSibling.classList.contains("cmt-panel") && bar.nextElementSibling) ||
+      bar.parentElement.querySelector(".cmt-panel");
+    if (!panel) return;
+    const willOpen = panel.hidden;
+    document.querySelectorAll(".cmt-panel").forEach((p) => {
+      p.hidden = true;
+    });
+    if (willOpen) {
+      panel.hidden = false;
+      await renderCommentPanel(panel, tt, tid, act === "comment-blue");
+    }
+  }
+
+  async function renderCommentPanel(panel, tt, tid, preferBlue) {
+    const logged = await isLoggedIn();
+    const guest = GalleryDB.getGuestName ? GalleryDB.getGuestName() : "";
+    panel.innerHTML = `
+      <div class="cmt-box" onclick="event.stopPropagation()">
+        <p class="cmt-hint">${
+          logged || preferBlue
+            ? "Komentar <b style=\"color:#7db8ff\">biru</b> (akun Google)."
+            : "Komentar <b style=\"color:#ff8a9a\">merah</b> (tamu)."
+        }</p>
+        ${
+          !logged
+            ? `<input type="text" class="cmt-name" placeholder="Nama" maxlength="60" value="${esc(guest)}">`
+            : ""
+        }
+        <textarea class="cmt-body" rows="2" maxlength="500" placeholder="Tulis komentar..."></textarea>
+        <button type="button" class="btn btn-primary cmt-send" style="padding:8px 12px;font-size:12px">Kirim</button>
+        <div class="cmt-list" style="font-size:12px">Memuat...</div>
+      </div>`;
+
     try {
-      const rows = await GalleryDB.listComments(targetType, targetId);
-      list.innerHTML =
+      const rows = await GalleryDB.listComments(tt, tid);
+      panel.querySelector(".cmt-list").innerHTML =
         rows
           .map(
             (r) =>
-              `<div class="admin-row" style="flex-direction:column;align-items:flex-start">
-            <strong style="color:${r.is_registered ? "#7db8ff" : "#ff8a9a"}">${esc(r.author_name)}</strong>
-            <span style="font-size:13px">${esc(r.body)}</span>
-          </div>`
+              `<div class="cmt-item" style="border-left:3px solid ${r.is_registered ? "#7db8ff" : "#ff8a9a"};padding:4px 8px;margin:4px 0">
+            <b>${esc(r.author_name)}</b>: ${esc(r.body)}</div>`
           )
-          .join("") || "<p class='muted'>Belum ada komentar.</p>";
+          .join("") || "<span class='muted'>Belum ada komentar.</span>";
     } catch (e) {
-      list.innerHTML = "";
+      panel.querySelector(".cmt-list").textContent = "";
     }
 
-    document.getElementById("sh-modal-go").onclick = async () => {
-      err.textContent = "";
+    panel.querySelector(".cmt-send").onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const nameEl = panel.querySelector(".cmt-name");
+      const body = panel.querySelector(".cmt-body").value;
+      const name = nameEl ? nameEl.value : "";
       try {
-        const name = document.getElementById("sh-author-name").value;
-        if (act === "love") {
-          const c = await GalleryDB.addLove(targetType, targetId, name);
-          document.querySelectorAll(`.react-bar[data-tid="${CSS.escape(targetId)}"]`).forEach((b) => applyCounts(b, c));
-          m.hidden = true;
-        } else {
-          const body = document.getElementById("sh-comment-body").value;
-          const c = await GalleryDB.addComment(targetType, targetId, name, body);
-          document.querySelectorAll(`.react-bar[data-tid="${CSS.escape(targetId)}"]`).forEach((b) => applyCounts(b, c));
-          document.getElementById("sh-comment-body").value = "";
-          // refresh list
-          openModal(targetType, targetId, "comment");
-        }
-      } catch (e) {
-        err.textContent = e.message || String(e);
+        const c = await GalleryDB.addComment(tt, tid, name, body);
+        const bar = document.querySelector(`.react-mini[data-tid="${CSS.escape(tid)}"]`);
+        if (bar) setCounts(bar, c);
+        panel.querySelector(".cmt-body").value = "";
+        await renderCommentPanel(panel, tt, tid, preferBlue);
+      } catch (err) {
+        alert(err.message || String(err));
       }
     };
   }
 
-  global.SHSocial = { barHtml, hydrate, bind, openModal };
+  global.SHSocial = { miniBarHtml, barHtml, hydrate, bind };
 })(window);
