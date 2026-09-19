@@ -1,0 +1,267 @@
+{
+  "meta": {
+    "title": "Learning Outcomes & Digital Skills Map",
+    "subtitle": "Kompetensi digital yang diajarkan dan diterapkan santriwati dalam program Web Design",
+    "program": "Web Design & Digital Literacy — SMA PMA",
+    "instructor": "Teddy Mulyana",
+    "brand": "Silverhawk",
+    "framework": "Disusun mengacu pada kerangka DigComp 2.2 (EU), ISTE Standards for Students, dan praktik AI literacy UNESCO",
+    "docsUrl": "https://docs.google.com/document/d/12zjFUs-ZihCvIqeINS8YbXF8revUSnQmZO2y7Njqe8k/edit?usp=sharing",
+    "docsLabel": "Buka testimoni santriwati (Google Docs)",
+    "period": "2026 — beberapa minggu pembelajaran intensif",
+    "audience": "Guru, Kepala Sekolah, Manajemen, Orang Tua, dan Santriwati"
+  },
+  "domains": [
+    {
+      "id": "D1",
+      "code": "1",
+      "name": "Literasi Digital Dasar",
+      "nameEn": "Fundamental Digital Literacy",
+      "color": "#7de3ff",
+      "description": "Kemampuan mengoperasikan perangkat, mengelola file, dan menggunakan sistem secara efisien sebagai fondasi semua keterampilan digital.",
+      "skills": [
+        {
+          "name": "Manajemen file & folder",
+          "level": "Applied",
+          "evidence": "Membuat struktur folder proyek, menyimpan dan memindahkan file tugas ke Classroom"
+        },
+        {
+          "name": "Keyboard shortcuts (Ctrl/Shift)",
+          "level": "Applied",
+          "evidence": "Copy-paste, tab browser, screenshot, navigasi cepat di OS dan editor"
+        },
+        {
+          "name": "Browser & tab management",
+          "level": "Applied",
+          "evidence": "Membuka banyak resource, membandingkan referensi, dan workflow multi-tab"
+        },
+        {
+          "name": "Format file & export",
+          "level": "Practiced",
+          "evidence": "Mengubah format, export dari CapCut/Canva, menyiapkan aset web"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "code": "2",
+      "name": "Kolaborasi & Produktivitas Cloud",
+      "nameEn": "Cloud Collaboration & Productivity",
+      "color": "#8ff5bd",
+      "description": "Menggunakan perangkat lunak cloud untuk menulis, mengolah data, dan berkolaborasi secara profesional.",
+      "skills": [
+        {
+          "name": "Google Docs (kolaboratif)",
+          "level": "Applied",
+          "evidence": "Menulis refleksi, dokumentasi proyek, dan kerja bersama di dokumen bersama"
+        },
+        {
+          "name": "Google Sheets",
+          "level": "Practiced",
+          "evidence": "Pengolahan data sederhana dan pencatatan"
+        },
+        {
+          "name": "Google Classroom workflow",
+          "level": "Applied",
+          "evidence": "Pengumpulan tugas, tautan karya, dan komunikasi kelas"
+        },
+        {
+          "name": "Link management",
+          "level": "Practiced",
+          "evidence": "Menyalin, membagikan, dan mengorganisasi tautan proyek (LinkCharm, dll.)"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "code": "3",
+      "name": "AI Literacy & Prompt Engineering",
+      "nameEn": "AI Literacy & Prompt Engineering",
+      "color": "#c4b5fd",
+      "description": "Memahami dan memanfaatkan AI generatif secara bijak untuk ideasi, produksi konten, dan pemecahan masalah — bukan sekadar ‘pakai AI’, tetapi merancang instruksi yang efektif.",
+      "skills": [
+        {
+          "name": "Prompt engineering (ChatGPT / Gemini / Grok / Claude)",
+          "level": "Applied",
+          "evidence": "Membuat brief aplikasi web, game, display masjid, dan konten dengan prompt terstruktur"
+        },
+        {
+          "name": "AI image generation & editing",
+          "level": "Applied",
+          "evidence": "Headshot formal, ganti pakaian/pose, aset visual untuk website"
+        },
+        {
+          "name": "AI-assisted writing & research",
+          "level": "Applied",
+          "evidence": "Menyusun deskripsi, copy, dan struktur konten website"
+        },
+        {
+          "name": "Critical use of AI tools",
+          "level": "Practiced",
+          "evidence": "Membandingkan output AI, memperbaiki hasil, dan mengintegrasikan ke karya sendiri"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "code": "4",
+      "name": "Konten Digital & Media Production",
+      "nameEn": "Digital Content & Media Production",
+      "color": "#f9a8d4",
+      "description": "Merancang dan memproduksi konten visual serta video untuk komunikasi dan publikasi digital.",
+      "skills": [
+        {
+          "name": "Canva design",
+          "level": "Applied",
+          "evidence": "Desain visual, presentasi, dan aset grafis"
+        },
+        {
+          "name": "CapCut video editing",
+          "level": "Applied",
+          "evidence": "Edit video perkenalan, audio, export, dan perbaikan masalah teknis"
+        },
+        {
+          "name": "Publikasi video (Dailymotion)",
+          "level": "Applied",
+          "evidence": "Akun kreator, upload, judul, deskripsi, tag, playlist, mode Kids"
+        },
+        {
+          "name": "Copywriting dasar",
+          "level": "Practiced",
+          "evidence": "Menulis teks persuasif untuk produk dan landing page"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "code": "5",
+      "name": "Web Development & Deployment",
+      "nameEn": "Web Development & Deployment",
+      "color": "#67e8f9",
+      "description": "Membangun website nyata dengan HTML, CSS, JavaScript, dan JSON, lalu menerbitkannya ke internet melalui GitHub Pages.",
+      "skills": [
+        {
+          "name": "HTML structure",
+          "level": "Applied",
+          "evidence": "Struktur halaman, semantik, dan konten multi-section"
+        },
+        {
+          "name": "CSS layout & styling",
+          "level": "Applied",
+          "evidence": "Tampilan modern, warna brand, tipografi, komponen UI"
+        },
+        {
+          "name": "JavaScript interaktivitas",
+          "level": "Applied",
+          "evidence": "Game (catur, puzzle), countdown sholat, form, navigasi dinamis"
+        },
+        {
+          "name": "JSON data-driven apps",
+          "level": "Applied",
+          "evidence": "Gallery, jadwal, katalog yang memisahkan data dan tampilan"
+        },
+        {
+          "name": "GitHub & GitHub Pages deploy",
+          "level": "Applied",
+          "evidence": "Repository, publish, URL publik .github.io untuk setiap karya"
+        },
+        {
+          "name": "Responsive & fluid design",
+          "level": "Practiced",
+          "evidence": "Website yang dapat dibuka di desktop dan ponsel"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "code": "6",
+      "name": "Product Thinking & Digital Products",
+      "nameEn": "Product Thinking & Applied Projects",
+      "color": "#fde68a",
+      "description": "Menerjemahkan ide menjadi produk digital yang berfungsi: game, display ibadah, toko, edukasi, dan eksperimen AI.",
+      "skills": [
+        {
+          "name": "Interactive games",
+          "level": "Applied",
+          "evidence": "Catur Jawa, puzzle, simulasi, game edukasi"
+        },
+        {
+          "name": "Mosque / prayer display apps",
+          "level": "Applied",
+          "evidence": "Jadwal sholat, countdown, identitas masjid/mushola"
+        },
+        {
+          "name": "E-commerce & brand sites",
+          "level": "Applied",
+          "evidence": "Toko roti, nail art, spa, fashion, kuliner"
+        },
+        {
+          "name": "Educational web apps",
+          "level": "Applied",
+          "evidence": "Tajweed, SNBT, sistem tubuh, journal, travel planner"
+        },
+        {
+          "name": "Multi-project portfolio",
+          "level": "Applied",
+          "evidence": "Setiap santriwati membangun 3–8 website sebagai portofolio nyata"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "code": "7",
+      "name": "Soft Skills & Digital Citizenship",
+      "nameEn": "Soft Skills & Digital Citizenship",
+      "color": "#a5b4fc",
+      "description": "Keterampilan non-teknis yang muncul dari proses belajar: ketekunan, komunikasi, tanggung jawab, dan sikap terhadap teknologi.",
+      "skills": [
+        {
+          "name": "Problem-solving & persistence",
+          "level": "Applied",
+          "evidence": "Menyelesaikan error deploy, audio hilang, upload gagal, prompt yang tidak pas"
+        },
+        {
+          "name": "Self-directed learning",
+          "level": "Applied",
+          "evidence": "Mencoba tool baru, memperbaiki karya, dan memperluas fitur sendiri"
+        },
+        {
+          "name": "Presentation of work",
+          "level": "Practiced",
+          "evidence": "Mempublikasikan link, mendokumentasikan hasil, berbagi di Classroom"
+        },
+        {
+          "name": "Responsible & productive tech use",
+          "level": "Applied",
+          "evidence": "Pergeseran dari ‘laptop hanya untuk hiburan’ menjadi alat belajar dan berkarya"
+        }
+      ]
+    }
+  ],
+  "levels": [
+    {
+      "id": "Introduced",
+      "label": "Diperkenalkan",
+      "desc": "Konsep dijelaskan dan dicoba secara singkat"
+    },
+    {
+      "id": "Practiced",
+      "label": "Dilatih",
+      "desc": "Dipraktikkan berulang dalam tugas"
+    },
+    {
+      "id": "Applied",
+      "label": "Diterapkan",
+      "desc": "Digunakan mandiri untuk menghasilkan karya nyata"
+    }
+  ],
+  "summary": {
+    "headline": "Dari pengguna pasif menjadi pembuat produk digital",
+    "points": [
+      "Santriwati tidak hanya ‘menggunakan aplikasi’, tetapi merancang, membangun, dan mempublikasikan website publik.",
+      "AI dipakai sebagai alat bantu produksi, dengan penekanan pada prompt yang jelas dan evaluasi hasil.",
+      "Setiap karya di GitHub Pages menjadi bukti portofolio yang dapat dilihat orang tua, sekolah, dan publik.",
+      "Refleksi tertulis (What We Have Learnt) menunjukkan kesadaran santriwati terhadap skill yang mereka kuasai."
+    ]
+  }
+}

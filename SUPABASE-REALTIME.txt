@@ -1,0 +1,11 @@
+Agar "sedang online" & data statistik terisi:
+
+1. Jalankan supabase-patch-social-stats.sql (tabel gallery_events + gallery_reactions)
+
+2. Supabase → Database → Publications / Replication
+   - Pastikan tabel gallery_events & gallery_reactions bisa diakses (RLS policy sudah ada)
+
+3. Presence (online) memakai Realtime channel — di project Settings → API,
+   Realtime harus aktif (default ON di project baru).
+
+4. Hard refresh website setelah SQL.
