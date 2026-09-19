@@ -273,15 +273,47 @@
     return data.session || null;
   }
 
-  async function signInWithGoogle() {
+  async function signInWithGoogle(opts) {
     const sb = client();
     if (!sb) throw new Error("Supabase belum dikonfigurasi");
-    const redirectTo = window.location.origin + window.location.pathname.replace(/[^/]+$/, "admin.html");
+    const o = opts || {};
+    // simpan tujuan kembali
+    try {
+      if (o.returnTo) sessionStorage.setItem("sh_return", o.returnTo);
+      else if (!sessionStorage.getItem("sh_return")) {
+        sessionStorage.setItem("sh_return", location.href);
+      }
+    } catch (e) {}
+    let redirectTo = o.redirectTo;
+    if (!redirectTo) {
+      // kembali ke halaman profil setelah OAuth (bukan selalu admin)
+      const base = location.origin + location.pathname.replace(/[^/]+$/, "");
+      redirectTo = base + "profile.html";
+    }
     const { error } = await sb.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo, queryParams: { prompt: "select_account" } },
     });
     if (error) throw error;
+  }
+
+  function getReturnUrl() {
+    try {
+      return sessionStorage.getItem("sh_return") || "";
+    } catch (e) {
+      return "";
+    }
+  }
+  function clearReturnUrl() {
+    try {
+      sessionStorage.removeItem("sh_return");
+    } catch (e) {}
+  }
+  function goLogin(returnTo) {
+    try {
+      sessionStorage.setItem("sh_return", returnTo || location.href);
+    } catch (e) {}
+    location.href = "profile.html?login=1";
   }
 
   async function signOut() {
@@ -1286,6 +1318,9 @@
     isAdminEmail,
     getSession,
     signInWithGoogle,
+    getReturnUrl,
+    clearReturnUrl,
+    goLogin,
     signOut,
     requireAdmin,
     adminListAlumni,

@@ -17,7 +17,10 @@
     }
 
     $("#btnGoogle").onclick = () =>
-      GalleryDB.signInWithGoogle().catch((e) => alert(e.message || e));
+      GalleryDB.signInWithGoogle({
+      redirectTo: location.origin + location.pathname.replace(/[^/]+$/, "") + "admin.html",
+      returnTo: location.href,
+    }).catch((e) => alert(e.message || e));
     $("#btnLogout").onclick = async () => {
       await GalleryDB.signOut();
       location.href = "admin.html";

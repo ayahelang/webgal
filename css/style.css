@@ -370,3 +370,23 @@ select:focus,input:focus,textarea:focus{
 }
 #sh-float-stats.is-dragging{opacity:.92;cursor:grabbing}
 .fs-drag{cursor:grab;opacity:.6;user-select:none;padding:0 4px}
+
+#sh-share-bar{
+  position:fixed; right:16px; bottom:16px; z-index:2147482900;
+  display:flex; align-items:center; gap:8px;
+  background:rgba(8,16,26,.94); border:1px solid rgba(125,227,255,.25);
+  border-radius:999px; padding:8px 12px; box-shadow:0 8px 28px rgba(0,0,0,.35);
+  font-size:12px; color:#c5d8e0
+}
+.sh-share-label{opacity:.7;margin-right:2px}
+.sh-share-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  border-radius:999px;padding:6px 10px;text-decoration:none;font-weight:700;font-size:12px
+}
+.sh-share-btn.sh-wa{background:#128C7E;color:#fff}
+.sh-share-btn.sh-mail{background:#EA4335;color:#fff}
+.sh-share-btn:hover{filter:brightness(1.08)}
+@media (max-width:520px){
+  #sh-share-bar{right:10px;bottom:72px;padding:6px 10px}
+  .sh-share-label{display:none}
+}

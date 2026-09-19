@@ -1,6 +1,9 @@
 <!doctype html>
 <html lang="id">
 <head>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/favicon.svg">
+
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Profil — Silverhawk Gallery</title>
@@ -24,12 +27,14 @@
     </section>
 
     <div id="out" class="summary-card" style="display:grid;gap:12px;max-width:480px">
+      <p class="muted" id="outHint" style="margin:0">Login dengan Google untuk love/komentar biru, kelola karya, dan fitur akun.</p>
       <button type="button" class="btn-google" id="btnLogin">
         <span class="g-icon"></span> Login with Google
       </button>
     </div>
 
     <div id="in" class="summary-card" hidden style="display:grid;gap:14px;max-width:520px">
+      <div id="returnBox" class="summary-card" style="background:rgba(125,227,255,.06);border-color:rgba(125,227,255,.25)"></div>
       <div style="display:flex;gap:12px;align-items:center">
         <img id="av" class="admin-avatar" alt="" hidden>
         <div>
@@ -65,5 +70,6 @@
   <script src="js/auth-ui.js"></script>
   <script src="js/profile.js"></script>
   <script src="js/stats-float.js"></script>
+  <script src="js/share.js"></script>
 </body>
 </html>

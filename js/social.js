@@ -164,7 +164,10 @@
 
     if (act === "love-red" || act === "love-blue") {
       if (act === "love-blue" && !logged) {
-        if (confirm("Love biru membutuhkan login Google. Buka halaman Profil?")) location.href = "profile.html";
+        if (confirm("Love biru membutuhkan login Google. Buka halaman Profil?")) {
+          try { sessionStorage.setItem("sh_return", location.href); } catch (e) {}
+          location.href = "profile.html?login=1";
+        }
         return;
       }
       let name = "";
@@ -186,7 +189,10 @@
     }
 
     if (act === "comment-blue" && !logged) {
-      if (confirm("Komentar biru membutuhkan login Google. Buka Profil?")) location.href = "profile.html";
+      if (confirm("Komentar biru membutuhkan login Google. Buka Profil?")) {
+          try { sessionStorage.setItem("sh_return", location.href); } catch (e) {}
+          location.href = "profile.html?login=1";
+        }
       return;
     }
     if (act === "comment-red" && !logged) {
