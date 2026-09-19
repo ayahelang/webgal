@@ -1,6 +1,5 @@
 /**
- * Love/komentar per-link — gaya sosmed (toggle, ikon putih → merah/biru)
- * Nama tamu: sekali per kunjungan (sessionStorage)
+ * Love/komentar per-link — default tersembunyi, toggle via judul website
  */
 (function (global) {
   function esc(s) {
@@ -20,10 +19,7 @@
     }
   }
 
-  /** Ikon di kanan tiap baris link */
   function miniBarHtml(targetType, targetId) {
-    const loved = GalleryDB.hasLovedLocal && GalleryDB.hasLovedLocal(targetType, targetId);
-    // loved flag doesn't know red vs blue without parsing — stored as id|red/blue
     let mineRed = false,
       mineBlue = false;
     try {
@@ -33,7 +29,7 @@
         else mineRed = true;
       }
     } catch (e) {}
-    return `<div class="react-mini" data-tt="${esc(targetType)}" data-tid="${esc(targetId)}">
+    return `<div class="react-mini is-collapsed" data-tt="${esc(targetType)}" data-tid="${esc(targetId)}" hidden>
       <button type="button" class="rm-btn rm-love-r ${mineRed ? "is-on" : ""}" data-act="love-red" title="Love (tamu)">
         <span class="ic">♥</span> <span class="n-lr">0</span>
       </button>
@@ -95,7 +91,45 @@
   }
 
   function bind(scope) {
-    (scope || document).querySelectorAll(".react-mini").forEach((bar) => {
+    const root = scope || document;
+    // toggle icons via title (work-choice / .work-title-toggle)
+    root.querySelectorAll(".work-choice, .work-title-toggle").forEach((a) => {
+      if (a.dataset.socialToggle) return;
+      a.dataset.socialToggle = "1";
+      a.addEventListener("click", (e) => {
+        // jika klik untuk buka website (modifier / middle) biarkan
+        // toggle icons: klik judul → expand/collapse; prevent open only when toggling?
+        // User: click title toggles icons. Second behavior: open website?
+        // Spec: title click = toggle icons (and conversely). Opening website: via ↗ or second intention.
+        // We'll: click title toggles; Ctrl/meta/middle still open; also ↗ opens.
+        const row = a.closest(".work-row");
+        if (!row) return;
+        const bar = row.querySelector(".react-mini");
+        if (!bar) return;
+        // always toggle on plain click; use em[title] or data-open for open
+        if (e.target.closest("em.open-site") || e.metaKey || e.ctrlKey || e.button === 1) {
+          return; // let browser open
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        const open = bar.hasAttribute("hidden");
+        // collapse others optional? keep independent
+        if (open) {
+          bar.removeAttribute("hidden");
+          bar.classList.remove("is-collapsed");
+          if (window.GalleryDB) {
+            GalleryDB.countReactions(bar.dataset.tt, bar.dataset.tid).then((c) => setCounts(bar, c)).catch(() => {});
+          }
+        } else {
+          bar.setAttribute("hidden", "");
+          bar.classList.add("is-collapsed");
+          const panel = row.querySelector(".cmt-panel");
+          if (panel) panel.hidden = true;
+        }
+      });
+    });
+
+    root.querySelectorAll(".react-mini").forEach((bar) => {
       if (bar.dataset.bound) return;
       bar.dataset.bound = "1";
       bar.addEventListener("click", (e) => {
@@ -133,19 +167,11 @@
 
     if (act === "love-red" || act === "love-blue") {
       if (act === "love-blue" && !logged) {
-        if (confirm("Love biru membutuhkan login Google. Buka halaman Profil untuk login?")) {
-          location.href = "profile.html";
-        }
+        if (confirm("Love biru membutuhkan login Google. Buka halaman Profil?")) location.href = "profile.html";
         return;
-      }
-      if (act === "love-red" && logged) {
-        // user logged in still can use red? Spec: red = no login, blue = login.
-        // If logged in clicking red → treat as blue toggle for simplicity? Or block?
-        // User said red is without login. If logged in, prefer blue path when clicking either.
       }
       let name = "";
       if (!logged && act === "love-red") {
-        // if already has local love, toggle off without name
         const has = GalleryDB.hasLovedLocal && GalleryDB.hasLovedLocal(tt, tid);
         if (!has) {
           name = await ensureGuestName();
@@ -162,11 +188,8 @@
       return;
     }
 
-    // comments
     if (act === "comment-blue" && !logged) {
-      if (confirm("Komentar biru membutuhkan login Google. Buka Profil untuk login?")) {
-        location.href = "profile.html";
-      }
+      if (confirm("Komentar biru membutuhkan login Google. Buka Profil?")) location.href = "profile.html";
       return;
     }
     if (act === "comment-red" && !logged) {
@@ -195,19 +218,14 @@
       <div class="cmt-box" onclick="event.stopPropagation()">
         <p class="cmt-hint">${
           logged || preferBlue
-            ? "Komentar <b style=\"color:#7db8ff\">biru</b> (akun Google)."
-            : "Komentar <b style=\"color:#ff8a9a\">merah</b> (tamu)."
+            ? "Komentar <b style=\"color:#7db8ff\">biru</b>."
+            : "Komentar <b style=\"color:#ff8a9a\">merah</b>."
         }</p>
-        ${
-          !logged
-            ? `<input type="text" class="cmt-name" placeholder="Nama" maxlength="60" value="${esc(guest)}">`
-            : ""
-        }
+        ${!logged ? `<input type="text" class="cmt-name" placeholder="Nama" maxlength="60" value="${esc(guest)}">` : ""}
         <textarea class="cmt-body" rows="2" maxlength="500" placeholder="Tulis komentar..."></textarea>
         <button type="button" class="btn btn-primary cmt-send" style="padding:8px 12px;font-size:12px">Kirim</button>
         <div class="cmt-list" style="font-size:12px">Memuat...</div>
       </div>`;
-
     try {
       const rows = await GalleryDB.listComments(tt, tid);
       panel.querySelector(".cmt-list").innerHTML =
@@ -221,15 +239,13 @@
     } catch (e) {
       panel.querySelector(".cmt-list").textContent = "";
     }
-
     panel.querySelector(".cmt-send").onclick = async (e) => {
       e.preventDefault();
       e.stopPropagation();
       const nameEl = panel.querySelector(".cmt-name");
       const body = panel.querySelector(".cmt-body").value;
-      const name = nameEl ? nameEl.value : "";
       try {
-        const c = await GalleryDB.addComment(tt, tid, name, body);
+        const c = await GalleryDB.addComment(tt, tid, nameEl ? nameEl.value : "", body);
         const bar = document.querySelector(`.react-mini[data-tid="${CSS.escape(tid)}"]`);
         if (bar) setCounts(bar, c);
         panel.querySelector(".cmt-body").value = "";

@@ -353,3 +353,20 @@ select:focus,input:focus,textarea:focus{
   max-width:min(96vw,560px); font-size:12px; color:#d5e6ee;
   pointer-events:auto !important;
 }
+
+.react-mini[hidden]{display:none!important}
+.work-choice b{color:#f0f7fb;cursor:pointer}
+.work-choice:hover b{text-decoration:underline;text-underline-offset:3px}
+.charts-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:40px}
+.chart-card .chart-labels{font-size:10px;margin:6px 0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chart-bars{display:flex;align-items:flex-end;gap:3px;height:120px}
+.chart-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
+.chart-col i{display:block;width:100%;max-width:14px;border-radius:4px 4px 0 0;min-height:2px}
+.chart-col span{font-size:9px;color:#7f97a3;margin-top:4px}
+.bonus-row-3{grid-template-columns:70px 1.3fr 1fr 1fr 1fr}
+@media (max-width:900px){.bonus-row-3{grid-template-columns:1fr}}
+#sh-float-stats{
+  left:16px!important;right:auto!important;bottom:16px!important;top:auto;
+}
+#sh-float-stats.is-dragging{opacity:.92;cursor:grabbing}
+.fs-drag{cursor:grab;opacity:.6;user-select:none;padding:0 4px}

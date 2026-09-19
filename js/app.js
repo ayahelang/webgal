@@ -177,7 +177,7 @@
          data-tip-title="${escapeAttr(w.title)}"
          data-tip-desc="${escapeAttr(w.description || w.category)}"
          data-tip-url="${escapeAttr(w.url)}">
-        <span>${String(i+1).padStart(2,"0")}</span><b>${w.title}</b><small>${w.category}</small><em title="Buka website">↗</em>
+        <span>${String(i+1).padStart(2,"0")}</span><b>${w.title}</b><small>${w.category}</small><em class="open-site" title="Buka website">↗</em>
       </a>
       ${react}
     </div>`;

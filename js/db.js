@@ -1208,6 +1208,70 @@
     };
   }
 
+
+  async function getStatsTimeseries(days) {
+    const sb = client();
+    if (!sb) return { labels: [], series: {} };
+    const d = Math.min(Math.max(days || 14, 3), 60);
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    since.setDate(since.getDate() - (d - 1));
+    const { data, error } = await sb
+      .from("gallery_events")
+      .select("event_type,created_at")
+      .gte("created_at", since.toISOString());
+    if (error) throw error;
+    const labels = [];
+    for (let i = 0; i < d; i++) {
+      const x = new Date(since);
+      x.setDate(since.getDate() + i);
+      labels.push(x.toISOString().slice(0, 10));
+    }
+    const keys = ["visit", "click", "signup", "love_red", "love_blue", "comment_red", "comment_blue"];
+    const series = {};
+    keys.forEach((k) => {
+      series[k] = labels.map(() => 0);
+    });
+    (data || []).forEach((row) => {
+      const day = String(row.created_at || "").slice(0, 10);
+      const idx = labels.indexOf(day);
+      if (idx < 0) return;
+      const k = row.event_type;
+      if (series[k]) series[k][idx]++;
+    });
+    return { labels, series };
+  }
+
+  async function sumReactionsForUrls(urls) {
+    const sb = client();
+    const list = (urls || []).map((u) => String(u || "").trim()).filter(Boolean);
+    if (!sb || !list.length) return { loveRed: 0, loveBlue: 0, commentRed: 0, commentBlue: 0, score: 0 };
+    // chunk in queries
+    let loveRed = 0, loveBlue = 0, commentRed = 0, commentBlue = 0;
+    const chunk = 50;
+    for (let i = 0; i < list.length; i += chunk) {
+      const part = list.slice(i, i + chunk);
+      const { data, error } = await sb
+        .from("gallery_reactions")
+        .select("reaction_type,is_registered,target_id")
+        .eq("target_type", "website")
+        .in("target_id", part);
+      if (error) throw error;
+      (data || []).forEach((r) => {
+        if (r.reaction_type === "love") {
+          if (r.is_registered) loveBlue++;
+          else loveRed++;
+        } else if (r.reaction_type === "comment") {
+          if (r.is_registered) commentBlue++;
+          else commentRed++;
+        }
+      });
+    }
+    // skor: merah lebih ringan, biru lebih bernilai (login)
+    const score = loveRed * 1 + loveBlue * 2 + commentRed * 2 + commentBlue * 3;
+    return { loveRed, loveBlue, commentRed, commentBlue, score };
+  }
+
   global.GalleryDB = {
     enabled,
     client,
@@ -1272,5 +1336,7 @@
     getStatsSummary,
     joinPresenceOnline,
     sessionId,
+    getStatsTimeseries,
+    sumReactionsForUrls,
   };
 })(window);
