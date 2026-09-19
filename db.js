@@ -960,7 +960,7 @@
 
   async function addLove(targetType, targetId, authorName) {
     const sb = client();
-    if (!sb) throw new Error("Supabase belum siap");
+    if (!sb) throw new Error("Layanan interaksi belum siap");
     let userId = null;
     let isReg = false;
     let name = String(authorName || "").trim();
@@ -974,7 +974,14 @@
         await upsertMyProfileFromSession();
       }
     } catch (e) {}
-    if (!isReg && name.length < 2) throw new Error("Isi nama dulu (atau login Google).");
+    if (!isReg) {
+      try {
+        const saved = sessionStorage.getItem("sh_guest_name");
+        if (saved) name = name || saved;
+      } catch (e) {}
+      if (name.length < 2) throw new Error("Isi nama dulu (sekali saja per kunjungan).");
+      try { sessionStorage.setItem("sh_guest_name", name); } catch (e) {}
+    }
 
     const row = {
       target_type: targetType,
@@ -985,13 +992,108 @@
       author_user_id: userId,
       body: "",
     };
-    const { error } = await sb.from("gallery_reactions").insert(row);
+    const { data, error } = await sb.from("gallery_reactions").insert(row).select("id").single();
     if (error) {
       if (error.code === "23505") throw new Error("Kamu sudah memberi love pada karya ini.");
       throw error;
     }
+    try {
+      sessionStorage.setItem("sh_love_" + targetType + "_" + targetId, data.id + "|" + (isReg ? "blue" : "red"));
+    } catch (e) {}
     await trackEvent(isReg ? "love_blue" : "love_red", { targetType, targetId });
-    return countReactions(targetType, targetId);
+    const counts = await countReactions(targetType, targetId);
+    return { counts, reactionId: data.id, isRegistered: isReg, active: true };
+  }
+
+  async function removeLove(targetType, targetId) {
+    const sb = client();
+    if (!sb) throw new Error("Layanan interaksi belum siap");
+    let key = "sh_love_" + targetType + "_" + targetId;
+    let reactionId = null;
+    let wasReg = false;
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (raw) {
+        const parts = raw.split("|");
+        reactionId = parts[0];
+        wasReg = parts[1] === "blue";
+      }
+    } catch (e) {}
+
+    const sess = await getSession();
+    if (sess && sess.user) {
+      const { data } = await sb
+        .from("gallery_reactions")
+        .select("id,is_registered")
+        .eq("target_type", targetType)
+        .eq("target_id", String(targetId))
+        .eq("reaction_type", "love")
+        .eq("author_user_id", sess.user.id)
+        .maybeSingle();
+      if (data) {
+        reactionId = data.id;
+        wasReg = !!data.is_registered;
+      }
+    }
+
+    if (!reactionId) {
+      // guest: match by saved name
+      let name = "";
+      try { name = sessionStorage.getItem("sh_guest_name") || ""; } catch (e) {}
+      if (name) {
+        const { data } = await sb
+          .from("gallery_reactions")
+          .select("id")
+          .eq("target_type", targetType)
+          .eq("target_id", String(targetId))
+          .eq("reaction_type", "love")
+          .eq("is_registered", false)
+          .eq("author_name", name)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data) reactionId = data.id;
+      }
+    }
+    if (!reactionId) throw new Error("Belum ada love dari kamu pada karya ini.");
+    const { error } = await sb.from("gallery_reactions").delete().eq("id", reactionId);
+    if (error) throw error;
+    try { sessionStorage.removeItem(key); } catch (e) {}
+    const counts = await countReactions(targetType, targetId);
+    return { counts, active: false, isRegistered: wasReg };
+  }
+
+  async function toggleLove(targetType, targetId, authorName) {
+    let active = false;
+    try {
+      const raw = sessionStorage.getItem("sh_love_" + targetType + "_" + targetId);
+      if (raw) active = true;
+    } catch (e) {}
+    const sess = await getSession();
+    if (sess && sess.user) {
+      const sb = client();
+      const { data } = await sb
+        .from("gallery_reactions")
+        .select("id")
+        .eq("target_type", targetType)
+        .eq("target_id", String(targetId))
+        .eq("reaction_type", "love")
+        .eq("author_user_id", sess.user.id)
+        .maybeSingle();
+      if (data) active = true;
+    }
+    if (active) return removeLove(targetType, targetId);
+    return addLove(targetType, targetId, authorName);
+  }
+
+  function getGuestName() {
+    try { return sessionStorage.getItem("sh_guest_name") || ""; } catch (e) { return ""; }
+  }
+  function setGuestName(n) {
+    try { sessionStorage.setItem("sh_guest_name", String(n || "").trim()); } catch (e) {}
+  }
+  function hasLovedLocal(targetType, targetId) {
+    try { return !!sessionStorage.getItem("sh_love_" + targetType + "_" + targetId); } catch (e) { return false; }
   }
 
   async function addComment(targetType, targetId, authorName, body) {
@@ -1012,7 +1114,14 @@
         await upsertMyProfileFromSession();
       }
     } catch (e) {}
-    if (!isReg && name.length < 2) throw new Error("Isi nama dulu (atau login Google).");
+    if (!isReg) {
+      try {
+        const saved = sessionStorage.getItem("sh_guest_name");
+        if (saved) name = name || saved;
+      } catch (e) {}
+      if (name.length < 2) throw new Error("Isi nama dulu (sekali saja per kunjungan).");
+      try { sessionStorage.setItem("sh_guest_name", name); } catch (e) {}
+    }
 
     const { error } = await sb.from("gallery_reactions").insert({
       target_type: targetType,
@@ -1122,11 +1231,21 @@
     adminListAngkatanAll,
     adminDeleteAngkatan,
     parseVideoUrl,
+    fetchVideoMeta,
     listVideoCategories,
     addVideoCategory,
     listVideos,
     addVideo,
     deleteVideo,
+    resolveMyAlumni,
+    myWebsites,
+    addMyWebsite,
+    updateMyWebsite,
+    deleteMyWebsite,
+    myVideos,
+    addMyVideo,
+    updateMyVideo,
+    deleteMyVideo,
     listChat,
     sendChat,
     subscribeChat,
@@ -1140,5 +1259,18 @@
     hasPermission,
     listRegisteredUsers,
     setUserAdmin,
+    trackEvent,
+    countReactions,
+    listComments,
+    addLove,
+    removeLove,
+    toggleLove,
+    getGuestName,
+    setGuestName,
+    hasLovedLocal,
+    addComment,
+    getStatsSummary,
+    joinPresenceOnline,
+    sessionId,
   };
 })(window);
