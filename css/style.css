@@ -390,3 +390,34 @@ select:focus,input:focus,textarea:focus{
   #sh-share-bar{right:10px;bottom:72px;padding:6px 10px}
   .sh-share-label{display:none}
 }
+
+
+/* hide legacy online badge */
+.status{display:none!important}
+
+/* admin link putih, bukan ungu */
+.topnav a.nav-admin,
+.topnav a.nav-profile{
+  color:#e8f4f8!important;
+  background:transparent!important;
+  border:1px solid rgba(232,244,248,.25)!important;
+  font-size:12px!important;
+  opacity:1;
+}
+.topnav a.nav-admin:hover,
+.topnav a.nav-profile:hover{
+  color:#fff!important;
+  border-color:rgba(255,255,255,.45)!important;
+  background:rgba(255,255,255,.06)!important;
+}
+.topnav a.nav-admin.active{
+  color:#061016!important;
+  background:linear-gradient(135deg,#dffbff,#6bdcf4)!important;
+  border-color:transparent!important;
+}
+
+/* topnav wrap on small screens */
+@media (max-width:900px){
+  .topnav{flex-wrap:wrap;justify-content:flex-end;gap:4px;max-width:70%}
+  .topnav a{padding:6px 8px;font-size:11px}
+}
