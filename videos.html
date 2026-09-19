@@ -34,11 +34,17 @@
       <h1>Galeri Video</h1>
       <p class="skills-lead">Panduan dan karya siswa — diputar langsung di halaman.</p>
     </section>
-    <div class="filters" style="margin-bottom:18px" id="videoFilters">
-      <button class="filter active" data-cat="">Semua</button>
+    <div class="toolbar" style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+      <input id="videoSearch" type="search" placeholder="Cari judul, nama siswa, deskripsi..." style="flex:1;min-width:220px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:#e8f4f8">
     </div>
+    <div class="filters" style="margin-bottom:8px" id="videoFilters">
+      <button type="button" class="filter active" data-cat="all" data-slug="">Semua</button>
+    </div>
+    <div class="filters" id="videoSubFilters" style="margin-bottom:8px" hidden></div>
+    <div class="filters" id="videoStudentFilters" style="margin-bottom:8px" hidden></div>
+    <p class="muted" id="videoResultInfo" style="margin:0 0 14px;font-size:13px"></p>
     <div id="videoGrid" class="video-grid"></div>
-    <p id="videoEmpty" class="muted" hidden>Belum ada video. Admin dapat menambah dari panel admin.</p>
+    <p id="videoEmpty" class="muted" hidden>Belum ada video.</p>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="data/supabase-config.js"></script>

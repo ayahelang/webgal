@@ -673,7 +673,7 @@
     if (!sb) return [];
     let q = sb
       .from("gallery_videos")
-      .select("id,title,url,platform,embed_url,description,created_at,category_id, gallery_video_categories(name,slug)")
+      .select("id,title,url,platform,embed_url,description,created_at,category_id,owner_name,owner_user_id,created_by, gallery_video_categories(name,slug)")
       .order("created_at", { ascending: false });
     if (categoryId) q = q.eq("category_id", categoryId);
     const { data, error } = await q;
