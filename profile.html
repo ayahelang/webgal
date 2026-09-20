@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/favicon.svg">
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Profil — Silverhawk Gallery</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-skills" data-shlock-mode="normal" data-shlock-domain="webgal.silverhawk.web.id" data-shlock-brand="Silverhawk Gallery" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
+  <div class="bg-grid"></div>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Profil</small></span></a>
+    <nav class="topnav">
+      <a href="index.html">Gallery</a>
+      <a href="videos.html">Video</a>
+      <a href="skills.html">Skills</a>
+      <a href="refleksi.html">Nilai Proses</a>
+      <a href="stats.html">Statistik</a>
+      <a href="chat.html">Chat</a>
+      <a href="about.html">About</a>
+      <a href="profile.html" class="active">Profil</a>
+      <a href="admin.html" class="nav-admin" title="Admin">Admin</a>
+    </nav>
+  </header>
+  <main class="skills-main">
+    <section class="skills-hero">
+      <div class="eyebrow">PROFIL</div>
+      <h1>Akun Google & identitas</h1>
+      <p class="skills-lead">Login Google. Tautkan nama siswa + angkatan agar status tampil otomatis. User terdaftar: chat tidak dihapus setelah 7 hari.</p>
+    </section>
+
+    <div id="out" class="summary-card" style="display:grid;gap:12px;max-width:480px">
+      <p class="muted" id="outHint" style="margin:0">Login dengan Google untuk love/komentar biru, kelola karya, dan fitur akun.</p>
+      <button type="button" class="btn-google" id="btnLogin">
+        <span class="g-icon"></span> Login with Google
+      </button>
+    </div>
+
+    <div id="in" class="summary-card" hidden style="display:grid;gap:14px;max-width:520px">
+      <div id="returnBox" class="summary-card" style="background:rgba(125,227,255,.06);border-color:rgba(125,227,255,.25)"></div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <img id="av" class="admin-avatar" alt="" hidden>
+        <div>
+          <div id="nm" style="font-weight:700"></div>
+          <div id="em" class="muted" style="font-size:13px"></div>
+          <div id="st" style="margin-top:6px;color:#7de3ff;font-size:13px"></div>
+        </div>
+      </div>
+      <form id="linkForm" style="display:grid;gap:10px">
+        <label class="field"><span>1. Tahun angkatan</span>
+          <select name="angkatanYear" id="angkatanYear" required>
+            <option value="">— pilih tahun —</option>
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+          </select>
+        </label>
+        <label class="field"><span>2. Kelas</span>
+          <select name="classCode" id="classCode" required disabled>
+            <option value="">— pilih angkatan dulu —</option>
+          </select>
+        </label>
+        <label class="field"><span>3. Nama siswa</span>
+          <select name="studentNameSelect" id="studentNameSelect" disabled>
+            <option value="">— pilih kelas dulu —</option>
+          </select>
+          <input name="studentNameCustom" id="studentNameCustom" type="text" maxlength="80" placeholder="Atau ketik nama (hanya angkatan 2024)" style="margin-top:8px;display:none">
+          <small id="nameHint" class="muted" style="margin-top:4px"></small>
+        </label>
+        <button class="btn btn-primary" type="submit">Simpan tautan</button>
+      </form>
+      <p id="msg" class="muted" style="font-size:13px"></p>
+      <p><a class="btn btn-primary" href="my-works.html">Kelola karya saya (website & video)</a></p>
+      <button type="button" class="btn btn-ghost" id="btnOut">Keluar</button>
+    </div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data/supabase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/profile-status.js"></script>
+  <script src="js/auth-ui.js"></script>
+  <script src="js/profile.js"></script>
+  <script src="js/share.js"></script>
+  <script src="js/stats-float.js"></script>
+  <script src="https://silverhawk.web.id/lock/lock.js"></script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/favicon.svg">
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Panel Admin — Silverhawk Gallery</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-skills" data-shlock-mode="normal" data-shlock-domain="webgal.silverhawk.web.id" data-shlock-brand="Silverhawk Gallery" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
+  <div class="bg-grid"></div>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Admin</small></span></a>
+    <nav class="topnav">
+      <a href="index.html">Gallery</a>
+      <a href="videos.html">Video</a>
+      <a href="skills.html">Skills</a>
+      <a href="refleksi.html">Nilai Proses</a>
+      <a href="stats.html">Statistik</a>
+      <a href="chat.html">Chat</a>
+      <a href="about.html">About</a>
+      <a href="profile.html">Profil</a>
+      <a href="admin.html" class="active nav-admin" title="Admin">Admin</a>
+    </nav>
+  </header>
+  <main class="skills-main">
+    <section class="skills-hero">
+      <div class="eyebrow">ADMIN</div>
+      <h1>Panel Admin</h1>
+      <p class="skills-lead">Login Google. Kelola video, data user, dan undang admin tambahan.</p>
+    </section>
+
+    <div id="gate" class="summary-card" style="display:grid;gap:12px;max-width:440px">
+      <p class="muted" id="gateMsg">Masuk dengan akun Google yang diizinkan sebagai admin.</p>
+      <button type="button" class="btn-google" id="btnGoogle">
+        <span class="g-icon" aria-hidden="true"></span>
+        Login with Google
+      </button>
+      <p class="muted" style="font-size:12px">Akun utama: admin@silverhawk.web.id · teddyskom63@guru.sma.belajar.id · ted834r@gmail.com</p>
+    </div>
+
+    <div id="panel" hidden>
+      <div class="admin-who summary-card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px">
+        <img id="adminAvatar" alt="" class="admin-avatar" hidden>
+        <div>
+          <div id="adminName" style="font-weight:700"></div>
+          <div id="adminEmail" class="muted" style="font-size:13px"></div>
+        </div>
+        <button type="button" class="btn btn-ghost" id="btnLogout">Keluar</button>
+      </div>
+      <div class="filters" style="margin-bottom:16px" id="adminTabs">
+        <button class="filter active" data-tab="videos">Video</button>
+        <button class="filter" data-tab="websites">Website user</button>
+        <button class="filter" data-tab="alumni">Alumni</button>
+        <button class="filter" data-tab="angkatan">Angkatan</button>
+        <button class="filter" data-tab="users">Users & Admin</button>
+      </div>
+
+      <section data-panel="videos" class="summary-card admin-pane">
+        <h3>Tambah video (YouTube / Dailymotion)</h3>
+        <form id="videoForm" style="display:grid;gap:10px;margin-top:12px">
+          <label class="field"><span>Judul</span><input name="title" required></label>
+          <label class="field"><span>URL</span><input name="url" required placeholder="https://youtube.com/... "></label>
+          <label class="field"><span>Kategori</span><select name="categoryId" id="vidCat"></select></label>
+          <label class="field"><span>Deskripsi</span><input name="description"></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" type="submit">Simpan video</button>
+            <button class="btn btn-ghost" type="button" id="btnAddCat">+ Kategori</button>
+          </div>
+        </form>
+        <p id="vidStatus" class="muted" style="font-size:13px"></p>
+        <div id="vidList" class="admin-list"></div>
+      </section>
+
+      <section data-panel="websites" class="summary-card admin-pane" hidden>
+        <h3>Website dari input user</h3>
+        <div id="webList" class="admin-list"></div>
+      </section>
+      <section data-panel="alumni" class="summary-card admin-pane" hidden>
+        <h3>Alumni / santriwati (DB)</h3>
+        <div id="alumniList" class="admin-list"></div>
+      </section>
+      <section data-panel="angkatan" class="summary-card admin-pane" hidden>
+        <h3>Angkatan</h3>
+        <div id="angList" class="admin-list"></div>
+      </section>
+      <section data-panel="users" class="summary-card admin-pane" hidden>
+        <h3>User Google & undangan admin</h3>
+        <p class="muted" style="font-size:13px">Klik pengguna → centang hak akses → jadikan admin tambahan. User terdaftar: riwayat chat tidak dihapus setelah 7 hari.</p>
+        <div id="userList" class="admin-list"></div>
+        <div id="permBox" class="summary-card" hidden style="margin-top:12px;display:grid;gap:8px">
+          <strong id="permTarget"></strong>
+          <div id="permChecks" style="display:grid;gap:6px"></div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <button type="button" class="btn btn-primary" id="btnSaveAdmin">Simpan sebagai admin</button>
+            <button type="button" class="btn btn-ghost" id="btnRevokeAdmin">Cabut admin</button>
+            <button type="button" class="btn btn-ghost" id="btnDeleteUser" style="color:#f87171;border-color:rgba(248,113,113,.35)">Hapus user (non-admin)</button>
+          </div>
+          <p class="muted" style="font-size:12px;margin:0">User bertipe admin atau email admin utama tidak dapat dihapus dari sini.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data/supabase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/profile-status.js"></script>
+  <script src="js/auth-ui.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/share.js"></script>
+  <script src="https://silverhawk.web.id/lock/lock.js"></script>
+</body>
+</html>

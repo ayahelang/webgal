@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/favicon.svg">
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#081018">
+  <title>Tambah Karya Alumni — Silverhawk Gallery</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-skills" data-shlock-mode="normal" data-shlock-domain="webgal.silverhawk.web.id" data-shlock-brand="Silverhawk Gallery" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
+  <div class="bg-grid"></div>
+  <div class="orb orb-a"></div><div class="orb orb-b"></div>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Student Web Gallery</small></span></a>
+    <nav class="topnav">
+      <a href="index.html">Gallery</a>
+      <a href="videos.html">Video</a>
+      <a href="skills.html">Skills</a>
+      <a href="refleksi.html">Nilai Proses</a>
+      <a href="stats.html">Statistik</a>
+      <a href="chat.html">Chat</a>
+      <a href="about.html">About</a>
+      <a href="profile.html">Profil</a>
+      <a href="admin.html" class="nav-admin" title="Admin">Admin</a>
+    </nav>
+  </header>
+  <main class="skills-main">
+    <section class="skills-hero">
+      <div class="eyebrow">ALUMNI ARCHIVE</div>
+      <h1>Tambah karya website</h1>
+      <p class="skills-lead">Pilih <b>Angkatan</b> dulu (2024 / 2025), lalu <b>Kelas 51 atau 52</b>. Nama kelas sama, tetapi beda angkatan di database.</p>
+    </section>
+    <form id="alumniForm" class="summary-card" style="display:grid;gap:14px">
+      <label class="field"><span>Kode akses</span>
+        <input required name="code" type="password" autocomplete="off" placeholder="Kode dari guru / panitia">
+      </label>
+      <label class="field"><span>Nama lengkap</span>
+        <input required name="name" type="text" maxlength="80" placeholder="Nama kamu">
+      </label>
+      <div class="field">
+        <span>Angkatan</span>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#9db5c0">
+            <input type="radio" name="mode" value="existing" checked> Pilih yang ada
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#9db5c0">
+            <input type="radio" name="mode" value="new"> Buat angkatan baru
+          </label>
+        </div>
+        <select id="angkatanSelect" name="angkatanId" style="margin-top:8px;width:100%"></select>
+        <input id="angkatanNew" name="angkatanNew" type="text" maxlength="40" placeholder="Contoh: Angkatan 2026" style="margin-top:8px;width:100%;display:none">
+      </div>
+      <label class="field"><span>Kelas (dalam angkatan terpilih)</span>
+        <select id="classSelect" name="classCode" required>
+          <option value="">— pilih kelas —</option>
+          <option value="51">Kelas 51</option>
+          <option value="52">Kelas 52</option>
+        </select>
+        <small style="color:#7f97a3;margin-top:4px">Kelas 51 angkatan 2024 ≠ Kelas 51 angkatan 2025 di database.</small>
+      </label>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:13px;color:#9db5c0">Website (boleh lebih dari satu)</span>
+          <button type="button" class="btn btn-ghost" id="addLinkBtn" style="padding:6px 10px;font-size:12px">+ Add more</button>
+        </div>
+        <div id="linksBox" style="display:grid;gap:10px"></div>
+      </div>
+      <button type="submit" class="btn btn-primary" id="submitBtn">Simpan ke gallery</button>
+      <p id="formStatus" class="muted" style="margin:0;font-size:13px"></p>
+    </form>
+  </main>
+  <footer>
+    <div><span class="brand-mark small">SH</span><b>Silverhawk</b></div>
+    <span>© 2026 · Kenang-kenangan karya digital</span>
+  </footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data/supabase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/profile-status.js"></script>
+  <script src="js/auth-ui.js"></script>
+
+  <script src="js/submit.js"></script>
+  <script src="js/share.js"></script>
+  <script src="js/stats-float.js"></script>
+  <script src="https://silverhawk.web.id/lock/lock.js"></script>
+</body>
+</html>
