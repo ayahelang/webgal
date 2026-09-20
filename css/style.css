@@ -421,3 +421,28 @@ select:focus,input:focus,textarea:focus{
   .topnav{flex-wrap:wrap;justify-content:flex-end;gap:4px;max-width:70%}
   .topnav a{padding:6px 8px;font-size:11px}
 }
+
+/* Student filter dropdown (hemat ruang vs tab panjang) */
+.filter-select,
+#videoStudentSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: #e8f4f8;
+  padding: 8px 12px;
+  font-size: 13px;
+  min-height: 38px;
+  cursor: pointer;
+}
+.filter-select:focus,
+#videoStudentSelect:focus {
+  outline: none;
+  border-color: rgba(107,220,244,.55);
+  box-shadow: 0 0 0 3px rgba(107,220,244,.12);
+}
+#videoStudentFilters .field span {
+  display: block;
+  margin-bottom: 2px;
+}

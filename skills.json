@@ -18,7 +18,7 @@
       "name": "Literasi Digital Dasar",
       "nameEn": "Fundamental Digital Literacy",
       "color": "#7de3ff",
-      "description": "Kemampuan mengoperasikan perangkat, mengelola file, dan menggunakan sistem secara efisien sebagai fondasi semua keterampilan digital.",
+      "description": "Kemampuan mengoperasikan perangkat, mengelola file, dan menggunakan sistem secara efisien sebagai fondasi semua keterampilan digital. Meliputi manajemen folder proyek, shortcut keyboard, manajemen tab browser, serta format/export file agar workflow belajar dan berkarya tidak tersendat.",
       "skills": [
         {
           "name": "Manajemen file & folder",
@@ -48,7 +48,7 @@
       "name": "Kolaborasi & Produktivitas Cloud",
       "nameEn": "Cloud Collaboration & Productivity",
       "color": "#8ff5bd",
-      "description": "Menggunakan perangkat lunak cloud untuk menulis, mengolah data, dan berkolaborasi secara profesional.",
+      "description": "Menggunakan perangkat lunak cloud untuk menulis, mengolah data, dan berkolaborasi secara profesional. Fokus pada Google Docs (kolaboratif & dokumentasi), Google Sheets, Google Classroom sebagai alur tugas, serta pengelolaan tautan proyek agar karya mudah dibagikan dan dilacak.",
       "skills": [
         {
           "name": "Google Docs (kolaboratif)",
@@ -78,7 +78,7 @@
       "name": "AI Literacy & Prompt Engineering",
       "nameEn": "AI Literacy & Prompt Engineering",
       "color": "#c4b5fd",
-      "description": "Memahami dan memanfaatkan AI generatif secara bijak untuk ideasi, produksi konten, dan pemecahan masalah — bukan sekadar ‘pakai AI’, tetapi merancang instruksi yang efektif.",
+      "description": "Memahami dan memanfaatkan AI generatif secara bijak untuk ideasi, produksi konten, dan pemecahan masalah — bukan sekadar ‘pakai AI’, tetapi merancang instruksi (prompt) yang efektif, mengevaluasi output, mengedit hasil, dan mengintegrasikannya ke karya sendiri. Termasuk image generation, writing assistance, dan sikap kritis terhadap AI.",
       "skills": [
         {
           "name": "Prompt engineering (ChatGPT / Gemini / Grok / Claude)",
@@ -108,7 +108,7 @@
       "name": "Konten Digital & Media Production",
       "nameEn": "Digital Content & Media Production",
       "color": "#f9a8d4",
-      "description": "Merancang dan memproduksi konten visual serta video untuk komunikasi dan publikasi digital.",
+      "description": "Merancang dan memproduksi konten visual serta video untuk komunikasi dan publikasi digital. Mencakup desain di Canva, editing video di CapCut (termasuk perbaikan teknis audio/export), publikasi ke Dailymotion (playlist, metadata, mode Kids), serta copywriting dasar untuk teks persuasif.",
       "skills": [
         {
           "name": "Canva design",
@@ -138,7 +138,7 @@
       "name": "Web Development & Deployment",
       "nameEn": "Web Development & Deployment",
       "color": "#67e8f9",
-      "description": "Membangun website nyata dengan HTML, CSS, JavaScript, dan JSON, lalu menerbitkannya ke internet melalui GitHub Pages.",
+      "description": "Membangun website nyata dengan HTML, CSS, JavaScript, dan JSON, lalu menerbitkannya ke internet melalui GitHub Pages. Termasuk struktur semantik, layout modern, interaktivitas (game, countdown, form), data-driven pages, deploy, serta dasar responsive design dan custom domain.",
       "skills": [
         {
           "name": "HTML structure",
@@ -178,7 +178,7 @@
       "name": "Product Thinking & Digital Products",
       "nameEn": "Product Thinking & Applied Projects",
       "color": "#fde68a",
-      "description": "Menerjemahkan ide menjadi produk digital yang berfungsi: game, display ibadah, toko, edukasi, dan eksperimen AI.",
+      "description": "Menerjemahkan ide menjadi produk digital yang berfungsi: game interaktif, display ibadah/jadwal sholat, toko/brand site, aplikasi edukasi, dan eksperimen AI. Setiap santriwati membangun multi-project portfolio (biasanya 3–8 karya) sebagai bukti nyata kemampuan product thinking.",
       "skills": [
         {
           "name": "Interactive games",
@@ -213,7 +213,7 @@
       "name": "Soft Skills & Digital Citizenship",
       "nameEn": "Soft Skills & Digital Citizenship",
       "color": "#a5b4fc",
-      "description": "Keterampilan non-teknis yang muncul dari proses belajar: ketekunan, komunikasi, tanggung jawab, dan sikap terhadap teknologi.",
+      "description": "Keterampilan non-teknis yang muncul dari proses belajar: ketekunan menyelesaikan error, self-directed learning, presentasi karya, serta sikap bertanggung jawab dan produktif terhadap teknologi. Pergeseran mindset dari ‘laptop hanya hiburan’ menjadi alat belajar dan berkarya.",
       "skills": [
         {
           "name": "Problem-solving & persistence",
@@ -242,17 +242,17 @@
     {
       "id": "Introduced",
       "label": "Diperkenalkan",
-      "desc": "Konsep dijelaskan dan dicoba secara singkat"
+      "desc": "Konsep dijelaskan secara singkat oleh pengajar dan dicoba secara terbatas di kelas. Santriwati mengenal istilah, melihat demonstrasi, dan mencoba langkah dasar sekali atau dua kali. Belum diharapkan mandiri menghasilkan karya utuh. Contoh: melihat cara membuat folder, mencoba shortcut Ctrl+C/V, atau melihat prompt AI sederhana."
     },
     {
       "id": "Practiced",
       "label": "Dilatih",
-      "desc": "Dipraktikkan berulang dalam tugas"
+      "desc": "Keterampilan dipraktikkan berulang dalam tugas dan latihan terstruktur. Santriwati mengerjakan beberapa kali dengan bimbingan, memperbaiki kesalahan, dan mulai membentuk kebiasaan kerja. Masih membutuhkan contoh atau checklist. Contoh: mengedit video CapCut beberapa kali, menulis copy landing page, atau mengatur tab browser secara rutin."
     },
     {
       "id": "Applied",
       "label": "Diterapkan",
-      "desc": "Digunakan mandiri untuk menghasilkan karya nyata"
+      "desc": "Keterampilan digunakan secara mandiri untuk menghasilkan karya nyata yang dipublikasikan. Santriwati mampu merancang, membangun, memperbaiki error, dan mempresentasikan hasil tanpa instruksi langkah-demi-langkah. Bukti utamanya adalah website/video publik di GitHub Pages atau Dailymotion yang dapat diakses orang lain. Contoh: membuat game/display masjid/toko digital lengkap lalu deploy."
     }
   ],
   "summary": {

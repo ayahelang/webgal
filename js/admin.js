@@ -135,6 +135,31 @@
         alert(e.message || e);
       }
     };
+    const btnDel = $("#btnDeleteUser");
+    if (btnDel) {
+      btnDel.onclick = async () => {
+        if (!selectedUser) return;
+        if (selectedUser.is_admin) {
+          alert("Tidak dapat menghapus user yang berstatus admin.");
+          return;
+        }
+        const mainEmails = (window.GALLERY_SUPABASE && GALLERY_SUPABASE.adminEmails) || [];
+        if (mainEmails.map((e) => String(e).toLowerCase()).includes(String(selectedUser.email || "").toLowerCase())) {
+          alert("Tidak dapat menghapus email admin utama.");
+          return;
+        }
+        if (!confirm("Hapus profil user ini dari daftar terdaftar? (Akun Google tetap ada; tautan profil dihapus.)")) return;
+        try {
+          await GalleryDB.adminDeleteUserProfile(selectedUser.id);
+          $("#permBox").hidden = true;
+          selectedUser = null;
+          await refreshUsers();
+          alert("User dihapus dari daftar.");
+        } catch (e) {
+          alert(e.message || e);
+        }
+      };
+    }
   }
 
   async function refreshCats() {

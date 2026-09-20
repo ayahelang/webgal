@@ -140,21 +140,24 @@
     if (state.kelas) pool = pool.filter((v) => v._class === state.kelas);
     const names = [...new Set(pool.map((v) => v.owner_name))].sort((a, b) => a.localeCompare(b, "id"));
     stu.hidden = names.length === 0;
-    stu.innerHTML =
-      `<button type="button" class="filter ${!state.student ? "active" : ""}" data-s="">Semua siswa</button>` +
-      names
-        .map(
-          (n) =>
-            `<button type="button" class="filter ${state.student === n ? "active" : ""}" data-s="${esc(n)}">${esc(n)}</button>`
-        )
-        .join("");
-    stu.querySelectorAll(".filter").forEach((b) =>
-      b.addEventListener("click", () => {
-        state.student = b.dataset.s || "";
-        buildStudentFilters();
+    // Dropdown agar hemat ruang (tidak pakai tab/button yang panjang di laptop)
+    const opts =
+      `<option value="">Semua siswa (${names.length})</option>` +
+      names.map((n) => `<option value="${esc(n)}" ${state.student === n ? "selected" : ""}>${esc(n)}</option>`).join("");
+    stu.innerHTML = `
+      <label class="field" style="margin:0;min-width:220px;max-width:320px">
+        <span style="font-size:12px;color:#8aa0ab">Filter nama siswa</span>
+        <select id="videoStudentSelect" class="filter-select" style="width:100%;margin-top:4px">
+          ${opts}
+        </select>
+      </label>`;
+    const sel = stu.querySelector("#videoStudentSelect");
+    if (sel) {
+      sel.addEventListener("change", () => {
+        state.student = sel.value || "";
         render();
-      })
-    );
+      });
+    }
   }
 
   async function loadStudents() {

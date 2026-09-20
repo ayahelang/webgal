@@ -94,10 +94,12 @@
         <div id="permBox" class="summary-card" hidden style="margin-top:12px;display:grid;gap:8px">
           <strong id="permTarget"></strong>
           <div id="permChecks" style="display:grid;gap:6px"></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
             <button type="button" class="btn btn-primary" id="btnSaveAdmin">Simpan sebagai admin</button>
             <button type="button" class="btn btn-ghost" id="btnRevokeAdmin">Cabut admin</button>
+            <button type="button" class="btn btn-ghost" id="btnDeleteUser" style="color:#f87171;border-color:rgba(248,113,113,.35)">Hapus user (non-admin)</button>
           </div>
+          <p class="muted" style="font-size:12px;margin:0">User bertipe admin atau email admin utama tidak dapat dihapus dari sini.</p>
         </div>
       </section>
     </div>
