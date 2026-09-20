@@ -62,12 +62,14 @@
       <section data-panel="videos" class="summary-card admin-pane">
         <h3>Tambah video (YouTube / Dailymotion)</h3>
         <form id="videoForm" style="display:grid;gap:10px;margin-top:12px">
+          <input type="hidden" name="id" value="">
           <label class="field"><span>Judul</span><input name="title" required></label>
           <label class="field"><span>URL</span><input name="url" required placeholder="https://youtube.com/... "></label>
           <label class="field"><span>Kategori</span><select name="categoryId" id="vidCat"></select></label>
           <label class="field"><span>Deskripsi</span><input name="description"></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary" type="submit">Simpan video</button>
+            <button class="btn btn-ghost" type="button" id="vidReset">Batal edit</button>
             <button class="btn btn-ghost" type="button" id="btnAddCat">+ Kategori</button>
           </div>
         </form>
@@ -76,15 +78,54 @@
       </section>
 
       <section data-panel="websites" class="summary-card admin-pane" hidden>
-        <h3>Website dari input user</h3>
+        <h3>Website (CRUD)</h3>
+        <form id="webForm" style="display:grid;gap:10px;margin-top:12px">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Judul</span><input name="title" required placeholder="Judul website"></label>
+          <label class="field"><span>URL</span><input name="url" required placeholder="https://..."></label>
+          <label class="field"><span>Kategori</span><input name="category" placeholder="Web Kreatif"></label>
+          <label class="field"><span>Pemilik (alumni)</span><select name="alumniId" id="webAlumniSelect" required><option value="">— pilih —</option></select></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" type="submit">Simpan website</button>
+            <button class="btn btn-ghost" type="button" id="webReset">Batal edit</button>
+          </div>
+        </form>
+        <p id="webStatus" class="muted" style="font-size:13px"></p>
         <div id="webList" class="admin-list"></div>
       </section>
       <section data-panel="alumni" class="summary-card admin-pane" hidden>
-        <h3>Alumni / santriwati (DB)</h3>
+        <h3>Alumni / santriwati (CRUD)</h3>
+        <form id="alumniForm" style="display:grid;gap:10px;margin-top:12px">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Nama</span><input name="name" required placeholder="Nama lengkap"></label>
+          <label class="field"><span>Angkatan</span><select name="angkatanId" id="alumniAngSelect" required><option value="">— pilih —</option></select></label>
+          <label class="field"><span>Kelas</span>
+            <select name="classCode">
+              <option value="51">51</option>
+              <option value="52">52</option>
+              <option value="">—</option>
+            </select>
+          </label>
+          <label class="field"><span>Role</span><input name="role" value="Santriwati"></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" type="submit">Simpan alumni</button>
+            <button class="btn btn-ghost" type="button" id="alumniReset">Batal edit</button>
+          </div>
+        </form>
+        <p id="alumniStatus" class="muted" style="font-size:13px"></p>
         <div id="alumniList" class="admin-list"></div>
       </section>
       <section data-panel="angkatan" class="summary-card admin-pane" hidden>
-        <h3>Angkatan</h3>
+        <h3>Angkatan (CRUD)</h3>
+        <form id="angForm" style="display:grid;gap:10px;margin-top:12px;max-width:420px">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Label angkatan</span><input name="label" required placeholder="Angkatan 2025"></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" type="submit">Simpan angkatan</button>
+            <button class="btn btn-ghost" type="button" id="angReset">Batal edit</button>
+          </div>
+        </form>
+        <p id="angStatus" class="muted" style="font-size:13px"></p>
         <div id="angList" class="admin-list"></div>
       </section>
       <section data-panel="users" class="summary-card admin-pane" hidden>

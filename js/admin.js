@@ -2,10 +2,13 @@
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => document.querySelectorAll(s);
   let selectedUser = null;
-  let authCtx = null;
+  let alumniCache = [];
+  let angkatanCache = [];
+  let videoCache = [];
+  let webCache = [];
 
   function esc(t) {
-    return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   }
 
   async function boot() {
@@ -18,23 +21,21 @@
 
     $("#btnGoogle").onclick = () =>
       GalleryDB.signInWithGoogle({
-      redirectTo: location.origin + location.pathname.replace(/[^/]+$/, "") + "admin.html",
-      returnTo: location.href,
-    }).catch((e) => alert(e.message || e));
+        redirectTo: location.origin + location.pathname.replace(/[^/]+$/, "") + "admin.html",
+        returnTo: location.href,
+      }).catch((e) => alert(e.message || e));
     $("#btnLogout").onclick = async () => {
       await GalleryDB.signOut();
       location.href = "admin.html";
     };
 
     const auth = await GalleryDB.requireAdmin();
-    authCtx = auth;
     if (!auth.ok) {
       panel.hidden = true;
       gate.hidden = false;
       if (auth.reason === "forbidden") {
         $("#gateMsg").textContent =
           "Akun " + (auth.email || "") + " berhasil login Google tetapi belum punya hak admin. Minta admin utama mengundang dari tab Users.";
-        // still show logout
         const b = document.createElement("button");
         b.className = "btn btn-ghost";
         b.textContent = "Keluar";
@@ -47,7 +48,6 @@
       return;
     }
 
-    // logged in admin: hide gate completely
     gate.hidden = true;
     gate.style.display = "none";
     panel.hidden = false;
@@ -72,33 +72,47 @@
       })
     );
 
+    bindForms(session);
     await refreshCats();
+    await refreshAngkatan();
+    await refreshAlumni();
     await refreshVideos();
     await refreshWebs();
-    await refreshAlumni();
-    await refreshAngkatan();
     await refreshUsers();
+  }
 
+  function bindForms(session) {
+    // Video
     $("#videoForm").onsubmit = async (ev) => {
       ev.preventDefault();
       const fd = new FormData(ev.target);
-      $("#vidStatus").textContent = "Menyimpan...";
+      const id = fd.get("id");
+      const payload = {
+        title: fd.get("title"),
+        url: fd.get("url"),
+        categoryId: fd.get("categoryId") || null,
+        description: fd.get("description") || "",
+        createdBy: session.user.email,
+      };
       try {
-        await GalleryDB.addVideo({
-          title: fd.get("title"),
-          url: fd.get("url"),
-          categoryId: fd.get("categoryId") || null,
-          description: fd.get("description"),
-          createdBy: auth.email,
-        });
+        if (id) await GalleryDB.adminUpdateVideo(id, payload);
+        else await GalleryDB.addVideo(payload);
+        $("#vidStatus").textContent = id ? "Video diperbarui." : "Video ditambah.";
         ev.target.reset();
-        $("#vidStatus").textContent = "Video tersimpan.";
+        ev.target.querySelector('[name=id]').value = "";
         await refreshVideos();
       } catch (e) {
         $("#vidStatus").textContent = e.message || String(e);
       }
     };
-
+    const vidReset = $("#vidReset");
+    if (vidReset) {
+      vidReset.onclick = () => {
+        $("#videoForm").reset();
+        $("#videoForm [name=id]").value = "";
+        $("#vidStatus").textContent = "";
+      };
+    }
     $("#btnAddCat").onclick = async () => {
       const name = prompt("Nama kategori baru:");
       if (!name) return;
@@ -110,6 +124,84 @@
       }
     };
 
+    // Website
+    $("#webForm").onsubmit = async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(ev.target);
+      const payload = {
+        id: fd.get("id") || null,
+        title: fd.get("title"),
+        url: fd.get("url"),
+        category: fd.get("category") || "Web Kreatif",
+        alumniId: fd.get("alumniId"),
+      };
+      try {
+        await GalleryDB.adminUpsertWebsite(payload);
+        $("#webStatus").textContent = payload.id ? "Website diperbarui." : "Website ditambah.";
+        ev.target.reset();
+        ev.target.querySelector('[name=id]').value = "";
+        await refreshWebs();
+      } catch (e) {
+        $("#webStatus").textContent = e.message || String(e);
+      }
+    };
+    $("#webReset").onclick = () => {
+      $("#webForm").reset();
+      $("#webForm [name=id]").value = "";
+      $("#webStatus").textContent = "";
+    };
+
+    // Alumni
+    $("#alumniForm").onsubmit = async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(ev.target);
+      const payload = {
+        id: fd.get("id") || null,
+        name: fd.get("name"),
+        angkatanId: fd.get("angkatanId"),
+        classCode: fd.get("classCode"),
+        role: fd.get("role") || "Santriwati",
+      };
+      try {
+        await GalleryDB.adminUpsertAlumni(payload);
+        $("#alumniStatus").textContent = payload.id ? "Alumni diperbarui." : "Alumni ditambah.";
+        ev.target.reset();
+        ev.target.querySelector('[name=id]').value = "";
+        await refreshAlumni();
+        await fillAlumniSelects();
+      } catch (e) {
+        $("#alumniStatus").textContent = e.message || String(e);
+      }
+    };
+    $("#alumniReset").onclick = () => {
+      $("#alumniForm").reset();
+      $("#alumniForm [name=id]").value = "";
+      $("#alumniStatus").textContent = "";
+    };
+
+    // Angkatan
+    $("#angForm").onsubmit = async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(ev.target);
+      const payload = { id: fd.get("id") || null, label: fd.get("label") };
+      try {
+        await GalleryDB.adminUpsertAngkatan(payload);
+        $("#angStatus").textContent = payload.id ? "Angkatan diperbarui." : "Angkatan ditambah.";
+        ev.target.reset();
+        ev.target.querySelector('[name=id]').value = "";
+        await refreshAngkatan();
+        await fillAlumniSelects();
+      } catch (e) {
+        $("#angStatus").textContent = e.message || String(e);
+      }
+    };
+    $("#angReset").onclick = () => {
+      $("#angForm").reset();
+      $("#angForm [name=id]").value = "";
+      $("#angStatus").textContent = "";
+    };
+
+    // Users admin
     $("#btnSaveAdmin").onclick = async () => {
       if (!selectedUser) return;
       const permissions = {};
@@ -148,7 +240,7 @@
           alert("Tidak dapat menghapus email admin utama.");
           return;
         }
-        if (!confirm("Hapus profil user ini dari daftar terdaftar? (Akun Google tetap ada; tautan profil dihapus.)")) return;
+        if (!confirm("Hapus profil user ini dari daftar terdaftar?")) return;
         try {
           await GalleryDB.adminDeleteUserProfile(selectedUser.id);
           $("#permBox").hidden = true;
@@ -166,67 +258,174 @@
     const cats = await GalleryDB.listVideoCategories();
     $("#vidCat").innerHTML = cats.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
   }
+
   async function refreshVideos() {
     const rows = await GalleryDB.listVideos();
+    videoCache = rows || [];
     $("#vidList").innerHTML =
-      rows
+      videoCache
         .map(
-          (v) => `<div class="admin-row"><div><strong>${esc(v.title)}</strong><br><small>${esc(v.platform)}</small></div>
-        <button type="button" data-del-vid="${v.id}">Hapus</button></div>`
+          (v) => `<div class="admin-row">
+          <div><strong>${esc(v.title)}</strong><br><small>${esc(v.platform)} · ${esc(v.url)}</small></div>
+          <div style="display:flex;gap:6px">
+            <button type="button" data-edit-vid="${v.id}">Ubah</button>
+            <button type="button" data-del-vid="${v.id}">Hapus</button>
+          </div>
+        </div>`
         )
         .join("") || "<p class='muted'>Belum ada video.</p>";
     $$("#vidList [data-del-vid]").forEach((b) =>
       b.addEventListener("click", async () => {
-        if (!confirm("Hapus?")) return;
-        await GalleryDB.deleteVideo(b.dataset.delVid);
-        await refreshVideos();
+        if (!confirm("Hapus video?")) return;
+        try {
+          await GalleryDB.deleteVideo(b.dataset.delVid);
+          await refreshVideos();
+        } catch (e) {
+          alert(e.message || e);
+        }
+      })
+    );
+    $$("#vidList [data-edit-vid]").forEach((b) =>
+      b.addEventListener("click", () => {
+        const v = videoCache.find((x) => String(x.id) === String(b.dataset.editVid));
+        if (!v) return;
+        const f = $("#videoForm");
+        f.querySelector('[name=id]').value = v.id;
+        f.querySelector('[name=title]').value = v.title || "";
+        f.querySelector('[name=url]').value = v.url || "";
+        f.querySelector('[name=description]').value = v.description || "";
+        if (v.category_id) f.querySelector('[name=categoryId]').value = v.category_id;
+        $("#vidStatus").textContent = "Mode edit: " + (v.title || "");
+        f.scrollIntoView({ behavior: "smooth", block: "nearest" });
       })
     );
   }
+
+  async function fillAlumniSelects() {
+    const sel = $("#webAlumniSelect");
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML =
+      '<option value="">— pilih alumni —</option>' +
+      alumniCache
+        .map((a) => `<option value="${a.id}">${esc(a.name)} · K${esc(a.class_code || "?")}</option>`)
+        .join("");
+    if (cur) sel.value = cur;
+  }
+
   async function refreshWebs() {
     const rows = await GalleryDB.adminListWebsites();
+    webCache = rows || [];
+    await fillAlumniSelects();
     $("#webList").innerHTML =
-      rows
-        .map(
-          (w) => `<div class="admin-row"><div><strong>${esc(w.title)}</strong><br><small><a href="${esc(w.url)}" target="_blank">${esc(w.url)}</a></small></div>
-        <button type="button" data-del-web="${w.id}">Hapus</button></div>`
-        )
-        .join("") || "<p class='muted'>Belum ada.</p>";
+      webCache
+        .map((w) => {
+          const owner = (w.gallery_alumni && w.gallery_alumni.name) || "";
+          return `<div class="admin-row">
+          <div><strong>${esc(w.title || owner)}</strong><br><small>${esc(w.url)}</small>
+          ${owner ? `<br><small>${esc(owner)}</small>` : ""}</div>
+          <div style="display:flex;gap:6px">
+            <button type="button" data-edit-web="${w.id}">Ubah</button>
+            <button type="button" data-del-web="${w.id}">Hapus</button>
+          </div>
+        </div>`;
+        })
+        .join("") || "<p class='muted'>Belum ada website.</p>";
     $$("#webList [data-del-web]").forEach((b) =>
       b.addEventListener("click", async () => {
-        if (!confirm("Hapus?")) return;
-        await GalleryDB.adminDeleteWebsite(b.dataset.delWeb);
-        await refreshWebs();
+        if (!confirm("Hapus website?")) return;
+        try {
+          await GalleryDB.adminDeleteWebsite(b.dataset.delWeb);
+          await refreshWebs();
+        } catch (e) {
+          alert(e.message || e);
+        }
+      })
+    );
+    $$("#webList [data-edit-web]").forEach((b) =>
+      b.addEventListener("click", () => {
+        const w = webCache.find((x) => String(x.id) === String(b.dataset.editWeb));
+        if (!w) return;
+        const f = $("#webForm");
+        f.querySelector('[name=id]').value = w.id;
+        f.querySelector('[name=title]').value = w.title || "";
+        f.querySelector('[name=url]').value = w.url || "";
+        f.querySelector('[name=category]').value = w.category || "";
+        if (w.alumni_id) f.querySelector('[name=alumniId]').value = w.alumni_id;
+        $("#webStatus").textContent = "Mode edit: " + (w.title || "");
+        f.scrollIntoView({ behavior: "smooth", block: "nearest" });
       })
     );
   }
+
   async function refreshAlumni() {
     const rows = await GalleryDB.adminListAlumni();
+    alumniCache = rows || [];
+    const angSel = $("#alumniAngSelect");
+    if (angSel) {
+      const cur = angSel.value;
+      angSel.innerHTML =
+        '<option value="">— pilih angkatan —</option>' +
+        angkatanCache.map((a) => `<option value="${a.id}">${esc(a.label)}</option>`).join("");
+      if (cur) angSel.value = cur;
+    }
     $("#alumniList").innerHTML =
-      rows
-        .map(
-          (a) => `<div class="admin-row"><div><strong>${esc(a.name)}</strong> · Kelas ${esc(a.class_code || "—")}<br>
-        <small>${esc((a.gallery_angkatan && a.gallery_angkatan.label) || "")}</small></div>
-        <button type="button" data-del-al="${a.id}">Hapus</button></div>`
-        )
-        .join("") || "<p class='muted'>Belum ada.</p>";
+      alumniCache
+        .map((a) => {
+          const ang = (a.gallery_angkatan && a.gallery_angkatan.label) || "";
+          return `<div class="admin-row">
+          <div><strong>${esc(a.name)}</strong> · Kelas ${esc(a.class_code || "?")}<br>
+          <small>${esc(ang)}</small></div>
+          <div style="display:flex;gap:6px">
+            <button type="button" data-edit-al="${a.id}">Ubah</button>
+            <button type="button" data-del-al="${a.id}">Hapus</button>
+          </div>
+        </div>`;
+        })
+        .join("") || "<p class='muted'>Belum ada alumni.</p>";
     $$("#alumniList [data-del-al]").forEach((b) =>
       b.addEventListener("click", async () => {
-        if (!confirm("Hapus alumni + website?")) return;
-        await GalleryDB.adminDeleteAlumni(b.dataset.delAl);
-        await refreshAlumni();
-        await refreshWebs();
+        if (!confirm("Hapus alumni + website terkait?")) return;
+        try {
+          await GalleryDB.adminDeleteAlumni(b.dataset.delAl);
+          await refreshAlumni();
+          await refreshWebs();
+        } catch (e) {
+          alert(e.message || e);
+        }
       })
     );
+    $$("#alumniList [data-edit-al]").forEach((b) =>
+      b.addEventListener("click", () => {
+        const a = alumniCache.find((x) => String(x.id) === String(b.dataset.editAl));
+        if (!a) return;
+        const f = $("#alumniForm");
+        f.querySelector('[name=id]').value = a.id;
+        f.querySelector('[name=name]').value = a.name || "";
+        f.querySelector('[name=classCode]').value = a.class_code || "";
+        f.querySelector('[name=role]').value = a.role || "Santriwati";
+        if (a.angkatan_id) f.querySelector('[name=angkatanId]').value = a.angkatan_id;
+        $("#alumniStatus").textContent = "Mode edit: " + a.name;
+        f.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      })
+    );
+    await fillAlumniSelects();
   }
+
   async function refreshAngkatan() {
     const rows = await GalleryDB.adminListAngkatanAll();
-    $("#angList").innerHTML = rows
+    angkatanCache = rows || [];
+    $("#angList").innerHTML = angkatanCache
       .map(
-        (a) => `<div class="admin-row"><div><strong>${esc(a.label)}</strong><br><small>${esc(a.label_norm)}</small></div>
-        <button type="button" data-del-ang="${a.id}">Hapus</button></div>`
+        (a) => `<div class="admin-row">
+        <div><strong>${esc(a.label)}</strong><br><small>${esc(a.label_norm)}</small></div>
+        <div style="display:flex;gap:6px">
+          <button type="button" data-edit-ang="${a.id}">Ubah</button>
+          <button type="button" data-del-ang="${a.id}">Hapus</button>
+        </div>
+      </div>`
       )
-      .join("");
+      .join("") || "<p class='muted'>Belum ada angkatan.</p>";
     $$("#angList [data-del-ang]").forEach((b) =>
       b.addEventListener("click", async () => {
         if (!confirm("Hapus angkatan?")) return;
@@ -238,6 +437,17 @@
         }
       })
     );
+    $$("#angList [data-edit-ang]").forEach((b) =>
+      b.addEventListener("click", () => {
+        const a = angkatanCache.find((x) => String(x.id) === String(b.dataset.editAng));
+        if (!a) return;
+        const f = $("#angForm");
+        f.querySelector('[name=id]').value = a.id;
+        f.querySelector('[name=label]').value = a.label || "";
+        $("#angStatus").textContent = "Mode edit: " + a.label;
+        f.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      })
+    );
   }
 
   async function refreshUsers() {
@@ -247,13 +457,21 @@
       rows
         .map((u) => {
           const st = u.linked_angkatan_year ? SHStatus.compute(u.linked_angkatan_year).label : "Belum tautkan siswa";
-          return `<div class="admin-row" style="cursor:pointer" data-user='${esc(JSON.stringify({ id: u.id, email: u.email, is_admin: u.is_admin, permissions: u.permissions || {} }))}'>
+          return `<div class="admin-row" style="cursor:pointer" data-user='${esc(
+            JSON.stringify({ id: u.id, email: u.email, is_admin: u.is_admin, permissions: u.permissions || {} })
+          )}'>
           <div style="display:flex;gap:10px;align-items:center">
             ${u.avatar_url ? `<img src="${esc(u.avatar_url)}" style="width:36px;height:36px;border-radius:50%">` : "👤"}
             <div><strong>${esc(u.display_name || u.email)}</strong>
               ${u.is_admin ? " · <em>Admin</em>" : ""}
               <br><small>${esc(u.email)} · ${esc(st)}</small>
-              ${u.linked_student_name ? `<br><small>Taut: ${esc(u.linked_student_name)} · ${esc(u.linked_angkatan_year)} · K${esc(u.linked_class_code)}</small>` : ""}
+              ${
+                u.linked_student_name
+                  ? `<br><small>Taut: ${esc(u.linked_student_name)} · ${esc(u.linked_angkatan_year)} · K${esc(
+                      u.linked_class_code
+                    )}</small>`
+                  : ""
+              }
             </div>
           </div>
           <span class="muted">Atur →</span>

@@ -373,6 +373,87 @@
     if (error) throw error;
   }
 
+  async function adminUpsertAngkatan({ id, label }) {
+    const sb = client();
+    const clean = String(label || "").trim();
+    if (!clean) throw new Error("Label angkatan wajib");
+    const ln = normLabel(clean);
+    if (id) {
+      const { data, error } = await sb.from("gallery_angkatan").update({ label: clean, label_norm: ln }).eq("id", id).select("*").single();
+      if (error) throw error;
+      return data;
+    }
+    const { data, error } = await sb.from("gallery_angkatan").insert({ label: clean, label_norm: ln, source: "admin" }).select("*").single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function adminUpsertAlumni({ id, name, classCode, angkatanId, role }) {
+    const sb = client();
+    const nm = String(name || "").trim();
+    if (nm.length < 2) throw new Error("Nama terlalu pendek");
+    if (!angkatanId) throw new Error("Pilih angkatan");
+    const cls = String(classCode || "").trim();
+    const payload = {
+      name: nm,
+      name_norm: nm.toLowerCase().replace(/\s+/g, " "),
+      class_code: cls,
+      angkatan_id: angkatanId,
+      role: String(role || "Santriwati").trim() || "Santriwati",
+    };
+    if (id) {
+      const { data, error } = await sb.from("gallery_alumni").update(payload).eq("id", id).select("id,name,class_code,role,angkatan_id").single();
+      if (error) throw error;
+      return data;
+    }
+    const { data, error } = await sb.from("gallery_alumni").insert(payload).select("id,name,class_code,role,angkatan_id").single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function adminUpsertWebsite({ id, title, url, category, alumniId }) {
+    const sb = client();
+    const t = String(title || "").trim() || "Website";
+    const u = String(url || "").trim();
+    if (!/^https?:\/\//i.test(u)) throw new Error("URL harus http(s)");
+    if (!alumniId && !id) throw new Error("Pilih alumni pemilik website");
+    const payload = {
+      title: t,
+      url: u,
+      category: String(category || "Web Kreatif").trim() || "Web Kreatif",
+    };
+    if (alumniId) payload.alumni_id = alumniId;
+    if (id) {
+      const { data, error } = await sb.from("gallery_websites").update(payload).eq("id", id).select("*").single();
+      if (error) throw error;
+      return data;
+    }
+    const { data, error } = await sb.from("gallery_websites").insert(payload).select("*").single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function adminUpdateVideo(id, { title, url, categoryId, description }) {
+    const sb = client();
+    const parsed = parseVideoUrl(url);
+    if (parsed.platform === "other") throw new Error("Link harus YouTube atau Dailymotion.");
+    const { data, error } = await sb
+      .from("gallery_videos")
+      .update({
+        title: title || "Video",
+        url,
+        platform: parsed.platform,
+        embed_url: parsed.embed_url,
+        category_id: categoryId || null,
+        description: description || "",
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
   // ----- Videos -----
   function parseVideoUrl(url) {
     const u = String(url || "").trim();
@@ -1344,6 +1425,10 @@
     adminDeleteWebsite,
     adminListAngkatanAll,
     adminDeleteAngkatan,
+    adminUpsertAngkatan,
+    adminUpsertAlumni,
+    adminUpsertWebsite,
+    adminUpdateVideo,
     parseVideoUrl,
     fetchVideoMeta,
     listVideoCategories,
