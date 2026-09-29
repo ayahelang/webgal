@@ -182,14 +182,22 @@
         let angkatanYear = "";
         const m = String(ang.label || "").match(/20\d{2}/);
         if (m) angkatanYear = m[0];
-        const works = (byAlumni[a.id] || []).map((w) => ({
-          title: w.title,
-          url: w.url,
-          category: w.category || "Web Kreatif",
-          tags: w.tags || [],
-          description: w.description || "",
-          thumb: "",
-        }));
+        const seenUrl = new Set();
+        const works = [];
+        (byAlumni[a.id] || []).forEach((w) => {
+          const u = normUrl(w.url);
+          if (!u || seenUrl.has(u)) return;
+          seenUrl.add(u);
+          works.push({
+            id: w.id,
+            title: w.title,
+            url: w.url,
+            category: w.category || "Web Kreatif",
+            tags: w.tags || [],
+            description: w.description || "",
+            thumb: "",
+          });
+        });
         return {
           id: a.legacy_id || a.id,
           name: a.name,

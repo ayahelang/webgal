@@ -126,27 +126,25 @@
   }
 
   async function loadData(){
-    let jsonData = null;
-    try {
-      if (window.GALLERY_DATA) jsonData = window.GALLERY_DATA;
-      else jsonData = await (await fetch("data/websites.json",{cache:"no-store"})).json();
-    } catch (e) {
-      console.warn("JSON load failed", e);
-      jsonData = { meta:{}, students:[] };
-    }
-    let dbData = null;
+    // Sumber utama: Supabase saja (hindari dobel dengan JSON)
     try {
       if (window.GalleryDB && GalleryDB.enabled()) {
-        dbData = await GalleryDB.fetchGalleryFromDb();
+        const dbData = await GalleryDB.fetchGalleryFromDb();
+        if (dbData && Array.isArray(dbData.students) && dbData.students.length) {
+          return dbData;
+        }
       }
     } catch (e) {
-      console.warn("Supabase gallery load failed, pakai JSON", e);
+      console.warn("Supabase gallery load failed", e);
     }
-    if (window.GalleryDB && typeof GalleryDB.mergeGallery === "function") {
-      return GalleryDB.mergeGallery(jsonData, dbData);
+    // Cadangan darurat saja jika DB kosong / gagal
+    try {
+      if (window.GALLERY_DATA) return window.GALLERY_DATA;
+      return await (await fetch("data/websites.json", { cache: "no-store" })).json();
+    } catch (e) {
+      console.warn("JSON fallback failed", e);
+      return { meta: {}, students: [] };
     }
-    if (dbData && dbData.students && dbData.students.length) return dbData;
-    return jsonData;
   }
   const allWorks=()=>state.data.students.flatMap(s=>s.works.map(w=>({...w,student:s})));
   function studentYear(s){
@@ -159,7 +157,8 @@
     const ss=state.data.students, ww=allWorks();
     $("#studentCount").textContent=ss.length;
     $("#workCount").textContent=ww.length;
-    // 4 kelompok: 51/52 × 2024/2025
+    const ac = document.getElementById("angkatanCount");
+    if (ac) ac.textContent = new Set(ss.map(studentYear)).size;
     $("#classCount").textContent=new Set(ss.map(cohortKey)).size;
     $("#categoryCount").textContent=new Set(ww.map(w=>w.category)).size;
   }

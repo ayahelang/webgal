@@ -133,6 +133,11 @@
   }
 
   function buildStudentFilters() {
+    const stu = document.getElementById("videoStudentFilters");
+    if (stu) { stu.hidden = true; stu.innerHTML = ""; }
+    return;
+    // disabled: filter siswa diganti filter angkatan/kelas di atas
+
     const stu = $("#videoStudentFilters");
     if (!stu) return;
     let pool = all.filter((v) => v.owner_name);
