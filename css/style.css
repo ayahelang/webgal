@@ -446,3 +446,17 @@ select:focus,input:focus,textarea:focus{
   display: block;
   margin-bottom: 2px;
 }
+
+/* Privacy tree */
+.privacy-tree{border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:rgba(0,0,0,.2);max-height:320px;overflow:auto;font-size:13px}
+.pt-node{margin:2px 0}
+.pt-row{display:flex;align-items:center;gap:6px;padding:3px 0}
+.pt-toggle{border:0;background:transparent;color:#9db5c0;cursor:pointer;width:22px;height:22px;line-height:1;padding:0;flex-shrink:0}
+.pt-toggle.leaf{visibility:hidden}
+.pt-children{margin-left:18px;border-left:1px dashed rgba(125,227,255,.15);padding-left:8px}
+.pt-children.is-collapsed{display:none}
+.pt-row input{accent-color:#5ec8ff}
+.contact-bar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px;align-items:center}
+.contact-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:#c5d8e0;text-decoration:none}
+.contact-chip:hover{border-color:#5ec8ff;color:#e8f4f8}
+.contact-chip.wa{color:#8ff5bd;border-color:rgba(143,245,189,.35)}

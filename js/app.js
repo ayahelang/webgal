@@ -1,6 +1,49 @@
 (() => {
   const ACTIVE_YEAR = String(new Date().getFullYear() - 1); // 2026 → 2025 masih belajar
   const state = { data:null, query:"", classFilter:"y:"+ACTIVE_YEAR, sort:"name" };
+  let viewerCtx = { loggedIn: false, name: "", year: "", classCode: "" };
+
+  async function resolveViewer() {
+    try {
+      if (!window.GalleryDB || !GalleryDB.enabled()) return;
+      const sess = await GalleryDB.getSession();
+      if (!sess || !sess.user) return;
+      viewerCtx.loggedIn = true;
+      const meta = sess.user.user_metadata || {};
+      viewerCtx.name = meta.full_name || meta.name || "";
+      try {
+        const prof = await GalleryDB.getMyProfile();
+        if (prof) {
+          if (prof.linked_student_name) viewerCtx.name = prof.linked_student_name;
+          viewerCtx.year = String(prof.linked_angkatan_year || "");
+          viewerCtx.classCode = String(prof.linked_class_code || "");
+        }
+      } catch (e) {}
+    } catch (e) {}
+  }
+
+  function contactBarHtml(s) {
+    const c = s.contact || {};
+    if (!window.GalleryDB || typeof GalleryDB.canViewContact !== "function") return "";
+    const chips = [];
+    const esc = (x) => String(x || "").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+    if (c.wa && GalleryDB.canViewContact("wa", c, s, viewerCtx)) {
+      const num = String(c.wa).replace(/\D/g, "");
+      if (num) chips.push(`<a class="contact-chip wa" href="https://wa.me/${esc(num)}" target="_blank" rel="noopener" title="WhatsApp">WA</a>`);
+    }
+    const social = (key, label, build) => {
+      if (!c[key] || !GalleryDB.canViewContact("social", c, s, viewerCtx)) return;
+      const href = build(String(c[key]).trim());
+      if (href) chips.push(`<a class="contact-chip" href="${esc(href)}" target="_blank" rel="noopener">${label}</a>`);
+    };
+    social("ig", "IG", (v) => (v.startsWith("http") ? v : "https://instagram.com/" + v.replace(/^@/, "")));
+    social("fb", "FB", (v) => (v.startsWith("http") ? v : "https://facebook.com/" + v.replace(/^@/, "")));
+    social("twitter", "X", (v) => (v.startsWith("http") ? v : "https://x.com/" + v.replace(/^@/, "")));
+    social("tiktok", "TikTok", (v) => (v.startsWith("http") ? v : "https://tiktok.com/@" + v.replace(/^@/, "")));
+    if (!chips.length) return "";
+    return `<div class="contact-bar">${chips.join("")}</div>`;
+  }
+
   const $ = s => document.querySelector(s);
 
   // ===== Tooltip + live meta cache =====
@@ -278,6 +321,7 @@
         <div class="student-row"><div class="student">${s.name}</div><span class="class-badge">${s.classLabel || ("Kelas " + s.class + " · " + studentYear(s))}</span></div>
         <p class="card-desc">${w.description}${ai}</p>
         <div class="meta-row">${tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>
+        ${contactBarHtml(s)}
         <div class="works-title">KARYA <span>${s.works.length} LINK</span></div>
         <div class="work-list">${workButtons(s)}</div>
       </div>
@@ -327,7 +371,7 @@
     bindTooltips(document);
   }
   async function init(){
-    try{state.data=await loadData();updateStats();buildFilters();render();}
+    try{await resolveViewer();state.data=await loadData();updateStats();buildFilters();render();}
     catch(e){$("#galleryGrid").innerHTML=`<div class="empty"><h3>Data galeri belum dapat dimuat</h3></div>`;return;}
     $("#searchInput").addEventListener("input",e=>{state.query=e.target.value;render();});
     $("#sortSelect").addEventListener("change",e=>{state.sort=e.target.value;render();});

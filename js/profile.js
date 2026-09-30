@@ -186,6 +186,15 @@
       if (prof.linked_angkatan_year && window.SHStatus) {
         $("#st").textContent = "Status: " + SHStatus.compute(prof.linked_angkatan_year).label;
       }
+      // kontak
+      if ($("#contactWa")) {
+        $("#contactWa").value = prof.contact_wa || "";
+        $("#contactIg").value = prof.contact_ig || "";
+        $("#contactFb").value = prof.contact_fb || "";
+        $("#contactTwitter").value = prof.contact_twitter || "";
+        $("#contactTiktok").value = prof.contact_tiktok || "";
+        await buildWaPrivacyTree(prof);
+      }
     }
 
     paintReturnCta();
@@ -219,6 +228,164 @@
         $("#msg").textContent = e.message || String(e);
       }
     };
+
+    if ($("#contactForm")) {
+      $("#contactForm").onsubmit = async (ev) => {
+        ev.preventDefault();
+        const privacy = collectWaPrivacy();
+        try {
+          await GalleryDB.updateMyContact({
+            wa: $("#contactWa").value,
+            ig: $("#contactIg").value,
+            fb: $("#contactFb").value,
+            twitter: $("#contactTwitter").value,
+            tiktok: $("#contactTiktok").value,
+            privacy,
+          });
+          $("#contactMsg").textContent = "Kontak & privasi tersimpan.";
+        } catch (e) {
+          $("#contactMsg").textContent = e.message || String(e);
+        }
+      };
+    }
   }
+
+  function collectWaPrivacy() {
+    const tree = $("#waPrivacyTree");
+    const year = ($("#angkatanYear") && $("#angkatanYear").value) || "";
+    const kelas = ($("#classCode") && $("#classCode").value) || "";
+    const wa = {
+      public: !!(tree && tree.querySelector('[data-key="public"]') && tree.querySelector('[data-key="public"]').checked),
+      allStudents: !!(tree && tree.querySelector('[data-key="allStudents"]') && tree.querySelector('[data-key="allStudents"]').checked),
+      classmatesOnly: !!(tree && tree.querySelector('[data-key="classmates"]') && tree.querySelector('[data-key="classmates"]').checked),
+      classCode: kelas,
+      year: year,
+      angkatan: {},
+      classes: {},
+      names: {},
+    };
+    if (!tree) return { wa, social: { public: true } };
+    tree.querySelectorAll('[data-key^="ang:"]').forEach((el) => {
+      if (el.checked) wa.angkatan[el.dataset.key.slice(4)] = true;
+    });
+    tree.querySelectorAll('[data-key^="cls:"]').forEach((el) => {
+      if (el.checked) wa.classes[el.dataset.key.slice(4)] = true;
+    });
+    tree.querySelectorAll('[data-key^="name:"]').forEach((el) => {
+      if (el.checked) wa.names[el.dataset.key.slice(5)] = true;
+    });
+    // if any specific selection, classmatesOnly becomes false unless only classmates checked
+    if (wa.public || wa.allStudents || Object.keys(wa.angkatan).length || Object.keys(wa.classes).length || Object.keys(wa.names).length) {
+      if (!wa.classmatesOnly) {
+        /* ok */
+      }
+    }
+    return { wa, social: { public: true } };
+  }
+
+  async function buildWaPrivacyTree(prof) {
+    const host = $("#waPrivacyTree");
+    if (!host) return;
+    const year = String((prof && prof.linked_angkatan_year) || ($("#angkatanYear") && $("#angkatanYear").value) || "");
+    const kelas = String((prof && prof.linked_class_code) || ($("#classCode") && $("#classCode").value) || "");
+    let roster = {};
+    try {
+      const r = await fetch("data/student-roster.json", { cache: "no-store" });
+      if (r.ok) roster = await r.json();
+    } catch (e) {}
+    try {
+      if (GalleryDB.fetchGalleryFromDb) {
+        const db = await GalleryDB.fetchGalleryFromDb();
+        (db.students || []).forEach((s) => {
+          const y = String(s.angkatan || "2025");
+          const c = String(s.class || "");
+          if (!roster[y]) roster[y] = {};
+          if (!roster[y][c]) roster[y][c] = [];
+          if (s.name && !roster[y][c].includes(s.name)) roster[y][c].push(s.name);
+        });
+      }
+    } catch (e) {}
+
+    const saved = (prof && prof.contact_privacy && prof.contact_privacy.wa) || {};
+    // default classmates
+    const defClassmates = saved.classmatesOnly !== false && !saved.public && !saved.allStudents;
+
+    function node(id, label, opts) {
+      const hasKids = opts.children && opts.children.length;
+      const checked = opts.checked ? "checked" : "";
+      const collapsed = opts.open ? "" : "is-collapsed";
+      const kids = hasKids
+        ? `<div class="pt-children ${collapsed}" data-parent="${id}">${opts.children.join("")}</div>`
+        : "";
+      return `<div class="pt-node" data-id="${id}">
+        <div class="pt-row">
+          <button type="button" class="pt-toggle ${hasKids ? "" : "leaf"}" data-toggle="${id}" aria-label="lipat">${hasKids ? "▾" : "•"}</button>
+          <label><input type="checkbox" data-key="${opts.key}" ${checked}> ${label}</label>
+        </div>${kids}</div>`;
+    }
+
+    const years = Object.keys(roster).sort().reverse();
+    const angNodes = years.map((y) => {
+      const classes = Object.keys(roster[y] || {}).sort();
+      const classNodes = classes.map((c) => {
+        const names = (roster[y][c] || []).slice().sort((a, b) => a.localeCompare(b, "id"));
+        const nameNodes = names.map((n) => {
+          const nk = n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+          const on = !!(saved.names && (saved.names[nk] || saved.names[n]));
+          return node("n-" + nk, n, { key: "name:" + nk, checked: on, children: [] });
+        });
+        const ck = y + "-" + c;
+        const on = !!(saved.classes && saved.classes[ck]);
+        return node("c-" + ck, "Kelas " + c + " · " + y, {
+          key: "cls:" + ck,
+          checked: on,
+          children: nameNodes,
+          open: false,
+        });
+      });
+      const on = !!(saved.angkatan && saved.angkatan[y]);
+      return node("a-" + y, "Angkatan " + y, {
+        key: "ang:" + y,
+        checked: on,
+        children: classNodes,
+        open: y === year,
+      });
+    });
+
+    host.innerHTML =
+      node("public", "Semua pengunjung (termasuk belum login)", {
+        key: "public",
+        checked: !!saved.public,
+        children: [],
+      }) +
+      node("classmates", "Hanya sekelas saya (default)", {
+        key: "classmates",
+        checked: defClassmates || (!saved.public && !Object.keys(saved.angkatan || {}).length && !Object.keys(saved.classes || {}).length && !Object.keys(saved.names || {}).length),
+        children: [],
+      }) +
+      node("allStudents", "Semua siswa yang sudah login", {
+        key: "allStudents",
+        checked: !!saved.allStudents,
+        children: [],
+      }) +
+      node("tree", "Pilih angkatan / kelas / nama", {
+        key: "tree-root",
+        checked: false,
+        children: angNodes,
+        open: true,
+      });
+
+    host.querySelectorAll(".pt-toggle").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const id = btn.dataset.toggle;
+        const kids = host.querySelector('.pt-children[data-parent="' + id + '"]');
+        if (!kids) return;
+        kids.classList.toggle("is-collapsed");
+        btn.textContent = kids.classList.contains("is-collapsed") ? "▸" : "▾";
+      });
+    });
+  }
+
   boot();
 })();

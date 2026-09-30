@@ -175,6 +175,22 @@
       byAlumni[w.alumni_id].push(w);
     });
 
+    // kontak dari profil yg sudah ditautkan ke alumni
+    let contactByAlumni = {};
+    try {
+      const { data: profiles } = await sb
+        .from("gallery_profiles")
+        .select(
+          "linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code,contact_wa,contact_ig,contact_fb,contact_twitter,contact_tiktok,contact_privacy"
+        )
+        .not("linked_alumni_id", "is", null);
+      (profiles || []).forEach((p) => {
+        if (p.linked_alumni_id) contactByAlumni[p.linked_alumni_id] = p;
+      });
+    } catch (e) {
+      console.warn("contact load", e);
+    }
+
     const students = alumni
       .map((a) => {
         const ang = angMap[a.angkatan_id] || {};
@@ -198,6 +214,7 @@
             thumb: "",
           });
         });
+        const c = contactByAlumni[a.id] || {};
         return {
           id: a.legacy_id || a.id,
           name: a.name,
@@ -211,6 +228,14 @@
           avatar: a.avatar_emoji || "🎓",
           works,
           _dbId: a.id,
+          contact: {
+            wa: c.contact_wa || "",
+            ig: c.contact_ig || "",
+            fb: c.contact_fb || "",
+            twitter: c.contact_twitter || "",
+            tiktok: c.contact_tiktok || "",
+            privacy: c.contact_privacy || {},
+          },
         };
       })
       .filter((s) => s.works && s.works.length);
@@ -220,6 +245,78 @@
       students,
     };
   }
+
+  function defaultContactPrivacy(classCode, year) {
+    return {
+      wa: {
+        public: false,
+        allStudents: false,
+        angkatan: {},
+        classes: {},
+        names: {},
+        // default: sekelas
+        classmatesOnly: true,
+        classCode: String(classCode || ""),
+        year: String(year || ""),
+      },
+      social: { public: true },
+    };
+  }
+
+  async function updateMyContact({ wa, ig, fb, twitter, tiktok, privacy }) {
+    const sb = client();
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Belum login");
+    const { data, error } = await sb
+      .from("gallery_profiles")
+      .update({
+        contact_wa: String(wa || "").trim().slice(0, 32),
+        contact_ig: String(ig || "").trim().slice(0, 120),
+        contact_fb: String(fb || "").trim().slice(0, 120),
+        contact_twitter: String(twitter || "").trim().slice(0, 120),
+        contact_tiktok: String(tiktok || "").trim().slice(0, 120),
+        contact_privacy: privacy || {},
+      })
+      .eq("id", session.user.id)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  /** viewerCtx: { loggedIn, name, year, classCode } */
+  function canViewContact(field, contact, owner, viewer) {
+    const priv = (contact && contact.privacy) || {};
+    if (field === "wa") {
+      const w = priv.wa || {};
+      if (w.public) return true;
+      if (!viewer || !viewer.loggedIn) return false;
+      if (w.allStudents) return true;
+      if (w.classmatesOnly) {
+        return (
+          String(viewer.year) === String(w.year || owner.angkatan) &&
+          String(viewer.classCode) === String(w.classCode || owner.class)
+        );
+      }
+      const y = String(owner.angkatan || "");
+      const c = String(owner.class || "");
+      if (w.angkatan && w.angkatan[y]) return true;
+      const ck = y + "-" + c;
+      if (w.classes && w.classes[ck]) return true;
+      if (w.names && viewer.name && w.names[normLabel(viewer.name)]) return true;
+      // tree partial: selected names only
+      if (w.names && Object.keys(w.names).some((k) => w.names[k])) {
+        return !!(viewer.name && w.names[normLabel(viewer.name)]);
+      }
+      return false;
+    }
+    // social default public
+    const s = priv.social || { public: true };
+    if (s.public !== false) return true;
+    if (!viewer || !viewer.loggedIn) return false;
+    return true;
+  }
+
 
   function mergeGallery(jsonData, dbData) {
     const base = jsonData && jsonData.students ? jsonData : { meta: {}, students: [] };
@@ -1461,6 +1558,9 @@
     upsertMyProfileFromSession,
     getMyProfile,
     updateMyLink,
+    updateMyContact,
+    defaultContactPrivacy,
+    canViewContact,
     isCurrentUserAdmin,
     currentPermissions,
     hasPermission,
