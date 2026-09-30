@@ -56,6 +56,7 @@
         <button class="filter" data-tab="websites">Website user</button>
         <button class="filter" data-tab="alumni">Alumni</button>
         <button class="filter" data-tab="angkatan">Angkatan</button>
+        <button class="filter" data-tab="links">Tautan Siswa</button>
         <button class="filter" data-tab="users">Users & Admin</button>
       </div>
 
@@ -128,6 +129,13 @@
         <p id="angStatus" class="muted" style="font-size:13px"></p>
         <div id="angList" class="admin-list"></div>
       </section>
+      <section data-panel="links" class="summary-card admin-pane" hidden>
+        <h3>Tautan akun Google ↔ nama siswa</h3>
+        <p class="muted" style="font-size:13px">Tree per angkatan → kelas → siswa. Admin dapat melepas tautan mana pun.</p>
+        <div id="linkTree" class="privacy-tree" style="max-height:none"></div>
+        <p id="linkAdminMsg" class="muted" style="font-size:13px"></p>
+      </section>
+
       <section data-panel="users" class="summary-card admin-pane" hidden>
         <h3>User Google & undangan admin</h3>
         <p class="muted" style="font-size:13px">Klik pengguna → centang hak akses → jadikan admin tambahan. User terdaftar: riwayat chat tidak dihapus setelah 7 hari.</p>

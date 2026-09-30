@@ -69,6 +69,8 @@
         $$(".admin-pane").forEach((p) => {
           p.hidden = p.getAttribute("data-panel") !== btn.dataset.tab;
         });
+        if (btn.dataset.tab === "links") refreshLinks();
+        if (btn.dataset.tab === "users") refreshUsers();
       })
     );
 
@@ -448,6 +450,79 @@
         f.scrollIntoView({ behavior: "smooth", block: "nearest" });
       })
     );
+  }
+
+  async function refreshLinks() {
+    const host = $("#linkTree");
+    const msg = $("#linkAdminMsg");
+    if (!host) return;
+    host.innerHTML = "Memuat…";
+    try {
+      const rows = await GalleryDB.adminListLinks();
+      // group year -> class -> list
+      const tree = {};
+      rows.forEach((r) => {
+        const y = String(r.linked_angkatan_year || "?");
+        const c = String(r.linked_class_code || "?");
+        if (!tree[y]) tree[y] = {};
+        if (!tree[y][c]) tree[y][c] = [];
+        tree[y][c].push(r);
+      });
+      const years = Object.keys(tree).sort().reverse();
+      if (!years.length) {
+        host.innerHTML = "<p class='muted'>Belum ada tautan.</p>";
+        return;
+      }
+      host.innerHTML = years
+        .map((y) => {
+          const classes = Object.keys(tree[y]).sort();
+          const classHtml = classes
+            .map((c) => {
+              const list = tree[y][c]
+                .map((r) => {
+                  const who = esc(r.email || r.display_name || r.id);
+                  const sn = esc(r.linked_student_name);
+                  return `<div class="admin-row" style="margin:4px 0">
+                    <div><strong>${sn}</strong><br><small>${who}</small></div>
+                    <button type="button" class="btn btn-ghost" data-unlink="${r.id}" style="padding:6px 10px;font-size:12px">Lepas</button>
+                  </div>`;
+                })
+                .join("");
+              return `<div class="pt-node">
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="c-${y}-${c}">▾</button><strong>Kelas ${esc(c)}</strong></div>
+                <div class="pt-children" data-parent="c-${y}-${c}">${list}</div>
+              </div>`;
+            })
+            .join("");
+          return `<div class="pt-node" style="margin-bottom:10px">
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="y-${y}">▾</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${Object.values(tree[y]).reduce((n,a)=>n+a.length,0)} tautan)</small></div>
+            <div class="pt-children" data-parent="y-${y}">${classHtml}</div>
+          </div>`;
+        })
+        .join("");
+      host.querySelectorAll(".pt-toggle").forEach((b) =>
+        b.addEventListener("click", () => {
+          const kids = host.querySelector('[data-parent="' + b.dataset.t + '"]');
+          if (!kids) return;
+          kids.classList.toggle("is-collapsed");
+          b.textContent = kids.classList.contains("is-collapsed") ? "▸" : "▾";
+        })
+      );
+      host.querySelectorAll("[data-unlink]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          if (!confirm("Lepas tautan akun ini?")) return;
+          try {
+            await GalleryDB.adminUnlinkProfile(b.dataset.unlink);
+            if (msg) msg.textContent = "Tautan dilepas.";
+            await refreshLinks();
+          } catch (e) {
+            if (msg) msg.textContent = e.message || String(e);
+          }
+        })
+      );
+    } catch (e) {
+      host.innerHTML = "<p class='muted'>" + esc(e.message || e) + "</p>";
+    }
   }
 
   async function refreshUsers() {

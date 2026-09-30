@@ -1025,12 +1025,66 @@
     const sb = client();
     const session = await getSession();
     if (!session || !session.user) throw new Error("Belum login");
+    const name = String(studentName || "").trim();
+    const year = parseInt(angkatanYear, 10) || null;
+    const kelas = String(classCode || "").trim();
+    if (!name || !year) throw new Error("Nama dan angkatan wajib.");
+
+    // Cek apakah nama+angkatan sudah ditautkan akun lain
+    const { data: taken, error: e0 } = await sb
+      .from("gallery_profiles")
+      .select("id,email,display_name,linked_student_name,linked_angkatan_year,link_allow_user_ids")
+      .eq("linked_angkatan_year", year)
+      .ilike("linked_student_name", name);
+    if (e0) throw e0;
+    const others = (taken || []).filter((p) => p.id !== session.user.id && p.linked_student_name);
+    for (const o of others) {
+      // nama cocok (case-insensitive exact after trim)
+      if (normLabel(o.linked_student_name) !== normLabel(name)) continue;
+      const allow = Array.isArray(o.link_allow_user_ids) ? o.link_allow_user_ids : [];
+      if (!allow.includes(session.user.id)) {
+        throw new Error(
+          "Nama ini sudah ditautkan ke akun lain (" +
+            (o.email || o.display_name || "user") +
+            "). Minta izin ke pemilik tautan atau hubungi admin."
+        );
+      }
+    }
+
     const { data, error } = await sb
       .from("gallery_profiles")
       .update({
-        linked_student_name: String(studentName || "").trim(),
-        linked_angkatan_year: parseInt(angkatanYear, 10) || null,
-        linked_class_code: String(classCode || "").trim(),
+        linked_student_name: name,
+        linked_angkatan_year: year,
+        linked_class_code: kelas,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", session.user.id)
+      .select("*")
+      .single();
+    if (error) throw error;
+
+    // sinkron linked_alumni_id
+    try {
+      await resolveMyAlumni();
+    } catch (e) {
+      console.warn(e);
+    }
+    return data;
+  }
+
+  async function unlinkMyProfile() {
+    const sb = client();
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Belum login");
+    const { data, error } = await sb
+      .from("gallery_profiles")
+      .update({
+        linked_student_name: "",
+        linked_angkatan_year: null,
+        linked_class_code: "",
+        linked_alumni_id: null,
+        link_allow_user_ids: [],
         updated_at: new Date().toISOString(),
       })
       .eq("id", session.user.id)
@@ -1039,6 +1093,90 @@
     if (error) throw error;
     return data;
   }
+
+  /** Pemilik tautan mengizinkan userId lain mengklaim nama yang sama (opsional) */
+  async function allowLinkForUser(userId) {
+    const sb = client();
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Belum login");
+    const me = await getMyProfile();
+    if (!me || !me.linked_student_name) throw new Error("Anda belum menautkan nama siswa.");
+    const allow = Array.isArray(me.link_allow_user_ids) ? me.link_allow_user_ids.slice() : [];
+    if (userId && !allow.includes(userId)) allow.push(userId);
+    const { data, error } = await sb
+      .from("gallery_profiles")
+      .update({ link_allow_user_ids: allow })
+      .eq("id", session.user.id)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  /** Pemilik tautan mencopot tautan akun lain yang memakai nama sama */
+  async function revokeOtherLinksOnMyStudent() {
+    const sb = client();
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Belum login");
+    const me = await getMyProfile();
+    if (!me || !me.linked_student_name || !me.linked_angkatan_year) {
+      throw new Error("Anda belum menautkan nama siswa.");
+    }
+    const { data: rows, error: e1 } = await sb
+      .from("gallery_profiles")
+      .select("id,linked_student_name,linked_angkatan_year")
+      .eq("linked_angkatan_year", me.linked_angkatan_year);
+    if (e1) throw e1;
+    const targets = (rows || []).filter(
+      (r) => r.id !== session.user.id && normLabel(r.linked_student_name) === normLabel(me.linked_student_name)
+    );
+    for (const r of targets) {
+      await sb
+        .from("gallery_profiles")
+        .update({
+          linked_student_name: "",
+          linked_angkatan_year: null,
+          linked_class_code: "",
+          linked_alumni_id: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", r.id);
+    }
+    return { removed: targets.length };
+  }
+
+  async function adminUnlinkProfile(userId) {
+    if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
+    const sb = client();
+    const { data, error } = await sb
+      .from("gallery_profiles")
+      .update({
+        linked_student_name: "",
+        linked_angkatan_year: null,
+        linked_class_code: "",
+        linked_alumni_id: null,
+        link_allow_user_ids: [],
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function adminListLinks() {
+    if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
+    const sb = client();
+    const { data, error } = await sb
+      .from("gallery_profiles")
+      .select("id,email,display_name,avatar_url,linked_student_name,linked_angkatan_year,linked_class_code,linked_alumni_id,created_at")
+      .not("linked_student_name", "eq", "")
+      .order("linked_angkatan_year", { ascending: false });
+    if (error) throw error;
+    return (data || []).filter((p) => p.linked_student_name && String(p.linked_student_name).trim());
+  }
+
 
   async function isCurrentUserAdmin() {
     const session = await getSession();
@@ -1558,6 +1696,11 @@
     upsertMyProfileFromSession,
     getMyProfile,
     updateMyLink,
+    adminListLinks,
+    adminUnlinkProfile,
+    revokeOtherLinksOnMyStudent,
+    allowLinkForUser,
+    unlinkMyProfile,
     updateMyContact,
     defaultContactPrivacy,
     canViewContact,

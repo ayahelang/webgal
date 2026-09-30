@@ -229,6 +229,32 @@
       }
     };
 
+    const unlinkBtn = $("#btnUnlinkSelf");
+    if (unlinkBtn) {
+      unlinkBtn.onclick = async () => {
+        if (!confirm("Lepas tautan nama siswa dari akun Google ini?")) return;
+        try {
+          await GalleryDB.unlinkMyProfile();
+          $("#linkMsg").textContent = "Tautan dilepas. Silakan tautkan ulang jika perlu.";
+          location.reload();
+        } catch (e) {
+          $("#linkMsg").textContent = e.message || String(e);
+        }
+      };
+    }
+    const revBtn = $("#btnRevokeOthers");
+    if (revBtn) {
+      revBtn.onclick = async () => {
+        if (!confirm("Cabut tautan akun Google lain yang memakai nama siswa yang sama dengan Anda?")) return;
+        try {
+          const r = await GalleryDB.revokeOtherLinksOnMyStudent();
+          $("#linkMsg").textContent = "Dilepas: " + (r.removed || 0) + " akun lain.";
+        } catch (e) {
+          $("#linkMsg").textContent = e.message || String(e);
+        }
+      };
+    }
+
     if ($("#contactForm")) {
       $("#contactForm").onsubmit = async (ev) => {
         ev.preventDefault();
