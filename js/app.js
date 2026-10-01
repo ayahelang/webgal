@@ -321,7 +321,12 @@
         <div class="cover-title"><h3 title="${escapeAttr(w.title)}">${w.title}</h3><span>${s.works.length} karya</span></div>
       </div>
       <div class="card-body">
-        <div class="student-row"><div class="student">${s.name}</div><span class="class-badge">${s.classLabel || ("Kelas " + s.class + " · " + studentYear(s))}</span></div>
+        <div class="student-row"><div class="student">${s.name}</div>
+          <div class="card-eng" title="Total love & komentar semua karya">
+            <span class="eng-love">♥ ${(s._eng&&s._eng.love)||0}</span>
+            <span class="eng-cmt">💬 ${(s._eng&&s._eng.comment)||0}</span>
+          </div>
+          <span class="class-badge">${s.classLabel || ("Kelas " + s.class + " · " + studentYear(s))}</span></div>
         <p class="card-desc">${w.description}${ai}</p>
         <div class="meta-row">${tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>
         ${contactBarHtml(s)}
@@ -374,8 +379,28 @@
     bindTooltips(document);
   }
   async function init(){
-    try{await resolveViewer();state.data=await loadData();updateStats();buildFilters();render();}
-    catch(e){$("#galleryGrid").innerHTML=`<div class="empty"><h3>Data galeri belum dapat dimuat</h3></div>`;return;}
+    try{
+      await resolveViewer();
+      state.data=await loadData();
+      try {
+        if (window.GalleryDB && GalleryDB.batchEngagement) {
+          const urls = (state.data.students||[]).flatMap(s => (s.works||[]).map(w => w.url).filter(Boolean));
+          const map = await GalleryDB.batchEngagement(urls);
+          (state.data.students||[]).forEach(s => {
+            let love=0, comment=0;
+            (s.works||[]).forEach(w => {
+              const k = String(w.url||"").trim().replace(/\/+$/,"").toLowerCase();
+              const e = map[k] || {};
+              love += e.love||0;
+              comment += e.comment||0;
+            });
+            s._eng = { love, comment };
+          });
+        }
+      } catch (err) { console.warn(err); }
+      updateStats();buildFilters();render();
+    }
+    catch(e){$("#galleryGrid").innerHTML=`<div class="empty"><h3>Data galeri belum dapat dimuat</h3></div>`;console.error(e);return;}
     $("#searchInput").addEventListener("input",e=>{state.query=e.target.value;render();});
     $("#sortSelect").addEventListener("change",e=>{state.sort=e.target.value;render();});
     $("#clearBtn").addEventListener("click",()=>{

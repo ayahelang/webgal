@@ -109,6 +109,9 @@
     $$("#webList [data-edit-web]").forEach((b) =>
       b.addEventListener("click", () => {
         const w = JSON.parse(b.getAttribute("data-edit-web"));
+        try { (document.querySelector("#webForm")||document.querySelector("form")).scrollIntoView({behavior:"smooth",block:"start"}); } catch(e) {}
+        const form = document.getElementById("webForm") || document.querySelector("#myWebForm, form");
+        if (form) form.scrollIntoView({ behavior: "smooth", block: "start" });
         $("#webForm [name=id]").value = w.id;
         $("#webForm [name=title]").value = w.title || "";
         $("#webForm [name=url]").value = w.url || "";
@@ -143,6 +146,7 @@
     $$("#vidList [data-edit-vid]").forEach((b) =>
       b.addEventListener("click", () => {
         const v = JSON.parse(b.getAttribute("data-edit-vid"));
+        try { (document.querySelector("#vidForm")||document.querySelector("#videoForm")||document.querySelector("form")).scrollIntoView({behavior:"smooth",block:"start"}); } catch(e) {}
         $("#vidForm [name=id]").value = v.id;
         $("#vidForm [name=title]").value = v.title || "";
         $("#vidForm [name=url]").value = v.url || "";

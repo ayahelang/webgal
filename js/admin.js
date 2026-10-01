@@ -7,6 +7,23 @@
   let videoCache = [];
   let webCache = [];
 
+  function scrollToForm(sel) {
+    const f = $(sel);
+    if (f) f.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function treeToggleBind(root) {
+    root.querySelectorAll(".pt-toggle").forEach((b) => {
+      b.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = b.dataset.t;
+        const kids = root.querySelector('[data-parent="' + id + '"]');
+        if (!kids) return;
+        kids.classList.toggle("is-collapsed");
+        b.textContent = kids.classList.contains("is-collapsed") ? "▸" : "▾";
+      });
+    });
+  }
   function esc(t) {
     return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   }
@@ -264,18 +281,34 @@
   async function refreshVideos() {
     const rows = await GalleryDB.listVideos();
     videoCache = rows || [];
+    const byCat = {};
+    videoCache.forEach((v) => {
+      const cat = (v.gallery_video_categories && v.gallery_video_categories.name) || "Lainnya";
+      if (!byCat[cat]) byCat[cat] = [];
+      byCat[cat].push(v);
+    });
+    const cats = Object.keys(byCat).sort();
     $("#vidList").innerHTML =
-      videoCache
-        .map(
-          (v) => `<div class="admin-row">
-          <div><strong>${esc(v.title)}</strong><br><small>${esc(v.platform)} · ${esc(v.url)}</small></div>
-          <div style="display:flex;gap:6px">
-            <button type="button" data-edit-vid="${v.id}">Ubah</button>
-            <button type="button" data-del-vid="${v.id}">Hapus</button>
-          </div>
-        </div>`
-        )
+      cats
+        .map((cat) => {
+          const list = byCat[cat]
+            .map(
+              (v) => `<div class="admin-row">
+              <div><strong>${esc(v.title)}</strong><br><small>${esc(v.platform)} · ${esc(v.url)}</small></div>
+              <div style="display:flex;gap:6px">
+                <button type="button" data-edit-vid="${v.id}">Ubah</button>
+                <button type="button" data-del-vid="${v.id}">Hapus</button>
+              </div>
+            </div>`
+            )
+            .join("");
+          return `<div class="pt-node" style="margin-bottom:10px">
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="vid-${esc(cat)}">▾</button><strong>${esc(cat)}</strong> <small class="muted">(${byCat[cat].length})</small></div>
+            <div class="pt-children" data-parent="vid-${esc(cat)}">${list}</div>
+          </div>`;
+        })
         .join("") || "<p class='muted'>Belum ada video.</p>";
+    treeToggleBind($("#vidList"));
     $$("#vidList [data-del-vid]").forEach((b) =>
       b.addEventListener("click", async () => {
         if (!confirm("Hapus video?")) return;
@@ -292,16 +325,17 @@
         const v = videoCache.find((x) => String(x.id) === String(b.dataset.editVid));
         if (!v) return;
         const f = $("#videoForm");
-        f.querySelector('[name=id]').value = v.id;
-        f.querySelector('[name=title]').value = v.title || "";
-        f.querySelector('[name=url]').value = v.url || "";
-        f.querySelector('[name=description]').value = v.description || "";
-        if (v.category_id) f.querySelector('[name=categoryId]').value = v.category_id;
+        f.querySelector("[name=id]").value = v.id;
+        f.querySelector("[name=title]").value = v.title || "";
+        f.querySelector("[name=url]").value = v.url || "";
+        f.querySelector("[name=description]").value = v.description || "";
+        if (v.category_id) f.querySelector("[name=categoryId]").value = v.category_id;
         $("#vidStatus").textContent = "Mode edit: " + (v.title || "");
-        f.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        scrollToForm("#videoForm");
       })
     );
   }
+
 
   async function fillAlumniSelects() {
     const sel = $("#webAlumniSelect");
@@ -319,20 +353,64 @@
     const rows = await GalleryDB.adminListWebsites();
     webCache = rows || [];
     await fillAlumniSelects();
+    // tree: angkatan → kelas → student → sites (from alumni join)
+    const tree = {};
+    webCache.forEach((w) => {
+      const al = w.gallery_alumni || {};
+      const name = al.name || "Tanpa nama";
+      const kelas = al.class_code || "?";
+      let year = "?";
+      // may need angkatan from nested
+      const ang = al.gallery_angkatan || al.angkatan || {};
+      if (ang.label) {
+        const m = String(ang.label).match(/20\d{2}/);
+        if (m) year = m[0];
+      }
+      if (!tree[year]) tree[year] = {};
+      if (!tree[year][kelas]) tree[year][kelas] = {};
+      if (!tree[year][kelas][name]) tree[year][kelas][name] = [];
+      tree[year][kelas][name].push(w);
+    });
+    const years = Object.keys(tree).sort().reverse();
     $("#webList").innerHTML =
-      webCache
-        .map((w) => {
-          const owner = (w.gallery_alumni && w.gallery_alumni.name) || "";
-          return `<div class="admin-row">
-          <div><strong>${esc(w.title || owner)}</strong><br><small>${esc(w.url)}</small>
-          ${owner ? `<br><small>${esc(owner)}</small>` : ""}</div>
-          <div style="display:flex;gap:6px">
-            <button type="button" data-edit-web="${w.id}">Ubah</button>
-            <button type="button" data-del-web="${w.id}">Hapus</button>
-          </div>
-        </div>`;
+      years
+        .map((y) => {
+          const classes = Object.keys(tree[y]).sort();
+          const cHtml = classes
+            .map((c) => {
+              const names = Object.keys(tree[y][c]).sort((a, b) => a.localeCompare(b, "id"));
+              const nHtml = names
+                .map((nm) => {
+                  const sites = tree[y][c][nm]
+                    .map(
+                      (w) => `<div class="admin-row">
+                      <div><strong>${esc((w.title || "").replace(/\s*[·•\-]\s*Domain\s*$/i, "").replace(/\bDomain\b/gi, "").trim() || nm)}</strong><br><small>${esc(w.url)}</small></div>
+                      <div style="display:flex;gap:6px">
+                        <button type="button" data-edit-web="${w.id}">Ubah</button>
+                        <button type="button" data-del-web="${w.id}">Hapus</button>
+                      </div>
+                    </div>`
+                    )
+                    .join("");
+                  return `<div class="pt-node">
+                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><strong>${esc(nm)}</strong> <small class="muted">(${tree[y][c][nm].length})</small></div>
+                    <div class="pt-children is-collapsed" data-parent="w-${esc(y)}-${esc(c)}-${esc(nm)}">${sites}</div>
+                  </div>`;
+                })
+                .join("");
+              return `<div class="pt-node">
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong></div>
+                <div class="pt-children" data-parent="w-${esc(y)}-${esc(c)}">${nHtml}</div>
+              </div>`;
+            })
+            .join("");
+          return `<div class="pt-node" style="margin-bottom:10px">
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-y-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong></div>
+            <div class="pt-children" data-parent="w-y-${esc(y)}">${cHtml}</div>
+          </div>`;
         })
         .join("") || "<p class='muted'>Belum ada website.</p>";
+    treeToggleBind($("#webList"));
     $$("#webList [data-del-web]").forEach((b) =>
       b.addEventListener("click", async () => {
         if (!confirm("Hapus website?")) return;
@@ -349,45 +427,69 @@
         const w = webCache.find((x) => String(x.id) === String(b.dataset.editWeb));
         if (!w) return;
         const f = $("#webForm");
-        f.querySelector('[name=id]').value = w.id;
-        f.querySelector('[name=title]').value = w.title || "";
-        f.querySelector('[name=url]').value = w.url || "";
-        f.querySelector('[name=category]').value = w.category || "";
-        if (w.alumni_id) f.querySelector('[name=alumniId]').value = w.alumni_id;
-        $("#webStatus").textContent = "Mode edit: " + (w.title || "");
-        f.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        f.querySelector("[name=id]").value = w.id;
+        f.querySelector("[name=title]").value = (w.title || "").replace(/\s*[·•\-]\s*Domain\s*$/i, "").replace(/\bDomain\b/gi, "").trim();
+        f.querySelector("[name=url]").value = w.url || "";
+        f.querySelector("[name=category]").value = w.category || "";
+        if (w.alumni_id) f.querySelector("[name=alumniId]").value = w.alumni_id;
+        $("#webStatus").textContent = "Mode edit";
+        scrollToForm("#webForm");
       })
     );
   }
 
+
   async function refreshAlumni() {
     const rows = await GalleryDB.adminListAlumni();
     alumniCache = rows || [];
-    const angSel = $("#alumniAngSelect");
-    if (angSel) {
-      const cur = angSel.value;
-      angSel.innerHTML =
-        '<option value="">— pilih angkatan —</option>' +
-        angkatanCache.map((a) => `<option value="${a.id}">${esc(a.label)}</option>`).join("");
-      if (cur) angSel.value = cur;
-    }
+    await fillAlumniSelects();
+    const tree = {};
+    alumniCache.forEach((a) => {
+      let year = "?";
+      const ang = a.gallery_angkatan || {};
+      const m = String(ang.label || "").match(/20\d{2}/);
+      if (m) year = m[0];
+      const c = a.class_code || "?";
+      if (!tree[year]) tree[year] = {};
+      if (!tree[year][c]) tree[year][c] = [];
+      tree[year][c].push(a);
+    });
+    const years = Object.keys(tree).sort().reverse();
     $("#alumniList").innerHTML =
-      alumniCache
-        .map((a) => {
-          const ang = (a.gallery_angkatan && a.gallery_angkatan.label) || "";
-          return `<div class="admin-row">
-          <div><strong>${esc(a.name)}</strong> · Kelas ${esc(a.class_code || "?")}<br>
-          <small>${esc(ang)}</small></div>
-          <div style="display:flex;gap:6px">
-            <button type="button" data-edit-al="${a.id}">Ubah</button>
-            <button type="button" data-del-al="${a.id}">Hapus</button>
-          </div>
-        </div>`;
+      years
+        .map((y) => {
+          const classes = Object.keys(tree[y]).sort();
+          const cHtml = classes
+            .map((c) => {
+              const list = tree[y][c]
+                .slice()
+                .sort((a, b) => (a.name || "").localeCompare(b.name || "", "id"))
+                .map(
+                  (a) => `<div class="admin-row">
+                  <div><strong>${esc(a.name)}</strong><br><small>Kelas ${esc(a.class_code || "?")} · ${esc((a.gallery_angkatan && a.gallery_angkatan.label) || "")}</small></div>
+                  <div style="display:flex;gap:6px">
+                    <button type="button" data-edit-al="${a.id}">Ubah</button>
+                    <button type="button" data-del-al="${a.id}">Hapus</button>
+                  </div>
+                </div>`
+                )
+                .join("");
+              return `<div class="pt-node">
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="al-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${tree[y][c].length})</small></div>
+                <div class="pt-children" data-parent="al-${esc(y)}-${esc(c)}">${list}</div>
+              </div>`;
+            })
+            .join("");
+          return `<div class="pt-node" style="margin-bottom:10px">
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="al-y-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong></div>
+            <div class="pt-children" data-parent="al-y-${esc(y)}">${cHtml}</div>
+          </div>`;
         })
         .join("") || "<p class='muted'>Belum ada alumni.</p>";
+    treeToggleBind($("#alumniList"));
     $$("#alumniList [data-del-al]").forEach((b) =>
       b.addEventListener("click", async () => {
-        if (!confirm("Hapus alumni + website terkait?")) return;
+        if (!confirm("Hapus alumni beserta website-nya?")) return;
         try {
           await GalleryDB.adminDeleteAlumni(b.dataset.delAl);
           await refreshAlumni();
@@ -402,17 +504,16 @@
         const a = alumniCache.find((x) => String(x.id) === String(b.dataset.editAl));
         if (!a) return;
         const f = $("#alumniForm");
-        f.querySelector('[name=id]').value = a.id;
-        f.querySelector('[name=name]').value = a.name || "";
-        f.querySelector('[name=classCode]').value = a.class_code || "";
-        f.querySelector('[name=role]').value = a.role || "Santriwati";
-        if (a.angkatan_id) f.querySelector('[name=angkatanId]').value = a.angkatan_id;
-        $("#alumniStatus").textContent = "Mode edit: " + a.name;
-        f.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        f.querySelector("[name=id]").value = a.id;
+        f.querySelector("[name=name]").value = a.name || "";
+        f.querySelector("[name=class_code]").value = a.class_code || "51";
+        if (a.angkatan_id) f.querySelector("[name=angkatan_id]").value = a.angkatan_id;
+        $("#alumniStatus").textContent = "Mode edit: " + (a.name || "");
+        scrollToForm("#alumniForm");
       })
     );
-    await fillAlumniSelects();
   }
+
 
   async function refreshAngkatan() {
     const rows = await GalleryDB.adminListAngkatanAll();
@@ -527,14 +628,35 @@
 
   async function refreshUsers() {
     const rows = await GalleryDB.listRegisteredUsers();
-    const keys = (window.GALLERY_SUPABASE && GALLERY_SUPABASE.adminPermissionKeys) || [];
-    $("#userList").innerHTML =
-      rows
-        .map((u) => {
-          const st = u.linked_angkatan_year ? SHStatus.compute(u.linked_angkatan_year).label : "Belum tautkan siswa";
-          return `<div class="admin-row" style="cursor:pointer" data-user='${esc(
-            JSON.stringify({ id: u.id, email: u.email, is_admin: u.is_admin, permissions: u.permissions || {} })
-          )}'>
+    const keys = (window.GALLERY_SUPABASE && GALLERY_SUPABASE.adminPermissionKeys) || (window.SUPABASE_CONFIG && SUPABASE_CONFIG.adminPermissionKeys) || [];
+    const linked = rows.filter((u) => u.linked_student_name && String(u.linked_student_name).trim());
+    const unlinked = rows.length - linked.length;
+    const sum = $("#userLinkSummary");
+    if (sum) {
+      sum.innerHTML = `<strong>${rows.length}</strong> akun · <strong>${linked.length}</strong> sudah tautkan siswa · <strong>${unlinked}</strong> belum`;
+    }
+    // tree: linked by year/class, then unlinked
+    const tree = {};
+    linked.forEach((u) => {
+      const y = String(u.linked_angkatan_year || "?");
+      const c = String(u.linked_class_code || "?");
+      if (!tree[y]) tree[y] = {};
+      if (!tree[y][c]) tree[y][c] = [];
+      tree[y][c].push(u);
+    });
+    function userRow(u) {
+      const st = u.linked_angkatan_year ? (window.SHStatus ? SHStatus.compute(u.linked_angkatan_year).label : "Taut") : "Belum tautkan";
+      const permKeys = keys.length ? keys : ["videos", "websites", "alumni", "users", "angkatan"];
+      const permHtml = permKeys
+        .map(
+          (k) =>
+            `<label style="display:flex;gap:6px;align-items:center;font-size:12px"><input type="checkbox" data-perm="${esc(k)}" ${
+              u.permissions && u.permissions[k] ? "checked" : ""
+            }> ${esc(k)}</label>`
+        )
+        .join("");
+      return `<div class="pt-node user-node" data-uid="${u.id}">
+        <div class="admin-row" style="cursor:pointer" data-toggle-user="${u.id}">
           <div style="display:flex;gap:10px;align-items:center">
             ${u.avatar_url ? `<img src="${esc(u.avatar_url)}" style="width:36px;height:36px;border-radius:50%">` : "👤"}
             <div><strong>${esc(u.display_name || u.email)}</strong>
@@ -542,33 +664,78 @@
               <br><small>${esc(u.email)} · ${esc(st)}</small>
               ${
                 u.linked_student_name
-                  ? `<br><small>Taut: ${esc(u.linked_student_name)} · ${esc(u.linked_angkatan_year)} · K${esc(
-                      u.linked_class_code
-                    )}</small>`
+                  ? `<br><small>Taut: ${esc(u.linked_student_name)} · ${esc(u.linked_angkatan_year)} · K${esc(u.linked_class_code)}</small>`
                   : ""
               }
             </div>
           </div>
-          <span class="muted">Atur →</span>
-        </div>`;
-        })
-        .join("") || "<p class='muted'>Belum ada user login Google. Minta mereka Login di halaman Profil.</p>";
-
-    $$("#userList [data-user]").forEach((row) =>
-      row.addEventListener("click", () => {
-        selectedUser = JSON.parse(row.getAttribute("data-user"));
-        $("#permBox").hidden = false;
-        $("#permTarget").textContent = "Hak akses untuk: " + selectedUser.email;
-        const perms = selectedUser.permissions || {};
-        $("#permChecks").innerHTML = keys
-          .map(
-            (k) => `<label style="display:flex;gap:8px;align-items:center;font-size:13px;color:#c5d8e0">
-            <input type="checkbox" value="${k}" ${perms[k] ? "checked" : ""}> ${k}</label>`
-          )
+          <span class="muted">Atur ▾</span>
+        </div>
+        <div class="user-perm-panel is-collapsed" data-parent-user="${u.id}" style="padding:8px 12px 12px;border-left:2px solid rgba(125,227,255,.2);margin:0 0 8px 12px">
+          <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input type="checkbox" data-is-admin ${u.is_admin ? "checked" : ""}> Jadikan admin</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-bottom:8px">${permHtml}</div>
+          <button type="button" class="btn btn-primary" data-save-user="${u.id}" style="padding:6px 12px;font-size:12px">Simpan hak akses</button>
+        </div>
+      </div>`;
+    }
+    const years = Object.keys(tree).sort().reverse();
+    let html = years
+      .map((y) => {
+        const classes = Object.keys(tree[y]).sort();
+        const cHtml = classes
+          .map((c) => {
+            const list = tree[y][c].map(userRow).join("");
+            return `<div class="pt-node">
+              <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${tree[y][c].length})</small></div>
+              <div class="pt-children" data-parent="u-${esc(y)}-${esc(c)}">${list}</div>
+            </div>`;
+          })
           .join("");
+        return `<div class="pt-node" style="margin-bottom:10px">
+          <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-y-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(sudah taut)</small></div>
+          <div class="pt-children" data-parent="u-y-${esc(y)}">${cHtml}</div>
+        </div>`;
+      })
+      .join("");
+    if (unlinked) {
+      html += `<div class="pt-node" style="margin-top:12px">
+        <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-nolink">▾</button><strong>Belum menautkan siswa</strong> <small class="muted">(${unlinked})</small></div>
+        <div class="pt-children" data-parent="u-nolink">${rows.filter((u) => !(u.linked_student_name && String(u.linked_student_name).trim())).map(userRow).join("")}</div>
+      </div>`;
+    }
+    $("#userList").innerHTML = html || "<p class='muted'>Belum ada user login Google.</p>";
+    // hide global perm box
+    const pb = $("#permBox");
+    if (pb) pb.hidden = true;
+    treeToggleBind($("#userList"));
+    $$("#userList [data-toggle-user]").forEach((row) =>
+      row.addEventListener("click", () => {
+        const id = row.getAttribute("data-toggle-user");
+        const panel = $("#userList").querySelector('[data-parent-user="' + id + '"]');
+        if (panel) panel.classList.toggle("is-collapsed");
+      })
+    );
+    $$("#userList [data-save-user]").forEach((btn) =>
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute("data-save-user");
+        const panel = btn.closest(".user-perm-panel");
+        const isAdmin = panel.querySelector("[data-is-admin]").checked;
+        const permissions = {};
+        panel.querySelectorAll("[data-perm]").forEach((cb) => {
+          permissions[cb.getAttribute("data-perm")] = cb.checked;
+        });
+        try {
+          await GalleryDB.setUserAdmin(id, { isAdmin, permissions });
+          alert("Hak akses disimpan.");
+          await refreshUsers();
+        } catch (err) {
+          alert(err.message || err);
+        }
       })
     );
   }
+
 
   boot();
 })();

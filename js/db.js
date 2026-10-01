@@ -31,6 +31,21 @@
   function normUrl(u) {
     return String(u || "").trim().replace(/\/+$/, "").toLowerCase();
   }
+  function cleanWorkTitle(title, url) {
+    let t = String(title || "")
+      .replace(/\s*[·•\-–|]\s*Domain\s*$/i, "")
+      .replace(/\bDomain\b/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    if (!t) {
+      try {
+        t = new URL(url).hostname.replace(/^www\./, "");
+      } catch (e) {
+        t = "Website";
+      }
+    }
+    return t;
+  }
 
   const MAIN_ANGKATAN = ["angkatan-2024", "angkatan-2025"];
   const CLASS_OPTIONS = ["51", "52"];
@@ -138,7 +153,7 @@
     for (const w of links) {
       const { error } = await sb.from("gallery_websites").insert({
         alumni_id: alumniId,
-        title: w.title,
+        title: cleanWorkTitle(w.title, w.url),
         url: w.url,
         category: w.category,
         description: "Ditambahkan via form gallery.",
@@ -467,7 +482,7 @@
     const sb = client();
     const { data, error } = await sb
       .from("gallery_websites")
-      .select("id,title,url,category,alumni_id,created_at, gallery_alumni(name)")
+      .select("id,title,url,category,alumni_id,created_at, gallery_alumni(name,class_code,angkatan_id, gallery_angkatan(label))")
       .order("created_at", { ascending: false })
       .limit(500);
     if (error) throw error;
@@ -1302,6 +1317,44 @@
     }
   }
 
+  async function batchEngagement(urls) {
+    const sb = client();
+    const map = {};
+    const list = [];
+    (urls || []).forEach((u) => {
+      const k = normUrl(u);
+      if (!k) return;
+      if (!map[k]) map[k] = { love: 0, comment: 0 };
+      list.push(u);
+      list.push(k);
+    });
+    if (!sb || !list.length) return map;
+    try {
+      const uniq = [...new Set(list)];
+      const seen = new Set();
+      for (let i = 0; i < uniq.length; i += 100) {
+        const slice = uniq.slice(i, i + 100);
+        const { data } = await sb
+          .from("gallery_reactions")
+          .select("id,target_id,reaction_type")
+          .eq("target_type", "website")
+          .in("target_id", slice);
+        (data || []).forEach((r) => {
+          if (seen.has(r.id)) return;
+          seen.add(r.id);
+          const k = normUrl(r.target_id);
+          if (!map[k]) map[k] = { love: 0, comment: 0 };
+          const t = String(r.reaction_type || "");
+          if (t.indexOf("love") >= 0 || t === "like") map[k].love += 1;
+          else if (t.indexOf("comment") >= 0) map[k].comment += 1;
+        });
+      }
+    } catch (e) {
+      console.warn("batchEngagement", e);
+    }
+    return map;
+  }
+
   async function countReactions(targetType, targetId) {
     const sb = client();
     if (!sb) return { loveRed: 0, loveBlue: 0, commentRed: 0, commentBlue: 0 };
@@ -1720,6 +1773,8 @@
     setUserAdmin,
     adminDeleteUserProfile,
     trackEvent,
+    batchEngagement,
+    cleanWorkTitle,
     countReactions,
     listComments,
     addLove,

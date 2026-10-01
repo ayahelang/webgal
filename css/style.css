@@ -496,3 +496,10 @@ select:focus,input:focus,textarea:focus{
 .sh-health-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
 .sh-health-log{margin-top:12px;font-size:11px;white-space:pre-wrap;background:#000;padding:10px;border-radius:8px;max-height:160px;overflow:auto}
 @media (max-width:600px){.sh-health-btn{bottom:88px;right:10px;font-size:11px}}
+
+.student-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.student-row .student{flex:1;min-width:0}
+.card-eng{display:inline-flex;gap:8px;align-items:center;margin-left:auto;font-size:12px;color:#9bb4c0}
+.card-eng .eng-love{color:#ff8fab}
+.card-eng .eng-cmt{color:#7ec8ff}
+.user-perm-panel.is-collapsed{display:none}

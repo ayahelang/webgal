@@ -53,7 +53,7 @@
       </div>
       <div class="filters" style="margin-bottom:16px" id="adminTabs">
         <button class="filter active" data-tab="videos">Video</button>
-        <button class="filter" data-tab="websites">Website user</button>
+        <button class="filter" data-tab="websites">Website Siswa</button>
         <button class="filter" data-tab="alumni">Alumni</button>
         <button class="filter" data-tab="angkatan">Angkatan</button>
         <button class="filter" data-tab="links">Tautan Siswa</button>
@@ -79,7 +79,7 @@
       </section>
 
       <section data-panel="websites" class="summary-card admin-pane" hidden>
-        <h3>Website (CRUD)</h3>
+        <h3>Website Siswa (CRUD)</h3>
         <form id="webForm" style="display:grid;gap:10px;margin-top:12px">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul</span><input name="title" required placeholder="Judul website"></label>
@@ -137,6 +137,7 @@
       </section>
 
       <section data-panel="users" class="summary-card admin-pane" hidden>
+        <p id="userLinkSummary" class="muted" style="font-size:13px;margin:0 0 10px"></p>
         <h3>User Google & undangan admin</h3>
         <p class="muted" style="font-size:13px">Klik pengguna → centang hak akses → jadikan admin tambahan. User terdaftar: riwayat chat tidak dihapus setelah 7 hari.</p>
         <div id="userList" class="admin-list"></div>
