@@ -517,3 +517,6 @@ select:focus,input:focus,textarea:focus{
 
 .sh-health-panel.sh-health-flash{animation:shHealthPulse .55s ease}
 @keyframes shHealthPulse{0%{box-shadow:0 0 0 0 rgba(107,220,244,.5)}100%{box-shadow:0 0 0 12px rgba(107,220,244,0)}}
+
+html.sh-tour-active{scroll-behavior:auto}
+html.sh-tour-active body{cursor:none}

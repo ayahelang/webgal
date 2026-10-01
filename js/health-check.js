@@ -166,24 +166,34 @@
       }
 
       const tables = [
-        ["t_angkatan", "gallery_angkatan"],
-        ["t_alumni", "gallery_alumni"],
-        ["t_websites", "gallery_websites"],
-        ["t_videos", "gallery_videos"],
-        ["t_video_cat", "gallery_video_categories"],
-        ["t_profiles", "gallery_profiles"],
-        ["t_reactions", "gallery_reactions"],
-        ["t_comments", "gallery_comments"],
-        ["t_events", "gallery_events"],
-        ["t_chat", "gallery_chat"],
-        ["t_settings", "gallery_settings"],
+        ["t_angkatan", "gallery_angkatan", "id"],
+        ["t_alumni", "gallery_alumni", "id"],
+        ["t_websites", "gallery_websites", "id"],
+        ["t_videos", "gallery_videos", "id"],
+        ["t_video_cat", "gallery_video_categories", "id"],
+        ["t_profiles", "gallery_profiles", "id"],
+        ["t_reactions", "gallery_reactions", "id"],
+        ["t_comments", "gallery_comments", "id"],
+        ["t_events", "gallery_events", "id"],
+        ["t_chat", "gallery_chat", "id"],
+        ["t_settings", "gallery_settings", "key"],
       ];
-      for (const [id, table] of tables) {
+      for (const [id, table, col] of tables) {
         try {
-          const r = await probeTable(sb, table);
-          set(id, r.ok, r.detail);
+          const t0 = performance.now();
+          const { error, count } = await sb.from(table).select(col, { count: "exact", head: true });
+          const ms = Math.round(performance.now() - t0);
+          if (error) {
+            const msg = error.message || error.details || error.code || JSON.stringify(error);
+            // settings optional
+            if (id === "t_settings") set(id, true, "Opsional / skema berbeda · " + msg);
+            else set(id, false, msg);
+          } else {
+            set(id, true, "OK · ~" + (count != null ? count + " baris" : "terhubung") + " · " + ms + " ms");
+          }
         } catch (e) {
-          set(id, false, e.message || String(e));
+          if (id === "t_settings") set(id, true, "Opsional · " + (e.message || e));
+          else set(id, false, e.message || String(e));
         }
       }
 

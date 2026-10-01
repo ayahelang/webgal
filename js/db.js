@@ -1169,6 +1169,47 @@
     return { removed: targets.length };
   }
 
+  async function adminForceLinkProfile(userId, { studentName, angkatanYear, classCode }) {
+    if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
+    const sb = client();
+    const name = String(studentName || "").trim();
+    const year = parseInt(angkatanYear, 10) || null;
+    const kelas = String(classCode || "").trim();
+    if (!userId || !name || !year) throw new Error("Lengkapi user, nama, dan angkatan.");
+    // cabut tautan lain pada nama yang sama
+    const { data: others } = await sb
+      .from("gallery_profiles")
+      .select("id,linked_student_name,linked_angkatan_year")
+      .eq("linked_angkatan_year", year);
+    for (const o of others || []) {
+      if (o.id !== userId && normLabel(o.linked_student_name) === normLabel(name)) {
+        await sb
+          .from("gallery_profiles")
+          .update({
+            linked_student_name: "",
+            linked_angkatan_year: null,
+            linked_class_code: "",
+            linked_alumni_id: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", o.id);
+      }
+    }
+    const { data, error } = await sb
+      .from("gallery_profiles")
+      .update({
+        linked_student_name: name,
+        linked_angkatan_year: year,
+        linked_class_code: kelas,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
   async function adminUnlinkProfile(userId) {
     if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
     const sb = client();
@@ -1760,6 +1801,7 @@
     updateMyLink,
     adminListLinks,
     adminUnlinkProfile,
+    adminForceLinkProfile,
     revokeOtherLinksOnMyStudent,
     allowLinkForUser,
     unlinkMyProfile,

@@ -9,7 +9,11 @@
 
   function scrollToForm(sel) {
     const f = $(sel);
-    if (f) f.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!f) return;
+    // naik sedikit supaya judul form putih terlihat
+    const y = f.getBoundingClientRect().top + window.scrollY - 88;
+    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+    try { f.querySelector("input,select,textarea") && f.querySelector("input,select,textarea").focus({ preventScroll: true }); } catch (e) {}
   }
   function treeToggleBind(root) {
     root.querySelectorAll(".pt-toggle").forEach((b) => {
@@ -281,30 +285,82 @@
   async function refreshVideos() {
     const rows = await GalleryDB.listVideos();
     videoCache = rows || [];
-    const byCat = {};
+    // siapkan meta siswa
+    let students = [];
+    try {
+      const g = await GalleryDB.fetchGalleryFromDb();
+      students = (g && g.students) || [];
+    } catch (e) {}
+    function metaFor(v) {
+      const on = v.owner_name || "";
+      const hit = students.find((s) => String(s.name || "").toLowerCase() === on.toLowerCase());
+      let year = hit ? String(hit.angkatan || "") : "";
+      let kelas = hit ? String(hit.class || "") : "";
+      if (!year) {
+        const m = String(v.description || "").match(/Angkatan\s+(\d{4})/i);
+        if (m) year = m[1];
+      }
+      if (!kelas) {
+        const m2 = String(v.description || "").match(/Kls?\s*(\d{2})/i);
+        if (m2) kelas = m2[1];
+      }
+      return { year: year || "?", kelas: kelas || "?", name: on || "Tanpa nama" };
+    }
+    // tree: category -> year -> class -> name -> videos
+    const root = {};
     videoCache.forEach((v) => {
       const cat = (v.gallery_video_categories && v.gallery_video_categories.name) || "Lainnya";
-      if (!byCat[cat]) byCat[cat] = [];
-      byCat[cat].push(v);
+      const m = metaFor(v);
+      if (!root[cat]) root[cat] = {};
+      if (!root[cat][m.year]) root[cat][m.year] = {};
+      if (!root[cat][m.year][m.kelas]) root[cat][m.year][m.kelas] = {};
+      if (!root[cat][m.year][m.kelas][m.name]) root[cat][m.year][m.kelas][m.name] = [];
+      root[cat][m.year][m.kelas][m.name].push(v);
     });
-    const cats = Object.keys(byCat).sort();
+    function vidRow(v) {
+      return `<div class="admin-row">
+        <div><strong>${esc(v.title)}</strong><br><small>${esc(v.platform)} · ${esc(v.url)}</small></div>
+        <div style="display:flex;gap:6px">
+          <button type="button" data-edit-vid="${v.id}">Ubah</button>
+          <button type="button" data-del-vid="${v.id}">Hapus</button>
+        </div>
+      </div>`;
+    }
+    const cats = Object.keys(root).sort();
     $("#vidList").innerHTML =
       cats
         .map((cat) => {
-          const list = byCat[cat]
-            .map(
-              (v) => `<div class="admin-row">
-              <div><strong>${esc(v.title)}</strong><br><small>${esc(v.platform)} · ${esc(v.url)}</small></div>
-              <div style="display:flex;gap:6px">
-                <button type="button" data-edit-vid="${v.id}">Ubah</button>
-                <button type="button" data-del-vid="${v.id}">Hapus</button>
-              </div>
-            </div>`
-            )
+          const years = Object.keys(root[cat]).sort().reverse();
+          const yHtml = years
+            .map((y) => {
+              const classes = Object.keys(root[cat][y]).sort();
+              const cHtml = classes
+                .map((c) => {
+                  const names = Object.keys(root[cat][y][c]).sort((a, b) => a.localeCompare(b, "id"));
+                  const nHtml = names
+                    .map((nm) => {
+                      const list = root[cat][y][c][nm].map(vidRow).join("");
+                      return `<div class="pt-node">
+                        <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><strong>${esc(nm)}</strong> <small class="muted">(${root[cat][y][c][nm].length})</small></div>
+                        <div class="pt-children is-collapsed" data-parent="v-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">${list}</div>
+                      </div>`;
+                    })
+                    .join("");
+                  return `<div class="pt-node">
+                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong></div>
+                    <div class="pt-children" data-parent="v-${esc(cat)}-${esc(y)}-${esc(c)}">${nHtml}</div>
+                  </div>`;
+                })
+                .join("");
+              return `<div class="pt-node">
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong></div>
+                <div class="pt-children" data-parent="v-${esc(cat)}-${esc(y)}">${cHtml}</div>
+              </div>`;
+            })
             .join("");
-          return `<div class="pt-node" style="margin-bottom:10px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="vid-${esc(cat)}">▾</button><strong>${esc(cat)}</strong> <small class="muted">(${byCat[cat].length})</small></div>
-            <div class="pt-children" data-parent="vid-${esc(cat)}">${list}</div>
+          return `<div class="pt-node" style="margin-bottom:12px">
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-cat-${esc(cat)}">▾</button><strong>${esc(cat)}</strong></div>
+            <div class="pt-children" data-parent="v-cat-${esc(cat)}">${yHtml}</div>
           </div>`;
         })
         .join("") || "<p class='muted'>Belum ada video.</p>";
@@ -335,7 +391,6 @@
       })
     );
   }
-
 
   async function fillAlumniSelects() {
     const sel = $("#webAlumniSelect");
@@ -639,6 +694,58 @@
           }
         })
       );
+      // siswa/user belum taut
+      try {
+        const allUsers = await GalleryDB.listRegisteredUsers();
+        const noLink = (allUsers || []).filter((u) => !(u.linked_student_name && String(u.linked_student_name).trim()));
+        if (noLink.length) {
+          const box = document.createElement("div");
+          box.style.marginTop = "16px";
+          box.innerHTML = `<div class="pt-node">
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="link-nolink">▾</button><strong>Belum ditautkan</strong> <small class="muted">(${noLink.length} akun Google)</small></div>
+            <div class="pt-children" data-parent="link-nolink">${noLink
+              .map(
+                (u) => `<div class="admin-row" style="display:block">
+                <div><strong>${esc(u.display_name || u.email)}</strong><br><small>${esc(u.email)}</small></div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:end">
+                  <label class="field" style="margin:0"><span>Angkatan</span>
+                    <select data-link-year="${u.id}"><option value="2025">2025</option><option value="2024">2024</option></select>
+                  </label>
+                  <label class="field" style="margin:0"><span>Kelas</span>
+                    <select data-link-class="${u.id}"><option value="51">51</option><option value="52">52</option></select>
+                  </label>
+                  <label class="field" style="margin:0;min-width:140px"><span>Nama siswa</span>
+                    <input data-link-name="${u.id}" type="text" placeholder="Nama">
+                  </label>
+                  <button type="button" class="btn btn-primary" data-admin-link="${u.id}" style="padding:8px 12px;font-size:12px">Tautkan</button>
+                </div>
+              </div>`
+              )
+              .join("")}</div>
+          </div>`;
+          host.appendChild(box);
+          treeToggleBind(box);
+          box.querySelectorAll("[data-admin-link]").forEach((btn) =>
+            btn.addEventListener("click", async () => {
+              const id = btn.getAttribute("data-admin-link");
+              const year = (box.querySelector('[data-link-year="' + id + '"]') || {}).value;
+              const kelas = (box.querySelector('[data-link-class="' + id + '"]') || {}).value;
+              const name = ((box.querySelector('[data-link-name="' + id + '"]') || {}).value || "").trim();
+              if (!name) return alert("Isi nama siswa");
+              try {
+                await GalleryDB.adminForceLinkProfile(id, { studentName: name, angkatanYear: year, classCode: kelas });
+                if (msg) msg.textContent = "Tautan disimpan.";
+                await refreshLinks();
+                if (typeof refreshUsers === "function") await refreshUsers();
+              } catch (e) {
+                alert(e.message || e);
+              }
+            })
+          );
+        }
+      } catch (e) {
+        console.warn(e);
+      }
     } catch (e) {
       host.innerHTML = "<p class='muted'>" + esc(e.message || e) + "</p>";
     }
@@ -662,6 +769,23 @@
       if (!tree[y][c]) tree[y][c] = [];
       tree[y][c].push(u);
     });
+    function adminLinkForm(u) {
+      return `<div class="admin-link-box" style="margin:0 0 10px 12px;padding:10px;border:1px dashed rgba(125,227,255,.25);border-radius:10px">
+        <div class="muted" style="font-size:12px;margin-bottom:6px">Admin tautkan ke nama siswa:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end">
+          <label class="field" style="margin:0"><span>Angkatan</span>
+            <select data-link-year="${u.id}"><option value="2025">2025</option><option value="2024">2024</option></select>
+          </label>
+          <label class="field" style="margin:0"><span>Kelas</span>
+            <select data-link-class="${u.id}"><option value="51">51</option><option value="52">52</option></select>
+          </label>
+          <label class="field" style="margin:0;min-width:160px"><span>Nama</span>
+            <input data-link-name="${u.id}" type="text" placeholder="Nama lengkap siswa" list="adminStudentNames">
+          </label>
+          <button type="button" class="btn btn-primary" data-admin-link="${u.id}" style="padding:8px 12px;font-size:12px">Tautkan</button>
+        </div>
+      </div>`;
+    }
     function userRow(u) {
       const st = u.linked_angkatan_year ? (window.SHStatus ? SHStatus.compute(u.linked_angkatan_year).label : "Taut") : "Belum tautkan";
       const permKeys = keys.length ? keys : ["videos", "websites", "alumni", "users", "angkatan"];
@@ -716,9 +840,10 @@
       })
       .join("");
     if (unlinked) {
+      const noLink = rows.filter((u) => !(u.linked_student_name && String(u.linked_student_name).trim()));
       html += `<div class="pt-node" style="margin-top:12px">
         <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-nolink">▾</button><strong>Belum menautkan siswa</strong> <small class="muted">(${unlinked})</small></div>
-        <div class="pt-children" data-parent="u-nolink">${rows.filter((u) => !(u.linked_student_name && String(u.linked_student_name).trim())).map(userRow).join("")}</div>
+        <div class="pt-children" data-parent="u-nolink">${noLink.map((u) => userRow(u) + adminLinkForm(u)).join("")}</div>
       </div>`;
     }
     $("#userList").innerHTML = html || "<p class='muted'>Belum ada user login Google.</p>";
@@ -747,6 +872,27 @@
           await GalleryDB.setUserAdmin(id, { isAdmin, permissions });
           alert("Hak akses disimpan.");
           await refreshUsers();
+        } catch (err) {
+          alert(err.message || err);
+        }
+      })
+    );
+    $$("#userList [data-admin-link]").forEach((btn) =>
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute("data-admin-link");
+        const year = ($("#userList").querySelector('[data-link-year="' + id + '"]') || {}).value;
+        const kelas = ($("#userList").querySelector('[data-link-class="' + id + '"]') || {}).value;
+        const name = (($("#userList").querySelector('[data-link-name="' + id + '"]') || {}).value || "").trim();
+        if (!name) {
+          alert("Isi nama siswa.");
+          return;
+        }
+        try {
+          await GalleryDB.adminForceLinkProfile(id, { studentName: name, angkatanYear: year, classCode: kelas });
+          alert("Tautan disimpan.");
+          await refreshUsers();
+          if (typeof refreshLinks === "function") await refreshLinks();
         } catch (err) {
           alert(err.message || err);
         }
