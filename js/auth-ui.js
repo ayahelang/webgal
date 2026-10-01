@@ -62,7 +62,6 @@
             <small>${escapeHtml(statusLabel)}</small>
           </span>
         </a>
-        ${isAdm ? `<a class="btn btn-ghost nav-admin" href="admin.html" style="padding:6px 10px;font-size:12px">Admin</a>` : ""}
       `;
     } catch (e) {
       console.warn(e);

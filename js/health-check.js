@@ -84,7 +84,10 @@
     const t0 = performance.now();
     const { error, count } = await sb.from(table).select("id", { count: "exact", head: true });
     const ms = Math.round(performance.now() - t0);
-    if (error) return { ok: false, detail: error.message || String(error), ms };
+    if (error) {
+      const msg = error.message || error.details || error.hint || (typeof error === "object" ? JSON.stringify(error) : String(error));
+      return { ok: false, detail: msg, ms };
+    }
     return { ok: true, detail: "OK · ~" + (count != null ? count + " baris" : "terhubung") + " · " + ms + " ms", ms };
   }
 
@@ -108,7 +111,7 @@
     };
 
     // config
-    const cfg = (window.SUPABASE_CONFIG || window.GalleryConfig || {});
+    const cfg = (window.GALLERY_SUPABASE || window.SUPABASE_CONFIG || window.GalleryConfig || {});
     const url = (cfg.url || cfg.supabaseUrl || "").trim();
     const key = (cfg.anonKey || cfg.supabaseAnonKey || cfg.key || "").trim();
     set("config", !!(url && key), url ? "URL & anon key terisi" : "supabase-config.js belum lengkap");
@@ -256,10 +259,11 @@
   }
 
   async function copyReport() {
+    const panel = document.querySelector(".sh-health-panel");
+    const summary = document.getElementById("shHealthSummary");
     try {
       await navigator.clipboard.writeText(lastReport || "(belum ada laporan)");
-      const s = document.getElementById("shHealthSummary");
-      if (s) s.textContent = (s.textContent || "") + " · Laporan disalin.";
+      if (summary) summary.textContent = (summary.textContent || "") + " · Laporan disalin.";
     } catch (e) {
       const log = document.getElementById("shHealthLog");
       if (log) {
@@ -268,6 +272,14 @@
       }
       alert("Salin manual dari kotak teks di bawah.");
     }
+    // animasi ke atas panel status
+    if (panel) {
+      panel.scrollTo({ top: 0, behavior: "smooth" });
+      panel.classList.add("sh-health-flash");
+      setTimeout(() => panel.classList.remove("sh-health-flash"), 600);
+    }
+    const modal = document.getElementById("shHealthModal");
+    if (modal) modal.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   if (document.readyState === "loading") {
