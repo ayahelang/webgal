@@ -166,7 +166,7 @@
 
   fetch("data/refleksi-bonus.json", { cache: "no-store" })
     .then((r) => {
-      if (!r.ok) throw new Error("Gagal memuat refleksi-bonus.json (" + r.status + ")");
+      if (!r.ok) throw new Error("Gagal memuat refleksi-bonus.json (" + r.status + ")"); /* base json */
       return r.json();
     })
     .then(async (d) => {

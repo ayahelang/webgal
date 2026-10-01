@@ -5,7 +5,31 @@
     return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
   }
 
+  function bindPreviews() {
+    const vp = document.getElementById("vidPreview");
+    if (vp) vp.onclick = () => {
+      const f = document.getElementById("vidForm");
+      SHPreview.previewVideo({
+        title: f.querySelector("[name=title]").value,
+        url: f.querySelector("[name=url]").value,
+        description: (f.querySelector("[name=description]") || {}).value || "",
+        owner: "Karya saya",
+      });
+    };
+    const wp = document.getElementById("webPreview");
+    if (wp) wp.onclick = () => {
+      const f = document.getElementById("webForm");
+      SHPreview.previewWebsite({
+        title: f.querySelector("[name=title]").value,
+        url: f.querySelector("[name=url]").value,
+        category: (f.querySelector("[name=category]") || {}).value || "Web",
+        name: "Saya",
+      });
+    };
+  }
   async function boot() {
+    bindPreviews();
+
     const session = await GalleryDB.getSession();
     if (!session) {
       $("#needLogin").hidden = false;

@@ -92,10 +92,28 @@
         });
         if (btn.dataset.tab === "links") refreshLinks();
         if (btn.dataset.tab === "users") refreshUsers();
+        if (btn.dataset.tab === "sync") { /* noop */ }
       })
     );
 
     bindForms(session);
+    const syncBtn = $("#btnSyncDocs");
+    if (syncBtn) {
+      syncBtn.onclick = async () => {
+        const url = ($("#syncDocsUrl") && $("#syncDocsUrl").value) || "";
+        const msg = $("#syncMsg");
+        const log = $("#syncLog");
+        if (msg) msg.textContent = "Mengunduh & memproses…";
+        try {
+          const r = await GalleryDB.syncFromGoogleDocs(url);
+          if (msg) msg.textContent = "Selesai. Skills & refleksi diperbarui (data lama digabung).";
+          if (log) log.textContent = JSON.stringify(r, null, 2);
+        } catch (e) {
+          if (msg) msg.textContent = e.message || String(e);
+        }
+      };
+    }
+
     await refreshCats();
     await refreshAngkatan();
     await refreshAlumni();
@@ -105,6 +123,29 @@
   }
 
   function bindForms(session) {
+    const vp = $("#vidPreview");
+    if (vp) vp.onclick = () => {
+      const f = $("#videoForm");
+      SHPreview.previewVideo({
+        title: f.querySelector("[name=title]").value,
+        url: f.querySelector("[name=url]").value,
+        description: f.querySelector("[name=description]").value,
+        owner: "Preview admin",
+      });
+    };
+    const wp = $("#webPreview");
+    if (wp) wp.onclick = () => {
+      const f = $("#webForm");
+      const sel = f.querySelector("[name=alumniId]");
+      const name = sel && sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : "Siswa";
+      SHPreview.previewWebsite({
+        title: f.querySelector("[name=title]").value,
+        url: f.querySelector("[name=url]").value,
+        category: f.querySelector("[name=category]").value,
+        name: name,
+      });
+    };
+
     // Video
     $("#videoForm").onsubmit = async (ev) => {
       ev.preventDefault();

@@ -1358,6 +1358,114 @@
     }
   }
 
+
+  function docsExportUrl(editUrl) {
+    const m = String(editUrl || "").match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
+    if (!m) throw new Error("URL Google Docs tidak valid");
+    return "https://docs.google.com/document/d/" + m[1] + "/export?format=txt";
+  }
+
+  async function fetchGoogleDocsText(editUrl) {
+    const exp = docsExportUrl(editUrl);
+    const res = await fetch(exp, { cache: "no-store" });
+    if (!res.ok) throw new Error("Gagal unduh Docs (" + res.status + "). Pastikan share: Anyone with the link.");
+    return await res.text();
+  }
+
+  /** Parse kasar testimoni / skills dari teks docs */
+  function parseDocsContent(text) {
+    const lines = String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const refleksi = [];
+    let current = null;
+    for (const line of lines) {
+      // Nama ALL CAPS or "Nama ·" patterns
+      if (/^[A-ZÁÉÍÓÚÄÖÜ][A-Z0-9ÁÉÍÓÚÄÖÜ\s'.\-]{3,}$/.test(line) && line.length < 80) {
+        if (current && current.body) refleksi.push(current);
+        current = { name: line.replace(/\s+/g, " ").trim(), body: "" };
+        continue;
+      }
+      if (current) {
+        current.body += (current.body ? "\n" : "") + line;
+      }
+    }
+    if (current && current.body) refleksi.push(current);
+    // skills bullets: lines starting with - or •
+    const skillsHints = lines.filter((l) => /^[-•*]\s+/.test(l)).map((l) => l.replace(/^[-•*]\s+/, ""));
+    return { refleksi, skillsHints, rawLength: text.length, lineCount: lines.length };
+  }
+
+  async function syncFromGoogleDocs(editUrl) {
+    if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
+    const sb = client();
+    const text = await fetchGoogleDocsText(editUrl);
+    const parsed = parseDocsContent(text);
+    // simpan snapshot
+    const { error: e1 } = await sb.from("gallery_content_snapshots").upsert(
+      {
+        id: "google-docs-main",
+        source_url: editUrl,
+        raw_text: text.slice(0, 500000),
+        parsed: parsed,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    );
+    if (e1) throw e1;
+    // merge refleksi entries by name
+    let added = 0;
+    for (const r of parsed.refleksi) {
+      const name = r.name;
+      const { data: existing } = await sb
+        .from("gallery_refleksi")
+        .select("id,body")
+        .ilike("student_name", name)
+        .maybeSingle();
+      if (existing) {
+        // append if new body longer / different
+        if (r.body && r.body !== existing.body) {
+          const merged = existing.body && r.body.includes(existing.body) ? r.body : (existing.body || "") + "\n\n" + r.body;
+          await sb.from("gallery_refleksi").update({ body: merged, updated_at: new Date().toISOString() }).eq("id", existing.id);
+        }
+      } else {
+        await sb.from("gallery_refleksi").insert({
+          student_name: name,
+          body: r.body,
+          source: "google_docs",
+        });
+        added++;
+      }
+    }
+    // skills hints → append to skills meta notes (non-destructive)
+    if (parsed.skillsHints.length) {
+      const { data: sk } = await sb.from("gallery_skills_meta").select("*").eq("id", "main").maybeSingle();
+      const notes = (sk && sk.sync_notes) || [];
+      const mergedNotes = [...new Set([...(notes || []), ...parsed.skillsHints])].slice(0, 500);
+      await sb.from("gallery_skills_meta").upsert({
+        id: "main",
+        sync_notes: mergedNotes,
+        updated_at: new Date().toISOString(),
+        docs_url: editUrl,
+      });
+    }
+    return { refleksiParsed: parsed.refleksi.length, refleksiAdded: added, skillsHints: parsed.skillsHints.length, lines: parsed.lineCount };
+  }
+
+  async function loadRefleksiFromDb() {
+    const sb = client();
+    if (!sb) return null;
+    const { data, error } = await sb.from("gallery_refleksi").select("*").order("student_name");
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function loadSkillsMetaFromDb() {
+    const sb = client();
+    if (!sb) return null;
+    const { data, error } = await sb.from("gallery_skills_meta").select("*").eq("id", "main").maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
   async function batchEngagement(urls) {
     const sb = client();
     const map = {};
@@ -1816,6 +1924,10 @@
     adminDeleteUserProfile,
     trackEvent,
     batchEngagement,
+    syncFromGoogleDocs,
+    loadRefleksiFromDb,
+    loadSkillsMetaFromDb,
+    fetchGoogleDocsText,
     cleanWorkTitle,
     countReactions,
     listComments,

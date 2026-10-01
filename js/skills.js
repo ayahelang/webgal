@@ -1,14 +1,31 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   async function load() {
+    let base = null;
     try {
       const res = await fetch("data/skills.json", { cache: "no-store" });
       if (!res.ok) throw new Error("HTTP " + res.status);
-      return await res.json();
+      base = await res.json();
     } catch (e) {
       console.error("skills.json gagal dimuat", e);
-      return null;
     }
+    try {
+      if (window.GalleryDB && GalleryDB.loadSkillsMetaFromDb) {
+        const meta = await GalleryDB.loadSkillsMetaFromDb();
+        if (meta && base) {
+          if (meta.docs_url) {
+            base.meta = base.meta || {};
+            base.meta.docsUrl = meta.docs_url;
+          }
+          if (meta.sync_notes && meta.sync_notes.length) {
+            base.syncNotes = meta.sync_notes;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+    return base;
   }
   function esc(t) {
     return String(t || "")
@@ -46,6 +63,17 @@
       <span><b>Pengajar</b> ${esc(m.instructor)}</span>
       <span><b>Periode</b> ${esc(m.period)}</span>
       <span><b>Untuk</b> ${esc(m.audience)}</span>`);
+    if (data.syncNotes && data.syncNotes.length) {
+      const host = $("#levelGrid");
+      if (host) {
+        const box = document.createElement("div");
+        box.className = "summary-card";
+        box.style.marginTop = "12px";
+        box.innerHTML = "<h3 style=\"margin:0 0 8px\">Catatan dari testimoni (sync Docs)</h3><ul>" +
+          data.syncNotes.slice(0, 40).map((n) => "<li>" + esc(n) + "</li>").join("") + "</ul>";
+        host.parentNode && host.parentNode.insertBefore(box, host.nextSibling);
+      }
+    }
     setHref("#docsBtn", m.docsUrl || "#");
     setHref("#docsLinkTop", m.docsUrl || "#");
     const docsBtn = $("#docsBtn");

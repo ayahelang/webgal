@@ -58,6 +58,7 @@
         <button class="filter" data-tab="angkatan">Angkatan</button>
         <button class="filter" data-tab="links">Tautan Siswa</button>
         <button class="filter" data-tab="users">Users & Admin</button>
+        <button class="filter" data-tab="sync">Sync Docs</button>
       </div>
 
       <section data-panel="videos" class="summary-card admin-pane">
@@ -70,6 +71,7 @@
           <label class="field"><span>Deskripsi</span><input name="description"></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary" type="submit">Simpan video</button>
+            <button class="btn btn-ghost" type="button" id="vidPreview">Preview card</button>
             <button class="btn btn-ghost" type="button" id="vidReset">Batal edit</button>
             <button class="btn btn-ghost" type="button" id="btnAddCat">+ Kategori</button>
           </div>
@@ -88,6 +90,7 @@
           <label class="field"><span>Pemilik (alumni)</span><select name="alumniId" id="webAlumniSelect" required><option value="">— pilih —</option></select></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary" type="submit">Simpan website</button>
+            <button class="btn btn-ghost" type="button" id="webPreview">Preview card</button>
             <button class="btn btn-ghost" type="button" id="webReset">Batal edit</button>
           </div>
         </form>
@@ -136,6 +139,18 @@
         <p id="linkAdminMsg" class="muted" style="font-size:13px"></p>
       </section>
 
+      <section data-panel="sync" class="summary-card admin-pane" hidden>
+        <h3>Sinkronisasi Google Docs → Skills & Nilai Proses</h3>
+        <p class="muted" style="font-size:13px">Membaca dokumen testimoni (export teks). Data lama tidak dihapus; entri baru digabung. Dokumen harus <b>bisa diakses siapa saja dengan link</b>.</p>
+        <label class="field"><span>URL Google Docs</span>
+          <input id="syncDocsUrl" type="url" value="https://docs.google.com/document/d/12zjFUs-ZihCvIqeINS8YbXF8revUSnQmZO2y7Njqe8k/edit">
+        </label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button type="button" class="btn btn-primary" id="btnSyncDocs">Update dari Google Docs</button>
+        </div>
+        <p id="syncMsg" class="muted" style="font-size:13px;margin-top:10px"></p>
+        <pre id="syncLog" class="muted" style="font-size:11px;white-space:pre-wrap;max-height:200px;overflow:auto"></pre>
+      </section>
       <section data-panel="users" class="summary-card admin-pane" hidden>
         <p id="userLinkSummary" class="muted" style="font-size:13px;margin:0 0 10px"></p>
         <h3>User Google & undangan admin</h3>
@@ -157,6 +172,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="data/supabase-config.js"></script>
   <script src="js/db.js"></script>
+  <script src="js/preview-card.js"></script>
   <script src="js/profile-status.js"></script>
   <script src="js/auth-ui.js"></script>
   <script src="js/admin.js"></script>
