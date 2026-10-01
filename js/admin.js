@@ -518,17 +518,35 @@
   async function refreshAngkatan() {
     const rows = await GalleryDB.adminListAngkatanAll();
     angkatanCache = rows || [];
-    $("#angList").innerHTML = angkatanCache
-      .map(
-        (a) => `<div class="admin-row">
-        <div><strong>${esc(a.label)}</strong><br><small>${esc(a.label_norm)}</small></div>
-        <div style="display:flex;gap:6px">
-          <button type="button" data-edit-ang="${a.id}">Ubah</button>
-          <button type="button" data-del-ang="${a.id}">Hapus</button>
-        </div>
-      </div>`
-      )
-      .join("") || "<p class='muted'>Belum ada angkatan.</p>";
+    const tree = {};
+    angkatanCache.forEach((a) => {
+      const m = String(a.label || "").match(/20\d{2}/);
+      const y = m ? m[0] : "Lainnya";
+      if (!tree[y]) tree[y] = [];
+      tree[y].push(a);
+    });
+    const years = Object.keys(tree).sort().reverse();
+    $("#angList").innerHTML =
+      years
+        .map((y) => {
+          const list = tree[y]
+            .map(
+              (a) => `<div class="admin-row">
+              <div><strong>${esc(a.label)}</strong><br><small>${esc(a.label_norm)}</small></div>
+              <div style="display:flex;gap:6px">
+                <button type="button" data-edit-ang="${a.id}">Ubah</button>
+                <button type="button" data-del-ang="${a.id}">Hapus</button>
+              </div>
+            </div>`
+            )
+            .join("");
+          return `<div class="pt-node" style="margin-bottom:10px">
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="ang-${esc(y)}">▾</button><strong>Tahun ${esc(y)}</strong> <small class="muted">(${tree[y].length})</small></div>
+            <div class="pt-children" data-parent="ang-${esc(y)}">${list}</div>
+          </div>`;
+        })
+        .join("") || "<p class='muted'>Belum ada angkatan.</p>";
+    treeToggleBind($("#angList"));
     $$("#angList [data-del-ang]").forEach((b) =>
       b.addEventListener("click", async () => {
         if (!confirm("Hapus angkatan?")) return;
@@ -545,10 +563,10 @@
         const a = angkatanCache.find((x) => String(x.id) === String(b.dataset.editAng));
         if (!a) return;
         const f = $("#angForm");
-        f.querySelector('[name=id]').value = a.id;
-        f.querySelector('[name=label]').value = a.label || "";
+        f.querySelector("[name=id]").value = a.id;
+        f.querySelector("[name=label]").value = a.label || "";
         $("#angStatus").textContent = "Mode edit: " + a.label;
-        f.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        scrollToForm("#angForm");
       })
     );
   }

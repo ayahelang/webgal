@@ -2,19 +2,22 @@
   const $ = (s) => document.querySelector(s);
   const grid = $("#videoGrid");
   let all = [];
-  let students = []; // {name, class, angkatan}
+  let students = [];
   let state = {
     q: "",
-    cat: "all", // all | categoryId
+    cat: "all",
     catSlug: "",
-    year: "", // for karya siswa
+    year: "",
     kelas: "",
-    student: "",
   };
 
   function esc(t) {
-    return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    return String(t || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/"/g, "&quot;");
   }
+
   function norm(n) {
     return String(n || "")
       .toLowerCase()
@@ -22,12 +25,26 @@
       .trim();
   }
 
+  function ytId(url) {
+    const u = String(url || "");
+    let m = u.match(/(?:youtu\.be\/|v=|\/embed\/|shorts\/)([\w-]{6,})/);
+    return m ? m[1] : "";
+  }
+
+  function thumbUrl(v) {
+    const id = ytId(v.url) || ytId(v.embed_url);
+    if (id) return "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg";
+    // dailymotion fallback: no easy static without id parse
+    const dm = String(v.url || "").match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/);
+    if (dm) return "https://www.dailymotion.com/thumbnail/video/" + dm[1];
+    return "";
+  }
+
   function enrich(v) {
     const on = v.owner_name || "";
     if (!on) return { ...v, _class: "", _year: "" };
     const hit = students.find((s) => norm(s.name) === norm(on));
     if (hit) return { ...v, _class: String(hit.class || ""), _year: String(hit.angkatan || "") };
-    // parse from description "Angkatan 2024 Kls 51"
     const m = String(v.description || "").match(/Angkatan\s+(\d{4}).*?(\d{2})/i);
     if (m) return { ...v, _year: m[1], _class: m[2] };
     return { ...v, _class: "", _year: "" };
@@ -37,11 +54,7 @@
     return all.filter((v) => {
       if (state.cat !== "all" && v.category_id !== state.cat) return false;
       if (state.year && v._year && v._year !== state.year) return false;
-      if (state.year && !v._year && state.catSlug === "karya-siswa") {
-        // keep if no year meta? optional exclude
-      }
       if (state.kelas && v._class && v._class !== state.kelas) return false;
-      if (state.student && norm(v.owner_name) !== norm(state.student)) return false;
       if (state.q) {
         const hay = [v.title, v.description, v.owner_name, v.url].join(" ").toLowerCase();
         if (!hay.includes(state.q)) return false;
@@ -55,10 +68,16 @@
     const meta = [v.owner_name, v._year ? "Angkatan " + v._year : "", v._class ? "Kls " + v._class : ""]
       .filter(Boolean)
       .join(" · ");
+    const thumb = thumbUrl(v);
+    const embed = esc(v.embed_url || "");
+    const frame = thumb
+      ? `<button type="button" class="video-thumb-btn" data-embed="${embed}" aria-label="Putar video">
+          <img class="video-thumb" src="${esc(thumb)}" alt="" loading="lazy" decoding="async" width="480" height="270">
+          <span class="video-play">▶</span>
+        </button>`
+      : `<iframe src="${embed}" title="${esc(v.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>`;
     return `<article class="video-card">
-      <div class="video-frame">
-        <iframe src="${esc(v.embed_url)}" title="${esc(v.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
-      </div>
+      <div class="video-frame" data-video-frame>${frame}</div>
       <div class="video-meta">
         <span class="pill">${esc(catName)}</span>
         <h3>${esc(v.title)}</h3>
@@ -70,9 +89,22 @@
     </article>`;
   }
 
+  function bindPlay(root) {
+    (root || document).querySelectorAll(".video-thumb-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const embed = btn.getAttribute("data-embed");
+        const host = btn.closest("[data-video-frame]");
+        if (!host || !embed) return;
+        host.innerHTML = `<iframe src="${embed}${embed.indexOf("?") >= 0 ? "&" : "?"}autoplay=1" title="Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+      });
+    });
+  }
+
   function render() {
+    if (!grid) return;
     const list = filtered();
     grid.innerHTML = list.map(card).join("") || "";
+    bindPlay(grid);
     if (window.SHSocial) {
       SHSocial.bind(grid);
       SHSocial.hydrate(grid);
@@ -85,17 +117,13 @@
 
   function buildSubFilters(cats) {
     const sub = $("#videoSubFilters");
-    const stu = $("#videoStudentFilters");
-    if (!sub || !stu) return;
+    if (!sub) return;
     const isKarya = state.catSlug === "karya-siswa";
     sub.hidden = !isKarya;
-    stu.hidden = !isKarya;
     if (!isKarya) {
       state.year = "";
       state.kelas = "";
-      state.student = "";
       sub.innerHTML = "";
-      stu.innerHTML = "";
       return;
     }
     const years = [...new Set(all.filter((v) => v._year).map((v) => v._year))].sort().reverse();
@@ -118,112 +146,66 @@
             .join("")
         )
         .join("");
-
     sub.querySelectorAll(".filter").forEach((b) =>
       b.addEventListener("click", () => {
         state.year = b.dataset.y || "";
         state.kelas = b.dataset.k || "";
-        state.student = "";
-        buildStudentFilters();
         buildSubFilters(cats);
         render();
       })
     );
-    buildStudentFilters();
-  }
-
-  function buildStudentFilters() {
-    const stu = document.getElementById("videoStudentFilters");
-    if (stu) { stu.hidden = true; stu.innerHTML = ""; }
-    return;
-    // disabled: filter siswa diganti filter angkatan/kelas di atas
-
-    const stu = $("#videoStudentFilters");
-    if (!stu) return;
-    let pool = all.filter((v) => v.owner_name);
-    if (state.year) pool = pool.filter((v) => v._year === state.year);
-    if (state.kelas) pool = pool.filter((v) => v._class === state.kelas);
-    const names = [...new Set(pool.map((v) => v.owner_name))].sort((a, b) => a.localeCompare(b, "id"));
-    stu.hidden = names.length === 0;
-    // Dropdown agar hemat ruang (tidak pakai tab/button yang panjang di laptop)
-    const opts =
-      `<option value="">Semua siswa (${names.length})</option>` +
-      names.map((n) => `<option value="${esc(n)}" ${state.student === n ? "selected" : ""}>${esc(n)}</option>`).join("");
-    stu.innerHTML = `
-      <label class="field" style="margin:0;min-width:220px;max-width:320px">
-        <span style="font-size:12px;color:#8aa0ab">Filter nama siswa</span>
-        <select id="videoStudentSelect" class="filter-select" style="width:100%;margin-top:4px">
-          ${opts}
-        </select>
-      </label>`;
-    const sel = stu.querySelector("#videoStudentSelect");
-    if (sel) {
-      sel.addEventListener("change", () => {
-        state.student = sel.value || "";
-        render();
-      });
-    }
   }
 
   async function loadStudents() {
     try {
-      if (GalleryDB.fetchGalleryFromDb) {
+      if (window.GalleryDB && GalleryDB.fetchGalleryFromDb) {
         const db = await GalleryDB.fetchGalleryFromDb();
         students = (db && db.students) || [];
       }
     } catch (e) {}
-    if (!students.length) {
-      try {
-        const r = await fetch("data/websites.json", { cache: "no-store" });
-        const j = await r.json();
-        students = (j.students || []).map((s) => ({
-          name: s.name,
-          class: s.class,
-          angkatan: s.angkatan || "2025",
-        }));
-      } catch (e) {}
-    }
   }
 
   async function init() {
-    if (!GalleryDB.enabled()) {
-      $("#videoEmpty").hidden = false;
-      $("#videoEmpty").textContent = "Layanan data belum siap.";
+    const empty = $("#videoEmpty");
+    if (!window.GalleryDB || !GalleryDB.enabled()) {
+      if (empty) {
+        empty.hidden = false;
+        empty.textContent = "Layanan data belum siap.";
+      }
       return;
     }
     try {
       await loadStudents();
       const cats = await GalleryDB.listVideoCategories();
       const filters = $("#videoFilters");
-      filters.innerHTML = `<button type="button" class="filter active" data-cat="all" data-slug="">Semua</button>`;
-      cats.forEach((c) => {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "filter";
-        b.dataset.cat = c.id;
-        b.dataset.slug = c.slug || "";
-        b.textContent = c.name;
-        filters.appendChild(b);
-      });
-      filters.querySelectorAll(".filter").forEach((b) =>
-        b.addEventListener("click", () => {
-          filters.querySelectorAll(".filter").forEach((x) => x.classList.remove("active"));
-          b.classList.add("active");
-          state.cat = b.dataset.cat === "all" ? "all" : b.dataset.cat;
-          state.catSlug = b.dataset.slug || "";
-          state.year = "";
-          state.kelas = "";
-          state.student = "";
-          buildSubFilters(cats);
-          render();
-        })
-      );
-
+      if (filters) {
+        filters.innerHTML = `<button type="button" class="filter active" data-cat="all" data-slug="">Semua</button>`;
+        (cats || []).forEach((c) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "filter";
+          b.dataset.cat = c.id;
+          b.dataset.slug = c.slug || "";
+          b.textContent = c.name;
+          filters.appendChild(b);
+        });
+        filters.querySelectorAll(".filter").forEach((b) =>
+          b.addEventListener("click", () => {
+            filters.querySelectorAll(".filter").forEach((x) => x.classList.remove("active"));
+            b.classList.add("active");
+            state.cat = b.dataset.cat === "all" ? "all" : b.dataset.cat;
+            state.catSlug = b.dataset.slug || "";
+            state.year = "";
+            state.kelas = "";
+            buildSubFilters(cats);
+            render();
+          })
+        );
+      }
       const raw = await GalleryDB.listVideos();
-      all = raw.map(enrich);
-      buildSubFilters(cats);
+      all = (raw || []).map(enrich);
+      buildSubFilters(cats || []);
       render();
-
       const search = $("#videoSearch");
       if (search) {
         search.addEventListener("input", () => {
@@ -232,8 +214,11 @@
         });
       }
     } catch (e) {
-      $("#videoEmpty").hidden = false;
-      $("#videoEmpty").textContent = "Gagal memuat: " + (e.message || e);
+      console.error(e);
+      if (empty) {
+        empty.hidden = false;
+        empty.textContent = "Gagal memuat: " + (e.message || e);
+      }
     }
   }
   init();

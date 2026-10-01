@@ -503,3 +503,14 @@ select:focus,input:focus,textarea:focus{
 .card-eng .eng-love{color:#ff8fab}
 .card-eng .eng-cmt{color:#7ec8ff}
 .user-perm-panel.is-collapsed{display:none}
+
+.video-thumb-btn{
+  position:relative;display:block;width:100%;padding:0;border:0;cursor:pointer;background:#000;aspect-ratio:16/9;overflow:hidden;
+}
+.video-thumb{width:100%;height:100%;object-fit:cover;display:block}
+.video-play{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,.65);color:#fff;
+  display:grid;place-items:center;font-size:18px;border:2px solid rgba(255,255,255,.8);
+}
+.video-thumb-btn:hover .video-play{background:rgba(0,180,220,.85)}
