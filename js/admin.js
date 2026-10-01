@@ -7,6 +7,62 @@
   let videoCache = [];
   let webCache = [];
 
+  function bindListSearch(inputSel, listSel) {
+    const input = $(inputSel);
+    const host = $(listSel);
+    if (!input || !host) return;
+    const run = () => {
+      const q = (input.value || "").trim().toLowerCase();
+      const rows = host.querySelectorAll(".admin-row, .user-node");
+      if (!q) {
+        rows.forEach((r) => {
+          r.style.display = "";
+          r.hidden = false;
+        });
+        host.querySelectorAll(".pt-children").forEach((c) => {
+          // restore: only those with is-collapsed stay collapsed — leave structure
+        });
+        host.querySelectorAll(".pt-node").forEach((n) => {
+          n.style.display = "";
+        });
+        return;
+      }
+      // mark matching rows
+      rows.forEach((r) => {
+        const text = (r.textContent || "").toLowerCase();
+        const ok = text.indexOf(q) >= 0;
+        r.style.display = ok ? "" : "none";
+        r.hidden = !ok;
+        if (ok) {
+          // expand all parent pt-children
+          let p = r.parentElement;
+          while (p && p !== host) {
+            if (p.classList && p.classList.contains("pt-children")) {
+              p.classList.remove("is-collapsed");
+              p.style.display = "";
+            }
+            if (p.classList && p.classList.contains("pt-node")) {
+              p.style.display = "";
+            }
+            p = p.parentElement;
+          }
+        }
+      });
+      // hide empty branches
+      host.querySelectorAll(".pt-node").forEach((node) => {
+        const kids = node.querySelector(".pt-children");
+        if (!kids) return;
+        const visible = kids.querySelector(".admin-row:not([hidden]), .user-node:not([hidden]), .admin-row[style*=''], .pt-node");
+        // if any descendant row visible
+        const any = [...kids.querySelectorAll(".admin-row, .user-node")].some((r) => r.style.display !== "none" && !r.hidden);
+        node.style.display = any ? "" : "none";
+        if (any) kids.classList.remove("is-collapsed");
+      });
+    };
+    input.oninput = run;
+    input.onsearch = run;
+  }
+
   function scrollToForm(sel) {
     const f = $(sel);
     if (!f) return;
@@ -406,6 +462,7 @@
         })
         .join("") || "<p class='muted'>Belum ada video.</p>";
     treeToggleBind($("#vidList"));
+    bindListSearch("#vidSearch", "#vidList");
     $$("#vidList [data-del-vid]").forEach((b) =>
       b.addEventListener("click", async () => {
         if (!confirm("Hapus video?")) return;
@@ -507,6 +564,7 @@
         })
         .join("") || "<p class='muted'>Belum ada website.</p>";
     treeToggleBind($("#webList"));
+    bindListSearch("#webSearch", "#webList");
     $$("#webList [data-del-web]").forEach((b) =>
       b.addEventListener("click", async () => {
         if (!confirm("Hapus website?")) return;
@@ -583,6 +641,7 @@
         })
         .join("") || "<p class='muted'>Belum ada alumni.</p>";
     treeToggleBind($("#alumniList"));
+    bindListSearch("#alumniSearch", "#alumniList");
     $$("#alumniList [data-del-al]").forEach((b) =>
       b.addEventListener("click", async () => {
         if (!confirm("Hapus alumni beserta website-nya?")) return;
@@ -643,6 +702,7 @@
         })
         .join("") || "<p class='muted'>Belum ada angkatan.</p>";
     treeToggleBind($("#angList"));
+    bindListSearch("#angSearch", "#angList");
     $$("#angList [data-del-ang]").forEach((b) =>
       b.addEventListener("click", async () => {
         if (!confirm("Hapus angkatan?")) return;
@@ -723,6 +783,7 @@
           b.textContent = kids.classList.contains("is-collapsed") ? "▸" : "▾";
         })
       );
+      bindListSearch("#linkSearch", "#linkTree");
       host.querySelectorAll("[data-unlink]").forEach((b) =>
         b.addEventListener("click", async () => {
           if (!confirm("Lepas tautan akun ini?")) return;
@@ -892,6 +953,7 @@
     const pb = $("#permBox");
     if (pb) pb.hidden = true;
     treeToggleBind($("#userList"));
+    bindListSearch("#userSearch", "#userList");
     $$("#userList [data-toggle-user]").forEach((row) =>
       row.addEventListener("click", () => {
         const id = row.getAttribute("data-toggle-user");
