@@ -543,3 +543,5 @@ html.sh-tour-active body{cursor:none}
   border:1px solid var(--line);background:rgba(0,0,0,.25);color:#e8f4f8;
 }
 .admin-search-wrap input.admin-list-search:focus{outline:none;border-color:#5ec8ff}
+
+.link-edit-panel.is-collapsed{display:none}

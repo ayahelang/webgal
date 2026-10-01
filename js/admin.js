@@ -63,6 +63,78 @@
     input.onsearch = run;
   }
 
+  /** Alumni resmi: Juli (tahun angkatan + 3). Contoh 2024 → Juli 2027; 2025 → Juli 2028 */
+  function isAlumniCohort(angkatanYear, now) {
+    now = now || new Date();
+    const y = parseInt(angkatanYear, 10);
+    if (!y) return false;
+    const start = new Date(y + 3, 6, 1); // 1 Juli
+    return now >= start;
+  }
+
+  let rosterCache = null;
+  async function loadRoster() {
+    if (rosterCache) return rosterCache;
+    rosterCache = {};
+    try {
+      const r = await fetch("data/student-roster.json", { cache: "no-store" });
+      if (r.ok) rosterCache = await r.json();
+    } catch (e) {}
+    try {
+      if (GalleryDB.fetchGalleryFromDb) {
+        const g = await GalleryDB.fetchGalleryFromDb();
+        (g.students || []).forEach((s) => {
+          const y = String(s.angkatan || "");
+          const c = String(s.class || "");
+          if (!y || !c) return;
+          if (!rosterCache[y]) rosterCache[y] = {};
+          if (!rosterCache[y][c]) rosterCache[y][c] = [];
+          if (s.name && !rosterCache[y][c].includes(s.name)) rosterCache[y][c].push(s.name);
+        });
+      }
+    } catch (e) {}
+    Object.keys(rosterCache).forEach((y) => {
+      Object.keys(rosterCache[y]).forEach((c) => {
+        rosterCache[y][c].sort((a, b) => a.localeCompare(b, "id"));
+      });
+    });
+    return rosterCache;
+  }
+
+  function nameOptionsHtml(year, kelas, selected) {
+    const roster = rosterCache || {};
+    const names = ((roster[String(year)] || {})[String(kelas)] || []).slice();
+    let html = '<option value="">— pilih nama —</option>';
+    names.forEach((n) => {
+      html += `<option value="${esc(n)}" ${selected === n ? "selected" : ""}>${esc(n)}</option>`;
+    });
+    if (selected && !names.includes(selected)) {
+      html += `<option value="${esc(selected)}" selected>${esc(selected)} (custom)</option>`;
+    }
+    return html;
+  }
+
+  function bindLinkNameSelects(root) {
+    const scope = root || document;
+    scope.querySelectorAll("[data-link-year]").forEach((yearSel) => {
+      const id = yearSel.getAttribute("data-link-year");
+      const classSel = scope.querySelector('[data-link-class="' + id + '"]');
+      const nameSel = scope.querySelector('[data-link-name="' + id + '"]');
+      if (!nameSel) return;
+      const refresh = () => {
+        const y = yearSel.value;
+        const c = classSel ? classSel.value : "51";
+        const cur = nameSel.value;
+        if (nameSel.tagName === "SELECT") {
+          nameSel.innerHTML = nameOptionsHtml(y, c, cur);
+        }
+      };
+      yearSel.onchange = refresh;
+      if (classSel) classSel.onchange = refresh;
+      refresh();
+    });
+  }
+
   function scrollToForm(sel) {
     const f = $(sel);
     if (!f) return;
@@ -156,14 +228,17 @@
     const syncBtn = $("#btnSyncDocs");
     if (syncBtn) {
       syncBtn.onclick = async () => {
-        const url = ($("#syncDocsUrl") && $("#syncDocsUrl").value) || "";
+        const url51 = ($("#syncDocsUrl51") && $("#syncDocsUrl51").value) || "";
+        const url52 = ($("#syncDocsUrl52") && $("#syncDocsUrl52").value) || "";
         const msg = $("#syncMsg");
         const log = $("#syncLog");
-        if (msg) msg.textContent = "Mengunduh & memproses…";
+        if (msg) msg.textContent = "Mengunduh & memproses tab 51 & 52…";
         try {
-          const r = await GalleryDB.syncFromGoogleDocs(url);
-          if (msg) msg.textContent = "Selesai. Skills & refleksi diperbarui (data lama digabung).";
-          if (log) log.textContent = JSON.stringify(r, null, 2);
+          const results = [];
+          if (url51) results.push({ tab: "51", ...(await GalleryDB.syncFromGoogleDocs(url51)) });
+          if (url52) results.push({ tab: "52", ...(await GalleryDB.syncFromGoogleDocs(url52)) });
+          if (msg) msg.textContent = "Selesai (data lama digabung). Layout Skills/Nilai Proses tetap.";
+          if (log) log.textContent = JSON.stringify(results, null, 2);
         } catch (e) {
           if (msg) msg.textContent = e.message || String(e);
         }
@@ -595,7 +670,13 @@
 
   async function refreshAlumni() {
     const rows = await GalleryDB.adminListAlumni();
-    alumniCache = rows || [];
+    // hanya yang sudah status alumni resmi (Juli tahun+3)
+    alumniCache = (rows || []).filter((a) => {
+      const ang = a.gallery_angkatan || {};
+      const m = String(ang.label || "").match(/20\d{2}/);
+      const year = m ? m[0] : "";
+      return isAlumniCohort(year);
+    });
     await fillAlumniSelects();
     const tree = {};
     alumniCache.forEach((a) => {
@@ -639,7 +720,7 @@
             <div class="pt-children" data-parent="al-y-${esc(y)}">${cHtml}</div>
           </div>`;
         })
-        .join("") || "<p class='muted'>Belum ada alumni.</p>";
+        .join("") || "<p class='muted'>Belum ada data alumni resmi. Angkatan 2024 alumni Juli 2027; angkatan 2025 alumni Juli 2028.</p>";
     treeToggleBind($("#alumniList"));
     bindListSearch("#alumniSearch", "#alumniList");
     $$("#alumniList [data-del-al]").forEach((b) =>
@@ -733,6 +814,7 @@
     if (!host) return;
     host.innerHTML = "Memuat…";
     try {
+      await loadRoster();
       const rows = await GalleryDB.adminListLinks();
       // group year -> class -> list
       const tree = {};
@@ -757,9 +839,30 @@
                 .map((r) => {
                   const who = esc(r.email || r.display_name || r.id);
                   const sn = esc(r.linked_student_name);
-                  return `<div class="admin-row" style="margin:4px 0">
-                    <div><strong>${sn}</strong><br><small>${who}</small></div>
-                    <button type="button" class="btn btn-ghost" data-unlink="${r.id}" style="padding:6px 10px;font-size:12px">Lepas</button>
+                  const y = String(r.linked_angkatan_year || "2025");
+                  const c = String(r.linked_class_code || "51");
+                  return `<div class="admin-row" style="margin:4px 0;display:block">
+                    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
+                      <div><strong>${sn}</strong><br><small>${who}</small></div>
+                      <div style="display:flex;gap:6px">
+                        <button type="button" class="btn btn-ghost" data-edit-link="${r.id}" style="padding:6px 10px;font-size:12px">Ubah</button>
+                        <button type="button" class="btn btn-ghost" data-unlink="${r.id}" style="padding:6px 10px;font-size:12px">Lepas</button>
+                      </div>
+                    </div>
+                    <div class="link-edit-panel is-collapsed" data-edit-panel="${r.id}" style="margin-top:8px;padding:10px;border:1px dashed rgba(125,227,255,.25);border-radius:10px">
+                      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end">
+                        <label class="field" style="margin:0"><span>Angkatan</span>
+                          <select data-link-year="${r.id}"><option value="2025" ${y==="2025"?"selected":""}>2025</option><option value="2024" ${y==="2024"?"selected":""}>2024</option></select>
+                        </label>
+                        <label class="field" style="margin:0"><span>Kelas</span>
+                          <select data-link-class="${r.id}"><option value="51" ${c==="51"?"selected":""}>51</option><option value="52" ${c==="52"?"selected":""}>52</option></select>
+                        </label>
+                        <label class="field" style="margin:0;min-width:160px"><span>Nama siswa</span>
+                          <select data-link-name="${r.id}"></select>
+                        </label>
+                        <button type="button" class="btn btn-primary" data-save-link="${r.id}" style="padding:8px 12px;font-size:12px">Simpan tautan</button>
+                      </div>
+                    </div>
                   </div>`;
                 })
                 .join("");
@@ -796,6 +899,31 @@
           }
         })
       );
+      host.querySelectorAll("[data-edit-link]").forEach((b) =>
+        b.addEventListener("click", () => {
+          const id = b.getAttribute("data-edit-link");
+          const panel = host.querySelector('[data-edit-panel="' + id + '"]');
+          if (panel) panel.classList.toggle("is-collapsed");
+        })
+      );
+      host.querySelectorAll("[data-save-link]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          const id = b.getAttribute("data-save-link");
+          const year = (host.querySelector('[data-link-year="' + id + '"]') || {}).value;
+          const kelas = (host.querySelector('[data-link-class="' + id + '"]') || {}).value;
+          const name = ((host.querySelector('[data-link-name="' + id + '"]') || {}).value || "").trim();
+          if (!name) return alert("Pilih nama siswa");
+          try {
+            await GalleryDB.adminForceLinkProfile(id, { studentName: name, angkatanYear: year, classCode: kelas });
+            if (msg) msg.textContent = "Tautan diperbarui.";
+            await refreshLinks();
+            if (typeof refreshUsers === "function") await refreshUsers();
+          } catch (e) {
+            alert(e.message || e);
+          }
+        })
+      );
+      bindLinkNameSelects(host);
       // siswa/user belum taut
       try {
         const allUsers = await GalleryDB.listRegisteredUsers();
@@ -816,8 +944,8 @@
                   <label class="field" style="margin:0"><span>Kelas</span>
                     <select data-link-class="${u.id}"><option value="51">51</option><option value="52">52</option></select>
                   </label>
-                  <label class="field" style="margin:0;min-width:140px"><span>Nama siswa</span>
-                    <input data-link-name="${u.id}" type="text" placeholder="Nama">
+                  <label class="field" style="margin:0;min-width:160px"><span>Nama siswa</span>
+                    <select data-link-name="${u.id}"></select>
                   </label>
                   <button type="button" class="btn btn-primary" data-admin-link="${u.id}" style="padding:8px 12px;font-size:12px">Tautkan</button>
                 </div>
@@ -827,13 +955,14 @@
           </div>`;
           host.appendChild(box);
           treeToggleBind(box);
+          bindLinkNameSelects(box);
           box.querySelectorAll("[data-admin-link]").forEach((btn) =>
             btn.addEventListener("click", async () => {
               const id = btn.getAttribute("data-admin-link");
               const year = (box.querySelector('[data-link-year="' + id + '"]') || {}).value;
               const kelas = (box.querySelector('[data-link-class="' + id + '"]') || {}).value;
               const name = ((box.querySelector('[data-link-name="' + id + '"]') || {}).value || "").trim();
-              if (!name) return alert("Isi nama siswa");
+              if (!name) return alert("Pilih nama siswa");
               try {
                 await GalleryDB.adminForceLinkProfile(id, { studentName: name, angkatanYear: year, classCode: kelas });
                 if (msg) msg.textContent = "Tautan disimpan.";
@@ -854,6 +983,7 @@
   }
 
   async function refreshUsers() {
+    await loadRoster();
     const rows = await GalleryDB.listRegisteredUsers();
     const keys = (window.GALLERY_SUPABASE && GALLERY_SUPABASE.adminPermissionKeys) || (window.SUPABASE_CONFIG && SUPABASE_CONFIG.adminPermissionKeys) || [];
     const linked = rows.filter((u) => u.linked_student_name && String(u.linked_student_name).trim());
@@ -882,7 +1012,7 @@
             <select data-link-class="${u.id}"><option value="51">51</option><option value="52">52</option></select>
           </label>
           <label class="field" style="margin:0;min-width:160px"><span>Nama</span>
-            <input data-link-name="${u.id}" type="text" placeholder="Nama lengkap siswa" list="adminStudentNames">
+            <select data-link-name="${u.id}"></select>
           </label>
           <button type="button" class="btn btn-primary" data-admin-link="${u.id}" style="padding:8px 12px;font-size:12px">Tautkan</button>
         </div>
@@ -954,6 +1084,7 @@
     if (pb) pb.hidden = true;
     treeToggleBind($("#userList"));
     bindListSearch("#userSearch", "#userList");
+    bindLinkNameSelects($("#userList"));
     $$("#userList [data-toggle-user]").forEach((row) =>
       row.addEventListener("click", () => {
         const id = row.getAttribute("data-toggle-user");
