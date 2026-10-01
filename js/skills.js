@@ -22,6 +22,12 @@
           }
         }
       }
+      if (window.GalleryDB && GalleryDB.loadAiSkills) {
+        const ai = await GalleryDB.loadAiSkills();
+        if (ai && base) {
+          base.aiSkills = ai;
+        }
+      }
     } catch (e) {
       console.warn(e);
     }
@@ -63,6 +69,20 @@
       <span><b>Pengajar</b> ${esc(m.instructor)}</span>
       <span><b>Periode</b> ${esc(m.period)}</span>
       <span><b>Untuk</b> ${esc(m.audience)}</span>`);
+    if (data.aiSkills && (data.aiSkills.summary || (data.aiSkills.domains && data.aiSkills.domains.length))) {
+      const host = $("#levelGrid");
+      if (host) {
+        const box = document.createElement("div");
+        box.className = "summary-card";
+        box.style.marginTop = "12px";
+        const domains = data.aiSkills.domains || [];
+        box.innerHTML = "<h3 style=\"margin:0 0 8px\">Ringkasan AI dari refleksi siswa</h3>" +
+          (data.aiSkills.summary ? "<p>" + esc(data.aiSkills.summary) + "</p>" : "") +
+          domains.map((d) => "<div style=\"margin:8px 0\"><strong>" + esc(d.name || "") + "</strong> · <em>" + esc(d.level || "") + "</em><ul>" +
+            (d.skills || []).map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul></div>").join("");
+        host.parentNode && host.parentNode.insertBefore(box, host);
+      }
+    }
     if (data.syncNotes && data.syncNotes.length) {
       const host = $("#levelGrid");
       if (host) {

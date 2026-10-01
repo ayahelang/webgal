@@ -168,9 +168,15 @@
         <label class="field"><span>Docs Tab Kelas 52 · Angkatan 2025</span>
           <input id="syncDocsUrl52" type="url" value="https://docs.google.com/document/d/12zjFUs-ZihCvIqeINS8YbXF8revUSnQmZO2y7Njqe8k/edit?tab=t.yuf1q9pk5z6t">
         </label>
+        <label class="field"><span>Google Sheet roster 2025 (ID)</span>
+          <input id="syncSheetId" type="text" value="1kr4Dvd2LcrCJLYvhwnYkWcRhUXPgTw9uZlOaeTK8SXE">
+        </label>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-          <button type="button" class="btn btn-primary" id="btnSyncDocs">Update dari Google Docs</button>
+          <button type="button" class="btn btn-primary" id="btnImportSheet">1. Import Sheet (nama + nickname + intro video)</button>
+          <button type="button" class="btn btn-primary" id="btnSyncDocs">2. Analisis AI dari Google Docs</button>
+          <button type="button" class="btn btn-ghost" id="btnSyncDocsPlain">Sync teks biasa (tanpa AI)</button>
         </div>
+        <p class="muted" style="font-size:12px;margin-top:8px">AI membutuhkan Edge Function <code>sync-ai-docs</code> + secret <code>OPENAI_API_KEY</code> atau <code>GROQ_API_KEY</code> di Supabase.</p>
         <p id="syncMsg" class="muted" style="font-size:13px;margin-top:10px"></p>
         <pre id="syncLog" class="muted" style="font-size:11px;white-space:pre-wrap;max-height:200px;overflow:auto"></pre>
       </section>

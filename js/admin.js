@@ -225,22 +225,52 @@
     );
 
     bindForms(session);
+    const msg = () => $("#syncMsg");
+    const log = () => $("#syncLog");
+    const sheetId = () => (($("#syncSheetId") && $("#syncSheetId").value) || "").trim();
+    const docsUrls = () => {
+      const u = [];
+      if ($("#syncDocsUrl51") && $("#syncDocsUrl51").value) u.push($("#syncDocsUrl51").value.trim());
+      if ($("#syncDocsUrl52") && $("#syncDocsUrl52").value) u.push($("#syncDocsUrl52").value.trim());
+      return u.filter(Boolean);
+    };
+    const imp = $("#btnImportSheet");
+    if (imp) {
+      imp.onclick = async () => {
+        if (msg()) msg().textContent = "Mengimpor Sheet 51 & 52…";
+        try {
+          const r = await GalleryDB.importRosterFromSheet2025(sheetId());
+          if (msg()) msg().textContent = "Sheet OK: alias " + r.aliasesUpserted + ", video intro +" + r.videosAdded + ", web +" + r.websitesHint;
+          if (log()) log().textContent = JSON.stringify(r, null, 2);
+        } catch (e) {
+          if (msg()) msg().textContent = e.message || String(e);
+        }
+      };
+    }
     const syncBtn = $("#btnSyncDocs");
     if (syncBtn) {
       syncBtn.onclick = async () => {
-        const url51 = ($("#syncDocsUrl51") && $("#syncDocsUrl51").value) || "";
-        const url52 = ($("#syncDocsUrl52") && $("#syncDocsUrl52").value) || "";
-        const msg = $("#syncMsg");
-        const log = $("#syncLog");
-        if (msg) msg.textContent = "Mengunduh & memproses tab 51 & 52…";
+        if (msg()) msg().textContent = "Menjalankan AI (Edge Function)…";
+        try {
+          const r = await GalleryDB.runAiDocsSync({ docsUrls: docsUrls(), sheetId: sheetId() });
+          if (msg()) msg().textContent = "AI selesai · domain " + (r.domains || 0) + " · siswa " + (r.students || 0);
+          if (log()) log().textContent = JSON.stringify(r, null, 2);
+        } catch (e) {
+          if (msg()) msg().textContent = e.message || String(e);
+        }
+      };
+    }
+    const plain = $("#btnSyncDocsPlain");
+    if (plain) {
+      plain.onclick = async () => {
+        if (msg()) msg().textContent = "Sync teks biasa…";
         try {
           const results = [];
-          if (url51) results.push({ tab: "51", ...(await GalleryDB.syncFromGoogleDocs(url51)) });
-          if (url52) results.push({ tab: "52", ...(await GalleryDB.syncFromGoogleDocs(url52)) });
-          if (msg) msg.textContent = "Selesai (data lama digabung). Layout Skills/Nilai Proses tetap.";
-          if (log) log.textContent = JSON.stringify(results, null, 2);
+          for (const u of docsUrls()) results.push(await GalleryDB.syncFromGoogleDocs(u));
+          if (msg()) msg().textContent = "Sync teks selesai (tanpa AI).";
+          if (log()) log().textContent = JSON.stringify(results, null, 2);
         } catch (e) {
-          if (msg) msg.textContent = e.message || String(e);
+          if (msg()) msg().textContent = e.message || String(e);
         }
       };
     }

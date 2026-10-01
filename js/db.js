@@ -1503,6 +1503,215 @@
     return data;
   }
 
+
+  function parseCsv(text) {
+    const rows = [];
+    let row = [], cur = "", inQ = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i], n = text[i + 1];
+      if (inQ) {
+        if (c === '"' && n === '"') { cur += '"'; i++; }
+        else if (c === '"') inQ = false;
+        else cur += c;
+      } else {
+        if (c === '"') inQ = true;
+        else if (c === ",") { row.push(cur); cur = ""; }
+        else if (c === "\n" || c === "\r") {
+          if (c === "\r" && n === "\n") i++;
+          row.push(cur); rows.push(row); row = []; cur = "";
+        } else cur += c;
+      }
+    }
+    if (cur || row.length) { row.push(cur); rows.push(row); }
+    return rows;
+  }
+
+  async function fetchSheetCsv(sheetId, sheetName) {
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error("Gagal unduh sheet " + sheetName + " (" + res.status + ")");
+    return await res.text();
+  }
+
+  function findHeaderIndex(rows) {
+    for (let i = 0; i < Math.min(rows.length, 8); i++) {
+      const lower = rows[i].map((c) => String(c || "").toLowerCase());
+      if (lower.some((c) => c === "nama" || c.includes("nama"))) return i;
+    }
+    return 0;
+  }
+
+  function colIndex(header, names) {
+    const h = header.map((c) => String(c || "").toLowerCase().trim());
+    for (const n of names) {
+      const i = h.findIndex((x) => x === n || x.includes(n));
+      if (i >= 0) return i;
+    }
+    return -1;
+  }
+
+  /** Import nama + nickname + intro video dari Sheet 51 & 52 angkatan 2025 */
+  async function importRosterFromSheet2025(sheetId) {
+    if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
+    const sb = client();
+    sheetId = sheetId || "1kr4Dvd2LcrCJLYvhwnYkWcRhUXPgTw9uZlOaeTK8SXE";
+    const year = 2025;
+    let aliasesUpserted = 0;
+    let videosAdded = 0;
+    let websitesHint = 0;
+
+    // pastikan angkatan 2025
+    let angList = await listAngkatan({ mainOnly: false });
+    let ang = angList.find((a) => String(a.label || "").includes("2025"));
+    if (!ang) {
+      const { data } = await sb.from("gallery_angkatan").insert({ label: "Angkatan 2025", label_norm: "angkatan-2025" }).select("*").single();
+      ang = data;
+    }
+
+    // kategori karya siswa
+    const cats = await listVideoCategories();
+    const ks = cats.find((c) => c.slug === "karya-siswa");
+    const catId = ks ? ks.id : (cats[0] && cats[0].id) || null;
+
+    for (const classCode of ["51", "52"]) {
+      const csv = await fetchSheetCsv(sheetId, classCode);
+      const rows = parseCsv(csv);
+      const hi = findHeaderIndex(rows);
+      const header = rows[hi] || [];
+      const iNama = colIndex(header, ["nama"]);
+      const iNick = colIndex(header, ["nickname", "nick"]);
+      const iEmail = colIndex(header, ["email"]);
+      const iIntro = colIndex(header, ["edited intro", "intro vid", "edited intro vid"]);
+      const iGh = colIndex(header, ["github pages", "github"]);
+      if (iNama < 0) throw new Error("Kolom NAMA tidak ketemu di sheet " + classCode);
+
+      for (let r = hi + 1; r < rows.length; r++) {
+        const row = rows[r];
+        const official = String(row[iNama] || "").trim();
+        if (!official || /^\d+$/.test(official) || official.toLowerCase() === "nama") continue;
+        const nickname = iNick >= 0 ? String(row[iNick] || "").trim() : "";
+        const email = iEmail >= 0 ? String(row[iEmail] || "").trim() : "";
+        let intro = iIntro >= 0 ? String(row[iIntro] || "").trim() : "";
+        // normalize dai.ly short links
+        if (intro && intro.includes("dai.ly/") && !intro.includes("dailymotion.com")) {
+          const id = intro.split("dai.ly/")[1].split(/[?\s]/)[0];
+          intro = "https://www.dailymotion.com/video/" + id;
+        }
+        const gh = iGh >= 0 ? String(row[iGh] || "").trim().split(/\s+/)[0] : "";
+
+        const { error: eA } = await sb.from("gallery_student_aliases").upsert(
+          {
+            official_name: official,
+            nickname,
+            angkatan_year: year,
+            class_code: classCode,
+            email,
+            intro_video_url: intro,
+            github_pages: gh,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "angkatan_year,class_code,official_name" }
+        );
+        if (!eA) aliasesUpserted++;
+
+        // alumni + website github jika ada
+        const nameNorm = normLabel(official);
+        let { data: al } = await sb
+          .from("gallery_alumni")
+          .select("id")
+          .eq("angkatan_id", ang.id)
+          .eq("name_norm", nameNorm)
+          .maybeSingle();
+        if (!al) {
+          const ins = await sb
+            .from("gallery_alumni")
+            .insert({
+              name: official,
+              name_norm: nameNorm,
+              angkatan_id: ang.id,
+              class_code: classCode,
+              role: "Santriwati",
+            })
+            .select("id")
+            .single();
+          al = ins.data;
+        }
+        if (gh && al && gh.startsWith("http")) {
+          const nu = normUrl(gh);
+          const { data: existing } = await sb.from("gallery_websites").select("id,url").eq("alumni_id", al.id);
+          const has = (existing || []).some((w) => normUrl(w.url) === nu);
+          if (!has) {
+            await sb.from("gallery_websites").insert({
+              alumni_id: al.id,
+              title: official + " · Web",
+              url: gh.split("#")[0],
+              category: "Web Kreatif",
+              description: "Dari roster sheet 2025",
+            });
+            websitesHint++;
+          }
+        }
+
+        // intro video
+        if (intro && al && intro.startsWith("http")) {
+          const { data: vids } = await sb
+            .from("gallery_videos")
+            .select("id,url")
+            .ilike("owner_name", official);
+          const hasV = (vids || []).some((v) => normUrl(v.url) === normUrl(intro) || String(v.url).includes(intro.slice(-8)));
+          if (!hasV) {
+            let embed = intro;
+            const yt = intro.match(/(?:youtu\.be\/|v=|shorts\/)([\w-]{6,})/);
+            if (yt) embed = "https://www.youtube.com/embed/" + yt[1];
+            const dm = intro.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/);
+            if (dm) embed = "https://www.dailymotion.com/embed/video/" + dm[1];
+            await sb.from("gallery_videos").insert({
+              title: "Intro · " + official,
+              url: intro,
+              platform: yt ? "youtube" : dm ? "dailymotion" : "other",
+              embed_url: embed,
+              category_id: catId,
+              description: "Edited intro video · Kelas " + classCode + " · Angkatan 2025",
+              owner_name: official,
+              created_by: "sheet-import",
+            });
+            videosAdded++;
+          }
+        }
+      }
+    }
+
+    return { aliasesUpserted, videosAdded, websitesHint, year, sheetId };
+  }
+
+  async function runAiDocsSync({ docsUrls, sheetId }) {
+    if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
+    const session = await getSession();
+    if (!session) throw new Error("Belum login");
+    const c = cfg();
+    const base = String(c.url || "").replace(/\/$/, "");
+    const res = await fetch(base + "/functions/v1/sync-ai-docs", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + session.access_token,
+        apikey: c.anonKey,
+      },
+      body: JSON.stringify({ docsUrls, sheetId }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || j.detail || ("AI sync gagal " + res.status));
+    return j;
+  }
+
+  async function loadAiSkills() {
+    const sb = client();
+    if (!sb) return null;
+    const { data, error } = await sb.from("gallery_ai_skills").select("*").eq("id", "main").maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
   async function batchEngagement(urls) {
     const sb = client();
     const map = {};
@@ -1962,6 +2171,9 @@
     trackEvent,
     batchEngagement,
     syncFromGoogleDocs,
+    importRosterFromSheet2025,
+    runAiDocsSync,
+    loadAiSkills,
     loadRefleksiFromDb,
     loadSkillsMetaFromDb,
     fetchGoogleDocsText,
