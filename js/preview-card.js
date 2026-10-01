@@ -65,5 +65,32 @@
     </article>`);
   }
 
-  window.SHPreview = { previewWebsite, previewVideo, showModal };
+    function previewMyWebsitesCard({ name, classLabel, works }) {
+    const list = (works || []).filter((w) => w && w.url);
+    if (!list.length) {
+      showModal('<p class="muted">Belum ada website untuk dipreview.</p>');
+      return;
+    }
+    const worksHtml = list
+      .map(
+        (w, i) =>
+          `<div class="work-row"><a class="work-choice ${i === 0 ? "active" : ""}" href="${esc(w.url)}" target="_blank" rel="noopener">
+            <span>${String(i + 1).padStart(2, "0")}</span><b>${esc(w.title || "Website")}</b>
+            <small>${esc(w.category || "Web")}</small><em>↗</em></a></div>`
+      )
+      .join("");
+    showModal(`<article class="card" style="max-width:100%">
+      <div class="card-body" style="padding:12px">
+        <div class="student-row">
+          <div class="student">${esc(name || "Siswa")}</div>
+          <span class="class-badge">${esc(classLabel || "")}</span>
+        </div>
+        <p class="card-desc">${list.length} website karya · preview kartu gallery</p>
+        <div class="works-title">KARYA <span>${list.length} LINK</span></div>
+        <div class="work-list">${worksHtml}</div>
+      </div>
+    </article>`);
+  }
+
+  window.SHPreview = { previewWebsite, previewVideo, previewMyWebsitesCard, showModal };
 })();

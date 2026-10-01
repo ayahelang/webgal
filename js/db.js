@@ -772,13 +772,50 @@
     const session = await getSession();
     if (!session || !session.user) throw new Error("Belum login");
     const sb = client();
-    const { data, error } = await sb
+    const prof = await getMyProfile();
+    const uid = session.user.id;
+    const name = (prof && prof.linked_student_name) || "";
+
+    const { data: byUser, error: e1 } = await sb
       .from("gallery_videos")
       .select("*, gallery_video_categories(name,slug)")
-      .eq("owner_user_id", session.user.id)
+      .eq("owner_user_id", uid)
       .order("created_at", { ascending: false });
-    if (error) throw error;
-    return data || [];
+    if (e1) throw e1;
+
+    let byName = [];
+    if (name) {
+      const { data, error: e2 } = await sb
+        .from("gallery_videos")
+        .select("*, gallery_video_categories(name,slug)")
+        .ilike("owner_name", name)
+        .order("created_at", { ascending: false });
+      if (e2) console.warn(e2);
+      else byName = data || [];
+    }
+
+    const map = new Map();
+    [...(byUser || []), ...byName].forEach((v) => {
+      if (v && v.id) map.set(v.id, v);
+    });
+    const rows = [...map.values()].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+
+    // klaim video yang cocok nama tapi belum punya owner_user_id
+    for (const v of rows) {
+      if (!v.owner_user_id && name) {
+        try {
+          await sb
+            .from("gallery_videos")
+            .update({ owner_user_id: uid, owner_name: name })
+            .eq("id", v.id)
+            .is("owner_user_id", null);
+          v.owner_user_id = uid;
+        } catch (e) {
+          /* RLS mungkin membatasi */
+        }
+      }
+    }
+    return rows;
   }
 
   async function addMyVideo({ title, url, description, categoryId }) {

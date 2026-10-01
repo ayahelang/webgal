@@ -17,14 +17,27 @@
       });
     };
     const wp = document.getElementById("webPreview");
-    if (wp) wp.onclick = () => {
-      const f = document.getElementById("webForm");
-      SHPreview.previewWebsite({
-        title: f.querySelector("[name=title]").value,
-        url: f.querySelector("[name=url]").value,
-        category: (f.querySelector("[name=category]") || {}).value || "Web",
-        name: "Saya",
-      });
+    if (wp) wp.onclick = async () => {
+      try {
+        const prof = await GalleryDB.getMyProfile();
+        const rows = await GalleryDB.myWebsites();
+        const form = document.getElementById("webForm");
+        // jika form sedang diisi URL baru yang belum tersimpan, sertakan di preview
+        const draftTitle = form && form.querySelector("[name=title]") ? form.querySelector("[name=title]").value : "";
+        const draftUrl = form && form.querySelector("[name=url]") ? form.querySelector("[name=url]").value.trim() : "";
+        const draftCat = form && form.querySelector("[name=category]") ? form.querySelector("[name=category]").value : "Web";
+        const works = (rows || []).map((w) => ({ title: w.title, url: w.url, category: w.category }));
+        if (draftUrl && !works.some((w) => String(w.url).replace(/\/+$/, "") === draftUrl.replace(/\/+$/, ""))) {
+          works.unshift({ title: draftTitle || "Website baru", url: draftUrl, category: draftCat || "Web" });
+        }
+        SHPreview.previewMyWebsitesCard({
+          name: (prof && prof.linked_student_name) || "Saya",
+          classLabel: "Kelas " + ((prof && prof.linked_class_code) || "") + " · " + ((prof && prof.linked_angkatan_year) || ""),
+          works,
+        });
+      } catch (e) {
+        alert(e.message || e);
+      }
     };
   }
   async function boot() {
