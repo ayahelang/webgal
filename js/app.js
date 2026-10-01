@@ -2,6 +2,9 @@
   const ACTIVE_YEAR = String(new Date().getFullYear() - 1); // 2026 → 2025 masih belajar
   const state = { data:null, query:"", classFilter:"y:"+ACTIVE_YEAR, sort:"name" };
   let viewerCtx = { loggedIn: false, name: "", year: "", classCode: "" };
+  const $ = (s) => document.querySelector(s);
+  let tipEl = null;
+  const metaCache = new Map();
 
   async function resolveViewer() {
     try {

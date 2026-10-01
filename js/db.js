@@ -178,12 +178,21 @@
     // kontak dari profil yg sudah ditautkan ke alumni
     let contactByAlumni = {};
     try {
-      const { data: profiles } = await sb
+      let profiles = null;
+      let pr = await sb
         .from("gallery_profiles")
         .select(
           "linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code,contact_wa,contact_ig,contact_fb,contact_twitter,contact_tiktok,contact_privacy"
         )
         .not("linked_alumni_id", "is", null);
+      if (pr.error) {
+        // kolom kontak belum ada — fallback tanpa contact
+        pr = await sb
+          .from("gallery_profiles")
+          .select("linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code")
+          .not("linked_alumni_id", "is", null);
+      }
+      profiles = pr.data;
       (profiles || []).forEach((p) => {
         if (p.linked_alumni_id) contactByAlumni[p.linked_alumni_id] = p;
       });
