@@ -114,6 +114,127 @@
     return html;
   }
 
+  async function buildLinkCoverage() {
+    await loadRoster();
+    const profiles = await GalleryDB.listRegisteredUsers();
+    let alumni = [];
+    try {
+      alumni = await GalleryDB.adminListAlumni();
+    } catch (e) {}
+    // universe: roster + alumni names per year/class
+    const students = {}; // year -> class -> Set of names
+    function addName(y, c, name) {
+      y = String(y || "");
+      c = String(c || "");
+      name = String(name || "").trim();
+      if (!y || !c || !name) return;
+      if (!students[y]) students[y] = {};
+      if (!students[y][c]) students[y][c] = new Map();
+      const key = name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      if (!students[y][c].has(key)) students[y][c].set(key, name);
+    }
+    Object.keys(rosterCache || {}).forEach((y) => {
+      Object.keys(rosterCache[y] || {}).forEach((c) => {
+        (rosterCache[y][c] || []).forEach((n) => addName(y, c, n));
+      });
+    });
+    (alumni || []).forEach((al) => {
+      const ang = al.gallery_angkatan || {};
+      const m = String(ang.label || "").match(/20\d{2}/);
+      const y = m ? m[0] : "";
+      addName(y, al.class_code, al.name);
+    });
+    // linked profiles
+    const linkedByStudent = {}; // year|class|nameKey -> profile
+    const linkedProfiles = [];
+    const unlinkedAccounts = [];
+    (profiles || []).forEach((p) => {
+      const nm = String(p.linked_student_name || "").trim();
+      if (!nm || !p.linked_angkatan_year) {
+        unlinkedAccounts.push(p);
+        return;
+      }
+      linkedProfiles.push(p);
+      const y = String(p.linked_angkatan_year);
+      const c = String(p.linked_class_code || "");
+      const key = nm.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      linkedByStudent[y + "|" + c + "|" + key] = p;
+      // also key without class for fuzzy
+      linkedByStudent[y + "||" + key] = p;
+    });
+    // students not linked
+    const unlinkedStudents = [];
+    Object.keys(students).forEach((y) => {
+      Object.keys(students[y]).forEach((c) => {
+        students[y][c].forEach((displayName, key) => {
+          const hit = linkedByStudent[y + "|" + c + "|" + key] || linkedByStudent[y + "||" + key];
+          if (!hit) unlinkedStudents.push({ year: y, classCode: c, name: displayName });
+        });
+      });
+    });
+    const totals = {};
+    Object.keys(students).forEach((y) => {
+      let n = 0;
+      Object.keys(students[y]).forEach((c) => (n += students[y][c].size));
+      totals[y] = n;
+    });
+    const linkedCountByYear = {};
+    linkedProfiles.forEach((p) => {
+      const y = String(p.linked_angkatan_year);
+      linkedCountByYear[y] = (linkedCountByYear[y] || 0) + 1;
+    });
+    return {
+      students,
+      totals,
+      linkedProfiles,
+      unlinkedAccounts,
+      unlinkedStudents,
+      linkedCountByYear,
+      profiles,
+    };
+  }
+
+  function coverageSummaryHtml(cov) {
+    const years = Object.keys(cov.totals || {}).sort().reverse();
+    if (!years.length) return "<p class='muted'>Belum ada daftar siswa (roster/alumni).</p>";
+    return (
+      "<div class='link-coverage-box' style='margin:0 0 12px;padding:10px 12px;border:1px solid rgba(125,227,255,.2);border-radius:12px;font-size:13px'>" +
+      years
+        .map((y) => {
+          const total = cov.totals[y] || 0;
+          // hitung linked unik per nama siswa di tahun itu
+          let linked = 0;
+          const st = cov.students[y] || {};
+          Object.keys(st).forEach((c) => {
+            st[c].forEach((name, key) => {
+              const hit = cov.linkedProfiles.some((p) => {
+                if (String(p.linked_angkatan_year) !== y) return false;
+                const nk = String(p.linked_student_name || "")
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, " ")
+                  .trim();
+                return nk === key;
+              });
+              if (hit) linked++;
+            });
+          });
+          const belum = total - linked;
+          const ok = linked + belum === total;
+          return (
+            `<div style="margin:4px 0"><strong>Angkatan ${esc(y)}</strong>: ` +
+            `<b>${total}</b> siswa · ` +
+            `<span style="color:#8ff5bd">${linked} sudah taut Google</span> · ` +
+            `<span style="color:#fde68a">${belum} belum taut</span>` +
+            (ok ? " · ✓" : " · ⚠ cek data") +
+            `</div>`
+          );
+        })
+        .join("") +
+      `<div class="muted" style="margin-top:6px;font-size:12px">Akun Google belum pilih nama: <b>${(cov.unlinkedAccounts || []).length}</b> (bukan jumlah siswa)</div>` +
+      "</div>"
+    );
+  }
+
   function bindLinkNameSelects(root) {
     const scope = root || document;
     scope.querySelectorAll("[data-link-year]").forEach((yearSel) => {
@@ -844,8 +965,9 @@
     if (!host) return;
     host.innerHTML = "Memuat…";
     try {
-      await loadRoster();
+      const cov = await buildLinkCoverage();
       const rows = await GalleryDB.adminListLinks();
+      const summary = coverageSummaryHtml(cov);
       // group year -> class -> list
       const tree = {};
       rows.forEach((r) => {
@@ -857,10 +979,10 @@
       });
       const years = Object.keys(tree).sort().reverse();
       if (!years.length) {
-        host.innerHTML = "<p class='muted'>Belum ada tautan.</p>";
-        return;
-      }
-      host.innerHTML = years
+        host.innerHTML = summary + "<p class='muted'>Belum ada tautan akun Google ↔ nama.</p>";
+        // tetap tampilkan siswa belum taut
+      } else {
+      host.innerHTML = summary + years
         .map((y) => {
           const classes = Object.keys(tree[y]).sort();
           const classHtml = classes
@@ -908,6 +1030,10 @@
           </div>`;
         })
         .join("");
+      } // end else years.length
+      if (!years.length && !host.innerHTML.includes("link-coverage")) {
+        host.innerHTML = summary;
+      }
       host.querySelectorAll(".pt-toggle").forEach((b) =>
         b.addEventListener("click", () => {
           const kids = host.querySelector('[data-parent="' + b.dataset.t + '"]');
@@ -956,13 +1082,46 @@
       bindLinkNameSelects(host);
       // siswa/user belum taut
       try {
-        const allUsers = await GalleryDB.listRegisteredUsers();
-        const noLink = (allUsers || []).filter((u) => !(u.linked_student_name && String(u.linked_student_name).trim()));
+        // Tutup branch years jika dibuka
+        try { /* no-op */ } catch (e) {}
+        // 1) Siswa di roster yang belum punya akun Google tertaut
+        if (cov.unlinkedStudents && cov.unlinkedStudents.length) {
+          const byY = {};
+          cov.unlinkedStudents.forEach((s) => {
+            if (!byY[s.year]) byY[s.year] = {};
+            if (!byY[s.year][s.classCode]) byY[s.year][s.classCode] = [];
+            byY[s.year][s.classCode].push(s.name);
+          });
+          const boxS = document.createElement("div");
+          boxS.style.marginTop = "16px";
+          boxS.innerHTML =
+            `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="link-siswa-belum">▾</button><strong>Siswa belum tertaut akun Google</strong> <small class="muted">(${cov.unlinkedStudents.length} nama · ini yang harus dijumlahkan dengan yang sudah taut)</small></div><div class="pt-children" data-parent="link-siswa-belum">` +
+            Object.keys(byY)
+              .sort()
+              .reverse()
+              .map((y) => {
+                return Object.keys(byY[y])
+                  .sort()
+                  .map((c) => {
+                    const names = byY[y][c].sort((a, b) => a.localeCompare(b, "id"));
+                    return `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="sb-${y}-${c}">▾</button><strong>Angkatan ${esc(y)} · Kelas ${esc(c)}</strong> <small class="muted">(${names.length})</small></div><div class="pt-children" data-parent="sb-${y}-${c}">${names
+                      .map((n) => `<div class="admin-row"><div><strong>${esc(n)}</strong><br><small>Belum ada akun Google yang menautkan nama ini</small></div></div>`)
+                      .join("")}</div></div>`;
+                  })
+                  .join("");
+              })
+              .join("") +
+            `</div></div>`;
+          host.appendChild(boxS);
+          treeToggleBind(boxS);
+        }
+        // 2) Akun Google yang login tapi belum pilih nama siswa
+        const noLink = cov.unlinkedAccounts || [];
         if (noLink.length) {
           const box = document.createElement("div");
           box.style.marginTop = "16px";
           box.innerHTML = `<div class="pt-node">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="link-nolink">▾</button><strong>Belum ditautkan</strong> <small class="muted">(${noLink.length} akun Google)</small></div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="link-nolink">▾</button><strong>Akun Google belum pilih nama siswa</strong> <small class="muted">(${noLink.length} akun · bukan daftar siswa)</small></div>
             <div class="pt-children" data-parent="link-nolink">${noLink
               .map(
                 (u) => `<div class="admin-row" style="display:block">
@@ -1019,8 +1178,14 @@
     const linked = rows.filter((u) => u.linked_student_name && String(u.linked_student_name).trim());
     const unlinked = rows.length - linked.length;
     const sum = $("#userLinkSummary");
+    let cov = null;
+    try { cov = await buildLinkCoverage(); } catch (e) { console.warn(e); }
     if (sum) {
-      sum.innerHTML = `<strong>${rows.length}</strong> akun · <strong>${linked.length}</strong> sudah tautkan siswa · <strong>${unlinked}</strong> belum`;
+      let extra = "";
+      if (cov) extra = coverageSummaryHtml(cov);
+      sum.innerHTML =
+        `<div><strong>${rows.length}</strong> akun Google · <strong>${linked.length}</strong> sudah pilih nama siswa · <strong>${unlinked}</strong> akun belum pilih nama</div>` +
+        extra;
     }
     // tree: linked by year/class, then unlinked
     const tree = {};
