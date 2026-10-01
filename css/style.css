@@ -460,3 +460,39 @@ select:focus,input:focus,textarea:focus{
 .contact-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:#c5d8e0;text-decoration:none}
 .contact-chip:hover{border-color:#5ec8ff;color:#e8f4f8}
 .contact-chip.wa{color:#8ff5bd;border-color:rgba(143,245,189,.35)}
+
+/* Health check */
+.sh-health-btn{
+  position:fixed;right:14px;bottom:72px;z-index:9990;
+  padding:8px 12px;border-radius:999px;font-size:12px;font-weight:600;
+  border:1px solid rgba(157,235,255,.35);background:rgba(8,16,24,.92);
+  color:#cfe8f0;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35);
+}
+.sh-health-btn:hover{border-color:#6bdcf4;color:#fff}
+.sh-health-modal{
+  position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.55);
+  display:flex;align-items:center;justify-content:center;padding:16px;
+}
+.sh-health-modal[hidden]{display:none!important}
+.sh-health-panel{
+  width:min(560px,100%);max-height:min(88vh,720px);overflow:auto;
+  background:#0c141c;border:1px solid rgba(157,235,255,.25);border-radius:16px;
+  padding:16px 18px;color:#e8f4f8;
+}
+.sh-health-panel header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.sh-health-panel h2{margin:0;font-size:1.15rem}
+.sh-health-close{border:0;background:transparent;color:#9bb;font-size:22px;cursor:pointer;line-height:1}
+.sh-health-lead{font-size:13px;margin:8px 0 12px}
+.sh-health-summary{font-size:13px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);margin-bottom:12px}
+.sh-health-summary.all-ok{border:1px solid rgba(143,245,189,.35);color:#b8f5d4}
+.sh-health-summary.has-fail{border:1px solid rgba(255,120,120,.4);color:#ffc9c9}
+.sh-health-row{display:grid;grid-template-columns:52px 1fr;gap:2px 10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px}
+.sh-health-st{font-weight:700;grid-row:span 2}
+.sh-health-row.ok .sh-health-st{color:#8ff5bd}
+.sh-health-row.fail .sh-health-st{color:#ff8f8f}
+.sh-health-row.pending .sh-health-st{color:#9bb}
+.sh-health-lb{font-weight:600;color:#e8f4f8}
+.sh-health-dt{color:#9bb4c0;grid-column:2;word-break:break-word}
+.sh-health-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.sh-health-log{margin-top:12px;font-size:11px;white-space:pre-wrap;background:#000;padding:10px;border-radius:8px;max-height:160px;overflow:auto}
+@media (max-width:600px){.sh-health-btn{bottom:88px;right:10px;font-size:11px}}
