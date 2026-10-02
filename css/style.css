@@ -1273,3 +1273,41 @@ body.page-skills .skills-main{
 @media (max-width:620px){
   .sh-ann-float-btn{left:10px;bottom:64px;padding:8px 12px;font-size:12px}
 }
+
+/* Users tab compact + Atur panel */
+.user-perm-panel.is-collapsed{display:none!important}
+.user-perm-panel:not(.is-collapsed){
+  display:block;
+  padding:10px 12px;
+  margin:4px 0 10px 12px;
+  border-left:2px solid rgba(125,227,255,.25);
+  border-radius:0 10px 10px 0;
+  background:rgba(0,0,0,.2);
+}
+.user-row-compact{
+  padding:8px 10px !important;
+  min-height:0 !important;
+  align-items:center !important;
+}
+.user-row-main{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.user-row-av{width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.user-row-av-ph{display:grid;place-items:center;background:rgba(255,255,255,.06);font-size:14px}
+.user-row-text{min-width:0;display:flex;flex-direction:column;gap:2px;line-height:1.25}
+.user-row-text strong{font-size:13px}
+.user-row-meta{font-size:11px;color:#7a96a4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:min(60vw,420px)}
+.user-admin-tag{font-size:11px;color:#7de3ff;font-style:normal;font-weight:600}
+.btn-atur{
+  flex-shrink:0;
+  border:1px solid rgba(125,227,255,.3)!important;
+  background:rgba(94,200,255,.12)!important;
+  color:#9ee7ff!important;
+  border-radius:8px!important;
+  padding:6px 12px!important;
+  font-size:12px!important;
+  font-weight:600;
+  cursor:pointer;
+}
+.user-perm-grid{display:flex;flex-wrap:wrap;gap:8px 14px;margin:8px 0}
+.user-perm-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#b7cdd6}
+.user-node{margin:0}
+.user-node .admin-row{margin:0}

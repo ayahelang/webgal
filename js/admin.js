@@ -1213,15 +1213,19 @@
                   </div>`;
                 })
                 .join("");
+              const siteCount = names.reduce((n, nm) => n + tree[y][c][nm].length, 0);
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong></div>
-                <div class="pt-children" data-parent="w-${esc(y)}-${esc(c)}">${nHtml}</div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${siteCount})</small></div>
+                <div class="pt-children is-collapsed" data-parent="w-${esc(y)}-${esc(c)}">${nHtml}</div>
               </div>`;
             })
             .join("");
+          const yearCount = classes.reduce((n, c) => {
+            return n + Object.keys(tree[y][c] || {}).reduce((m, nm) => m + (tree[y][c][nm] || []).length, 0);
+          }, 0);
           return `<div class="pt-node" style="margin-bottom:10px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-y-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong></div>
-            <div class="pt-children" data-parent="w-y-${esc(y)}">${cHtml}</div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-y-${esc(y)}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${yearCount})</small></div>
+            <div class="pt-children is-collapsed" data-parent="w-y-${esc(y)}">${cHtml}</div>
           </div>`;
         })
         .join("") || "<p class='muted'>Belum ada website.</p>";
@@ -1674,36 +1678,37 @@
       </div>`;
     }
     function userRow(u) {
-      const st = u.linked_angkatan_year ? (window.SHStatus ? SHStatus.compute(u.linked_angkatan_year).label : "Taut") : "Belum tautkan";
+      const st = u.linked_angkatan_year
+        ? (window.SHStatus ? SHStatus.compute(u.linked_angkatan_year).label : "Taut")
+        : "Belum tautkan";
+      const keys = Object.keys((u.permissions && typeof u.permissions === "object" ? u.permissions : {}) || {});
       const permKeys = keys.length ? keys : ["videos", "websites", "alumni", "users", "angkatan"];
       const permHtml = permKeys
         .map(
           (k) =>
-            `<label style="display:flex;gap:6px;align-items:center;font-size:12px"><input type="checkbox" data-perm="${esc(k)}" ${
+            `<label class="user-perm-item"><input type="checkbox" data-perm="${esc(k)}" ${
               u.permissions && u.permissions[k] ? "checked" : ""
             }> ${esc(k)}</label>`
         )
         .join("");
+      const taut = u.linked_student_name
+        ? ` · ${esc(u.linked_student_name)} · ${esc(u.linked_angkatan_year || "")} K${esc(u.linked_class_code || "")}`
+        : "";
       return `<div class="pt-node user-node" data-uid="${u.id}">
-        <div class="admin-row" style="cursor:pointer" data-toggle-user="${u.id}">
-          <div style="display:flex;gap:10px;align-items:center">
-            ${u.avatar_url ? `<img src="${esc(u.avatar_url)}" style="width:36px;height:36px;border-radius:50%">` : "👤"}
-            <div><strong>${esc(u.display_name || u.email)}</strong>
-              ${u.is_admin ? " · <em>Admin</em>" : ""}
-              <br><small>${esc(u.email)} · ${esc(st)}</small>
-              ${
-                u.linked_student_name
-                  ? `<br><small>Taut: ${esc(u.linked_student_name)} · ${esc(u.linked_angkatan_year)} · K${esc(u.linked_class_code)}</small>`
-                  : ""
-              }
+        <div class="admin-row user-row-compact" data-toggle-user="${u.id}">
+          <div class="user-row-main">
+            ${u.avatar_url ? `<img class="user-row-av" src="${esc(u.avatar_url)}" alt="">` : `<span class="user-row-av user-row-av-ph">👤</span>`}
+            <div class="user-row-text">
+              <strong>${esc(u.display_name || u.email)}</strong>${u.is_admin ? ' <em class="user-admin-tag">Admin</em>' : ""}
+              <span class="user-row-meta">${esc(u.email)} · ${esc(st)}${taut}</span>
             </div>
           </div>
-          <span class="muted">Atur ▾</span>
+          <button type="button" class="btn-atur" data-toggle-user-btn="${u.id}">Atur</button>
         </div>
-        <div class="user-perm-panel is-collapsed" data-parent-user="${u.id}" style="padding:8px 12px 12px;border-left:2px solid rgba(125,227,255,.2);margin:0 0 8px 12px">
-          <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input type="checkbox" data-is-admin ${u.is_admin ? "checked" : ""}> Jadikan admin</label>
-          <div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-bottom:8px">${permHtml}</div>
-          <button type="button" class="btn btn-primary" data-save-user="${u.id}" style="padding:6px 12px;font-size:12px">Simpan hak akses</button>
+        <div class="user-perm-panel is-collapsed" data-parent-user="${u.id}">
+          <label class="user-perm-item"><input type="checkbox" data-is-admin ${u.is_admin ? "checked" : ""}> Jadikan admin</label>
+          <div class="user-perm-grid">${permHtml}</div>
+          <button type="button" class="btn btn-primary" data-save-user="${u.id}" style="margin-top:8px;padding:6px 12px;font-size:12px">Simpan hak akses</button>
         </div>
       </div>`;
     }
@@ -1715,22 +1720,22 @@
           .map((c) => {
             const list = tree[y][c].map(userRow).join("");
             return `<div class="pt-node">
-              <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${tree[y][c].length})</small></div>
-              <div class="pt-children" data-parent="u-${esc(y)}-${esc(c)}">${list}</div>
+              <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${tree[y][c].length})</small></div>
+              <div class="pt-children is-collapsed" data-parent="u-${esc(y)}-${esc(c)}">${list}</div>
             </div>`;
           })
           .join("");
         return `<div class="pt-node" style="margin-bottom:10px">
-          <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-y-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(sudah taut)</small></div>
-          <div class="pt-children" data-parent="u-y-${esc(y)}">${cHtml}</div>
+          <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-y-${esc(y)}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${Object.values(tree[y]).reduce((n,arr)=>n+arr.length,0)})</small></div>
+          <div class="pt-children is-collapsed" data-parent="u-y-${esc(y)}">${cHtml}</div>
         </div>`;
       })
       .join("");
     if (unlinked) {
       const noLink = rows.filter((u) => !(u.linked_student_name && String(u.linked_student_name).trim()));
       html += `<div class="pt-node" style="margin-top:12px">
-        <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-nolink">▾</button><strong>Belum menautkan siswa</strong> <small class="muted">(${unlinked})</small></div>
-        <div class="pt-children" data-parent="u-nolink">${noLink.map((u) => userRow(u) + adminLinkForm(u)).join("")}</div>
+        <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-nolink">▸</button><strong>Belum menautkan siswa</strong> <small class="muted">(${unlinked})</small></div>
+        <div class="pt-children is-collapsed" data-parent="u-nolink">${noLink.map((u) => userRow(u) + adminLinkForm(u)).join("")}</div>
       </div>`;
     }
     $("#userList").innerHTML = html || "<p class='muted'>Belum ada user login Google.</p>";
@@ -1740,11 +1745,27 @@
     treeToggleBind($("#userList"));
     bindListSearch("#userSearch", "#userList");
     bindLinkNameSelects($("#userList"));
+    function toggleUserPanel(id) {
+      const panel = $("#userList").querySelector('[data-parent-user="' + id + '"]');
+      if (!panel) return;
+      panel.classList.toggle("is-collapsed");
+      const open = !panel.classList.contains("is-collapsed");
+      $$("#userList [data-toggle-user-btn]").forEach((b) => {
+        if (b.getAttribute("data-toggle-user-btn") === id) b.textContent = open ? "Tutup" : "Atur";
+      });
+    }
     $$("#userList [data-toggle-user]").forEach((row) =>
-      row.addEventListener("click", () => {
+      row.addEventListener("click", (e) => {
+        if (e.target.closest("button") && !e.target.closest("[data-toggle-user-btn]")) return;
         const id = row.getAttribute("data-toggle-user");
-        const panel = $("#userList").querySelector('[data-parent-user="' + id + '"]');
-        if (panel) panel.classList.toggle("is-collapsed");
+        if (id) toggleUserPanel(id);
+      })
+    );
+    $$("#userList [data-toggle-user-btn]").forEach((btn) =>
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleUserPanel(btn.getAttribute("data-toggle-user-btn"));
       })
     );
     $$("#userList [data-save-user]").forEach((btn) =>
