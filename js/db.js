@@ -491,11 +491,18 @@
   }
   async function adminListWebsites() {
     const sb = client();
-    const { data, error } = await sb
+    let { data, error } = await sb
       .from("gallery_websites")
       .select("id,title,url,category,alumni_id, gallery_alumni(name,class_code,angkatan_id, gallery_angkatan(label))")
       .limit(1500);
-    if (error) throw error;
+    if (error) {
+      const r2 = await sb.from("gallery_websites").select("id,title,url,category,alumni_id").limit(1500);
+      if (r2.error) throw r2.error;
+      // enrich client-side
+      const al = await adminListAlumni();
+      const map = Object.fromEntries((al || []).map((x) => [x.id, x]));
+      return (r2.data || []).map((w) => ({ ...w, gallery_alumni: map[w.alumni_id] || null }));
+    }
     return data || [];
   }
   async function adminDeleteWebsite(id) {
@@ -933,8 +940,15 @@
       .select("id,title,url,platform,description,created_at,category_id,owner_name, gallery_video_categories(name)")
       .order("created_at", { ascending: false });
     if (categoryId) q = q.eq("category_id", categoryId);
-    const { data, error } = await q;
-    if (error) throw error;
+    let { data, error } = await q;
+    if (error) {
+      // fallback tanpa join kategori
+      let q2 = sb.from("gallery_videos").select("id,title,url,platform,description,created_at,category_id,owner_name").order("created_at", { ascending: false });
+      if (categoryId) q2 = q2.eq("category_id", categoryId);
+      const r2 = await q2;
+      if (r2.error) throw r2.error;
+      return r2.data || [];
+    }
     return data || [];
   }
   async function addVideo({ title, url, categoryId, description, createdBy }) {

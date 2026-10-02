@@ -900,20 +900,27 @@
 
     $$("#adminTabs .filter").forEach((btn) =>
       btn.addEventListener("click", () => {
+        const wasActive = btn.classList.contains("active");
         $$("#adminTabs .filter").forEach((x) => x.classList.remove("active"));
         btn.classList.add("active");
         $$(".admin-pane").forEach((p) => {
           p.hidden = p.getAttribute("data-panel") !== btn.dataset.tab;
         });
         const tab = btn.dataset.tab;
+        if (wasActive && window.__adminTabLoaded) {
+          // klik ulang tab aktif = paksa muat ulang
+          window.__adminTabLoaded[tab] = false;
+        }
         window.__adminTabLoaded = window.__adminTabLoaded || {};
-        const loadTab = (key, fn) => {
-          if (window.__adminTabLoaded[key]) return;
-          window.__adminTabLoaded[key] = true;
-          Promise.resolve(fn()).catch((e) => {
+        const loadTab = async (key, fn, force) => {
+          if (!force && window.__adminTabLoaded[key]) return;
+          try {
+            await fn();
+            window.__adminTabLoaded[key] = true;
+          } catch (e) {
             window.__adminTabLoaded[key] = false;
             console.warn(key, e);
-          });
+          }
         };
         if (tab === "videos") loadTab("videos", () => refreshVideos());
         if (tab === "websites") loadTab("websites", () => refreshWebs());
@@ -984,12 +991,25 @@
       };
     }
 
-    // Boot minimal — list dimuat saat tab diklik (cepat & tidak nge-block)
+    // Boot: muat kategori + tab aktif (Video) segera
     const vidHost = $("#vidList");
-    if (vidHost) vidHost.innerHTML = "<p class='muted'>Buka tab ini untuk memuat data…</p>";
+    if (vidHost) vidHost.innerHTML = "<p class='muted'>Memuat video…</p>";
     const webHost = $("#webList");
-    if (webHost) webHost.innerHTML = "<p class='muted'>Buka tab ini untuk memuat data…</p>";
-    Promise.all([refreshCats().catch(() => {}), refreshAngkatan().catch(() => {})]);
+    if (webHost) webHost.innerHTML = "<p class='muted'>Klik tab Website Siswa untuk memuat…</p>";
+    try {
+      await Promise.all([refreshCats().catch(() => null), refreshAngkatan().catch(() => null)]);
+    } catch (e) {}
+    // default tab = videos
+    try {
+      await refreshVideos();
+      window.__adminTabLoaded = window.__adminTabLoaded || {};
+      window.__adminTabLoaded.videos = true;
+    } catch (e) {
+      console.warn("boot videos", e);
+      if (vidHost) vidHost.innerHTML = "<p class='muted'>Gagal memuat video: " + esc(e.message || e) + " · klik tab Video untuk coba lagi</p>";
+      window.__adminTabLoaded = window.__adminTabLoaded || {};
+      window.__adminTabLoaded.videos = false;
+    }
   }
 
   function bindForms(session) {
@@ -1224,6 +1244,10 @@
       return;
     }
     videoCache = rows || [];
+    if (!videoCache.length) {
+      if (host) host.innerHTML = "<p class='muted'>Belum ada video di database.</p>";
+      return;
+    }
     function countDeep(obj) {
       if (Array.isArray(obj)) return obj.length;
       if (!obj || typeof obj !== "object") return 0;
