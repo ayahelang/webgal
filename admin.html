@@ -214,8 +214,8 @@
           <label class="field"><span>Check-out akhir</span><input type="time" name="checkout_end" value="08:40"></label>
           <div class="field" style="grid-column:1/-1">
             <span>Siswa penerima (tree checkbox · multi pilih)</span>
-            <p class="muted" style="font-size:12px;margin:4px 0 8px">Centang angkatan / kelas / nama. Parent penuh = biru; sebagian = abu (indeterminate).</p>
-            <div id="attStudentTree" class="privacy-tree sh-cb-tree" style="max-height:320px;overflow:auto;padding:10px;border:1px solid rgba(125,227,255,.15);border-radius:12px"></div>
+            <p class="muted" style="font-size:12px;margin:4px 0 8px">Hierarki div: Angkatan → Kelas → Nama. Centang parent untuk pilih semua anak. Penuh = biru; sebagian = abu (indeterminate).</p>
+            <div id="attStudentTree" class="privacy-tree sh-cb-tree att-student-tree" style="max-height:320px;overflow:auto"></div>
           </div>
           <label class="check" style="align-self:center"><input type="checkbox" name="require_checkout" checked> Wajib check-out</label>
           <label class="check" style="align-self:center"><input type="checkbox" name="active" checked> Aktif</label>
@@ -261,7 +261,8 @@
             <label class="check"><input type="checkbox" name="show_home" checked> Halaman depan (pengunjung) — splash</label>
             <label class="check"><input type="checkbox" name="show_logged"> Panel user yang sudah login — splash</label>
             <label class="check"><input type="checkbox" name="show_students"> Siswa tertentu (login + taut nama) — splash</label>
-            <div id="annStudentTree" class="privacy-tree ann-student-tree is-collapsed" style="max-height:280px;overflow:auto;margin-top:8px"></div>
+            <p class="muted" style="font-size:12px;margin:4px 0 0">Setelah dicentang, pilih Angkatan / Kelas / Nama (checkbox di parent &amp; anak).</p>
+            <div id="annStudentTree" class="privacy-tree sh-cb-tree ann-student-tree is-collapsed" style="max-height:320px;overflow:auto;margin-top:8px"></div>
           </fieldset>
           <label class="field"><span>Mulai</span><input type="datetime-local" name="starts_at"></label>
           <label class="field"><span>Selesai (opsional)</span><input type="datetime-local" name="ends_at"></label>

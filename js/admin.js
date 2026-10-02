@@ -457,8 +457,10 @@
 
 
   async function buildAnnStudentTree() {
+    // Tree div hierarki sama seperti Absensi: Angkatan → Kelas → Nama + checkbox parent (tri-state)
     const host = $("#annStudentTree");
     if (!host) return;
+    host.classList.add("sh-cb-tree");
     host.innerHTML = "<p class='muted'>Memuat daftar siswa…</p>";
     await loadRoster(true);
     const cov = rosterCache || {};
@@ -470,46 +472,68 @@
     host.innerHTML = years
       .map((y) => {
         const classes = Object.keys(cov[y] || {}).sort();
+        const totalY = classes.reduce((n, c) => n + (cov[y][c] || []).length, 0);
         const cHtml = classes
           .map((c) => {
             const names = (cov[y][c] || []).slice();
             const nHtml = names
               .map(
                 (n) =>
-                  `<label class="check ann-stu-check"><input type="checkbox" data-sh-cb="leaf" data-ann-stu="${esc(y)}|${esc(c)}|${esc(n)}" data-stu="${esc(y)}|${esc(c)}|${esc(n)}"> <span>${esc(n)}</span></label>`
+                  `<label class="sh-cb-row leaf"><input type="checkbox" data-sh-cb="leaf" data-ann-stu="${esc(y)}|${esc(c)}|${esc(n)}" data-stu="${esc(y)}|${esc(c)}|${esc(n)}"> <span>${esc(n)}</span></label>`
               )
               .join("");
             return `<div class="pt-node">
-              <div class="pt-row"><button type="button" class="pt-toggle" data-t="ann-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${names.length})</small></div>
-              <div class="pt-children is-collapsed" data-parent="ann-${esc(y)}-${esc(c)}">${nHtml || "<p class='muted'>Kosong</p>"}</div>
+              <div class="pt-row sh-cb-row">
+                <button type="button" class="pt-toggle sh-cb-toggle" data-t="ann-${esc(y)}-${esc(c)}">▸</button>
+                <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong>Kelas ${esc(c)}</strong> <small class="muted">(${names.length})</small></label>
+              </div>
+              <div class="pt-children is-collapsed" data-sh-children data-parent="ann-${esc(y)}-${esc(c)}">${nHtml || "<p class='muted'>Kosong</p>"}</div>
             </div>`;
           })
           .join("");
         return `<div class="pt-node">
-          <div class="pt-row"><button type="button" class="pt-toggle" data-t="ann-y-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${Object.values(cov[y] || {}).reduce((n, arr) => n + (arr || []).length, 0)})</small></div>
-          <div class="pt-children" data-parent="ann-y-${esc(y)}">${cHtml}</div>
+          <div class="pt-row sh-cb-row">
+            <button type="button" class="pt-toggle sh-cb-toggle" data-t="ann-y-${esc(y)}">▾</button>
+            <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong>Angkatan ${esc(y)}</strong> <small class="muted">(${totalY})</small></label>
+          </div>
+          <div class="pt-children" data-sh-children data-parent="ann-y-${esc(y)}">${cHtml}</div>
         </div>`;
       })
       .join("");
+    bindTriStateTree(host);
     treeToggleBind(host);
     host.dataset.built = "1";
   }
 
 
   function readAnnTargets() {
-    return [...document.querySelectorAll("[data-ann-stu]:checked")].map((cb) => {
-      const parts = cb.getAttribute("data-ann-stu").split("|");
-      return { year: parts[0], class: parts[1], name: parts.slice(2).join("|") };
+    const host = $("#annStudentTree");
+    if (!host) return [];
+    return [...host.querySelectorAll('input[type=checkbox][data-sh-cb="leaf"][data-ann-stu]:checked')].map((cb) => {
+      const parts = (cb.getAttribute("data-ann-stu") || "").split("|");
+      return { year: parts[0] || "", class: parts[1] || "", name: parts.slice(2).join("|") };
     });
   }
 
   function setAnnTargets(list) {
-    document.querySelectorAll("[data-ann-stu]").forEach((cb) => (cb.checked = false));
-    (list || []).forEach((t) => {
-      const key = (t.year || t.angkatan_year || "") + "|" + (t.class || t.class_code || "") + "|" + (t.name || "");
-      document.querySelectorAll("[data-ann-stu]").forEach((el) => {
-        if (el.getAttribute("data-ann-stu") === key) el.checked = true;
-      });
+    const host = $("#annStudentTree");
+    if (!host) return;
+    const set = new Set(
+      (list || []).map((t) => (t.year || t.angkatan_year || "") + "|" + (t.class || t.class_code || "") + "|" + (t.name || ""))
+    );
+    host.querySelectorAll('input[type=checkbox][data-sh-cb="leaf"][data-ann-stu]').forEach((cb) => {
+      cb.checked = set.has(cb.getAttribute("data-ann-stu") || "");
+      cb.indeterminate = false;
+    });
+    // sinkron parent (tri-state)
+    host.querySelectorAll('input[type=checkbox][data-sh-cb="group"]').forEach((g) => {
+      const row = g.closest(".pt-row") || g.closest(".sh-cb-row");
+      const kids = row && row.nextElementSibling;
+      if (!kids) return;
+      const leaves = [...kids.querySelectorAll('input[type=checkbox][data-sh-cb="leaf"]')];
+      const c = leaves.filter((x) => x.checked).length;
+      g.checked = leaves.length > 0 && c === leaves.length;
+      g.indeterminate = c > 0 && c < leaves.length;
     });
   }
 
