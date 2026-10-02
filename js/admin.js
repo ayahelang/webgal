@@ -247,6 +247,37 @@
     );
   }
 
+
+  function nameOptionsHtml(year, classCode, selected) {
+    const y = String(year || "");
+    const c = String(classCode || "");
+    const roster = rosterCache || {};
+    let names = ((roster[y] || {})[c] || []).slice();
+    // merge alumniAllCache if present
+    try {
+      const extra = typeof alumniAllCache !== "undefined" ? alumniAllCache : alumniCache || [];
+      (extra || []).forEach((al) => {
+        const ang = al.gallery_angkatan || {};
+        const m = String(ang.label || "").match(/20\d{2}/);
+        const yy = m ? m[0] : "";
+        if (yy === y && String(al.class_code || "") === c && al.name && !names.includes(al.name)) {
+          names.push(al.name);
+        }
+      });
+    } catch (e) {}
+    names = names.slice().sort((a, b) => a.localeCompare(b, "id"));
+    const sel = String(selected || "");
+    let html = '<option value="">— pilih nama —</option>';
+    names.forEach((n) => {
+      const s = n === sel ? " selected" : "";
+      html += `<option value="${esc(n)}"${s}>${esc(n)}</option>`;
+    });
+    if (sel && !names.includes(sel)) {
+      html += `<option value="${esc(sel)}" selected>${esc(sel)} (lama)</option>`;
+    }
+    return html;
+  }
+
   function bindLinkNameSelects(root) {
     const scope = root || document;
     scope.querySelectorAll("[data-link-year]").forEach((yearSel) => {
@@ -1507,6 +1538,7 @@
           }
         })
       );
+      await loadRoster(true);
       bindLinkNameSelects(host);
       // siswa/user belum taut
       try {
