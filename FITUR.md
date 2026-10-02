@@ -1,3 +1,12 @@
+# Riwayat versi (ringkas)
+
+## v2026.10.03
+- Roles: Siswa / Pengajar / Alumni / Belum ditunjuk
+- Tab Users (kelola data) & Roles (akun Google)
+- Bulk upload siswa CSV/Sheet; absensi layout & rekap dropdown
+- Seed alumni 2023 jurusan IT-related
+- About: portfolio silverhawk.web.id
+
 # Daftar Fitur — Silverhawk Web Gallery (webgal)
 
 Aplikasi galeri karya digital santriwati SMA PMA (Web Design / SMM), deploy GitHub Pages + backend Supabase.

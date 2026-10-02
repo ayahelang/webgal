@@ -2835,3 +2835,6 @@ WHERE a.ctid > b.ctid
 DELETE FROM gallery_websites WHERE url IS NULL OR trim(url) = '';
 
 -- ========== END supabase-dedupe-websites.sql ==========
+
+
+-- See also: sql/seed-alumni-2023-it.sql
