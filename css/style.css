@@ -1612,3 +1612,57 @@ body.page-skills .skills-main{
 .qris-modal-panel img{
   width:100%;max-width:280px;background:#fff;border-radius:12px;margin:10px 0;
 }
+
+
+/* Support Us — Dana/GoPay + QRIS sejajar */
+.support-row{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:stretch;
+  gap:20px 28px;
+  padding:18px 20px;
+}
+.support-pay{flex:1 1 220px;min-width:0}
+.support-h2{margin:6px 0 12px;font-size:1.15rem}
+.support-pay-list{
+  list-style:none;margin:0;padding:0;
+  display:flex;flex-direction:column;gap:10px;
+  justify-content:center;
+}
+.support-pay-list li{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;
+  font-size:13px;color:#c5d8e0;
+}
+.support-pay-list strong{min-width:52px;color:#e8f4f8}
+.support-num{font-family:ui-monospace,monospace;color:#e8f4f8;letter-spacing:.02em}
+.support-note{font-size:12px;margin:12px 0 0}
+.support-qris{
+  flex:0 0 auto;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+.support-qris-inner{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-top:6px;
+}
+.support-qris-frame{
+  background:#fff;
+  border-radius:10px;
+  padding:6px;
+  line-height:0;
+  border:1px solid rgba(125,227,255,.2);
+}
+.support-qris-img{
+  width:96px;
+  height:96px;
+  object-fit:contain;
+  display:block;
+}
+.btn-qris-dl{padding:6px 12px!important;font-size:12px!important;white-space:nowrap}
+@media (max-width:560px){
+  .support-qris-inner{flex-direction:column;align-items:flex-start}
+  .support-qris-img{width:88px;height:88px}
+}
