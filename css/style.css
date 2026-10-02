@@ -1655,14 +1655,41 @@ body.page-skills .skills-main{
   line-height:0;
   border:1px solid rgba(125,227,255,.2);
 }
+.support-qris-frame{
+  cursor:zoom-in;
+  border:0;
+  background:#fff;
+  border-radius:10px;
+  padding:8px;
+  line-height:0;
+  border:1px solid rgba(125,227,255,.2);
+}
 .support-qris-img{
-  width:96px;
-  height:96px;
+  width:160px;
+  height:160px;
   object-fit:contain;
   display:block;
+  image-rendering:auto;
 }
+.support-qris-actions{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  align-items:flex-start;
+}
+.support-qris-large{
+  width:min(320px,72vw);
+  height:auto;
+  aspect-ratio:1;
+  object-fit:contain;
+  background:#fff;
+  border-radius:12px;
+  padding:10px;
+  box-sizing:border-box;
+}
+.support-qris-lightbox{max-width:380px}
 .btn-qris-dl{padding:6px 12px!important;font-size:12px!important;white-space:nowrap}
 @media (max-width:560px){
   .support-qris-inner{flex-direction:column;align-items:flex-start}
-  .support-qris-img{width:88px;height:88px}
+  .support-qris-img{width:140px;height:140px}
 }

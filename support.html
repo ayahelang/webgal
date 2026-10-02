@@ -58,13 +58,28 @@
       <div class="support-qris">
         <div class="eyebrow">QRIS</div>
         <div class="support-qris-inner">
-          <div class="support-qris-frame">
-            <img src="assets/qris/developer-qris.png" alt="QRIS pengembang" class="support-qris-img" width="120" height="120">
+          <button type="button" class="support-qris-frame" id="qrisPreviewBtn" title="Klik untuk memperbesar">
+            <img src="assets/qris/developer-qris.png" alt="QRIS pengembang" class="support-qris-img" width="160" height="160">
+          </button>
+          <div class="support-qris-actions">
+            <a class="btn btn-ghost btn-qris-dl" href="assets/qris/developer-qris.png" download="qris-silverhawk.png">Unduh QRIS</a>
+            <span class="muted" style="font-size:11px">Klik gambar untuk memperbesar</span>
           </div>
-          <a class="btn btn-ghost btn-qris-dl" href="assets/qris/developer-qris.png" download="qris-silverhawk.png">Unduh QRIS</a>
         </div>
       </div>
     </section>
+
+    <div id="qrisLightbox" class="qris-modal" hidden>
+      <div class="qris-modal-panel support-qris-lightbox">
+        <h3 style="margin:0 0 8px">QRIS · Support Us</h3>
+        <p class="muted" style="font-size:12px;margin:0 0 8px">Scan kode di bawah, atau unduh gambarnya.</p>
+        <img src="assets/qris/developer-qris.png" alt="QRIS besar" class="support-qris-large" width="320" height="320">
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px">
+          <a class="btn btn-primary" href="assets/qris/developer-qris.png" download="qris-silverhawk.png">Unduh</a>
+          <button type="button" class="btn btn-ghost" id="qrisLightboxClose">Tutup</button>
+        </div>
+      </div>
+    </div>
   </main>
 
   <footer>
@@ -84,19 +99,29 @@
   <script src="js/idle-tour.js"></script>
   <script src="js/announce.js"></script>
   <script>
-    document.querySelectorAll(".btn-copy").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var v = btn.getAttribute("data-copy") || "";
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(v).then(function () {
-            btn.textContent = "Disalin";
-            setTimeout(function () { btn.textContent = "Salin"; }, 1500);
-          });
-        } else {
-          prompt("Salin nomor ini:", v);
-        }
+    (function () {
+      document.querySelectorAll(".btn-copy").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var v = btn.getAttribute("data-copy") || "";
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(v).then(function () {
+              btn.textContent = "Disalin";
+              setTimeout(function () { btn.textContent = "Salin"; }, 1500);
+            });
+          } else {
+            prompt("Salin nomor ini:", v);
+          }
+        });
       });
-    });
+      var lb = document.getElementById("qrisLightbox");
+      var openBtn = document.getElementById("qrisPreviewBtn");
+      var closeBtn = document.getElementById("qrisLightboxClose");
+      if (openBtn && lb) {
+        openBtn.addEventListener("click", function () { lb.hidden = false; });
+        if (closeBtn) closeBtn.addEventListener("click", function () { lb.hidden = true; });
+        lb.addEventListener("click", function (e) { if (e.target === lb) lb.hidden = true; });
+      }
+    })();
   </script>
 </body>
 </html>
