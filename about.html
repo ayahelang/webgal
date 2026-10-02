@@ -4,14 +4,15 @@
   <link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="assets/favicon.svg">
-
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Tentang Teddy Mulyana dan Silverhawk Student Web Gallery — portfolio digital santriwati SMA PMA.">
   <title>About — Teddy Mulyana · Silverhawk</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="page-skills" data-shlock-mode="normal" data-shlock-domain="webgal.silverhawk.web.id" data-shlock-brand="Silverhawk Gallery" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
+<body class="page-skills page-about" data-shlock-mode="normal" data-shlock-domain="webgal.silverhawk.web.id" data-shlock-brand="Silverhawk Gallery" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
   <div class="bg-grid"></div>
+  <div class="orb orb-a"></div><div class="orb orb-b"></div>
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>About</small></span></a>
     <nav class="topnav">
@@ -20,35 +21,120 @@
       <a href="skills.html">Skills</a>
       <a href="refleksi.html">Nilai Proses</a>
       <a href="stats.html">Statistik</a>
+      <a href="absensi.html">Absensi</a>
       <a href="chat.html">Chat</a>
       <a href="about.html" class="active">About</a>
       <a href="profile.html">Profil</a>
       <a href="admin.html" class="nav-admin" title="Admin">Admin</a>
     </nav>
   </header>
-  <main class="skills-main">
-    <section class="about-hero summary-card">
-      <div class="about-avatar" aria-hidden="true">TM</div>
-      <div>
-        <div class="eyebrow">PENGEMBANG & PENGAJAR</div>
+
+  <main class="skills-main about-main">
+    <section class="about-hero-card">
+      <div class="about-photo-wrap">
+        <img class="about-photo" src="assets/teddy-mulyana.jpg" width="320" height="320" alt="Foto Teddy Mulyana" loading="eager">
+      </div>
+      <div class="about-hero-copy">
+        <div class="eyebrow">PENGEMBANG &amp; PENGAJAR</div>
         <h1>Teddy Mulyana</h1>
-        <p class="skills-lead">Pengajar <b>Social Media Marketing (SMM)</b> di SMA PMA — memadukan Web Design, branding digital, dan praktik karya nyata santriwati.</p>
+        <p class="about-role">Pengajar <b>Social Media Marketing (SMM)</b> · SMA PMA / Pesantren Modern Al-Taqwa</p>
+        <p class="skills-lead">Memadukan Web Design, literasi digital, AI literacy, dan branding — agar santriwati tidak hanya memakai teknologi, tetapi <b>membangun karya nyata</b> yang dipublikasikan.</p>
+        <div class="about-actions">
+          <a class="btn btn-primary" href="index.html">Lihat Gallery <span>→</span></a>
+          <a class="btn btn-ghost" href="skills.html">Skills Map</a>
+          <button type="button" class="btn btn-ghost" id="btnVersionHistory">Riwayat versi &amp; fitur</button>
+          <a class="btn btn-ghost" href="https://silverhawk.web.id/" target="_blank" rel="noopener">silverhawk.web.id ↗</a>
+        </div>
       </div>
     </section>
-    <section class="summary-card" style="display:grid;gap:12px;margin-top:16px">
-      <h3>Tentang aplikasi ini</h3>
-      <p class="muted">Silverhawk Student Web Gallery adalah ruang kenang-kenangan dan portfolio digital: galeri website, video, ruang obrolan antar angkatan, serta apresiasi love & komentar dari guru, orang tua, dan teman.</p>
-      <h3>Fokus pembelajaran</h3>
-      <ul class="muted" style="margin:0;padding-left:1.2rem;line-height:1.7">
-        <li>Web Design & publikasi karya digital</li>
-        <li>Social Media Marketing — branding & konten</li>
-        <li>Budaya berkarya, refleksi, dan kolaborasi antar angkatan</li>
-      </ul>
-      <h3>Kontak</h3>
-      <p class="muted">Domain & karya: <a href="https://silverhawk.web.id/" target="_blank" rel="noopener">silverhawk.web.id</a><br>
-      Gallery: <a href="https://webgal.silverhawk.web.id/">webgal.silverhawk.web.id</a></p>
-    </section>
+
+    <div class="about-grid">
+      <section class="summary-card about-block">
+        <div class="eyebrow">APLIKASI</div>
+        <h2>Silverhawk Student Web Gallery</h2>
+        <p class="muted">Ruang kenang-kenangan dan portfolio digital: galeri website, video, chat antar angkatan, absensi online, pengumuman splash, serta apresiasi love &amp; komentar dari guru, orang tua, dan teman.</p>
+        <ul class="about-list">
+          <li>Deploy: GitHub Pages · Domain <a href="https://webgal.silverhawk.web.id/">webgal.silverhawk.web.id</a></li>
+          <li>Backend: Supabase (Auth Google, data karya, chat realtime)</li>
+          <li>Program: Web Design &amp; Digital Literacy → SMM</li>
+        </ul>
+      </section>
+
+      <section class="summary-card about-block">
+        <div class="eyebrow">FOKUS BELAJAR</div>
+        <h2>Yang diajarkan</h2>
+        <ul class="about-list">
+          <li>Literasi digital &amp; produktivitas cloud</li>
+          <li>AI literacy &amp; prompt engineering</li>
+          <li>Konten visual &amp; video (Canva, CapCut)</li>
+          <li>HTML / CSS / JS &amp; deploy GitHub Pages</li>
+          <li>Product thinking — karya multi-project</li>
+          <li>Soft skills &amp; digital citizenship</li>
+        </ul>
+      </section>
+
+      <section class="summary-card about-block">
+        <div class="eyebrow">KONTAK</div>
+        <h2>Tautan</h2>
+        <ul class="about-list">
+          <li>Portal: <a href="https://silverhawk.web.id/" target="_blank" rel="noopener">silverhawk.web.id</a></li>
+          <li>Gallery: <a href="https://webgal.silverhawk.web.id/">webgal.silverhawk.web.id</a></li>
+          <li>CBT / Quizit: <a href="https://quizit.silverhawk.web.id" target="_blank" rel="noopener">quizit.silverhawk.web.id</a></li>
+        </ul>
+      </section>
+    </div>
   </main>
+
+  <!-- Version history modal -->
+  <div id="verModal" class="about-modal" hidden>
+    <div class="about-modal-backdrop" data-close-ver></div>
+    <div class="about-modal-panel summary-card" role="dialog" aria-labelledby="verTitle">
+      <div class="about-modal-head">
+        <h2 id="verTitle">Riwayat versi &amp; fitur</h2>
+        <button type="button" class="btn btn-ghost" data-close-ver aria-label="Tutup">✕</button>
+      </div>
+      <p class="muted" style="font-size:13px;margin:0 0 12px">Ringkasan kemampuan aplikasi (lihat juga <code>FITUR.md</code> di repo).</p>
+      <div class="about-ver-list">
+        <article class="about-ver-item">
+          <h3>v2026.10 — Absensi, Pengumuman, Admin penuh</h3>
+          <ul>
+            <li>Absensi online (sesi, check-in/out, rekap CSV, tree siswa)</li>
+            <li>Pengumuman splash (audiens, jadwal, siswa tertentu + tree checkbox)</li>
+            <li>Panel admin: video, website, alumni, angkatan, tautan, users &amp; hak akses</li>
+            <li>Sync Google Docs / Sheet → refleksi &amp; roster</li>
+          </ul>
+        </article>
+        <article class="about-ver-item">
+          <h3>v2026.09 — Auth, Karya Saya, Gallery &amp; Video</h3>
+          <ul>
+            <li>Login Google + taut nama (angkatan → kelas → nama)</li>
+            <li>CRUD website &amp; video milik siswa (Karya Saya)</li>
+            <li>Gallery filter angkatan/kelas; Video filter + dropdown nama siswa</li>
+            <li>Skills Map 7 domain + tingkat penguasaan; Nilai Proses</li>
+            <li>Chat realtime, reaksi &amp; komentar, statistik</li>
+          </ul>
+        </article>
+        <article class="about-ver-item">
+          <h3>Fondasi</h3>
+          <ul>
+            <li>Galeri statis GitHub Pages + fallback JSON lokal</li>
+            <li>Kurikulum: Prota, Prosem, Silabus/ATP, Modul Ajar</li>
+            <li>Branding Silverhawk · CNAME webgal.silverhawk.web.id</li>
+          </ul>
+        </article>
+      </div>
+      <div class="about-modal-foot">
+        <a class="btn btn-primary" href="skills.html">Buka Skills Map</a>
+        <button type="button" class="btn btn-ghost" data-close-ver>Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div><span class="brand-mark small">SH</span><b><a href="https://silverhawk.web.id/">Silverhawk</a></b></div>
+    <span>© 2026 • SMA PMA • Web Design &amp; Digital Literacy</span>
+  </footer>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="data/supabase-config.js"></script>
   <script src="js/db.js"></script>
@@ -60,5 +146,21 @@
   <script src="js/health-check.js"></script>
   <script src="js/idle-tour.js"></script>
   <script src="js/announce.js"></script>
+  <script>
+    (function () {
+      var modal = document.getElementById("verModal");
+      var openBtn = document.getElementById("btnVersionHistory");
+      if (!modal || !openBtn) return;
+      function open() { modal.hidden = false; document.body.style.overflow = "hidden"; }
+      function close() { modal.hidden = true; document.body.style.overflow = ""; }
+      openBtn.addEventListener("click", open);
+      modal.querySelectorAll("[data-close-ver]").forEach(function (el) {
+        el.addEventListener("click", close);
+      });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && !modal.hidden) close();
+      });
+    })();
+  </script>
 </body>
 </html>

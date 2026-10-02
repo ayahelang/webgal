@@ -1424,3 +1424,84 @@ body.page-skills .skills-main{
 .sh-cb-tree .pt-row {
   justify-content: flex-start;
 }
+
+/* ===== About page ===== */
+.about-main{max-width:980px}
+.about-hero-card{
+  display:grid;
+  grid-template-columns: minmax(160px,240px) 1fr;
+  gap:28px;
+  align-items:center;
+  padding:28px;
+  border:1px solid var(--line);
+  border-radius:20px;
+  background:linear-gradient(145deg,rgba(125,227,255,.06),rgba(0,0,0,.25));
+  margin-bottom:20px;
+}
+.about-photo-wrap{
+  border-radius:18px;
+  overflow:hidden;
+  border:1px solid rgba(125,227,255,.25);
+  box-shadow:0 12px 40px rgba(0,0,0,.35);
+  aspect-ratio:1;
+  background:#0a1520;
+}
+.about-photo{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.about-hero-copy h1{margin:6px 0 8px;font-size:clamp(1.6rem,3vw,2.1rem)}
+.about-role{color:#9db5c0;font-size:14px;margin:0 0 10px}
+.about-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.about-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;
+}
+.about-block h2{font-size:1.15rem;margin:6px 0 10px}
+.about-list{
+  margin:0;
+  padding-left:1.15rem;
+  color:#9db5c0;
+  font-size:13px;
+  line-height:1.7;
+}
+.about-list a{color:#7de3ff}
+.about-modal{
+  position:fixed;inset:0;z-index:2000;
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;
+}
+.about-modal[hidden]{display:none!important}
+.about-modal-backdrop{
+  position:absolute;inset:0;
+  background:rgba(0,0,0,.65);
+  backdrop-filter:blur(4px);
+}
+.about-modal-panel{
+  position:relative;z-index:1;
+  width:min(560px,100%);
+  max-height:min(85vh,720px);
+  overflow:auto;
+  padding:20px 22px;
+}
+.about-modal-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-bottom:4px;
+}
+.about-modal-head h2{margin:0;font-size:1.2rem}
+.about-ver-item{
+  border-top:1px solid rgba(125,227,255,.12);
+  padding:12px 0;
+}
+.about-ver-item h3{margin:0 0 6px;font-size:14px;color:#e8f4f8}
+.about-ver-item ul{margin:0;padding-left:1.15rem;color:#9db5c0;font-size:13px;line-height:1.6}
+.about-modal-foot{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+@media (max-width:720px){
+  .about-hero-card{grid-template-columns:1fr;text-align:center}
+  .about-photo-wrap{max-width:220px;margin:0 auto}
+  .about-actions{justify-content:center}
+  .about-grid{grid-template-columns:1fr}
+}
