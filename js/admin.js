@@ -419,6 +419,12 @@
     }
     const ed = $("#annEditor");
     if (ed) {
+      ed.setAttribute("contenteditable", "true");
+      ed.tabIndex = 0;
+      // cegah handler global mengganggu ketikan
+      ["keydown", "keyup", "keypress", "mousedown", "mouseup", "click"].forEach((evName) => {
+        ed.addEventListener(evName, (e) => e.stopPropagation(), true);
+      });
       ed.addEventListener("paste", (ev) => {
         const items = ev.clipboardData && ev.clipboardData.items;
         if (!items) return;

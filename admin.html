@@ -186,14 +186,15 @@
         <form id="annForm" class="ann-form">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul</span><input name="title" required placeholder="Judul pengumuman"></label>
-          <label class="field" style="grid-column:1/-1"><span>Isi pengumuman</span>
-            <div id="annEditor" class="ann-editor" contenteditable="true" data-placeholder="Ketik pengumuman… tempel screenshot (Ctrl+V) atau sisipkan URL gambar"></div>
+          <div class="field" style="grid-column:1/-1">
+            <span>Isi pengumuman</span>
+            <div id="annEditor" class="ann-editor" contenteditable="true" tabindex="0" role="textbox" aria-multiline="true" data-placeholder="Ketik pengumuman… tempel screenshot (Ctrl+V) atau sisipkan URL gambar"></div>
             <div class="ann-editor-tools">
               <button type="button" class="btn btn-ghost" id="annInsertImg">+ URL gambar</button>
               <button type="button" class="btn btn-ghost" id="annInsertLink">+ Link</button>
               <span class="muted" style="font-size:11px">Tempel (paste) gambar langsung dari clipboard juga bisa</span>
             </div>
-          </label>
+          </div>
           <fieldset class="ann-fieldset">
             <legend>Tampil di mana &amp; siapa</legend>
             <label class="check"><input type="checkbox" name="show_home" checked> Halaman depan (pengunjung) — splash</label>
