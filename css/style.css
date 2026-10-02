@@ -1253,3 +1253,23 @@ body.page-skills .skills-main{
   #adminTabs .filter{padding:0 11px;font-size:12px;height:34px}
   .cov-year{white-space:normal}
 }
+
+.sh-ann-float-btn{
+  position:fixed;left:14px;bottom:72px;z-index:11000;
+  display:flex;align-items:center;gap:8px;
+  padding:10px 14px;border-radius:999px;
+  border:1px solid rgba(125,227,255,.35);
+  background:rgba(10,20,30,.92);color:#e8f4f8;
+  box-shadow:0 8px 28px rgba(0,0,0,.35);
+  cursor:pointer;font-size:13px;font-weight:600;
+  max-width:min(90vw,280px);
+}
+.sh-ann-float-btn:hover{border-color:#5ec8ff;background:rgba(20,40,55,.95)}
+.sh-ann-float-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ann-stu-check{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer}
+.ann-stu-check input{accent-color:#5ec8ff}
+.link-edit-panel.is-collapsed{display:none!important}
+.link-edit-panel:not(.is-collapsed){display:block}
+@media (max-width:620px){
+  .sh-ann-float-btn{left:10px;bottom:64px;padding:8px 12px;font-size:12px}
+}

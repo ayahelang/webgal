@@ -74,25 +74,49 @@
   }
 
   let rosterCache = null;
-  async function loadRoster() {
-    if (rosterCache) return rosterCache;
-    rosterCache = {};
+  async function loadRoster(force) {
+    if (rosterCache && !force) return rosterCache;
+    if (!rosterCache) rosterCache = {};
     try {
       const r = await fetch("data/student-roster.json", { cache: "no-store" });
-      if (r.ok) rosterCache = await r.json();
+      if (r.ok) {
+        const j = await r.json();
+        Object.keys(j || {}).forEach((y) => {
+          Object.keys(j[y] || {}).forEach((c) => {
+            if (!rosterCache[y]) rosterCache[y] = {};
+            if (!rosterCache[y][c]) rosterCache[y][c] = [];
+            (j[y][c] || []).forEach((n) => {
+              if (n && !rosterCache[y][c].includes(n)) rosterCache[y][c].push(n);
+            });
+          });
+        });
+      }
     } catch (e) {}
     try {
       if (GalleryDB.fetchGalleryFromDb) {
         const g = await GalleryDB.fetchGalleryFromDb();
         (g.students || []).forEach((s) => {
-          const y = String(s.angkatan || "");
-          const c = String(s.class || "");
+          const y = String(s.angkatan || s.angkatan_year || "");
+          const c = String(s.class || s.class_code || "");
           if (!y || !c) return;
           if (!rosterCache[y]) rosterCache[y] = {};
           if (!rosterCache[y][c]) rosterCache[y][c] = [];
           if (s.name && !rosterCache[y][c].includes(s.name)) rosterCache[y][c].push(s.name);
         });
       }
+    } catch (e) {}
+    try {
+      const rows = await GalleryDB.adminListAlumni();
+      (rows || []).forEach((al) => {
+        const ang = al.gallery_angkatan || {};
+        const m = String(ang.label || "").match(/20\d{2}/);
+        const y = m ? m[0] : "";
+        const c = String(al.class_code || "");
+        if (!y || !c) return;
+        if (!rosterCache[y]) rosterCache[y] = {};
+        if (!rosterCache[y][c]) rosterCache[y][c] = [];
+        if (al.name && !rosterCache[y][c].includes(al.name)) rosterCache[y][c].push(al.name);
+      });
     } catch (e) {}
     Object.keys(rosterCache).forEach((y) => {
       Object.keys(rosterCache[y]).forEach((c) => {
@@ -102,18 +126,6 @@
     return rosterCache;
   }
 
-  function nameOptionsHtml(year, kelas, selected) {
-    const roster = rosterCache || {};
-    const names = ((roster[String(year)] || {})[String(kelas)] || []).slice();
-    let html = '<option value="">— pilih nama —</option>';
-    names.forEach((n) => {
-      html += `<option value="${esc(n)}" ${selected === n ? "selected" : ""}>${esc(n)}</option>`;
-    });
-    if (selected && !names.includes(selected)) {
-      html += `<option value="${esc(selected)}" selected>${esc(selected)} (custom)</option>`;
-    }
-    return html;
-  }
 
   async function buildLinkCoverage() {
     await loadRoster();
@@ -285,36 +297,42 @@
   async function buildAnnStudentTree() {
     const host = $("#annStudentTree");
     if (!host) return;
-    await loadRoster();
+    host.innerHTML = "<p class='muted'>Memuat daftar siswa…</p>";
+    await loadRoster(true);
     const cov = rosterCache || {};
     const years = Object.keys(cov).sort().reverse();
-    host.innerHTML =
-      years
-        .map((y) => {
-          const classes = Object.keys(cov[y] || {}).sort();
-          const cHtml = classes
-            .map((c) => {
-              const names = (cov[y][c] || []).slice().sort((a, b) => a.localeCompare(b, "id"));
-              const nHtml = names
-                .map(
-                  (n) =>
-                    `<label class="check" style="margin-left:18px"><input type="checkbox" data-ann-stu="${esc(y)}|${esc(c)}|${esc(n)}"> ${esc(n)}</label>`
-                )
-                .join("");
-              return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="ann-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong></div>
-                <div class="pt-children is-collapsed" data-parent="ann-${esc(y)}-${esc(c)}">${nHtml}</div>
-              </div>`;
-            })
-            .join("");
-          return `<div class="pt-node">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="ann-y-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong></div>
-            <div class="pt-children" data-parent="ann-y-${esc(y)}">${cHtml}</div>
-          </div>`;
-        })
-        .join("") || "<p class='muted'>Roster kosong.</p>";
+    if (!years.length) {
+      host.innerHTML = "<p class='muted'>Daftar siswa kosong. Pastikan roster/alumni di database terisi.</p>";
+      return;
+    }
+    host.innerHTML = years
+      .map((y) => {
+        const classes = Object.keys(cov[y] || {}).sort();
+        const cHtml = classes
+          .map((c) => {
+            const names = (cov[y][c] || []).slice();
+            const nHtml = names
+              .map(
+                (n) =>
+                  `<label class="check ann-stu-check"><input type="checkbox" data-ann-stu="${esc(y)}|${esc(c)}|${esc(n)}"> <span>${esc(n)}</span></label>`
+              )
+              .join("");
+            return `<div class="pt-node">
+              <div class="pt-row"><button type="button" class="pt-toggle" data-t="ann-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${names.length})</small></div>
+              <div class="pt-children is-collapsed" data-parent="ann-${esc(y)}-${esc(c)}">${nHtml || "<p class='muted'>Kosong</p>"}</div>
+            </div>`;
+          })
+          .join("");
+        return `<div class="pt-node">
+          <div class="pt-row"><button type="button" class="pt-toggle" data-t="ann-y-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${Object.values(cov[y] || {}).reduce((n, arr) => n + (arr || []).length, 0)})</small></div>
+          <div class="pt-children" data-parent="ann-y-${esc(y)}">${cHtml}</div>
+        </div>`;
+      })
+      .join("");
     treeToggleBind(host);
+    host.dataset.built = "1";
   }
+
 
   function readAnnTargets() {
     return [...document.querySelectorAll("[data-ann-stu]:checked")].map((cb) => {
@@ -428,10 +446,7 @@
         if (on) {
           tree.classList.remove("is-collapsed");
           tree.style.display = "block";
-          if (!tree.dataset.built) {
-            await buildAnnStudentTree();
-            tree.dataset.built = "1";
-          }
+          await buildAnnStudentTree();
         } else {
           tree.classList.add("is-collapsed");
           tree.style.display = "none";
@@ -1424,14 +1439,14 @@
                 })
                 .join("");
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="c-${y}-${c}">▾</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${tree[y][c].length} tautan)</small></div>
-                <div class="pt-children" data-parent="c-${y}-${c}">${list}</div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="c-${y}-${c}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${tree[y][c].length} tautan)</small></div>
+                <div class="pt-children is-collapsed" data-parent="c-${y}-${c}">${list}</div>
               </div>`;
             })
             .join("");
           return `<div class="pt-node" style="margin-bottom:10px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="y-${y}">▾</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${Object.values(tree[y]).reduce((n,a)=>n+a.length,0)} tautan)</small></div>
-            <div class="pt-children" data-parent="y-${y}">${classHtml}</div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="y-${y}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${Object.values(tree[y]).reduce((n,a)=>n+a.length,0)} tautan)</small></div>
+            <div class="pt-children is-collapsed" data-parent="y-${y}">${classHtml}</div>
           </div>`;
         })
         .join("");
@@ -1464,7 +1479,15 @@
         b.addEventListener("click", () => {
           const id = b.getAttribute("data-edit-link");
           const panel = host.querySelector('[data-edit-panel="' + id + '"]');
-          if (panel) panel.classList.toggle("is-collapsed");
+          if (!panel) return;
+          panel.classList.toggle("is-collapsed");
+          const open = !panel.classList.contains("is-collapsed");
+          b.textContent = open ? "Tutup" : "Ubah";
+          if (open) {
+            panel.querySelectorAll("select").forEach((sel) => {
+              if (sel.onchange) sel.onchange();
+            });
+          }
         })
       );
       host.querySelectorAll("[data-save-link]").forEach((b) =>
@@ -1500,7 +1523,7 @@
           const boxS = document.createElement("div");
           boxS.style.marginTop = "16px";
           boxS.innerHTML =
-            `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="link-siswa-belum">▾</button><strong>Siswa belum tertaut akun Google</strong> <small class="muted">(${cov.unlinkedStudents.length})</small></div><div class="pt-children" data-parent="link-siswa-belum">` +
+            `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="link-siswa-belum">▸</button><strong>Siswa belum tertaut akun Google</strong> <small class="muted">(${cov.unlinkedStudents.length})</small></div><div class="pt-children" data-parent="link-siswa-belum">` +
             Object.keys(byY)
               .sort()
               .reverse()

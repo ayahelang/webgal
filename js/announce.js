@@ -100,7 +100,51 @@
     return false;
   }
 
-  function showSplash(ann) {
+
+  const openFloats = {};
+
+  function isStillValid(ann) {
+    const now = new Date();
+    const start = ann.starts_at ? new Date(ann.starts_at) : null;
+    let end = ann.ends_at ? new Date(ann.ends_at) : null;
+    if (start && now < start) return false;
+    if (!end && start && (ann.duration_days || ann.duration_hours)) {
+      end = new Date(start.getTime());
+      if (ann.duration_days) end.setDate(end.getDate() + Number(ann.duration_days));
+      if (ann.duration_hours) end.setHours(end.getHours() + Number(ann.duration_hours));
+    }
+    if (end && now > end) return false;
+    return !!ann.active;
+  }
+
+  function removeFloat(id) {
+    const el = document.getElementById("sh-ann-float-" + id);
+    if (el) el.remove();
+    delete openFloats[id];
+  }
+
+  function showFloatBtn(ann) {
+    if (!isStillValid(ann)) {
+      removeFloat(ann.id);
+      return;
+    }
+    if (document.getElementById("sh-ann-float-" + ann.id)) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "sh-ann-float-" + ann.id;
+    btn.className = "sh-ann-float-btn";
+    btn.title = ann.title || "Pengumuman";
+    btn.innerHTML = "<span>📢</span><span class='sh-ann-float-label'>" + (ann.title || "Pengumuman").slice(0, 28) + "</span>";
+    btn.onclick = () => {
+      removeFloat(ann.id);
+      showSplash(ann, { fromFloat: true });
+    };
+    document.body.appendChild(btn);
+    openFloats[ann.id] = true;
+  }
+
+  function showSplash(ann, opts) {
+    opts = opts || {};
     return new Promise((resolve) => {
       let sec = Math.max(5, Number(ann.splash_seconds) || 15);
       const overlay = document.createElement("div");
@@ -116,7 +160,9 @@
       const close = () => {
         clearInterval(iv);
         overlay.remove();
-        markSeen(ann);
+        if (!opts.fromFloat) markSeen(ann);
+        if (isStillValid(ann)) showFloatBtn(ann);
+        else removeFloat(ann.id);
         resolve();
       };
       overlay.querySelector(".sh-ann-close").onclick = close;
