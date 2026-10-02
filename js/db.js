@@ -2162,6 +2162,182 @@
     return { loveRed, loveBlue, commentRed, commentBlue, score };
   }
 
+  // ===== Absensi online =====
+  function canManageAttendance(prof) {
+    if (!prof) return false;
+    if (prof.is_admin) return true;
+    const p = prof.permissions || {};
+    return !!(p.manage_attendance || p.attendance || p.is_teacher);
+  }
+
+  async function listAttendanceSessionsAdmin() {
+    const sb = client();
+    if (!sb) return [];
+    if (!(await isCurrentUserAdmin()) && !(await (async () => {
+      const p = await getMyProfile();
+      return canManageAttendance(p);
+    })())) throw new Error("Tidak berhak mengelola absensi");
+    const { data, error } = await sb
+      .from("gallery_attendance_sessions")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function upsertAttendanceSession(payload) {
+    const sb = client();
+    const session = await getSession();
+    const prof = await getMyProfile();
+    if (!(await isCurrentUserAdmin()) && !canManageAttendance(prof)) throw new Error("Tidak berhak");
+    const row = {
+      title: payload.title || "Sesi absensi",
+      subject_code: payload.subject_code || "SMM",
+      subject_label: payload.subject_label || "Social Media Marketing",
+      description: payload.description || "",
+      audience: payload.audience || "all_linked",
+      target_students: payload.target_students || [],
+      target_years: payload.target_years || [],
+      target_classes: payload.target_classes || [],
+      session_date: payload.session_date || null,
+      weekdays: payload.weekdays || [],
+      checkin_start: payload.checkin_start || "07:00",
+      checkin_end: payload.checkin_end || "07:15",
+      checkout_start: payload.checkout_start || "08:20",
+      checkout_end: payload.checkout_end || "08:40",
+      timezone: payload.timezone || "Asia/Jakarta",
+      require_checkout: payload.require_checkout !== false,
+      active: payload.active !== false,
+      created_by: session && session.user ? session.user.id : null,
+      created_by_email: session && session.user ? session.user.email : "",
+      updated_at: new Date().toISOString(),
+    };
+    if (payload.id) {
+      const { data, error } = await sb.from("gallery_attendance_sessions").update(row).eq("id", payload.id).select("*").single();
+      if (error) throw error;
+      return data;
+    }
+    const { data, error } = await sb.from("gallery_attendance_sessions").insert(row).select("*").single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function deleteAttendanceSession(id) {
+    if (!(await isCurrentUserAdmin())) {
+      const p = await getMyProfile();
+      if (!canManageAttendance(p)) throw new Error("Tidak berhak");
+    }
+    const sb = client();
+    const { error } = await sb.from("gallery_attendance_sessions").delete().eq("id", id);
+    if (error) throw error;
+  }
+
+  async function listActiveAttendanceSessions() {
+    const sb = client();
+    if (!sb) return [];
+    const { data, error } = await sb
+      .from("gallery_attendance_sessions")
+      .select("*")
+      .eq("active", true)
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.warn(error);
+      return [];
+    }
+    return data || [];
+  }
+
+  async function myAttendanceRecords() {
+    const sb = client();
+    const session = await getSession();
+    if (!sb || !session) return [];
+    const { data, error } = await sb
+      .from("gallery_attendance_records")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .order("updated_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function listAttendanceRecords(filters) {
+    filters = filters || {};
+    const sb = client();
+    if (!sb) return [];
+    let q = sb.from("gallery_attendance_records").select("*, gallery_attendance_sessions(title,subject_code,subject_label,session_date)").order("checkin_at", { ascending: false }).limit(500);
+    if (filters.session_id) q = q.eq("session_id", filters.session_id);
+    if (filters.class_code) q = q.eq("class_code", filters.class_code);
+    if (filters.student_name) q = q.ilike("student_name", "%" + filters.student_name + "%");
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function submitAttendanceCheckin({ sessionId, note }) {
+    const sb = client();
+    const session = await getSession();
+    if (!sb || !session) throw new Error("Login dulu");
+    const prof = await getMyProfile();
+    if (!prof || !prof.linked_student_name) throw new Error("Tautkan nama siswa di Profil dulu");
+    const now = new Date().toISOString();
+    const row = {
+      session_id: sessionId,
+      user_id: session.user.id,
+      student_name: prof.linked_student_name,
+      angkatan_year: String(prof.linked_angkatan_year || ""),
+      class_code: String(prof.linked_class_code || ""),
+      email: session.user.email || "",
+      checkin_at: now,
+      checkin_note: String(note || "").slice(0, 280),
+      checkin_status: "on_time",
+      updated_at: now,
+    };
+    const { data: existing } = await sb
+      .from("gallery_attendance_records")
+      .select("id,checkin_at")
+      .eq("session_id", sessionId)
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+    if (existing && existing.checkin_at) throw new Error("Sudah check-in untuk sesi ini");
+    if (existing) {
+      const { data, error } = await sb.from("gallery_attendance_records").update(row).eq("id", existing.id).select("*").single();
+      if (error) throw error;
+      return data;
+    }
+    const { data, error } = await sb.from("gallery_attendance_records").insert(row).select("*").single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function submitAttendanceCheckout({ sessionId, note }) {
+    const sb = client();
+    const session = await getSession();
+    if (!sb || !session) throw new Error("Login dulu");
+    const now = new Date().toISOString();
+    const { data: existing, error: e1 } = await sb
+      .from("gallery_attendance_records")
+      .select("*")
+      .eq("session_id", sessionId)
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+    if (e1) throw e1;
+    if (!existing || !existing.checkin_at) throw new Error("Belum check-in");
+    if (existing.checkout_at) throw new Error("Sudah check-out");
+    const { data, error } = await sb
+      .from("gallery_attendance_records")
+      .update({
+        checkout_at: now,
+        checkout_note: String(note || "").slice(0, 280),
+        checkout_status: "done",
+        updated_at: now,
+      })
+      .eq("id", existing.id)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
   global.GalleryDB = {
     enabled,
     client,
@@ -2236,10 +2412,20 @@
     importRosterFromSheet2025,
     runAiDocsSync,
     loadAiSkills,
+
     listAnnouncementsAdmin,
     upsertAnnouncement,
     deleteAnnouncement,
     fetchActiveAnnouncements,
+    listAttendanceSessionsAdmin,
+    upsertAttendanceSession,
+    deleteAttendanceSession,
+    listActiveAttendanceSessions,
+    myAttendanceRecords,
+    listAttendanceRecords,
+    submitAttendanceCheckin,
+    submitAttendanceCheckout,
+    canManageAttendance,
     loadRefleksiFromDb,
     loadSkillsMetaFromDb,
     fetchGoogleDocsText,

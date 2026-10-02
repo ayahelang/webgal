@@ -1328,3 +1328,18 @@ body.page-skills .skills-main{
 @media (max-width: 620px) {
   .one-line-desktop { white-space: normal !important; }
 }
+
+/* Absensi */
+.att-list{display:grid;gap:12px}
+.att-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px}
+.att-badge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:rgba(125,227,255,.15);color:#9ee7ff;white-space:nowrap}
+.att-card[data-status="missed"] .att-badge{background:rgba(255,120,120,.15);color:#ffb0b0}
+.att-card[data-status="done"] .att-badge{background:rgba(143,245,189,.15);color:#8ff5bd}
+.att-fx{position:fixed;inset:0;z-index:13000;pointer-events:none}
+.att-toast{
+  position:fixed;left:50%;bottom:28px;transform:translateX(-50%);
+  z-index:13001;padding:12px 18px;border-radius:999px;
+  background:rgba(10,20,30,.94);border:1px solid rgba(125,227,255,.4);
+  color:#e8f4f8;font-weight:600;box-shadow:0 12px 40px rgba(0,0,0,.4);
+}
+.att-admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}

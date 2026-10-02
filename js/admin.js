@@ -612,6 +612,160 @@
     if (annSave) annSave.onclick = (e) => { e.preventDefault(); saveAnnouncement(e); };
   }
 
+
+  let attRecCache = [];
+  async function refreshAttendance() {
+    const host = $("#attSessList");
+    if (!host) return;
+    try {
+      const rows = await GalleryDB.listAttendanceSessionsAdmin();
+      host.innerHTML =
+        rows
+          .map(
+            (r) => `<div class="admin-row">
+            <div><strong>${esc(r.title)}</strong>
+              <small class="muted"> · ${esc(r.subject_code)} · ${r.active ? "aktif" : "nonaktif"}</small>
+              <br><small class="muted">In ${esc(r.checkin_start)}–${esc(r.checkin_end)} · Out ${esc(r.checkout_start)}–${esc(r.checkout_end)}
+              ${r.session_date ? " · " + esc(r.session_date) : (r.weekdays && r.weekdays.length ? " · hari " + esc(r.weekdays.join(",")) : "")}</small>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button type="button" data-edit-att="${r.id}">Ubah</button>
+              <button type="button" data-del-att="${r.id}">Hapus</button>
+            </div>
+          </div>`
+          )
+          .join("") || "<p class='muted'>Belum ada sesi absensi.</p>";
+      $$("#attSessList [data-del-att]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          if (!confirm("Hapus sesi absensi?")) return;
+          await GalleryDB.deleteAttendanceSession(b.dataset.delAtt);
+          await refreshAttendance();
+        })
+      );
+      $$("#attSessList [data-edit-att]").forEach((b) =>
+        b.addEventListener("click", () => {
+          const r = rows.find((x) => String(x.id) === String(b.dataset.editAtt));
+          if (!r) return;
+          const f = $("#attSessForm");
+          f.querySelector("[name=id]").value = r.id;
+          f.querySelector("[name=title]").value = r.title || "";
+          f.querySelector("[name=subject_code]").value = r.subject_code || "SMM";
+          f.querySelector("[name=subject_label]").value = r.subject_label || "";
+          f.querySelector("[name=session_date]").value = r.session_date ? String(r.session_date).slice(0, 10) : "";
+          f.querySelector("[name=checkin_start]").value = String(r.checkin_start || "").slice(0, 5);
+          f.querySelector("[name=checkin_end]").value = String(r.checkin_end || "").slice(0, 5);
+          f.querySelector("[name=checkout_start]").value = String(r.checkout_start || "").slice(0, 5);
+          f.querySelector("[name=checkout_end]").value = String(r.checkout_end || "").slice(0, 5);
+          f.querySelector("[name=target_years]").value = (r.target_years || []).join(",");
+          f.querySelector("[name=target_classes]").value = (r.target_classes || []).join(",");
+          f.querySelector("[name=require_checkout]").checked = r.require_checkout !== false;
+          f.querySelector("[name=active]").checked = r.active !== false;
+          $$("#attSessForm [name=wd]").forEach((cb) => {
+            cb.checked = (r.weekdays || []).map(Number).indexOf(Number(cb.value)) >= 0;
+          });
+          $("#attSessMsg").textContent = "Mode edit: " + (r.title || "");
+          scrollToForm("#attSessForm");
+        })
+      );
+    } catch (e) {
+      host.innerHTML = "<p class='muted'>" + esc(e.message || e) + "</p>";
+    }
+  }
+
+  function bindAttendanceAdmin() {
+    const save = $("#attSessSave");
+    if (!save) return;
+    save.onclick = async () => {
+      const f = $("#attSessForm");
+      const fd = new FormData(f);
+      const weekdays = $$("#attSessForm [name=wd]:checked").map((c) => Number(c.value));
+      const years = String(fd.get("target_years") || "")
+        .split(/[,\s]+/)
+        .map((x) => x.trim())
+        .filter(Boolean);
+      const classes = String(fd.get("target_classes") || "")
+        .split(/[,\s]+/)
+        .map((x) => x.trim())
+        .filter(Boolean);
+      const payload = {
+        id: fd.get("id") || null,
+        title: fd.get("title"),
+        subject_code: fd.get("subject_code"),
+        subject_label: fd.get("subject_label"),
+        session_date: fd.get("session_date") || null,
+        weekdays,
+        checkin_start: fd.get("checkin_start"),
+        checkin_end: fd.get("checkin_end"),
+        checkout_start: fd.get("checkout_start"),
+        checkout_end: fd.get("checkout_end"),
+        target_years: years,
+        target_classes: classes,
+        audience: years.length || classes.length ? "class" : "all_linked",
+        require_checkout: f.querySelector("[name=require_checkout]").checked,
+        active: f.querySelector("[name=active]").checked,
+      };
+      try {
+        await GalleryDB.upsertAttendanceSession(payload);
+        $("#attSessMsg").textContent = "Sesi disimpan.";
+        f.reset();
+        f.querySelector("[name=id]").value = "";
+        await refreshAttendance();
+      } catch (e) {
+        $("#attSessMsg").textContent = e.message || String(e);
+      }
+    };
+    $("#attSessReset") &&
+      ($("#attSessReset").onclick = () => {
+        $("#attSessForm").reset();
+        $("#attSessForm [name=id]").value = "";
+        $("#attSessMsg").textContent = "";
+      });
+    $("#attRecLoad") &&
+      ($("#attRecLoad").onclick = async () => {
+        const host = $("#attRecList");
+        host.innerHTML = "Memuat…";
+        try {
+          attRecCache = await GalleryDB.listAttendanceRecords({
+            session_id: ($("#attRecSession") || {}).value || null,
+            class_code: ($("#attRecClass") || {}).value || null,
+            student_name: ($("#attRecName") || {}).value || null,
+          });
+          host.innerHTML =
+            attRecCache
+              .map((r) => {
+                const sess = r.gallery_attendance_sessions || {};
+                return `<div class="admin-row"><div><strong>${esc(r.student_name)}</strong> · K${esc(r.class_code)} · ${esc(r.angkatan_year)}
+                  <br><small class="muted">${esc(sess.title || r.session_id)} · in ${esc(r.checkin_at || "—")} · out ${esc(r.checkout_at || "—")}
+                  <br>In: ${esc(r.checkin_note || "")} · Out: ${esc(r.checkout_note || "")}</small></div></div>`;
+              })
+              .join("") || "<p class='muted'>Tidak ada data.</p>";
+        } catch (e) {
+          host.innerHTML = "<p class='muted'>" + esc(e.message || e) + "</p>";
+        }
+      });
+    $("#attRecCsv") &&
+      ($("#attRecCsv").onclick = () => {
+        if (!attRecCache.length) return alert("Muat rekap dulu");
+        const lines = [
+          ["student_name", "class", "year", "email", "session", "checkin_at", "checkin_note", "checkout_at", "checkout_note"].join(","),
+        ];
+        attRecCache.forEach((r) => {
+          const sess = r.gallery_attendance_sessions || {};
+          const cell = (x) => '"' + String(x || "").replace(/"/g, '""') + '"';
+          lines.push(
+            [r.student_name, r.class_code, r.angkatan_year, r.email, sess.title || r.session_id, r.checkin_at, r.checkin_note, r.checkout_at, r.checkout_note]
+              .map(cell)
+              .join(",")
+          );
+        });
+        const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "absensi-" + new Date().toISOString().slice(0, 10) + ".csv";
+        a.click();
+      });
+  }
+
   async function boot() {
     const gate = $("#gate");
     const panel = $("#panel");
@@ -676,11 +830,13 @@
         if (btn.dataset.tab === "users") refreshUsers();
         if (btn.dataset.tab === "sync") { /* noop */ }
         if (btn.dataset.tab === "announce") refreshAnnouncements();
+        if (btn.dataset.tab === "attendance") refreshAttendance();
       })
     );
 
     bindForms(session);
     bindAnnouncementForm();
+    bindAttendanceAdmin();
     const msg = () => $("#syncMsg");
     const log = () => $("#syncLog");
     const sheetId = () => (($("#syncSheetId") && $("#syncSheetId").value) || "").trim();
@@ -1698,7 +1854,7 @@
         ? (window.SHStatus ? SHStatus.compute(u.linked_angkatan_year).label : "Taut")
         : "Belum tautkan";
       const keys = Object.keys((u.permissions && typeof u.permissions === "object" ? u.permissions : {}) || {});
-      const permKeys = keys.length ? keys : ["videos", "websites", "alumni", "users", "angkatan"];
+      const permKeys = keys.length ? keys : ["videos", "websites", "alumni", "users", "angkatan", "manage_attendance", "announce"];
       const permHtml = permKeys
         .map(
           (k) =>

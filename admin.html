@@ -60,6 +60,7 @@
         <button class="filter" data-tab="angkatan">Angkatan</button>
         <button class="filter" data-tab="links">Tautan Siswa</button>
         <button class="filter" data-tab="users">Users & Admin</button>
+        <button class="filter" data-tab="attendance">Absensi</button>
         <button class="filter" data-tab="announce">Pengumuman</button>
         <button class="filter" data-tab="sync">Sync Docs</button>
       </div>
@@ -180,6 +181,63 @@
       </section>
 
       
+      
+      <section data-panel="attendance" class="summary-card admin-pane" hidden>
+        <h3>Absensi Online</h3>
+        <p class="muted one-line-desktop" style="font-size:13px">Buat sesi check-in/out, rekap, dan unduh CSV. Guru tambahan: centang hak manage_attendance di Atur user.</p>
+        <form id="attSessForm" class="ann-form">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Judul sesi</span><input name="title" required placeholder="SMM Minggu 7 — Domain"></label>
+          <label class="field"><span>Kode mapel</span>
+            <select name="subject_code">
+              <option value="SMM">SMM</option>
+              <option value="DG">Desain Grafis</option>
+              <option value="OTHER">Lainnya</option>
+            </select>
+          </label>
+          <label class="field"><span>Label mapel</span><input name="subject_label" value="Social Media Marketing"></label>
+          <label class="field"><span>Tanggal khusus (opsional)</span><input type="date" name="session_date"></label>
+          <label class="field" style="grid-column:1/-1"><span>Hari berulang (kosongi jika pakai tanggal khusus)</span>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+              <label class="check"><input type="checkbox" name="wd" value="1"> Sen</label>
+              <label class="check"><input type="checkbox" name="wd" value="2"> Sel</label>
+              <label class="check"><input type="checkbox" name="wd" value="3"> Rab</label>
+              <label class="check"><input type="checkbox" name="wd" value="4"> Kam</label>
+              <label class="check"><input type="checkbox" name="wd" value="5"> Jum</label>
+              <label class="check"><input type="checkbox" name="wd" value="6"> Sab</label>
+              <label class="check"><input type="checkbox" name="wd" value="7"> Min</label>
+            </div>
+          </label>
+          <label class="field"><span>Check-in mulai</span><input type="time" name="checkin_start" value="07:00"></label>
+          <label class="field"><span>Check-in akhir (batas hadir)</span><input type="time" name="checkin_end" value="07:15"></label>
+          <label class="field"><span>Check-out mulai</span><input type="time" name="checkout_start" value="08:20"></label>
+          <label class="field"><span>Check-out akhir</span><input type="time" name="checkout_end" value="08:40"></label>
+          <label class="field"><span>Angkatan (kosong=semua tertaut)</span><input name="target_years" placeholder="2025 atau 2024,2025"></label>
+          <label class="field"><span>Kelas (kosong=semua)</span><input name="target_classes" placeholder="51 atau 51,52"></label>
+          <label class="check" style="align-self:center"><input type="checkbox" name="require_checkout" checked> Wajib check-out</label>
+          <label class="check" style="align-self:center"><input type="checkbox" name="active" checked> Aktif</label>
+          <div class="admin-form-actions" style="grid-column:1/-1">
+            <button type="button" class="btn btn-primary" id="attSessSave">Simpan sesi</button>
+            <button type="button" class="btn btn-ghost" id="attSessReset">Batal</button>
+          </div>
+        </form>
+        <p id="attSessMsg" class="muted" style="font-size:13px"></p>
+        <div id="attSessList" class="admin-list" style="margin-top:12px"></div>
+        <hr style="border:0;border-top:1px solid rgba(125,227,255,.12);margin:18px 0">
+        <h3 style="font-size:1.05rem">Rekap kehadiran</h3>
+        <div class="att-admin-grid" style="margin-top:10px">
+          <label class="field"><span>Filter sesi (id opsional)</span><input id="attRecSession" placeholder="UUID sesi / kosong=semua"></label>
+          <label class="field"><span>Kelas</span><input id="attRecClass" placeholder="51 / 52"></label>
+          <label class="field"><span>Nama</span><input id="attRecName" placeholder="cari nama"></label>
+        </div>
+        <div class="admin-form-actions" style="margin-top:10px">
+          <button type="button" class="btn btn-primary" id="attRecLoad">Muat rekap</button>
+          <button type="button" class="btn btn-ghost" id="attRecCsv">Unduh CSV</button>
+          <a class="btn btn-ghost" href="absensi.html" target="_blank" style="display:inline-flex;align-items:center">Buka halaman siswa</a>
+        </div>
+        <div id="attRecList" class="admin-list" style="margin-top:12px"></div>
+      </section>
+
       <section data-panel="announce" class="summary-card admin-pane" hidden>
         <h3>Pengumuman</h3>
         <p class="muted one-line-desktop" style="font-size:13px;margin:0 0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Splash bisa ditutup · atur audiens, jadwal, dan konten (teks, link, gambar).</p>
