@@ -491,23 +491,12 @@
   }
   async function adminListWebsites() {
     const sb = client();
-    // Ambil dengan join; fallback enrich client-side jika join gagal
-    let { data, error } = await sb
+    const { data, error } = await sb
       .from("gallery_websites")
       .select("id,title,url,category,alumni_id,created_at, gallery_alumni(name,class_code,angkatan_id, gallery_angkatan(label))")
       .order("created_at", { ascending: false })
       .limit(2000);
-    if (error) {
-      const r2 = await sb
-        .from("gallery_websites")
-        .select("id,title,url,category,alumni_id,created_at")
-        .order("created_at", { ascending: false })
-        .limit(2000);
-      if (r2.error) throw r2.error;
-      const al = await adminListAlumni();
-      const map = Object.fromEntries((al || []).map((x) => [x.id, x]));
-      return (r2.data || []).map((w) => ({ ...w, gallery_alumni: map[w.alumni_id] || null }));
-    }
+    if (error) throw error;
     return data || [];
   }
   async function adminDeleteWebsite(id) {
@@ -942,22 +931,11 @@
     if (!sb) return [];
     let q = sb
       .from("gallery_videos")
-      .select("id,title,url,platform,description,created_at,category_id,owner_name, gallery_video_categories(name)")
-      .order("created_at", { ascending: false })
-      .limit(2000);
+      .select("id,title,url,platform,embed_url,description,created_at,category_id,owner_name,owner_user_id,created_by, gallery_video_categories(name,slug)")
+      .order("created_at", { ascending: false });
     if (categoryId) q = q.eq("category_id", categoryId);
-    let { data, error } = await q;
-    if (error) {
-      let q2 = sb
-        .from("gallery_videos")
-        .select("id,title,url,platform,description,created_at,category_id,owner_name")
-        .order("created_at", { ascending: false })
-        .limit(2000);
-      if (categoryId) q2 = q2.eq("category_id", categoryId);
-      const r2 = await q2;
-      if (r2.error) throw r2.error;
-      return r2.data || [];
-    }
+    const { data, error } = await q;
+    if (error) throw error;
     return data || [];
   }
   async function addVideo({ title, url, categoryId, description, createdBy }) {

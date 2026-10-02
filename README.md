@@ -1,18 +1,22 @@
-# Silverhawk Student Web Gallery
+# Web Gallery — Kreasi Santriwati
 
-## Struktur
-- `*.html` — halaman
-- `js/` — skrip aplikasi
-- `css/` — gaya
-- `data/` — config Supabase + JSON cadangan
-- `assets/` — favicon
-- `docs/` — Prota/Prosem/Silabus (unduh di Skills)
-- `sql/supabase-full-schema.sql` — **satu file** skema + patch Supabase
-- `supabase/functions/` — Edge Function (AI sync docs)
-- `scripts/` — helper lokal (bukan untuk GitHub Pages)
+Galeri responsif untuk menampilkan karya website santriwati SMA PMA.
 
-## Deploy GitHub Pages
-Upload isi folder ini (kecuali `scripts/` opsional). Pastikan `data/supabase-config.js` berisi URL & anon key proyek Anda.
+## Isi
+- `index.html` — halaman utama
+- `css/style.css` — desain Silverhawk-style, responsif & fluid
+- `js/app.js` — search, filter kelas, sorting, random karya
+- `data/websites.json` — sumber data utama
+- `data/fallback.js` — fallback agar galeri tetap bisa dibuka langsung dari file lokal
 
-## Supabase
-Jalankan `sql/supabase-full-schema.sql` di SQL Editor jika database baru / perlu patch lengkap.
+## Deploy ke GitHub Pages
+Upload seluruh isi folder ini ke repository GitHub Pages. Struktur folder jangan diubah.
+
+## Data
+Data utama berasal dari file Excel kelas 51 & 52, lalu diperkaya dengan URL karya tambahan yang muncul pada percakapan Classroom yang diberikan.
+
+## Update 3 September 2026
+- Added **Titip Dulu 00** by Aneira Syiami Zulfa.
+- Added **Garden Up F** by Fitriani Ramadhani.
+- Project hover/focus tooltip shows the local description immediately and can enrich it with website metadata when available.
+- Updated both `data/websites.json` and `data/fallback.js`.

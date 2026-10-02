@@ -75,11 +75,10 @@
 
   let rosterCache = null;
   async function loadRoster(force) {
-    if (rosterCache && Object.keys(rosterCache).length && !force) return rosterCache;
+    if (rosterCache && !force) return rosterCache;
     if (!rosterCache) rosterCache = {};
-    // 1) JSON lokal (cepat)
     try {
-      const r = await fetch("data/student-roster.json", { cache: "force-cache" });
+      const r = await fetch("data/student-roster.json", { cache: "no-store" });
       if (r.ok) {
         const j = await r.json();
         Object.keys(j || {}).forEach((y) => {
@@ -93,27 +92,32 @@
         });
       }
     } catch (e) {}
-    // 2) Alumni ringan saja (bukan full gallery + websites)
     try {
-      if (!window.__adminAlumniLite) {
-        const rows = await GalleryDB.adminListAlumni();
-        window.__adminAlumniLite = (rows || []).map((x) => {
-          const ang = x.gallery_angkatan || {};
-          const m = String(ang.label || "").match(/20\d{2}/);
-          return { name: x.name, class: x.class_code, angkatan: m ? m[0] : "" };
+      if (GalleryDB.fetchGalleryFromDb) {
+        const g = await GalleryDB.fetchGalleryFromDb();
+        (g.students || []).forEach((s) => {
+          const y = String(s.angkatan || s.angkatan_year || "");
+          const c = String(s.class || s.class_code || "");
+          if (!y || !c) return;
+          if (!rosterCache[y]) rosterCache[y] = {};
+          if (!rosterCache[y][c]) rosterCache[y][c] = [];
+          if (s.name && !rosterCache[y][c].includes(s.name)) rosterCache[y][c].push(s.name);
         });
       }
-      (window.__adminAlumniLite || []).forEach((s) => {
-        const y = String(s.angkatan || "");
-        const c = String(s.class || "");
-        if (!y || !c || !s.name) return;
+    } catch (e) {}
+    try {
+      const rows = await GalleryDB.adminListAlumni();
+      (rows || []).forEach((al) => {
+        const ang = al.gallery_angkatan || {};
+        const m = String(ang.label || "").match(/20\d{2}/);
+        const y = m ? m[0] : "";
+        const c = String(al.class_code || "");
+        if (!y || !c) return;
         if (!rosterCache[y]) rosterCache[y] = {};
         if (!rosterCache[y][c]) rosterCache[y][c] = [];
-        if (!rosterCache[y][c].includes(s.name)) rosterCache[y][c].push(s.name);
+        if (al.name && !rosterCache[y][c].includes(al.name)) rosterCache[y][c].push(al.name);
       });
-    } catch (e) {
-      console.warn("roster alumni", e);
-    }
+    } catch (e) {}
     Object.keys(rosterCache).forEach((y) => {
       Object.keys(rosterCache[y]).forEach((c) => {
         rosterCache[y][c].sort((a, b) => a.localeCompare(b, "id"));
@@ -399,7 +403,7 @@
     if (!host) return;
     host.classList.add("sh-stu-tree");
     host.innerHTML = "<p class='muted'>Memuat daftar siswa…</p>";
-    await loadRoster(false);
+    await loadRoster(true);
     const cov = rosterCache || {};
     const years = Object.keys(cov).sort().reverse();
     if (!years.length) {
@@ -755,7 +759,7 @@
   }
 
   function bindAttendanceAdmin() {
-    // tree dimuat saat tab Absensi dibuka (bukan di boot)
+    buildStudentCheckTree("#attStudentTree");
     const save = $("#attSessSave");
     if (!save) return;
     save.onclick = async () => {
@@ -900,44 +904,20 @@
 
     $$("#adminTabs .filter").forEach((btn) =>
       btn.addEventListener("click", () => {
-        const wasActive = btn.classList.contains("active");
         $$("#adminTabs .filter").forEach((x) => x.classList.remove("active"));
         btn.classList.add("active");
         $$(".admin-pane").forEach((p) => {
           p.hidden = p.getAttribute("data-panel") !== btn.dataset.tab;
         });
         const tab = btn.dataset.tab;
-        if (wasActive && window.__adminTabLoaded) {
-          // klik ulang tab aktif = paksa muat ulang
-          window.__adminTabLoaded[tab] = false;
-        }
-        window.__adminTabLoaded = window.__adminTabLoaded || {};
-        const loadTab = async (key, fn, force) => {
-          if (!force && window.__adminTabLoaded[key]) return;
-          try {
-            await fn();
-            window.__adminTabLoaded[key] = true;
-          } catch (e) {
-            window.__adminTabLoaded[key] = false;
-            console.warn(key, e);
-            const map = { videos: "#vidList", websites: "#webList", alumni: "#alumniList", angkatan: "#angList", users: "#userList", links: "#linkList" };
-            const host = map[key] ? document.querySelector(map[key]) : null;
-            if (host) host.innerHTML = "<p class='muted'>Gagal memuat (" + key + "): " + String(e.message || e) + " · klik tab ini lagi untuk coba ulang</p>";
-          }
-        };
-        if (tab === "videos") loadTab("videos", () => refreshVideos());
-        if (tab === "websites") loadTab("websites", () => refreshWebs());
-        if (tab === "alumni") loadTab("alumni", () => refreshAlumni());
-        if (tab === "angkatan") loadTab("angkatan", () => refreshAngkatan());
-        if (tab === "links") loadTab("links", () => refreshLinks());
-        if (tab === "users") loadTab("users", () => refreshUsers());
-        if (tab === "announce") loadTab("announce", () => refreshAnnouncements());
-        if (tab === "attendance") {
-          loadTab("attendance", async () => {
-            await refreshAttendance();
-            await buildStudentCheckTree("#attStudentTree");
-          });
-        }
+        if (tab === "videos") refreshVideos().catch(console.warn);
+        if (tab === "websites") refreshWebs().catch(console.warn);
+        if (tab === "alumni") refreshAlumni().catch(console.warn);
+        if (tab === "angkatan") refreshAngkatan().catch(console.warn);
+        if (tab === "links") refreshLinks().catch(console.warn);
+        if (tab === "users") refreshUsers().catch(console.warn);
+        if (tab === "announce") refreshAnnouncements().catch(console.warn);
+        if (tab === "attendance") { refreshAttendance().catch(console.warn); buildStudentCheckTree("#attStudentTree"); }
       })
     );
 
@@ -994,40 +974,15 @@
       };
     }
 
-    // Boot: muat kategori + data utama segera (jangan tunggu klik tab)
-    const vidHost = $("#vidList");
-    if (vidHost) vidHost.innerHTML = "<p class='muted'>Memuat video…</p>";
-    const webHost = $("#webList");
-    if (webHost) webHost.innerHTML = "<p class='muted'>Memuat website…</p>";
-    const alHost = $("#alumniList");
-    if (alHost) alHost.innerHTML = "<p class='muted'>Memuat siswa…</p>";
-    window.__adminTabLoaded = window.__adminTabLoaded || {};
+    // Muat ringan dulu; list berat (video/web) lazy saat tab dibuka
     try {
-      await Promise.all([refreshCats().catch(() => null), refreshAngkatan().catch((e) => {
-        console.warn("boot angkatan", e);
-        window.__adminTabLoaded.angkatan = false;
-      })]);
-      window.__adminTabLoaded.angkatan = true;
-    } catch (e) {}
-    // parallel load of heavy lists
-    const tasks = [
-      refreshVideos().then(() => { window.__adminTabLoaded.videos = true; }).catch((e) => {
-        console.warn("boot videos", e);
-        if (vidHost) vidHost.innerHTML = "<p class='muted'>Gagal memuat video: " + esc(e.message || e) + " · klik tab Video untuk coba lagi</p>";
-        window.__adminTabLoaded.videos = false;
-      }),
-      refreshWebs().then(() => { window.__adminTabLoaded.websites = true; }).catch((e) => {
-        console.warn("boot webs", e);
-        if (webHost) webHost.innerHTML = "<p class='muted'>Gagal memuat website: " + esc(e.message || e) + " · klik tab Website untuk coba lagi</p>";
-        window.__adminTabLoaded.websites = false;
-      }),
-      refreshAlumni().then(() => { window.__adminTabLoaded.alumni = true; }).catch((e) => {
-        console.warn("boot alumni", e);
-        if (alHost) alHost.innerHTML = "<p class='muted'>Gagal memuat siswa: " + esc(e.message || e) + " · klik tab Siswa untuk coba lagi</p>";
-        window.__adminTabLoaded.alumni = false;
-      }),
-    ];
-    await Promise.all(tasks);
+      await Promise.all([refreshCats(), refreshAngkatan()]);
+    } catch (e) {
+      console.warn(e);
+    }
+    // preload tab aktif (video) di background
+    refreshVideos().catch((e) => console.warn("videos", e));
+    // sisanya on-demand
   }
 
   function bindForms(session) {
@@ -1072,9 +1027,7 @@
         $("#vidStatus").textContent = id ? "Video diperbarui." : "Video ditambah.";
         ev.target.reset();
         ev.target.querySelector('[name=id]').value = "";
-        window.__adminTabLoaded && (window.__adminTabLoaded.videos = false);
         await refreshVideos();
-        window.__adminTabLoaded && (window.__adminTabLoaded.videos = true);
       } catch (e) {
         $("#vidStatus").textContent = e.message || String(e);
       }
@@ -1240,8 +1193,6 @@
     $("#vidCat").innerHTML = cats.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
   }
 
-  let __vidLoad = null;
-
   async function refreshVideos() {
     const host = $("#vidList");
     if (host) host.innerHTML = "<p class='muted'>Memuat video…</p>";
@@ -1336,20 +1287,20 @@
                     })
                     .join("");
                   return `<div class="pt-node">
-                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y][c])})</small></div>
-                    <div class="pt-children" data-parent="v-${esc(cat)}-${esc(y)}-${esc(c)}">${nHtml}</div>
+                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y][c])})</small></div>
+                    <div class="pt-children is-collapsed" data-parent="v-${esc(cat)}-${esc(y)}-${esc(c)}">${nHtml}</div>
                   </div>`;
                 })
                 .join("");
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y])})</small></div>
-                <div class="pt-children" data-parent="v-${esc(cat)}-${esc(y)}">${cHtml}</div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y])})</small></div>
+                <div class="pt-children is-collapsed" data-parent="v-${esc(cat)}-${esc(y)}">${cHtml}</div>
               </div>`;
             })
             .join("");
           return `<div class="pt-node" style="margin-bottom:12px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-cat-${esc(cat)}">▾</button><strong>${esc(cat)}</strong> <small class="muted pt-count">(${countDeep(root[cat])})</small></div>
-            <div class="pt-children" data-parent="v-cat-${esc(cat)}">${yHtml}</div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-cat-${esc(cat)}">▸</button><strong>${esc(cat)}</strong> <small class="muted pt-count">(${countDeep(root[cat])})</small></div>
+            <div class="pt-children is-collapsed" data-parent="v-cat-${esc(cat)}">${yHtml}</div>
           </div>`;
         })
         .join("") || "<p class='muted'>Belum ada video.</p>";
@@ -1496,8 +1447,6 @@
   }
 
 
-  let __webLoad = null;
-
   async function refreshWebs() {
     const host = $("#webList");
     if (host) host.innerHTML = "<p class='muted'>Memuat website…</p>";
@@ -1557,8 +1506,8 @@
                 .join("");
               const siteCount = names.reduce((n, nm) => n + tree[y][c][nm].length, 0);
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${siteCount})</small></div>
-                <div class="pt-children" data-parent="w-${esc(y)}-${esc(c)}">${nHtml}</div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${siteCount})</small></div>
+                <div class="pt-children is-collapsed" data-parent="w-${esc(y)}-${esc(c)}">${nHtml}</div>
               </div>`;
             })
             .join("");
@@ -1566,8 +1515,8 @@
             return n + Object.keys(tree[y][c] || {}).reduce((m, nm) => m + (tree[y][c][nm] || []).length, 0);
           }, 0);
           return `<div class="pt-node" style="margin-bottom:10px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-y-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${yearCount})</small></div>
-            <div class="pt-children" data-parent="w-y-${esc(y)}">${cHtml}</div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-y-${esc(y)}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${yearCount})</small></div>
+            <div class="pt-children is-collapsed" data-parent="w-y-${esc(y)}">${cHtml}</div>
           </div>`;
         })
         .join("") || "<p class='muted'>Belum ada website.</p>";
@@ -1618,8 +1567,13 @@
   async function refreshAlumni() {
     const rows = await GalleryDB.adminListAlumni();
     alumniAllCache = rows || [];
-    // Admin: tampilkan SEMUA siswa di DB (layout tree tetap)
-    alumniCache = alumniAllCache.slice();
+    // list tab: hanya alumni resmi (Juli tahun+3)
+    alumniCache = alumniAllCache.filter((a) => {
+      const ang = a.gallery_angkatan || {};
+      const m = String(ang.label || "").match(/20\d{2}/);
+      const year = m ? m[0] : "";
+      return isAlumniCohort(year);
+    });
     await fillAlumniSelects();
     const tree = {};
     alumniCache.forEach((a) => {
@@ -1663,7 +1617,7 @@
             <div class="pt-children" data-parent="al-y-${esc(y)}">${cHtml}</div>
           </div>`;
         })
-        .join("") || "<p class='muted'>Belum ada data siswa di database.</p>";
+        .join("") || "<p class='muted'>Belum ada data alumni resmi (Angkatan 2024 → Juli 2027; 2025 → Juli 2028).</p>";
     treeToggleBind($("#alumniList"));
     bindListSearch("#alumniSearch", "#alumniList");
     $$("#alumniList [data-del-al]").forEach((b) =>
@@ -1685,10 +1639,8 @@
         const f = $("#alumniForm");
         f.querySelector("[name=id]").value = a.id;
         f.querySelector("[name=name]").value = a.name || "";
-        const classEl = f.querySelector("[name=classCode]");
-        if (classEl) classEl.value = a.class_code || "51";
-        const angEl = f.querySelector("[name=angkatanId]");
-        if (angEl && a.angkatan_id) angEl.value = a.angkatan_id;
+        f.querySelector("[name=class_code]").value = a.class_code || "51";
+        if (a.angkatan_id) f.querySelector("[name=angkatan_id]").value = a.angkatan_id;
         $("#alumniStatus").textContent = "Mode edit: " + (a.name || "");
         scrollToForm("#alumniForm");
       })
@@ -1814,13 +1766,13 @@
                 .join("");
               return `<div class="pt-node">
                 <div class="pt-row"><button type="button" class="pt-toggle" data-t="c-${y}-${c}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${tree[y][c].length} tautan)</small></div>
-                <div class="pt-children" data-parent="c-${y}-${c}">${list}</div>
+                <div class="pt-children is-collapsed" data-parent="c-${y}-${c}">${list}</div>
               </div>`;
             })
             .join("");
           return `<div class="pt-node" style="margin-bottom:10px">
             <div class="pt-row"><button type="button" class="pt-toggle" data-t="y-${y}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${Object.values(tree[y]).reduce((n,a)=>n+a.length,0)} tautan)</small></div>
-            <div class="pt-children" data-parent="y-${y}">${classHtml}</div>
+            <div class="pt-children is-collapsed" data-parent="y-${y}">${classHtml}</div>
           </div>`;
         })
         .join("");
@@ -1881,7 +1833,7 @@
           }
         })
       );
-      await loadRoster(false);
+      await loadRoster(true);
       bindLinkNameSelects(host);
       // siswa/user belum taut
       try {
@@ -2060,13 +2012,13 @@
             const list = tree[y][c].map(userRow).join("");
             return `<div class="pt-node">
               <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${tree[y][c].length})</small></div>
-              <div class="pt-children" data-parent="u-${esc(y)}-${esc(c)}">${list}</div>
+              <div class="pt-children is-collapsed" data-parent="u-${esc(y)}-${esc(c)}">${list}</div>
             </div>`;
           })
           .join("");
         return `<div class="pt-node" style="margin-bottom:10px">
           <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-y-${esc(y)}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${Object.values(tree[y]).reduce((n,arr)=>n+arr.length,0)})</small></div>
-          <div class="pt-children" data-parent="u-y-${esc(y)}">${cHtml}</div>
+          <div class="pt-children is-collapsed" data-parent="u-y-${esc(y)}">${cHtml}</div>
         </div>`;
       })
       .join("");
@@ -2074,7 +2026,7 @@
       const noLink = rows.filter((u) => !(u.linked_student_name && String(u.linked_student_name).trim()));
       html += `<div class="pt-node" style="margin-top:12px">
         <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-nolink">▸</button><strong>Belum menautkan siswa</strong> <small class="muted">(${unlinked})</small></div>
-        <div class="pt-children" data-parent="u-nolink">${noLink.map((u) => userRow(u) + adminLinkForm(u)).join("")}</div>
+        <div class="pt-children is-collapsed" data-parent="u-nolink">${noLink.map((u) => userRow(u) + adminLinkForm(u)).join("")}</div>
       </div>`;
     }
     $("#userList").innerHTML = html || "<p class='muted'>Belum ada user login Google.</p>";
