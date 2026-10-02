@@ -1,6 +1,6 @@
 (() => {
   const $ = (s) => document.querySelector(s);
-  const $$ = (s) => document.querySelectorAll(s);
+  const $$ = (s) => [...document.querySelectorAll(s)];
   let selectedUser = null;
   let alumniCache = [];
   let alumniAllCache = [];
@@ -866,10 +866,18 @@
     }
     const save = $("#attSessSave");
     if (!save) return;
-    save.onclick = async () => {
+    if (save.dataset.boundAttSave === "1") return;
+    save.dataset.boundAttSave = "1";
+    save.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
       const f = $("#attSessForm");
-      if (!f) return;
       const msg = $("#attSessMsg");
+      if (msg) { msg.style.color = "#9db5c0"; msg.textContent = "Memproses…"; }
+      if (!f) {
+        if (msg) { msg.style.color = "#ff8a8a"; msg.textContent = "Form absensi tidak ditemukan."; }
+        return;
+      }
       const titleEl = f.querySelector("[name=title]");
       const title = (titleEl && titleEl.value || "").trim();
       if (!title) {
@@ -950,7 +958,7 @@
         save.disabled = false;
         save.textContent = prevLabel;
       }
-    };
+    });
     $("#attSessReset") &&
       ($("#attSessReset").onclick = () => {
         $("#attSessForm").reset();
