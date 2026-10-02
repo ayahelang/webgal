@@ -1403,26 +1403,55 @@ body.page-skills .skills-main{
   cursor:pointer;
 }
 
-/* Absensi / Pengumuman student tree — rapih kiri */
-.att-student-field { text-align: left; }
-.att-tree-master {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 13px;
-  color: #c5d8e0;
+/* Absensi / Pengumuman student tree — layout sama (lebar penuh, kiri) */
+.att-student-fieldset{
+  grid-column:1 / -1;
+  width:100%;
+  box-sizing:border-box;
+}
+.att-student-fieldset .check{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  margin:6px 0;
+  font-size:13px;
+  justify-content:flex-start;
+  text-align:left;
 }
 .att-student-tree,
-.ann-student-tree {
-  text-align: left;
+.ann-student-tree{
+  display:block;
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+  text-align:left;
+  margin-top:8px;
 }
 .att-student-tree.is-collapsed,
-.ann-student-tree.is-collapsed {
-  display: none !important;
+.ann-student-tree.is-collapsed{
+  display:none !important;
 }
-.sh-cb-tree .pt-row {
-  justify-content: flex-start;
+/* Tree list items full width, left aligned */
+.sh-cb-tree{
+  width:100%;
+}
+.sh-cb-tree .pt-node{
+  width:100%;
+}
+.sh-cb-tree .pt-row{
+  justify-content:flex-start;
+  width:100%;
+}
+.sh-cb-tree .sh-cb-label{
+  flex:1;
+  min-width:0;
+}
+.sh-cb-tree .sh-cb-label strong{
+  font-weight:600;
+}
+.sh-cb-tree label.leaf{
+  width:100%;
+  box-sizing:border-box;
 }
 
 /* ===== About page ===== */

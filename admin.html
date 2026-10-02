@@ -213,13 +213,14 @@
           <label class="field"><span>Check-in akhir (batas hadir)</span><input type="time" name="checkin_end" value="07:15"></label>
           <label class="field"><span>Check-out mulai</span><input type="time" name="checkout_start" value="08:20"></label>
           <label class="field"><span>Check-out akhir</span><input type="time" name="checkout_end" value="08:40"></label>
-          <div class="field att-student-field" style="grid-column:1/-1">
-            <label class="check att-tree-master">
+          <fieldset class="ann-fieldset att-student-fieldset" style="grid-column:1/-1">
+            <legend>Siswa penerima</legend>
+            <label class="check">
               <input type="checkbox" id="attShowStudentTree" checked>
               <span>Siswa penerima (tree checkbox · multi pilih)</span>
             </label>
-            <div id="attStudentTree" class="privacy-tree sh-cb-tree att-student-tree" style="max-height:320px;overflow:auto;margin-top:8px;text-align:left"></div>
-          </div>
+            <div id="attStudentTree" class="privacy-tree sh-cb-tree att-student-tree" style="max-height:320px;overflow:auto;margin-top:8px;width:100%"></div>
+          </fieldset>
           <label class="check" style="align-self:center"><input type="checkbox" name="require_checkout" checked> Wajib check-out</label>
           <label class="check" style="align-self:center"><input type="checkbox" name="active" checked> Aktif</label>
           <div class="admin-form-actions" style="grid-column:1/-1">
