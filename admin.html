@@ -58,10 +58,10 @@
       <div id="adminTabs" class="filters admin-tabs">
         <button class="filter active" data-tab="videos">Video</button>
         <button class="filter" data-tab="websites">Website Siswa</button>
-        <button class="filter" data-tab="alumni">Alumni</button>
+        <button class="filter" data-tab="alumni">Users</button>
         <button class="filter" data-tab="angkatan">Angkatan</button>
         <button class="filter" data-tab="links">Tautan Siswa</button>
-        <button class="filter" data-tab="users">Users & Admin</button>
+        <button class="filter" data-tab="users">Roles</button>
         <button class="filter" data-tab="attendance">Absensi</button>
         <button class="filter" data-tab="announce">Pengumuman</button>
         <button class="filter" data-tab="sync">Sync Docs</button>
@@ -129,21 +129,27 @@
 <div id="webList" class="admin-list"></div>
       </section>
       <section data-panel="alumni" class="summary-card admin-pane" hidden>
-        <h3>Siswa / santriwati</h3>
+        <h3>Tambah Pengguna</h3>
         <form id="alumniForm" style="display:grid;gap:10px;margin-top:12px">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Nama</span><input name="name" required placeholder="Nama lengkap"></label>
-          <label class="field"><span>Angkatan</span><select name="angkatanId" id="alumniAngSelect" required><option value="">— pilih —</option></select></label>
-          <label class="field"><span>Kelas</span>
+          <label class="field"><span>Angkatan (opsional)</span><select name="angkatanId" id="alumniAngSelect"><option value="">— tidak diisi —</option></select></label>
+          <label class="field"><span>Kelas (opsional)</span>
             <select name="classCode">
+              <option value="">— tidak diisi —</option>
               <option value="51">51</option>
               <option value="52">52</option>
-              <option value="">—</option>
             </select>
           </label>
-          <label class="field"><span>Role</span><input name="role" value="Santriwati"></label>
+          <label class="field"><span>Role</span>
+            <select name="role">
+              <option value="Santriwati">Siswa / santriwati</option>
+              <option value="Pengajar">Pengajar</option>
+              <option value="Alumni">Alumni</option>
+            </select>
+          </label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-primary" type="submit">Simpan alumni</button>
+            <button class="btn btn-primary" type="submit">Simpan User</button>
             <button class="btn btn-ghost" type="button" id="alumniReset">Batal edit</button>
           </div>
         </form>
@@ -162,7 +168,7 @@
           </p>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
             <button type="button" class="btn btn-ghost" id="btnStuTplCsv">Unduh template CSV</button>
-            <a class="btn btn-ghost" id="btnStuTplSheet" href="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/copy" target="_blank" rel="noopener">Buka contoh Sheets (salin)</a>
+            <a class="btn btn-ghost" id="btnStuTplSheet" href="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/copy" target="_blank" rel="noopener">Buka contoh Sheet</a>
           </div>
           <label class="field"><span>URL atau ID Google Sheet</span>
             <input type="text" id="bulkStuSheet" placeholder="https://docs.google.com/spreadsheets/d/.... atau ID saja">
@@ -263,8 +269,16 @@
         <h3 style="font-size:1.05rem">Rekap kehadiran</h3>
         <div class="att-admin-grid" style="margin-top:10px">
           <label class="field"><span>Filter sesi</span><select id="attRecSession"><option value="">Semua sesi</option></select></label>
-          <label class="field"><span>Kelas</span><input id="attRecClass" placeholder="51 / 52"></label>
-          <label class="field"><span>Nama</span><input id="attRecName" placeholder="cari nama"></label>
+          <label class="field"><span>Kelas</span>
+            <select id="attRecClass">
+              <option value="">Semua kelas</option>
+              <option value="51">51</option>
+              <option value="52">52</option>
+            </select>
+          </label>
+          <label class="field"><span>Nama</span>
+            <select id="attRecName"><option value="">Semua nama</option></select>
+          </label>
         </div>
         <div class="admin-form-actions" style="margin-top:10px">
           <button type="button" class="btn btn-primary" id="attRecLoad">Muat rekap</button>
@@ -360,16 +374,18 @@
       </section>
 
       <section data-panel="users" class="summary-card admin-pane" hidden>
-        <p id="userLinkSummary" class="muted" style="font-size:13px;margin:0 0 10px"></p>
-        <h3>User Google · peran · hak akses</h3>
-        <p class="muted" style="font-size:13px">Tunjuk sebagai <b>siswa</b> (taut nama) atau <b>pengajar</b>, lalu centang privilege tab admin. Admin utama bisa hapus akun yang belum disetujui.</p>
-        <div class="summary-card" style="margin:10px 0;padding:12px">
+        <p id="userLinkSummary" class="muted admin-one-line" style="font-size:13px;margin:0 0 10px"></p>
+        <h3>Roles · User Google · peran · hak akses</h3>
+        <p class="muted admin-one-line" style="font-size:13px">Tunjuk sebagai <b>siswa</b>, <b>pengajar</b>, atau <b>alumni</b>, lalu centang privilege tab admin bila perlu.</p>
+        <div class="summary-card user-cleanup-box" style="margin:10px 0;padding:12px">
           <h4 style="margin:0 0 8px;font-size:14px">Bersih-bersih akun belum disetujui</h4>
-          <p class="muted" style="font-size:12px;margin:0 0 8px">Akun Gmail yang belum ditunjuk pengajar dan belum tertaut sebagai murid.</p>
-          <label class="check"><input type="checkbox" id="userCleanupSelectAll"> Pilih semua di list bawah (belum disetujui)</label>
+          <p class="muted admin-one-line" style="font-size:12px;margin:0 0 8px">Akun Gmail yang belum ditunjuk pengajar dan belum tertaut sebagai murid.</p>
+          <div class="user-cleanup-row">
+            <label class="check"><input type="checkbox" id="userCleanupSelectAll"> Pilih semua di list bawah (belum disetujui)</label>
+            <label class="check"><input type="checkbox" id="userAutoCleanup"> Auto-hapus di masa depan (setiap Kamis &amp; Minggu 23:00 — via cron/edge)</label>
+          </div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
             <button type="button" class="btn btn-primary" id="userCleanupDelete">Hapus yang dicentang</button>
-            <label class="check" style="margin:0"><input type="checkbox" id="userAutoCleanup"> Auto-hapus di masa depan (setiap Kamis &amp; Minggu 23:00 — via cron/edge)</label>
           </div>
           <p id="userCleanupMsg" class="muted" style="font-size:12px;margin:8px 0 0"></p>
         </div>

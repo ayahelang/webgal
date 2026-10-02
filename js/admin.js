@@ -1058,6 +1058,32 @@
     );
   }
 
+
+  async function fillAttRecNameOptions() {
+    const nameSel = $("#attRecName");
+    if (!nameSel || nameSel.tagName !== "SELECT") return;
+    await loadRoster(false);
+    const kelas = (($("#attRecClass") && $("#attRecClass").value) || "").trim();
+    const names = new Set();
+    Object.keys(rosterCache || {}).forEach((y) => {
+      Object.keys(rosterCache[y] || {}).forEach((c) => {
+        if (kelas && String(c) !== kelas) return;
+        (rosterCache[y][c] || []).forEach((n) => names.add(n));
+      });
+    });
+    // juga dari cache rekap jika ada
+    (window.__attRecCache || []).forEach((r) => {
+      if (kelas && String(r.class_code || r.kelas || "") !== kelas) return;
+      if (r.student_name || r.name) names.add(r.student_name || r.name);
+    });
+    const cur = nameSel.value;
+    const sorted = [...names].sort((a, b) => a.localeCompare(b, "id"));
+    nameSel.innerHTML =
+      '<option value="">Semua nama</option>' +
+      sorted.map((n) => '<option value="' + esc(n) + '">' + esc(n) + "</option>").join("");
+    if (cur) nameSel.value = cur;
+  }
+
   async function refreshAttendance() {
     const host = $("#attSessList");
     if (!host) return;
@@ -1348,6 +1374,7 @@
         const host = $("#attRecList");
         host.innerHTML = "Memuat…";
         try {
+          await fillAttRecNameOptions();
           attRecCache = await GalleryDB.listAttendanceRecords({
             session_id: ($("#attRecSession") || {}).value || null,
             class_code: ($("#attRecClass") || {}).value || null,
@@ -1514,6 +1541,9 @@
     bindAnnouncementForm();
     bindAttendanceAdmin();
     bindBulkStudentImport();
+    const attCls = $("#attRecClass");
+    if (attCls) attCls.addEventListener("change", () => fillAttRecNameOptions());
+    fillAttRecNameOptions();
     bindDesignsAdmin();
     const msg = () => $("#syncMsg");
     const log = () => $("#syncLog");
@@ -1683,13 +1713,13 @@
       const payload = {
         id: fd.get("id") || null,
         name: fd.get("name"),
-        angkatanId: fd.get("angkatanId"),
-        classCode: fd.get("classCode"),
+        angkatanId: fd.get("angkatanId") || null,
+        classCode: fd.get("classCode") || "",
         role: fd.get("role") || "Santriwati",
       };
       try {
         await GalleryDB.adminUpsertAlumni(payload);
-        $("#alumniStatus").textContent = payload.id ? "Alumni diperbarui." : "Alumni ditambah.";
+        $("#alumniStatus").textContent = payload.id ? "User diperbarui." : "User ditambah.";
         ev.target.reset();
         ev.target.querySelector('[name=id]').value = "";
         await refreshAlumni();
@@ -2661,7 +2691,7 @@
       let extra = "";
       if (cov) extra = coverageSummaryHtml(cov);
       sum.innerHTML = extra || (
-        `<div class="cov-accounts muted">Akun Google: <b>${rows.length}</b> · sudah pilih nama <b>${linked.length}</b> · belum <b>${unlinked}</b></div>`
+        `<div class="cov-accounts muted admin-one-line">Akun Google: <b>${rows.length}</b> · sudah pilih nama: <b>${linked.length}</b> · belum pilih nama: <b>${unlinked}</b></div>`
       );
     }
     // tree: linked by year/class, then unlinked
@@ -2708,8 +2738,16 @@
       const taut = u.linked_student_name
         ? ` · ${esc(u.linked_student_name)} · ${esc(u.linked_angkatan_year || "")} K${esc(u.linked_class_code || "")}`
         : "";
-      const unapproved = !u.is_admin && !(u.linked_student_name && String(u.linked_student_name).trim()) && u.role !== "teacher" && u.role !== "student";
-      const roleLab = u.is_admin ? "admin" : u.role === "teacher" ? "pengajar" : u.linked_student_name ? "siswa" : "belum disetujui";
+      const unapproved = !u.is_admin && !(u.linked_student_name && String(u.linked_student_name).trim()) && u.role !== "teacher" && u.role !== "student" && u.role !== "alumni";
+      const roleLab = u.is_admin
+        ? "admin"
+        : u.role === "teacher"
+          ? "pengajar"
+          : u.role === "alumni"
+            ? "alumni"
+            : u.role === "student" || u.linked_student_name
+              ? "siswa"
+              : "belum disetujui";
       return `<div class="pt-node user-node" data-uid="${u.id}">
         <div class="admin-row user-row-compact" data-toggle-user="${u.id}">
           <div class="user-row-main">
@@ -2724,8 +2762,9 @@
         </div>
         <div class="user-perm-panel is-collapsed" data-parent-user="${u.id}">
           <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px">
-            <label class="user-perm-item"><input type="radio" name="role-${u.id}" data-role="student" ${u.role === "student" || u.linked_student_name ? "checked" : ""}> Siswa</label>
+            <label class="user-perm-item"><input type="radio" name="role-${u.id}" data-role="student" ${u.role === "student" || (!u.role && u.linked_student_name) ? "checked" : ""}> Siswa</label>
             <label class="user-perm-item"><input type="radio" name="role-${u.id}" data-role="teacher" ${u.role === "teacher" ? "checked" : ""}> Pengajar</label>
+            <label class="user-perm-item"><input type="radio" name="role-${u.id}" data-role="alumni" ${u.role === "alumni" ? "checked" : ""}> Alumni</label>
             <label class="user-perm-item"><input type="radio" name="role-${u.id}" data-role="" ${!u.role && !u.linked_student_name ? "checked" : ""}> Belum ditunjuk</label>
           </div>
           <label class="user-perm-item"><input type="checkbox" data-is-admin ${u.is_admin ? "checked" : ""}> Jadikan admin (penuh)</label>

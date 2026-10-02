@@ -556,13 +556,12 @@
     const sb = client();
     const nm = String(name || "").trim();
     if (nm.length < 2) throw new Error("Nama terlalu pendek");
-    if (!angkatanId) throw new Error("Pilih angkatan");
     const cls = String(classCode || "").trim();
     const payload = {
       name: nm,
       name_norm: nm.toLowerCase().replace(/\s+/g, " "),
-      class_code: cls,
-      angkatan_id: angkatanId,
+      class_code: cls || null,
+      angkatan_id: angkatanId || null,
       role: String(role || "Santriwati").trim() || "Santriwati",
     };
     if (id) {
@@ -2663,7 +2662,7 @@
     const sb = client();
     const session = await getSession();
     const r = String(role || "").toLowerCase();
-    if (r && r !== "student" && r !== "teacher") throw new Error("Peran tidak valid");
+    if (r && r !== "student" && r !== "teacher" && r !== "alumni") throw new Error("Peran tidak valid");
     const { data, error } = await sb
       .from("gallery_profiles")
       .update({
