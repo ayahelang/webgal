@@ -1750,60 +1750,91 @@ html{
 
 
 
-/* Absensi admin session row — satu baris */
-.att-sess-row{
-  display:flex!important;
-  flex-direction:row!important;
-  align-items:center!important;
-  gap:12px;
-  flex-wrap:wrap;
+/* Absensi admin session row — judul | jam | tombol ; detail di BAWAH */
+.admin-row.att-sess-row{
+  display:block!important;
+  padding:12px 14px!important;
 }
-.att-sess-main{
-  width:100%;
-  display:grid;
-  grid-template-columns: minmax(120px,1.4fr) auto minmax(200px,auto);
-  gap:10px 14px;
+.att-sess-main{width:100%;display:block}
+.att-sess-top{
+  display:flex;
+  flex-direction:row;
+  flex-wrap:nowrap;
   align-items:center;
+  gap:12px 16px;
+  width:100%;
 }
-.att-sess-head{display:contents}
-.att-sess-title{min-width:0}
-.att-sess-title strong{font-size:15px;display:inline}
+.att-sess-title{
+  flex:1 1 auto;
+  min-width:140px;
+  max-width:none;
+}
+.att-sess-title strong{font-size:15px;word-break:break-word}
 .att-sess-times{
-  display:flex;flex-direction:column;gap:2px;
-  font-size:12px;line-height:1.35;white-space:nowrap;
+  flex:0 0 auto;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  font-size:12px;
+  line-height:1.35;
+  white-space:nowrap;
 }
 .att-sess-actions{
-  display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end;
+  flex:0 0 auto;
+  display:flex;
+  flex-direction:row;
+  flex-wrap:nowrap;
+  gap:6px;
+  align-items:center;
+  justify-content:flex-end;
 }
 .att-sess-actions .btn-xs,
 .att-sess-actions button{
-  padding:5px 10px!important;font-size:12px!important;border-radius:8px;
-  border:1px solid var(--line);background:rgba(0,0,0,.2);color:#c5d8e0;cursor:pointer;
+  padding:5px 10px!important;
+  font-size:12px!important;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:rgba(0,0,0,.2);
+  color:#c5d8e0;
+  cursor:pointer;
+  white-space:nowrap;
+  flex-shrink:0;
 }
 .att-sess-detail{
-  grid-column:1 / -1;
+  display:block;
   width:100%;
-  margin:0;padding:12px;border-radius:12px;
-  border:1px solid var(--line);background:rgba(0,0,0,.22);font-size:13px;
+  margin-top:10px;
+  padding:12px;
+  border-radius:12px;
+  border:1px solid var(--line);
+  background:rgba(0,0,0,.22);
+  font-size:13px;
   box-sizing:border-box;
 }
+.att-sess-detail[hidden]{display:none!important}
+.att-sess-creator{display:block;font-size:11px;margin-top:2px;color:var(--muted,#8fa7b4)}
 .att-stat-summary{font-size:12px;margin:0 0 10px;line-height:1.45}
 .att-stat-block{margin:8px 0}
 .att-stat-class{margin:6px 0 6px 4px}
-.att-stat-class ul{margin:4px 0 0 16px;padding:0}
 .att-name-list{list-style:none;margin-left:0!important;padding-left:0!important}
 .att-name-item{margin:4px 0}
 .att-name-btn{
   background:none;border:none;color:var(--accent,#5ec8ff);cursor:pointer;
   padding:2px 0;font-size:13px;text-align:left;text-decoration:underline;
 }
-.att-name-btn:hover{color:#fff}
 .att-note-pop{
   margin:6px 0 8px 8px;padding:10px 12px;border-radius:10px;
   border:1px solid var(--line);background:rgba(0,0,0,.35);font-size:12px;line-height:1.45;
 }
 .att-info-panel ul{margin:8px 0 0 18px}
+/* Pengumuman list */
+.ann-sess-row{display:block!important;padding:12px 14px!important}
+.ann-sess-top{display:flex;flex-wrap:nowrap;align-items:center;gap:12px;width:100%}
+.ann-sess-title{flex:1 1 auto;min-width:120px}
+.ann-sess-actions{flex:0 0 auto;display:flex;flex-wrap:nowrap;gap:6px}
+.ann-sess-detail{width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.22);font-size:13px}
+.ann-sess-detail[hidden]{display:none!important}
 @media (max-width:720px){
-  .att-sess-main{grid-template-columns:1fr; }
-  .att-sess-actions{justify-content:flex-start}
+  .att-sess-top,.ann-sess-top{flex-wrap:wrap}
+  .att-sess-actions,.ann-sess-actions{flex-wrap:wrap;justify-content:flex-start}
 }

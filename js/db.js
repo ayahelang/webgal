@@ -2566,6 +2566,47 @@
   }
 
 
+
+  async function recordAnnouncementRead(announcementId, via) {
+    const sb = client();
+    const session = await getSession();
+    if (!sb || !session || !session.user) return null;
+    const prof = await getMyProfile();
+    const row = {
+      announcement_id: announcementId,
+      user_id: session.user.id,
+      student_name: (prof && prof.linked_student_name) || "",
+      angkatan_year: String((prof && prof.linked_angkatan_year) || ""),
+      class_code: String((prof && prof.linked_class_code) || ""),
+      email: session.user.email || "",
+      via: via || "view",
+      read_at: new Date().toISOString(),
+    };
+    const { data, error } = await sb
+      .from("gallery_announcement_reads")
+      .upsert(row, { onConflict: "announcement_id,user_id" })
+      .select("*")
+      .maybeSingle();
+    if (error) {
+      console.warn("ann read", error);
+      return null;
+    }
+    return data;
+  }
+
+  async function listAnnouncementReads(announcementId) {
+    const sb = client();
+    if (!sb) return [];
+    const { data, error } = await sb
+      .from("gallery_announcement_reads")
+      .select("*")
+      .eq("announcement_id", announcementId)
+      .order("read_at", { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    return data || [];
+  }
+
   global.GalleryDB = {
     enabled,
     client,
@@ -2652,6 +2693,8 @@
     myAttendanceRecords,
     listAttendanceRecords,
     listDesigns,
+    recordAnnouncementRead,
+    listAnnouncementReads,
     adminListDesigns,
     upsertDesign,
     deleteDesign,

@@ -48,6 +48,14 @@
     return true;
   }
 
+  function trackRead(ann, via) {
+    try {
+      if (window.GalleryDB && GalleryDB.recordAnnouncementRead) {
+        GalleryDB.recordAnnouncementRead(ann.id, via || "view").catch(function () {});
+      }
+    } catch (e) {}
+  }
+
   function markSeen(ann) {
     const now = new Date();
     const dayKey = now.toISOString().slice(0, 10);
@@ -66,6 +74,7 @@
     try {
       localStorage.setItem(seenKey, JSON.stringify(seen));
     } catch (e) {}
+    trackRead(ann, "view");
   }
 
   function matchesAudience(ann, profile) {

@@ -566,15 +566,22 @@
                 : r.audience === "logged_in"
                   ? "User login"
                   : "Publik / depan";
-            return `<div class="admin-row">
-              <div><strong>${esc(r.title)}</strong>
-                <small class="muted"> · ${esc(aud)} · ${r.active ? "aktif" : "nonaktif"}</small>
-                <br><small class="muted">${esc((r.body_html || "").replace(/<[^>]+>/g, " ").slice(0, 80))}</small>
+            const creator = r.created_by_email || r.created_by || "—";
+            return `<div class="admin-row ann-sess-row" data-ann-id="${r.id}">
+              <div class="ann-sess-top">
+                <div class="ann-sess-title">
+                  <strong>${esc(r.title)}</strong>
+                  <small class="muted"> · ${esc(aud)} · ${r.active ? "aktif" : "nonaktif"}</small>
+                  <span class="att-sess-creator">Dibuat oleh: ${esc(creator)}</span>
+                  <br><small class="muted">${esc((r.body_html || "").replace(/<[^>]+>/g, " ").slice(0, 80))}</small>
+                </div>
+                <div class="ann-sess-actions">
+                  <button type="button" class="btn btn-ghost btn-xs" data-ann-stats="${r.id}">Statistik ▾</button>
+                  <button type="button" data-edit-ann="${r.id}">Ubah</button>
+                  <button type="button" data-del-ann="${r.id}">Hapus</button>
+                </div>
               </div>
-              <div style="display:flex;gap:6px">
-                <button type="button" data-edit-ann="${r.id}">Ubah</button>
-                <button type="button" data-del-ann="${r.id}">Hapus</button>
-              </div>
+              <div class="ann-sess-detail" id="annDetail-${r.id}" hidden></div>
             </div>`;
           })
           .join("") || "<p class='muted'>Belum ada pengumuman.</p>";
@@ -584,6 +591,52 @@
           if (!confirm("Hapus pengumuman?")) return;
           await GalleryDB.deleteAnnouncement(b.dataset.delAnn);
           await refreshAnnouncements();
+        })
+      );
+      $$("#annList [data-ann-stats]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          const id = b.dataset.annStats;
+          const panel = $("#annDetail-" + id);
+          if (!panel) return;
+          if (!panel.hidden) {
+            panel.hidden = true;
+            b.textContent = "Statistik ▾";
+            return;
+          }
+          panel.hidden = false;
+          b.textContent = "Statistik ▴";
+          panel.innerHTML = "<p class='muted'>Memuat statistik baca…</p>";
+          try {
+            const reads = await GalleryDB.listAnnouncementReads(id);
+            if (!reads.length) {
+              panel.innerHTML = "<p class='muted'>Belum ada catatan baca (siswa login saat tampil / klik pengumuman).</p>";
+              return;
+            }
+            const byClass = {};
+            reads.forEach((x) => {
+              const k = (x.angkatan_year || "?") + " · K" + (x.class_code || "?");
+              if (!byClass[k]) byClass[k] = [];
+              byClass[k].push(x);
+            });
+            let h = "<p class='muted' style='margin:0 0 8px'>Pembaca tercatat: <b>" + reads.length + "</b></p>";
+            Object.keys(byClass).sort().forEach((k) => {
+              h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + "</span><ul>";
+              byClass[k].forEach((x) => {
+                h +=
+                  "<li>" +
+                  esc(x.student_name || x.email || "—") +
+                  " <small class='muted'>· " +
+                  esc(x.via || "view") +
+                  " · " +
+                  esc(String(x.read_at || "").replace("T", " ").slice(0, 16)) +
+                  "</small></li>";
+              });
+              h += "</ul></div>";
+            });
+            panel.innerHTML = h;
+          } catch (e) {
+            panel.innerHTML = "<p class='muted'>" + esc(e.message || e) + "</p>";
+          }
         })
       );
       $$("#annList [data-edit-ann]").forEach((b) =>
@@ -1009,28 +1062,32 @@
       host.innerHTML =
         rows
           .map(
-            (r) => `<div class="admin-row att-sess-row" data-att-id="${r.id}">
+            (r) => {
+              const creator = r.created_by_email || r.created_by_name || (r.created_by ? "Pengajar" : "Admin");
+              return `<div class="admin-row att-sess-row" data-att-id="${r.id}">
             <div class="att-sess-main">
-              <div class="att-sess-head">
+              <div class="att-sess-top">
                 <div class="att-sess-title">
                   <strong>${esc(r.title || "Sesi absensi")}</strong>
                   <small class="muted"> · ${r.active === false ? "nonaktif" : "aktif"}${r.allow_late ? " · izin terlambat" : ""}</small>
+                  <span class="att-sess-creator">Dibuat oleh: ${esc(creator)}</span>
                 </div>
                 <div class="att-sess-times muted">
                   <span>Check-in ${esc(String(r.checkin_start || "").slice(0, 5))}–${esc(String(r.checkin_end || "").slice(0, 5))}</span>
                   <span>Check-out ${esc(String(r.checkout_start || "").slice(0, 5))}–${esc(String(r.checkout_end || "").slice(0, 5))}</span>
                 </div>
-              </div>
-              <div class="att-sess-actions">
-                <button type="button" class="btn btn-ghost btn-xs" data-att-stats="${r.id}">Statistik ▾</button>
-                <button type="button" class="btn btn-ghost btn-xs" data-att-info="${r.id}">Info</button>
-                <button type="button" class="btn btn-ghost btn-xs" data-att-dl="${r.id}">Unduh CSV</button>
-                <button type="button" data-edit-att="${r.id}">Ubah</button>
-                <button type="button" data-del-att="${r.id}">Hapus</button>
+                <div class="att-sess-actions">
+                  <button type="button" class="btn btn-ghost btn-xs" data-att-stats="${r.id}">Statistik ▾</button>
+                  <button type="button" class="btn btn-ghost btn-xs" data-att-info="${r.id}">Info</button>
+                  <button type="button" class="btn btn-ghost btn-xs" data-att-dl="${r.id}">Unduh CSV</button>
+                  <button type="button" data-edit-att="${r.id}">Ubah</button>
+                  <button type="button" data-del-att="${r.id}">Hapus</button>
+                </div>
               </div>
               <div class="att-sess-detail" id="attDetail-${r.id}" hidden></div>
             </div>
-          </div>`
+          </div>`;
+            }
           )
           .join("") || "<p class='muted'>Belum ada sesi absensi.</p>";
 
