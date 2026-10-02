@@ -172,21 +172,36 @@
   }
 
   async function loadData(){
-    // Sumber utama: Supabase saja (hindari dobel dengan JSON)
+    // Sumber utama: Supabase (retry 1x)
+    async function fromDb() {
+      if (!window.GalleryDB || !GalleryDB.enabled()) return null;
+      const dbData = await GalleryDB.fetchGalleryFromDb();
+      if (dbData && Array.isArray(dbData.students) && dbData.students.length) return dbData;
+      return null;
+    }
     try {
-      if (window.GalleryDB && GalleryDB.enabled()) {
-        const dbData = await GalleryDB.fetchGalleryFromDb();
-        if (dbData && Array.isArray(dbData.students) && dbData.students.length) {
-          return dbData;
-        }
+      let dbData = await fromDb();
+      if (!dbData) {
+        await new Promise((r) => setTimeout(r, 400));
+        dbData = await fromDb();
       }
+      if (dbData) return dbData;
     } catch (e) {
       console.warn("Supabase gallery load failed", e);
+      try {
+        await new Promise((r) => setTimeout(r, 500));
+        const again = await fromDb();
+        if (again) return again;
+      } catch (e2) {
+        console.warn("Supabase retry failed", e2);
+      }
     }
-    // Cadangan darurat saja jika DB kosong / gagal
+    // Cadangan darurat
     try {
-      if (window.GALLERY_DATA) return window.GALLERY_DATA;
-      return await (await fetch("data/websites.json", { cache: "no-store" })).json();
+      if (window.GALLERY_DATA && GALLERY_DATA.students && GALLERY_DATA.students.length) return window.GALLERY_DATA;
+      const j = await (await fetch("data/websites.json", { cache: "no-store" })).json();
+      if (j && j.students && j.students.length) return j;
+      return j || { meta: {}, students: [] };
     } catch (e) {
       console.warn("JSON fallback failed", e);
       return { meta: {}, students: [] };
@@ -399,8 +414,21 @@
         }
       } catch (err) { console.warn(err); }
       updateStats();buildFilters();render();
+      // jika filter default kosong, buka "Semua"
+      try {
+        const n = (state.data.students || []).filter(matches).length;
+        if (!n && state.classFilter !== "all") {
+          state.classFilter = "all";
+          buildFilters();
+          render();
+        }
+      } catch (e) {}
+      if (!(state.data.students && state.data.students.length)) {
+        const g = $("#galleryGrid");
+        if (g) g.innerHTML = `<div class="empty"><h3>Data galeri kosong / belum terbaca</h3><p>Coba refresh (Ctrl+Shift+R) atau cek Status server.</p></div>`;
+      }
     }
-    catch(e){$("#galleryGrid").innerHTML=`<div class="empty"><h3>Data galeri belum dapat dimuat</h3></div>`;console.error(e);return;}
+    catch(e){$("#galleryGrid").innerHTML=`<div class="empty"><h3>Data galeri belum dapat dimuat</h3><p>${String(e.message||e)}</p><p>Hard refresh (Ctrl+Shift+R). Pastikan data/supabase-config.js ter-upload.</p></div>`;console.error(e);return;}
     $("#searchInput").addEventListener("input",e=>{state.query=e.target.value;render();});
     $("#sortSelect").addEventListener("change",e=>{state.sort=e.target.value;render();});
     $("#clearBtn").addEventListener("click",()=>{
