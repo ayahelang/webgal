@@ -207,7 +207,7 @@
         let body = "";
         if (!rec || !rec.checkin_at) {
           body = `<label class="field"><span>Rencana belajar (singkat)</span>
-            <input type="text" maxlength="280" data-ci-note="${s.id}" placeholder="Contoh: praktek domain & GitHub Pages"></label>
+            <input type="text" maxlength="280" data-ci-note="${s.id}" placeholder="Contoh: praktek domain & hosting"></label>
             <button type="button" class="btn btn-primary" data-ci="${s.id}" ${w.canCheckin ? "" : "disabled"}>Check-in hadir</button>`;
         } else if (s.require_checkout !== false && !rec.checkout_at) {
           body = `<p class="muted" style="font-size:12px">Check-in: ${esc(rec.checkin_note || "—")}</p>

@@ -193,6 +193,7 @@
         $("#contactFb").value = prof.contact_fb || "";
         $("#contactTwitter").value = prof.contact_twitter || "";
         $("#contactTiktok").value = prof.contact_tiktok || "";
+        if ($("#contactQris")) $("#contactQris").value = prof.qris_image_url || "";
         await buildWaPrivacyTree(prof);
       }
     }
@@ -266,6 +267,7 @@
             fb: $("#contactFb").value,
             twitter: $("#contactTwitter").value,
             tiktok: $("#contactTiktok").value,
+            qrisImageUrl: ($("#contactQris") && $("#contactQris").value) || "",
             privacy,
           });
           $("#contactMsg").textContent = "Kontak & privasi tersimpan.";

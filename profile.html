@@ -23,6 +23,7 @@
       <a href="absensi.html">Absensi</a>
       <a href="chat.html">Chat</a>
       <a href="about.html">About</a>
+      <a href="support.html">Support</a>
       <a href="profile.html" class="active">Profil</a>
       <a href="admin.html" class="nav-admin" title="Admin">Admin</a>
     </nav>
@@ -103,7 +104,10 @@
           <label class="field"><span>TikTok</span>
             <input name="tiktok" id="contactTiktok" type="text" placeholder="@username" maxlength="120">
           </label>
-          <p class="muted" style="font-size:12px;margin:0">Sosmed di atas: tampil untuk semua pengunjung (termasuk belum login).</p>
+          <label class="field"><span>URL gambar QRIS (uang jajan)</span>
+            <input name="qris" id="contactQris" type="url" placeholder="https://…/qris.png" maxlength="500">
+          </label>
+          <p class="muted" style="font-size:12px;margin:0">Sosmed di atas: tampil untuk semua pengunjung. QRIS muncul sebagai tombol «Kasih uang jajan» di kartu gallery.</p>
           <button class="btn btn-primary" type="submit">Simpan kontak</button>
           <p id="contactMsg" class="muted" style="font-size:13px"></p>
         </form>

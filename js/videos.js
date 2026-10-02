@@ -170,7 +170,7 @@
     if (!window.GalleryDB || !GalleryDB.enabled()) {
       if (empty) {
         empty.hidden = false;
-        empty.textContent = "Layanan data belum siap.";
+        empty.textContent = "Layanan database belum siap.";
       }
       return;
     }

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/favicon.svg">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Dukung pengembangan Silverhawk Student Web Gallery — traktir kopi untuk server & aplikasi.">
+  <title>Support Us — Silverhawk Gallery</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-skills page-support" data-shlock-mode="normal" data-shlock-domain="webgal.silverhawk.web.id" data-shlock-brand="Silverhawk Gallery" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
+  <div class="bg-grid"></div>
+  <div class="orb orb-a"></div><div class="orb orb-b"></div>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Support</small></span></a>
+    <nav class="topnav">
+      <a href="index.html">Gallery</a>
+      <a href="videos.html">Video</a>
+      <a href="skills.html">Skills</a>
+      <a href="refleksi.html">Nilai Proses</a>
+      <a href="stats.html">Statistik</a>
+      <a href="absensi.html">Absensi</a>
+      <a href="chat.html">Chat</a>
+      <a href="about.html">About</a>
+      <a href="support.html" class="active">Support</a>
+      <a href="profile.html">Profil</a>
+      <a href="admin.html" class="nav-admin" title="Admin">Admin</a>
+    </nav>
+  </header>
+
+  <main class="skills-main about-main">
+    <section class="skills-hero" style="margin-bottom:18px">
+      <div class="eyebrow">SUPPORT US</div>
+      <h1>Traktir kopi untuk pengembangan</h1>
+      <p class="skills-lead">Bantuan sukarela dipakai untuk biaya server, domain, dan pengembangan fitur gallery santriwati. Terima kasih atas kebaikan Anda.</p>
+    </section>
+
+    <div class="support-grid">
+      <section class="summary-card support-card">
+        <div class="eyebrow">TRANSFER</div>
+        <h2>Dana &amp; GoPay</h2>
+        <ul class="about-list support-pay-list">
+          <li><strong>Dana</strong> — <span class="support-num">0851-5992-2358</span>
+            <button type="button" class="btn btn-ghost btn-copy" data-copy="085159922358">Salin</button>
+          </li>
+          <li><strong>GoPay</strong> — <span class="support-num">0851-5882-2803</span>
+            <button type="button" class="btn btn-ghost btn-copy" data-copy="085158822803">Salin</button>
+          </li>
+        </ul>
+        <p class="muted" style="font-size:12px;margin-top:10px">Cantumkan keterangan opsional: <em>support webgal</em></p>
+      </section>
+
+      <section class="summary-card support-card support-qris-card">
+        <div class="eyebrow">QRIS</div>
+        <h2>Scan untuk berbagi</h2>
+        <div class="support-qris-wrap">
+          <img src="assets/qris/developer-qris.png" alt="QRIS pengembang Silverhawk" width="280" height="280" class="support-qris-img" loading="lazy">
+        </div>
+        <p class="muted" style="font-size:12px;margin-top:10px;text-align:center">Ganti file <code>assets/qris/developer-qris.png</code> dengan QRIS asli Anda.</p>
+      </section>
+    </div>
+
+    <section class="summary-card" style="margin-top:16px">
+      <h3 style="margin-top:0">Untuk santriwati</h3>
+      <p class="muted">Setelah login Google dan menautkan nama di <a href="profile.html">Profil</a>, Anda bisa menambahkan tautan gambar QRIS sendiri. Di kartu gallery akan muncul tombol <b>Kasih uang jajan</b> agar pengunjung bisa melihat QRIS Anda.</p>
+    </section>
+  </main>
+
+  <footer>
+    <div><span class="brand-mark small">SH</span><b><a href="https://silverhawk.web.id/">Silverhawk</a></b></div>
+    <span>© 2026 • SMA PMA • Terima kasih atas dukungannya</span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data/supabase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/profile-status.js"></script>
+  <script src="js/auth-ui.js"></script>
+  <script src="js/share.js"></script>
+  <script src="js/stats-float.js"></script>
+  <script src="https://silverhawk.web.id/lock/lock.js"></script>
+  <script src="js/health-check.js"></script>
+  <script src="js/idle-tour.js"></script>
+  <script src="js/announce.js"></script>
+  <script>
+    document.querySelectorAll(".btn-copy").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var v = btn.getAttribute("data-copy") || "";
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(v).then(function () {
+            btn.textContent = "Disalin";
+            setTimeout(function () { btn.textContent = "Salin"; }, 1500);
+          });
+        } else {
+          prompt("Salin nomor ini:", v);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

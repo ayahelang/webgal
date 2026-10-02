@@ -944,7 +944,7 @@
     const gate = $("#gate");
     const panel = $("#panel");
     if (!GalleryDB.enabled()) {
-      $("#gateMsg").textContent = "Supabase belum dikonfigurasi.";
+      $("#gateMsg").textContent = "Database belum dikonfigurasi.";
       return;
     }
 
@@ -1040,7 +1040,7 @@
     const syncBtn = $("#btnSyncDocs");
     if (syncBtn) {
       syncBtn.onclick = async () => {
-        if (msg()) msg().textContent = "Menjalankan AI (Edge Function)…";
+        if (msg()) msg().textContent = "Menjalankan AI (fungsi server)…";
         try {
           const r = await GalleryDB.runAiDocsSync({ docsUrls: docsUrls(), sheetId: sheetId() });
           if (msg()) msg().textContent = "AI selesai · domain " + (r.domains || 0) + " · siswa " + (r.students || 0);

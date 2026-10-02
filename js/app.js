@@ -359,6 +359,7 @@
         <p class="card-desc">${w.description}${ai}</p>
         <div class="meta-row">${tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>
         ${contactBarHtml(s)}
+        ${s.qrisImageUrl ? `<button type="button" class="btn-jajan" data-qris="${escapeAttr(s.qrisImageUrl)}" data-qris-name="${escapeAttr(s.name)}">🍪 Kasih uang jajan</button>` : ""}
         <div class="works-title">KARYA <span>${s.works.length} LINK</span></div>
         <div class="work-list">${workButtons(s)}</div>
       </div>
@@ -406,6 +407,42 @@
       e.stopPropagation();
     }));
     bindTooltips(document);
+    bindQrisButtons(document);
+  }
+  function bindQrisButtons(root) {
+    root.querySelectorAll(".btn-jajan").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const url = btn.getAttribute("data-qris") || "";
+        const name = btn.getAttribute("data-qris-name") || "Siswa";
+        if (!url) return;
+        let modal = document.getElementById("qrisModal");
+        if (!modal) {
+          modal = document.createElement("div");
+          modal.id = "qrisModal";
+          modal.className = "qris-modal";
+          modal.hidden = true;
+          modal.innerHTML =
+            '<div class="qris-modal-panel summary-card">' +
+            '<h3 id="qrisModalTitle" style="margin:0 0 6px"></h3>' +
+            '<p class="muted" style="font-size:12px;margin:0">Scan QRIS untuk berbagi rezeki (uang jajan).</p>' +
+            '<img id="qrisModalImg" alt="QRIS" width="280" height="280">' +
+            '<button type="button" class="btn btn-ghost" id="qrisModalClose">Tutup</button>' +
+            "</div>";
+          document.body.appendChild(modal);
+          modal.addEventListener("click", (ev) => {
+            if (ev.target === modal) modal.hidden = true;
+          });
+          modal.querySelector("#qrisModalClose").onclick = () => {
+            modal.hidden = true;
+          };
+        }
+        modal.querySelector("#qrisModalTitle").textContent = "QRIS · " + name;
+        modal.querySelector("#qrisModalImg").src = url;
+        modal.hidden = false;
+      });
+    });
   }
   async function init(){
     try{

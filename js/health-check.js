@@ -2,7 +2,7 @@
 (function () {
   const CHECKS = [
     { id: "config", label: "Konfigurasi aplikasi" },
-    { id: "supabase_js", label: "Library Supabase JS" },
+    { id: "supabase_js", label: "Library database (klien)" },
     { id: "supabase_url", label: "Endpoint database (URL)" },
     { id: "supabase_ping", label: "Koneksi ke database" },
     { id: "auth", label: "Layanan autentikasi" },
@@ -116,7 +116,7 @@
     const key = (cfg.anonKey || cfg.supabaseAnonKey || cfg.key || "").trim();
     set("config", !!(url && key), url ? "URL & anon key terisi" : "supabase-config.js belum lengkap");
 
-    set("supabase_js", !!(window.supabase && window.supabase.createClient), window.supabase ? "createClient tersedia" : "Script Supabase belum termuat");
+    set("supabase_js", !!(window.supabase && window.supabase.createClient), window.supabase ? "createClient tersedia" : "Script database belum termuat");
 
     let host = "";
     try {

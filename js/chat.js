@@ -35,7 +35,7 @@
   async function loadRooms() {
     room.innerHTML = `<option value="">Lintas angkatan (global)</option>`;
     if (!GalleryDB.enabled()) {
-      status.textContent = "Supabase belum dikonfigurasi.";
+      status.textContent = "Database belum dikonfigurasi.";
       return;
     }
     try {

@@ -36,7 +36,7 @@
 
   async function loadAngkatan() {
     if (!window.GalleryDB || !GalleryDB.enabled()) {
-      status.textContent = "Supabase belum dikonfigurasi.";
+      status.textContent = "Database belum dikonfigurasi.";
       return;
     }
     try {

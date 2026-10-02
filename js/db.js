@@ -74,7 +74,7 @@
 
   async function ensureAngkatan(label) {
     const sb = client();
-    if (!sb) throw new Error("Supabase belum dikonfigurasi");
+    if (!sb) throw new Error("Database belum dikonfigurasi");
     const clean = String(label || "").trim();
     if (!clean) throw new Error("Nama angkatan wajib");
     const ln = normLabel(clean);
@@ -97,7 +97,7 @@
 
   async function submitAlumni({ code, name, angkatanId, classCode, createNew, angkatanLabel, websites }) {
     const sb = client();
-    if (!sb) throw new Error("Supabase belum dikonfigurasi.");
+    if (!sb) throw new Error("Database belum dikonfigurasi.");
     const expected = await getSubmitCode();
     if (!code || String(code).trim() !== String(expected).trim()) throw new Error("Kode akses salah.");
     const nm = String(name || "").trim();
@@ -205,15 +205,23 @@
       let pr = await sb
         .from("gallery_profiles")
         .select(
-          "linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code,contact_wa,contact_ig,contact_fb,contact_twitter,contact_tiktok,contact_privacy"
+          "linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code,contact_wa,contact_ig,contact_fb,contact_twitter,contact_tiktok,contact_privacy,qris_image_url"
         )
         .not("linked_alumni_id", "is", null);
       if (pr.error) {
-        // kolom kontak belum ada — fallback tanpa contact
+        // kolom kontak / qris belum ada — fallback bertahap
         pr = await sb
           .from("gallery_profiles")
-          .select("linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code")
+          .select(
+            "linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code,contact_wa,contact_ig,contact_fb,contact_twitter,contact_tiktok,contact_privacy"
+          )
           .not("linked_alumni_id", "is", null);
+        if (pr.error) {
+          pr = await sb
+            .from("gallery_profiles")
+            .select("linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code")
+            .not("linked_alumni_id", "is", null);
+        }
       }
       profiles = pr.data;
       (profiles || []).forEach((p) => {
@@ -268,12 +276,13 @@
             tiktok: c.contact_tiktok || "",
             privacy: c.contact_privacy || {},
           },
+          qrisImageUrl: c.qris_image_url || "",
         };
       })
       .filter((s) => s.works && s.works.length);
 
     const out = {
-      meta: { title: "Gallery", source: "Supabase", updated: new Date().toISOString().slice(0, 10) },
+      meta: { title: "Gallery", source: "database", updated: new Date().toISOString().slice(0, 10) },
       students,
     };
     __galleryCache = out;
@@ -298,24 +307,39 @@
     };
   }
 
-  async function updateMyContact({ wa, ig, fb, twitter, tiktok, privacy }) {
+  async function updateMyContact({ wa, ig, fb, twitter, tiktok, privacy, qrisImageUrl }) {
     const sb = client();
     const session = await getSession();
     if (!session || !session.user) throw new Error("Belum login");
+    const qris = String(qrisImageUrl || "").trim().slice(0, 500);
+    const payload = {
+      contact_wa: String(wa || "").trim().slice(0, 32),
+      contact_ig: String(ig || "").trim().slice(0, 120),
+      contact_fb: String(fb || "").trim().slice(0, 120),
+      contact_twitter: String(twitter || "").trim().slice(0, 120),
+      contact_tiktok: String(tiktok || "").trim().slice(0, 120),
+      contact_privacy: privacy || {},
+      updated_at: new Date().toISOString(),
+    };
+    if (qris === "" || /^https?:\/\//i.test(qris)) {
+      payload.qris_image_url = qris;
+    }
     const { data, error } = await sb
       .from("gallery_profiles")
-      .update({
-        contact_wa: String(wa || "").trim().slice(0, 32),
-        contact_ig: String(ig || "").trim().slice(0, 120),
-        contact_fb: String(fb || "").trim().slice(0, 120),
-        contact_twitter: String(twitter || "").trim().slice(0, 120),
-        contact_tiktok: String(tiktok || "").trim().slice(0, 120),
-        contact_privacy: privacy || {},
-      })
+      .update(payload)
       .eq("id", session.user.id)
       .select("*")
       .single();
-    if (error) throw error;
+    if (error) {
+      // kolom qris belum ada di database — simpan tanpa qris
+      if (String(error.message || "").includes("qris_image_url")) {
+        delete payload.qris_image_url;
+        const r2 = await sb.from("gallery_profiles").update(payload).eq("id", session.user.id).select("*").single();
+        if (r2.error) throw r2.error;
+        return r2.data;
+      }
+      throw error;
+    }
     return data;
   }
 
@@ -415,7 +439,7 @@
 
   async function signInWithGoogle(opts) {
     const sb = client();
-    if (!sb) throw new Error("Supabase belum dikonfigurasi");
+    if (!sb) throw new Error("Database belum dikonfigurasi");
     const o = opts || {};
     // simpan tujuan kembali
     try {
@@ -1593,7 +1617,7 @@
       const iNick = colIndex(header, ["nickname", "nick"]);
       const iEmail = colIndex(header, ["email"]);
       const iIntro = colIndex(header, ["edited intro", "intro vid", "edited intro vid"]);
-      const iGh = colIndex(header, ["github pages", "github"]);
+      const iGh = colIndex(header, ["hosting", "github"]);
       if (iNama < 0) throw new Error("Kolom NAMA tidak ketemu di sheet " + classCode);
 
       for (let r = hi + 1; r < rows.length; r++) {
@@ -1999,7 +2023,7 @@
 
   async function addComment(targetType, targetId, authorName, body) {
     const sb = client();
-    if (!sb) throw new Error("Supabase belum siap");
+    if (!sb) throw new Error("Database belum siap");
     const text = String(body || "").trim();
     if (text.length < 2) throw new Error("Komentar terlalu pendek.");
     let userId = null;
