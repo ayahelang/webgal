@@ -1241,31 +1241,18 @@
   }
 
   let __vidLoad = null;
+
   async function refreshVideos() {
     const host = $("#vidList");
     if (host) host.innerHTML = "<p class='muted'>Memuat video…</p>";
-    if (__vidLoad) {
-      try { await __vidLoad; } catch (e) {}
-    }
     let rows = [];
-    __vidLoad = (async () => {
-      try {
-        return await GalleryDB.listVideos();
-      } finally {
-        __vidLoad = null;
-      }
-    })();
     try {
-      rows = await __vidLoad;
+      rows = await GalleryDB.listVideos();
     } catch (e) {
       if (host) host.innerHTML = "<p class='muted'>Gagal muat video: " + esc(e.message || e) + "</p>";
       return;
     }
     videoCache = rows || [];
-    if (!videoCache.length) {
-      if (host) host.innerHTML = "<p class='muted'>Belum ada video di database.</p>";
-      return;
-    }
     function countDeep(obj) {
       if (Array.isArray(obj)) return obj.length;
       if (!obj || typeof obj !== "object") return 0;
@@ -1344,24 +1331,24 @@
                       const list = root[cat][y][c][nm].map(vidRow).join("");
                       return `<div class="pt-node">
                         <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><strong>${esc(nm)}</strong> <small class="muted">(${root[cat][y][c][nm].length})</small></div>
-                        <div class="pt-children" data-parent="v-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">${list}</div>
+                        <div class="pt-children is-collapsed" data-parent="v-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">${list}</div>
                       </div>`;
                     })
                     .join("");
                   return `<div class="pt-node">
-                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y][c])})</small></div>
+                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y][c])})</small></div>
                     <div class="pt-children" data-parent="v-${esc(cat)}-${esc(y)}-${esc(c)}">${nHtml}</div>
                   </div>`;
                 })
                 .join("");
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y])})</small></div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y])})</small></div>
                 <div class="pt-children" data-parent="v-${esc(cat)}-${esc(y)}">${cHtml}</div>
               </div>`;
             })
             .join("");
           return `<div class="pt-node" style="margin-bottom:12px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-cat-${esc(cat)}">▸</button><strong>${esc(cat)}</strong> <small class="muted pt-count">(${countDeep(root[cat])})</small></div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-cat-${esc(cat)}">▾</button><strong>${esc(cat)}</strong> <small class="muted pt-count">(${countDeep(root[cat])})</small></div>
             <div class="pt-children" data-parent="v-cat-${esc(cat)}">${yHtml}</div>
           </div>`;
         })
@@ -1510,22 +1497,13 @@
 
 
   let __webLoad = null;
+
   async function refreshWebs() {
     const host = $("#webList");
     if (host) host.innerHTML = "<p class='muted'>Memuat website…</p>";
-    if (__webLoad) {
-      try { await __webLoad; } catch (e) {}
-    }
     let rows = [];
-    __webLoad = (async () => {
-      try {
-        return await GalleryDB.adminListWebsites();
-      } finally {
-        __webLoad = null;
-      }
-    })();
     try {
-      rows = await __webLoad;
+      rows = await GalleryDB.adminListWebsites();
     } catch (e) {
       if (host) host.innerHTML = "<p class='muted'>Gagal muat website: " + esc(e.message || e) + "</p>";
       return;
@@ -1573,13 +1551,13 @@
                     .join("");
                   return `<div class="pt-node">
                     <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><strong>${esc(nm)}</strong> <small class="muted">(${tree[y][c][nm].length})</small></div>
-                    <div class="pt-children" data-parent="w-${esc(y)}-${esc(c)}-${esc(nm)}">${sites}</div>
+                    <div class="pt-children is-collapsed" data-parent="w-${esc(y)}-${esc(c)}-${esc(nm)}">${sites}</div>
                   </div>`;
                 })
                 .join("");
               const siteCount = names.reduce((n, nm) => n + tree[y][c][nm].length, 0);
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${siteCount})</small></div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${siteCount})</small></div>
                 <div class="pt-children" data-parent="w-${esc(y)}-${esc(c)}">${nHtml}</div>
               </div>`;
             })
@@ -1588,7 +1566,7 @@
             return n + Object.keys(tree[y][c] || {}).reduce((m, nm) => m + (tree[y][c][nm] || []).length, 0);
           }, 0);
           return `<div class="pt-node" style="margin-bottom:10px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-y-${esc(y)}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${yearCount})</small></div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-y-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${yearCount})</small></div>
             <div class="pt-children" data-parent="w-y-${esc(y)}">${cHtml}</div>
           </div>`;
         })
@@ -1640,8 +1618,7 @@
   async function refreshAlumni() {
     const rows = await GalleryDB.adminListAlumni();
     alumniAllCache = rows || [];
-    // Admin list: tampilkan SEMUA siswa/alumni di DB (jangan filter Juli+3 —
-    // filter itu hanya untuk status label di tab Users/Profil)
+    // Admin: tampilkan SEMUA siswa di DB (layout tree tetap)
     alumniCache = alumniAllCache.slice();
     await fillAlumniSelects();
     const tree = {};
@@ -1686,7 +1663,7 @@
             <div class="pt-children" data-parent="al-y-${esc(y)}">${cHtml}</div>
           </div>`;
         })
-        .join("") || "<p class='muted'>Belum ada data siswa/alumni di database.</p>";
+        .join("") || "<p class='muted'>Belum ada data siswa di database.</p>";
     treeToggleBind($("#alumniList"));
     bindListSearch("#alumniSearch", "#alumniList");
     $$("#alumniList [data-del-al]").forEach((b) =>
