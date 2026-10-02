@@ -152,7 +152,34 @@
           <span>Cari di list</span>
           <input type="search" id="alumniSearch" class="admin-list-search" placeholder="Cari nama siswa, kelas, angkatan…" autocomplete="off">
         </label>
-<div id="alumniList" class="admin-list"></div>
+
+        <div class="summary-card" style="margin:14px 0;padding:14px 16px;border:1px solid rgba(125,227,255,.15)">
+          <h3 style="font-size:1.05rem;margin:0 0 6px">Bulk upload data siswa</h3>
+          <p class="muted" style="font-size:12px;margin:0 0 10px;line-height:1.45">
+            Kolom wajib: <b>angkatan</b> (tahun, mis. 2025), <b>kelas</b> (51/52), <b>nama</b> siswa.
+            Sheet harus dibagikan <i>Anyone with the link can view</i>.
+            Membuat file Google Sheet otomatis dari situs ini <b>tidak bisa tanpa OAuth Google</b> — unduh template CSV lalu buka di Sheets (File → Import), atau salin template publik.
+          </p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <button type="button" class="btn btn-ghost" id="btnStuTplCsv">Unduh template CSV</button>
+            <a class="btn btn-ghost" id="btnStuTplSheet" href="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/copy" target="_blank" rel="noopener">Buka contoh Sheets (salin)</a>
+          </div>
+          <label class="field"><span>URL atau ID Google Sheet</span>
+            <input type="text" id="bulkStuSheet" placeholder="https://docs.google.com/spreadsheets/d/.... atau ID saja">
+          </label>
+          <label class="field"><span>gid tab (opsional, default 0)</span>
+            <input type="text" id="bulkStuGid" placeholder="0">
+          </label>
+          <label class="field"><span>Atau unggah file CSV</span>
+            <input type="file" id="bulkStuFile" accept=".csv,text/csv">
+          </label>
+          <div class="admin-form-actions" style="margin-top:8px">
+            <button type="button" class="btn btn-primary" id="btnBulkStuImport">Impor siswa</button>
+          </div>
+          <p id="bulkStuMsg" class="muted" style="font-size:13px;margin-top:8px"></p>
+        </div>
+
+        <div id="alumniList" class="admin-list"></div>
       </section>
       <section data-panel="angkatan" class="summary-card admin-pane" hidden>
         <h3>Angkatan</h3>

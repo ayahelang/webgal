@@ -1077,15 +1077,20 @@
           .map(
             (r) => {
               const creator = creatorDisplayName(r.created_by_name || r.created_by_email || r.created_by);
+              const ci = esc(String(r.checkin_start || "").slice(0, 5)) + "–" + esc(String(r.checkin_end || "").slice(0, 5));
+              const co = esc(String(r.checkout_start || "").slice(0, 5)) + "–" + esc(String(r.checkout_end || "").slice(0, 5));
               return `<div class="admin-row ann-sess-row att-sess-row" data-att-id="${r.id}">
-              <div class="ann-sess-top">
+              <div class="ann-sess-top att-sess-top">
                 <div class="ann-sess-title">
                   <strong>${esc(r.title || "Sesi absensi")}</strong>
                   <small class="muted"> · ${r.active === false ? "nonaktif" : "aktif"}${r.allow_late ? " · izin terlambat" : ""}</small>
                   <span class="att-sess-creator">Dibuat oleh: ${esc(creator)}</span>
-                  <br><small class="muted">Check-in ${esc(String(r.checkin_start || "").slice(0, 5))}–${esc(String(r.checkin_end || "").slice(0, 5))} · Check-out ${esc(String(r.checkout_start || "").slice(0, 5))}–${esc(String(r.checkout_end || "").slice(0, 5))}</small>
                 </div>
-                <div class="ann-sess-actions">
+                <div class="att-sess-times" title="Jendela absensi">
+                  <div class="att-time-line"><span class="att-time-lab">Check-in</span> <span>${ci}</span></div>
+                  <div class="att-time-line"><span class="att-time-lab">Check-out</span> <span>${co}</span></div>
+                </div>
+                <div class="ann-sess-actions att-sess-actions">
                   <button type="button" class="btn btn-ghost btn-xs" data-att-stats="${r.id}">Statistik ▾</button>
                   <button type="button" class="btn btn-ghost btn-xs" data-att-info="${r.id}">Info</button>
                   <button type="button" class="btn btn-ghost btn-xs" data-att-dl="${r.id}">Unduh CSV</button>
@@ -1384,6 +1389,54 @@
       });
   }
 
+
+  function bindBulkStudentImport() {
+    const msg = () => $("#bulkStuMsg");
+    const tpl = $("#btnStuTplCsv");
+    if (tpl) {
+      tpl.onclick = () => {
+        const csv = "angkatan,kelas,nama\n2025,51,Contoh Nama Satu\n2025,52,Contoh Nama Dua\n";
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "template-data-siswa.csv";
+        a.click();
+      };
+    }
+    const btn = $("#btnBulkStuImport");
+    if (!btn) return;
+    btn.onclick = async () => {
+      if (msg()) msg().textContent = "Mengimpor…";
+      try {
+        let result;
+        const fileInput = $("#bulkStuFile");
+        const file = fileInput && fileInput.files && fileInput.files[0];
+        if (file) {
+          const text = await file.text();
+          result = await GalleryDB.importStudentsBulkFromCsvText(text);
+        } else {
+          const sheet = (($("#bulkStuSheet") && $("#bulkStuSheet").value) || "").trim();
+          if (!sheet) throw new Error("Isi URL/ID Sheet atau pilih file CSV");
+          const gid = (($("#bulkStuGid") && $("#bulkStuGid").value) || "").trim();
+          result = await GalleryDB.importStudentsBulkFromSheet(sheet, gid || "0");
+        }
+        const errN = (result.errors || []).length;
+        if (msg())
+          msg().textContent =
+            "Selesai: +" + result.added + " baru, " + result.skipped + " dilewati (sudah ada/kosong)" +
+            (errN ? ", " + errN + " error" : "") +
+            " · total baris " + result.total;
+        if (errN && result.errors[0]) console.warn(result.errors);
+        window.__adminTabLoaded && (window.__adminTabLoaded.alumni = false);
+        if (typeof refreshAlumni === "function") await refreshAlumni();
+        window.__adminAlumniLite = null;
+        if (typeof loadRoster === "function") await loadRoster(true);
+      } catch (e) {
+        if (msg()) msg().textContent = e.message || String(e);
+      }
+    };
+  }
+
   async function boot() {
     const gate = $("#gate");
     const panel = $("#panel");
@@ -1460,6 +1513,7 @@
     bindForms(session);
     bindAnnouncementForm();
     bindAttendanceAdmin();
+    bindBulkStudentImport();
     bindDesignsAdmin();
     const msg = () => $("#syncMsg");
     const log = () => $("#syncLog");

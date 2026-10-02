@@ -1587,6 +1587,131 @@
   }
 
   /** Import nama + nickname + intro video dari Sheet 51 & 52 angkatan 2025 */
+
+  /** Parse CSV text (header row required). Columns flexible: angkatan/year, kelas/class, nama/name */
+  function parseStudentsCsv(text) {
+    const lines = String(text || "").replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) return [];
+    function splitCsvLine(line) {
+      const out = [];
+      let cur = "";
+      let q = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (q && line[i + 1] === '"') { cur += '"'; i++; }
+          else q = !q;
+        } else if (ch === "," && !q) {
+          out.push(cur.trim());
+          cur = "";
+        } else cur += ch;
+      }
+      out.push(cur.trim());
+      return out;
+    }
+    const headers = splitCsvLine(lines[0]).map((h) => h.toLowerCase().replace(/\s+/g, "_"));
+    const idx = (cands) => {
+      for (const c of cands) {
+        const i = headers.findIndex((h) => h === c || h.includes(c));
+        if (i >= 0) return i;
+      }
+      return -1;
+    };
+    const iYear = idx(["angkatan_year", "angkatan", "tahun", "year"]);
+    const iClass = idx(["class_code", "kelas", "class"]);
+    const iName = idx(["nama_siswa", "nama", "name", "student_name"]);
+    if (iName < 0) throw new Error("Kolom nama siswa wajib (nama / name / nama_siswa)");
+    const rows = [];
+    for (let li = 1; li < lines.length; li++) {
+      const cols = splitCsvLine(lines[li]);
+      if (!cols.length || cols.every((c) => !c)) continue;
+      const name = (cols[iName] || "").trim();
+      if (!name) continue;
+      let year = iYear >= 0 ? String(cols[iYear] || "").trim() : "";
+      year = year.replace(/[^\d]/g, "").slice(0, 4);
+      let kelas = iClass >= 0 ? String(cols[iClass] || "").trim() : "";
+      kelas = kelas.replace(/[^\d]/g, "").slice(0, 2);
+      rows.push({ name, angkatan_year: year, class_code: kelas });
+    }
+    return rows;
+  }
+
+  async function fetchSheetCsv(sheetIdOrUrl, gid) {
+    let id = String(sheetIdOrUrl || "").trim();
+    const m = id.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (m) id = m[1];
+    if (!id) throw new Error("ID atau URL Google Sheet wajib");
+    const g = gid != null && String(gid).trim() !== "" ? String(gid).trim() : "0";
+    const url = "https://docs.google.com/spreadsheets/d/" + id + "/export?format=csv&gid=" + encodeURIComponent(g);
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error("Gagal unduh Sheet (status " + res.status + "). Pastikan file dibagikan: Anyone with the link can view.");
+    return await res.text();
+  }
+
+  async function importStudentsBulkFromRows(rows) {
+    if (!(await isCurrentUserAdmin())) {
+      const p = await getMyProfile();
+      const ok = p && (p.is_admin || p.role === "teacher" || (p.permissions && (p.permissions.alumni || p.permissions.manage_attendance)));
+      if (!ok) throw new Error("Tidak berhak mengimpor data siswa");
+    }
+    const list = rows || [];
+    if (!list.length) throw new Error("Tidak ada baris data");
+    let angs = await adminListAngkatanAll();
+    const ensureAng = async (year) => {
+      const y = String(year || "").trim();
+      if (!/^\d{4}$/.test(y)) throw new Error("Angkatan tidak valid: " + year);
+      let hit = (angs || []).find((a) => String(a.label || "").includes(y));
+      if (hit) return hit;
+      hit = await adminUpsertAngkatan({ label: "Angkatan " + y });
+      angs = await adminListAngkatanAll();
+      return hit;
+    };
+    let added = 0, skipped = 0, errors = [];
+    const existing = await adminListAlumni();
+    const keyOf = (n, y, c) => (n || "").toLowerCase().trim() + "|" + y + "|" + c;
+    const have = new Set(
+      (existing || []).map((al) => {
+        const ang = al.gallery_angkatan || {};
+        const m = String(ang.label || "").match(/20\d{2}/);
+        return keyOf(al.name, m ? m[0] : "", al.class_code || "");
+      })
+    );
+    for (const r of list) {
+      try {
+        const name = String(r.name || "").trim();
+        const year = String(r.angkatan_year || "").trim();
+        const kelas = String(r.class_code || "").trim();
+        if (!name || !year || !kelas) {
+          skipped++;
+          continue;
+        }
+        const k = keyOf(name, year, kelas);
+        if (have.has(k)) {
+          skipped++;
+          continue;
+        }
+        const ang = await ensureAng(year);
+        await adminUpsertAlumni({ name, classCode: kelas, angkatanId: ang.id, role: "Santriwati" });
+        have.add(k);
+        added++;
+      } catch (e) {
+        errors.push((r.name || "?") + ": " + (e.message || e));
+      }
+    }
+    return { added, skipped, errors, total: list.length };
+  }
+
+  async function importStudentsBulkFromSheet(sheetIdOrUrl, gid) {
+    const csv = await fetchSheetCsv(sheetIdOrUrl, gid);
+    const rows = parseStudentsCsv(csv);
+    return importStudentsBulkFromRows(rows);
+  }
+
+  async function importStudentsBulkFromCsvText(text) {
+    const rows = parseStudentsCsv(text);
+    return importStudentsBulkFromRows(rows);
+  }
+
   async function importRosterFromSheet2025(sheetId) {
     if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
     const sb = client();
@@ -2959,6 +3084,11 @@
     batchEngagement,
     syncFromGoogleDocs,
     importRosterFromSheet2025,
+    parseStudentsCsv,
+    importStudentsBulkFromSheet,
+    importStudentsBulkFromCsvText,
+    importStudentsBulkFromRows,
+    fetchSheetCsv,
     runAiDocsSync,
     loadAiSkills,
 
