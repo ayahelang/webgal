@@ -786,8 +786,9 @@
             (r) => `<div class="admin-row">
             <div><strong>${esc(r.title)}</strong>
               <small class="muted"> · ${esc(r.subject_code)} · ${r.active ? "aktif" : "nonaktif"}</small>
-              <br><small class="muted">In ${esc(r.checkin_start)}–${esc(r.checkin_end)} · Out ${esc(r.checkout_start)}–${esc(r.checkout_end)}
-              ${r.session_date ? " · " + esc(r.session_date) : (r.weekdays && r.weekdays.length ? " · hari " + esc(r.weekdays.join(",")) : "")}</small>
+              <br><small class="muted">In ${esc(String(r.checkin_start||"").slice(0,5))}–${esc(String(r.checkin_end||"").slice(0,5))} · Out ${esc(String(r.checkout_start||"").slice(0,5))}–${esc(String(r.checkout_end||"").slice(0,5))}
+              ${r.session_date ? " · " + esc(r.session_date) : (r.weekdays && r.weekdays.length ? " · hari " + esc(r.weekdays.join(",")) : "")}
+              · ${(r.target_students&&r.target_students.length) ? (r.target_students.length+" siswa") : (r.audience||"all_linked")}</small>
             </div>
             <div style="display:flex;gap:6px">
               <button type="button" data-edit-att="${r.id}">Ubah</button>
@@ -833,6 +834,18 @@
     }
   }
 
+  function normTime(v, fallback) {
+    const s = String(v || "").trim();
+    if (!s) return fallback;
+    // HTML time → HH:MM or HH:MM:SS
+    const m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (!m) return fallback;
+    const hh = String(Math.min(23, parseInt(m[1], 10))).padStart(2, "0");
+    const mm = String(Math.min(59, parseInt(m[2], 10))).padStart(2, "0");
+    const ss = m[3] ? String(Math.min(59, parseInt(m[3], 10))).padStart(2, "0") : "00";
+    return hh + ":" + mm + ":" + ss;
+  }
+
   function bindAttendanceAdmin() {
     buildStudentCheckTree("#attStudentTree");
     // Checkbox master: tampilkan / sembunyikan tree (posisi kiri, rapi)
@@ -855,44 +868,95 @@
     if (!save) return;
     save.onclick = async () => {
       const f = $("#attSessForm");
-      const fd = new FormData(f);
+      if (!f) return;
+      const msg = $("#attSessMsg");
+      const titleEl = f.querySelector("[name=title]");
+      const title = (titleEl && titleEl.value || "").trim();
+      if (!title) {
+        if (msg) {
+          msg.style.color = "#ff8a8a";
+          msg.textContent = "Judul sesi wajib diisi.";
+        }
+        if (titleEl) titleEl.focus();
+        return;
+      }
       const weekdays = $$("#attSessForm [name=wd]:checked").map((c) => Number(c.value));
-      const targets = readTreeStudentTargets($("#attStudentTree"));
-      const years = [...new Set(targets.map((t) => t.year).filter(Boolean))];
-      const classes = [...new Set(targets.map((t) => t.class).filter(Boolean))];
+      const sessionDate = (f.querySelector("[name=session_date]") && f.querySelector("[name=session_date]").value) || "";
+      if (!sessionDate && !weekdays.length) {
+        if (msg) {
+          msg.style.color = "#ff8a8a";
+          msg.textContent = "Pilih minimal satu hari berulang, atau isi tanggal khusus.";
+        }
+        return;
+      }
+      // Pastikan leaf tercentang mengikuti parent yang dicentang (jaga-jaga)
+      const tree = $("#attStudentTree");
+      if (tree) {
+        tree.querySelectorAll('input[type=checkbox][data-sh-cb="group"]:checked').forEach((g) => {
+          const row = g.closest(".pt-row");
+          const kids = row && row.nextElementSibling;
+          if (kids) kids.querySelectorAll('input[type=checkbox][data-sh-cb]').forEach((x) => { x.checked = true; x.indeterminate = false; });
+        });
+      }
+      const useTree = !master || master.checked;
+      let targets = useTree ? readTreeStudentTargets(tree) : [];
+      const years = [...new Set(targets.map((t) => String(t.year || "")).filter(Boolean))];
+      const classes = [...new Set(targets.map((t) => String(t.class || "")).filter(Boolean))];
+      const idVal = (f.querySelector("[name=id]") && f.querySelector("[name=id]").value) || "";
       const payload = {
-        id: fd.get("id") || null,
-        title: fd.get("title"),
-        subject_code: fd.get("subject_code"),
-        subject_label: fd.get("subject_label"),
-        session_date: fd.get("session_date") || null,
+        id: idVal || null,
+        title,
+        subject_code: (f.querySelector("[name=subject_code]") && f.querySelector("[name=subject_code]").value) || "SMM",
+        subject_label: (f.querySelector("[name=subject_label]") && f.querySelector("[name=subject_label]").value) || "Social Media Marketing",
+        session_date: sessionDate || null,
         weekdays,
-        checkin_start: fd.get("checkin_start"),
-        checkin_end: fd.get("checkin_end"),
-        checkout_start: fd.get("checkout_start"),
-        checkout_end: fd.get("checkout_end"),
+        checkin_start: normTime(f.querySelector("[name=checkin_start]") && f.querySelector("[name=checkin_start]").value, "07:00:00"),
+        checkin_end: normTime(f.querySelector("[name=checkin_end]") && f.querySelector("[name=checkin_end]").value, "07:15:00"),
+        checkout_start: normTime(f.querySelector("[name=checkout_start]") && f.querySelector("[name=checkout_start]").value, "08:20:00"),
+        checkout_end: normTime(f.querySelector("[name=checkout_end]") && f.querySelector("[name=checkout_end]").value, "08:40:00"),
         target_years: years,
         target_classes: classes,
         target_students: targets,
         audience: targets.length ? "students" : "all_linked",
-        require_checkout: f.querySelector("[name=require_checkout]").checked,
-        active: f.querySelector("[name=active]").checked,
+        require_checkout: !!(f.querySelector("[name=require_checkout]") && f.querySelector("[name=require_checkout]").checked),
+        active: !!(f.querySelector("[name=active]") && f.querySelector("[name=active]").checked),
       };
+      save.disabled = true;
+      const prevLabel = save.textContent;
+      save.textContent = "Menyimpan…";
+      if (msg) {
+        msg.style.color = "";
+        msg.textContent = "Menyimpan sesi… (" + (targets.length ? targets.length + " siswa" : "semua yang sudah taut nama") + ")";
+      }
       try {
-        await GalleryDB.upsertAttendanceSession(payload);
-        $("#attSessMsg").textContent = "Sesi disimpan.";
-        f.reset();
+        const saved = await GalleryDB.upsertAttendanceSession(payload);
+        if (msg) {
+          msg.style.color = "#7dffb3";
+          msg.textContent = "Sesi disimpan: " + (saved && saved.title ? saved.title : title) +
+            (saved && saved.id ? " · id " + String(saved.id).slice(0, 8) + "…" : "");
+        }
         f.querySelector("[name=id]").value = "";
+        if (titleEl) titleEl.value = "";
         await refreshAttendance();
       } catch (e) {
-        $("#attSessMsg").textContent = e.message || String(e);
+        console.error("upsertAttendanceSession", e);
+        const detail = (e && (e.message || e.details || e.hint || e.code)) || String(e);
+        if (msg) {
+          msg.style.color = "#ff8a8a";
+          msg.textContent = "Gagal simpan: " + detail;
+        }
+        try { alert("Gagal simpan sesi absensi:\n" + detail); } catch (_) {}
+      } finally {
+        save.disabled = false;
+        save.textContent = prevLabel;
       }
     };
     $("#attSessReset") &&
       ($("#attSessReset").onclick = () => {
         $("#attSessForm").reset();
         $("#attSessForm [name=id]").value = "";
-        $("#attSessMsg").textContent = "";
+        const msg = $("#attSessMsg");
+        if (msg) { msg.style.color = ""; msg.textContent = ""; }
       });
     $("#attRecLoad") &&
       ($("#attRecLoad").onclick = async () => {

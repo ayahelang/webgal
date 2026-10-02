@@ -2222,38 +2222,58 @@
 
   async function upsertAttendanceSession(payload) {
     const sb = client();
+    if (!sb) throw new Error("Database belum dikonfigurasi");
     const session = await getSession();
+    if (!session || !session.user) throw new Error("Sesi login habis. Silakan login ulang sebagai admin.");
     const prof = await getMyProfile();
-    if (!(await isCurrentUserAdmin()) && !canManageAttendance(prof)) throw new Error("Tidak berhak");
+    if (!(await isCurrentUserAdmin()) && !canManageAttendance(prof)) {
+      throw new Error("Tidak berhak mengelola absensi (butuh admin atau izin manage_attendance).");
+    }
+    const normT = (v, fb) => {
+      const s = String(v || "").trim();
+      const m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+      if (!m) return fb;
+      return (
+        String(Math.min(23, parseInt(m[1], 10))).padStart(2, "0") +
+        ":" +
+        String(Math.min(59, parseInt(m[2], 10))).padStart(2, "0") +
+        ":" +
+        (m[3] ? String(Math.min(59, parseInt(m[3], 10))).padStart(2, "0") : "00")
+      );
+    };
+    const weekdays = (payload.weekdays || [])
+      .map((n) => parseInt(n, 10))
+      .filter((n) => n >= 1 && n <= 7);
+    const targets = Array.isArray(payload.target_students) ? payload.target_students : [];
     const row = {
-      title: payload.title || "Sesi absensi",
-      subject_code: payload.subject_code || "SMM",
-      subject_label: payload.subject_label || "Social Media Marketing",
+      title: String(payload.title || "Sesi absensi").trim().slice(0, 200),
+      subject_code: String(payload.subject_code || "SMM").slice(0, 32),
+      subject_label: String(payload.subject_label || "Social Media Marketing").slice(0, 120),
       description: payload.description || "",
-      audience: payload.audience || "all_linked",
-      target_students: payload.target_students || [],
-      target_years: payload.target_years || [],
-      target_classes: payload.target_classes || [],
+      audience: payload.audience || (targets.length ? "students" : "all_linked"),
+      target_students: targets,
+      target_years: (payload.target_years || []).map(String),
+      target_classes: (payload.target_classes || []).map(String),
       session_date: payload.session_date || null,
-      weekdays: payload.weekdays || [],
-      checkin_start: payload.checkin_start || "07:00",
-      checkin_end: payload.checkin_end || "07:15",
-      checkout_start: payload.checkout_start || "08:20",
-      checkout_end: payload.checkout_end || "08:40",
+      weekdays,
+      checkin_start: normT(payload.checkin_start, "07:00:00"),
+      checkin_end: normT(payload.checkin_end, "07:15:00"),
+      checkout_start: normT(payload.checkout_start, "08:20:00"),
+      checkout_end: normT(payload.checkout_end, "08:40:00"),
       timezone: payload.timezone || "Asia/Jakarta",
       require_checkout: payload.require_checkout !== false,
       active: payload.active !== false,
-      created_by: session && session.user ? session.user.id : null,
-      created_by_email: session && session.user ? session.user.email : "",
       updated_at: new Date().toISOString(),
     };
     if (payload.id) {
       const { data, error } = await sb.from("gallery_attendance_sessions").update(row).eq("id", payload.id).select("*").single();
-      if (error) throw error;
+      if (error) throw new Error(error.message || JSON.stringify(error));
       return data;
     }
+    row.created_by = session.user.id;
+    row.created_by_email = session.user.email || "";
     const { data, error } = await sb.from("gallery_attendance_sessions").insert(row).select("*").single();
-    if (error) throw error;
+    if (error) throw new Error(error.message || JSON.stringify(error));
     return data;
   }
 
