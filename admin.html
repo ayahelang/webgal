@@ -223,6 +223,7 @@
             <div id="attStudentTree" class="privacy-tree sh-cb-tree att-student-tree" style="max-height:320px;overflow:auto;margin-top:8px;width:100%"></div>
           </fieldset>
           <label class="check" style="align-self:center"><input type="checkbox" name="require_checkout" checked> Wajib check-out</label>
+          <label class="check" style="align-self:center"><input type="checkbox" name="allow_late"> Izinkan absen terlambat</label>
           <label class="check" style="align-self:center"><input type="checkbox" name="active" checked> Aktif</label>
           <div class="admin-form-actions" style="grid-column:1/-1">
             <button type="button" class="btn btn-primary" id="attSessSave">Simpan sesi</button>
@@ -234,7 +235,7 @@
         <hr style="border:0;border-top:1px solid rgba(125,227,255,.12);margin:18px 0">
         <h3 style="font-size:1.05rem">Rekap kehadiran</h3>
         <div class="att-admin-grid" style="margin-top:10px">
-          <label class="field"><span>Filter sesi (id opsional)</span><input id="attRecSession" placeholder="UUID sesi / kosong=semua"></label>
+          <label class="field"><span>Filter sesi</span><select id="attRecSession"><option value="">Semua sesi</option></select></label>
           <label class="field"><span>Kelas</span><input id="attRecClass" placeholder="51 / 52"></label>
           <label class="field"><span>Nama</span><input id="attRecName" placeholder="cari nama"></label>
         </div>

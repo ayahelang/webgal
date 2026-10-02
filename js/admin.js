@@ -775,26 +775,218 @@
 
 
   let attRecCache = [];
+
+  function attVisibilityInfo(s) {
+    const reasons = [];
+    if (s.active === false) reasons.push("Sesi nonaktif — siswa tidak melihat sesi ini.");
+    const now = new Date();
+    const fmt = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Jakarta",
+      weekday: "short",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const parts = Object.fromEntries(fmt.formatToParts(now).map((p) => [p.type, p.value]));
+    const wdMap = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+    const weekday = wdMap[parts.weekday] || 1;
+    const date = parts.year + "-" + parts.month + "-" + parts.day;
+    const minutes = parseInt(parts.hour, 10) * 60 + parseInt(parts.minute, 10);
+    const toMin = (t) => {
+      const p = String(t || "0:0").slice(0, 5).split(":");
+      return parseInt(p[0], 10) * 60 + parseInt(p[1] || 0, 10);
+    };
+    if (s.session_date) {
+      if (String(s.session_date).slice(0, 10) !== date) {
+        reasons.push("Hari ini bukan tanggal khusus sesi (" + String(s.session_date).slice(0, 10) + ").");
+      }
+    } else if (s.weekdays && s.weekdays.length) {
+      if (s.weekdays.map(Number).indexOf(weekday) < 0) {
+        reasons.push("Hari ini tidak termasuk hari berulang yang dipilih.");
+      }
+    }
+    const ci0 = toMin(s.checkin_start);
+    const ci1 = toMin(s.checkin_end);
+    const co0 = toMin(s.checkout_start);
+    const co1 = toMin(s.checkout_end);
+    if (minutes < ci0) reasons.push("Belum masuk jam check-in (" + String(s.checkin_start).slice(0, 5) + ").");
+    else if (minutes > ci1 && minutes < co0) {
+      if (s.allow_late) reasons.push("Lewat batas check-in, tapi izin terlambat aktif — siswa masih bisa check-in (status terlambat).");
+      else reasons.push("Lewat batas check-in (" + String(s.checkin_end).slice(0, 5) + ") dan izin terlambat nonaktif.");
+    } else if (minutes >= co0 && minutes <= co1) {
+      reasons.push("Sekarang jendela check-out (" + String(s.checkout_start).slice(0, 5) + "–" + String(s.checkout_end).slice(0, 5) + ").");
+    } else if (minutes > co1) {
+      reasons.push("Sudah lewat seluruh jendela absensi hari ini.");
+    }
+    if (!reasons.length) reasons.push("Dalam jendela waktu yang sesuai — siswa yang ditarget & sudah taut nama seharusnya melihat sesi ini di halaman Absensi.");
+    reasons.push("Siswa harus login Google dan menautkan nama di Profil.");
+    return reasons;
+  }
+
+  function downloadAttCsv(filename, rows) {
+    const header = ["sesi", "nama", "angkatan", "kelas", "email", "checkin_at", "checkin_status", "checkin_note", "checkout_at", "checkout_note"];
+    const lines = [header.join(",")];
+    (rows || []).forEach((r) => {
+      const sess = r.gallery_attendance_sessions || {};
+      const cell = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+      lines.push(
+        [
+          cell(sess.title || r.session_id),
+          cell(r.student_name),
+          cell(r.angkatan_year),
+          cell(r.class_code),
+          cell(r.email),
+          cell(r.checkin_at),
+          cell(r.checkin_status),
+          cell(r.checkin_note),
+          cell(r.checkout_at),
+          cell(r.checkout_note),
+        ].join(",")
+      );
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename || "rekap-absensi.csv";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  async function buildSessionStatsHtml(session) {
+    const targets = session.target_students || [];
+    let records = [];
+    try {
+      records = await GalleryDB.listAttendanceRecords({ session_id: session.id });
+    } catch (e) {
+      return "<p class='muted'>Gagal muat rekap: " + esc(e.message || e) + "</p>";
+    }
+    const byKey = {};
+    records.forEach((r) => {
+      const k = (r.angkatan_year || "") + "|" + (r.class_code || "") + "|" + String(r.student_name || "").toLowerCase().trim();
+      byKey[k] = r;
+    });
+    // expected list: targets, or unique from records if all_linked
+    let expected = targets.slice();
+    if (!expected.length) {
+      // fallback: semua yang sudah isi + info audience
+      expected = records.map((r) => ({ year: r.angkatan_year, class: r.class_code, name: r.student_name }));
+    }
+    const done = [];
+    const late = [];
+    const missing = [];
+    const seen = new Set();
+    expected.forEach((t) => {
+      const k = (t.year || "") + "|" + (t.class || t.class_code || "") + "|" + String(t.name || "").toLowerCase().trim();
+      if (seen.has(k)) return;
+      seen.add(k);
+      const r = byKey[k];
+      if (r && r.checkin_at) {
+        if (r.checkin_status === "late") late.push({ t, r });
+        else done.push({ t, r });
+      } else {
+        missing.push(t);
+      }
+    });
+    // also people who filled but not in targets
+    records.forEach((r) => {
+      const k = (r.angkatan_year || "") + "|" + (r.class_code || "") + "|" + String(r.student_name || "").toLowerCase().trim();
+      if (!seen.has(k)) {
+        seen.add(k);
+        if (r.checkin_status === "late") late.push({ t: { year: r.angkatan_year, class: r.class_code, name: r.student_name }, r });
+        else done.push({ t: { year: r.angkatan_year, class: r.class_code, name: r.student_name }, r });
+      }
+    });
+    const group = (arr) => {
+      const g = {};
+      arr.forEach((item) => {
+        const t = item.t || item;
+        const key = (t.year || "?") + " · K" + (t.class || t.class_code || "?");
+        if (!g[key]) g[key] = [];
+        g[key].push(item);
+      });
+      return g;
+    };
+    function renderGroup(title, arr, mode) {
+      if (!arr.length) return "<p class='muted' style='margin:4px 0'>" + title + ": —</p>";
+      const g = group(arr);
+      let h = "<div class='att-stat-block'><strong>" + title + " (" + arr.length + ")</strong>";
+      Object.keys(g)
+        .sort()
+        .forEach((k) => {
+          h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + "</span><ul>";
+          g[k].forEach((item) => {
+            const t = item.t || item;
+            const r = item.r;
+            let extra = "";
+            if (r) {
+              extra =
+                " <small class='muted'>· " +
+                esc(String(r.checkin_at || "").replace("T", " ").slice(0, 16)) +
+                (r.checkin_note ? " · «" + esc(r.checkin_note) + "»" : "") +
+                (r.checkout_note ? " / out: «" + esc(r.checkout_note) + "»" : "") +
+                "</small>";
+            }
+            h += "<li>" + esc(t.name || "") + extra + "</li>";
+          });
+          h += "</ul></div>";
+        });
+      h += "</div>";
+      return h;
+    }
+    return (
+      "<div class='att-stats-panel'>" +
+      "<p class='muted' style='font-size:12px;margin:0 0 8px'>Hadir tepat: <b>" +
+      done.length +
+      "</b> · Terlambat: <b>" +
+      late.length +
+      "</b> · Belum: <b>" +
+      missing.length +
+      "</b></p>" +
+      renderGroup("Sudah absen (tepat waktu)", done) +
+      renderGroup("Terlambat", late) +
+      renderGroup("Belum absen", missing.map((t) => ({ t }))) +
+      "</div>"
+    );
+  }
+
   async function refreshAttendance() {
     const host = $("#attSessList");
     if (!host) return;
     try {
       const rows = await GalleryDB.listAttendanceSessionsAdmin();
+      // isi dropdown rekap
+      const sel = $("#attRecSession");
+      if (sel && sel.tagName === "SELECT") {
+        const cur = sel.value;
+        sel.innerHTML =
+          '<option value="">Semua sesi</option>' +
+          rows.map((r) => '<option value="' + esc(r.id) + '">' + esc(r.title || r.id) + "</option>").join("");
+        if (cur) sel.value = cur;
+      }
       host.innerHTML =
         rows
           .map(
-            (r) => `<div class="admin-row">
-            <div><strong>${esc(r.title || "Sesi absensi")}</strong>
-              <small class="muted"> · ${r.active === false ? "nonaktif" : "aktif"}</small>
-              <br><small class="muted">Check-in ${esc(String(r.checkin_start||"").slice(0,5))}–${esc(String(r.checkin_end||"").slice(0,5))} · Check-out ${esc(String(r.checkout_start||"").slice(0,5))}–${esc(String(r.checkout_end||"").slice(0,5))}</small>
-            </div>
-            <div style="display:flex;gap:6px">
-              <button type="button" data-edit-att="${r.id}">Ubah</button>
-              <button type="button" data-del-att="${r.id}">Hapus</button>
+            (r) => `<div class="admin-row att-sess-row" data-att-id="${r.id}">
+            <div class="att-sess-main">
+              <strong>${esc(r.title || "Sesi absensi")}</strong>
+              <small class="muted"> · ${r.active === false ? "nonaktif" : "aktif"}${r.allow_late ? " · izin terlambat" : ""}</small>
+              <br><small class="muted">Check-in ${esc(String(r.checkin_start || "").slice(0, 5))}–${esc(String(r.checkin_end || "").slice(0, 5))} · Check-out ${esc(String(r.checkout_start || "").slice(0, 5))}–${esc(String(r.checkout_end || "").slice(0, 5))}</small>
+              <div class="att-sess-actions">
+                <button type="button" class="btn btn-ghost btn-xs" data-att-stats="${r.id}">Statistik ▾</button>
+                <button type="button" class="btn btn-ghost btn-xs" data-att-info="${r.id}">Info</button>
+                <button type="button" class="btn btn-ghost btn-xs" data-att-dl="${r.id}">Unduh CSV</button>
+                <button type="button" data-edit-att="${r.id}">Ubah</button>
+                <button type="button" data-del-att="${r.id}">Hapus</button>
+              </div>
+              <div class="att-sess-detail" id="attDetail-${r.id}" hidden></div>
             </div>
           </div>`
           )
           .join("") || "<p class='muted'>Belum ada sesi absensi.</p>";
+
       $$("#attSessList [data-del-att]").forEach((b) =>
         b.addEventListener("click", async () => {
           if (!confirm("Hapus sesi absensi?")) return;
@@ -817,6 +1009,8 @@
           f.querySelector("[name=checkout_start]").value = String(r.checkout_start || "").slice(0, 5);
           f.querySelector("[name=checkout_end]").value = String(r.checkout_end || "").slice(0, 5);
           f.querySelector("[name=require_checkout]").checked = r.require_checkout !== false;
+          const al = f.querySelector("[name=allow_late]");
+          if (al) al.checked = !!r.allow_late;
           f.querySelector("[name=active]").checked = r.active !== false;
           $$("#attSessForm [name=wd]").forEach((cb) => {
             cb.checked = (r.weekdays || []).map(Number).indexOf(Number(cb.value)) >= 0;
@@ -825,6 +1019,58 @@
             $("#attSessMsg").textContent = "Mode edit: " + (r.title || "");
             scrollToForm("#attSessForm");
           });
+        })
+      );
+      $$("#attSessList [data-att-stats]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          const id = b.dataset.attStats;
+          const panel = $("#attDetail-" + id);
+          if (!panel) return;
+          if (!panel.hidden && panel.dataset.mode === "stats") {
+            panel.hidden = true;
+            b.textContent = "Statistik ▾";
+            return;
+          }
+          panel.hidden = false;
+          panel.dataset.mode = "stats";
+          panel.innerHTML = "<p class='muted'>Memuat statistik…</p>";
+          b.textContent = "Statistik ▴";
+          const r = rows.find((x) => String(x.id) === String(id));
+          panel.innerHTML = await buildSessionStatsHtml(r || { id });
+        })
+      );
+      $$("#attSessList [data-att-info]").forEach((b) =>
+        b.addEventListener("click", () => {
+          const id = b.dataset.attInfo;
+          const panel = $("#attDetail-" + id);
+          const r = rows.find((x) => String(x.id) === String(id));
+          if (!panel || !r) return;
+          if (!panel.hidden && panel.dataset.mode === "info") {
+            panel.hidden = true;
+            return;
+          }
+          panel.hidden = false;
+          panel.dataset.mode = "info";
+          const reasons = attVisibilityInfo(r);
+          panel.innerHTML =
+            "<div class='att-info-panel'><strong>Kenapa sesi ini mungkin tidak tampil di layar siswa?</strong><ul>" +
+            reasons.map((x) => "<li>" + esc(x) + "</li>").join("") +
+            "</ul></div>";
+        })
+      );
+      $$("#attSessList [data-att-dl]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          const id = b.dataset.attDl;
+          const r = rows.find((x) => String(x.id) === String(id));
+          b.textContent = "…";
+          try {
+            const recs = await GalleryDB.listAttendanceRecords({ session_id: id });
+            const safe = String((r && r.title) || "sesi").replace(/[^\w\-]+/g, "_").slice(0, 40);
+            downloadAttCsv("absensi-" + safe + ".csv", recs);
+          } catch (e) {
+            alert(e.message || String(e));
+          }
+          b.textContent = "Unduh CSV";
         })
       );
     } catch (e) {
@@ -925,6 +1171,7 @@
         target_students: targets,
         audience: targets.length ? "students" : "all_linked",
         require_checkout: !!(f.querySelector("[name=require_checkout]") && f.querySelector("[name=require_checkout]").checked),
+        allow_late: !!(f.querySelector("[name=allow_late]") && f.querySelector("[name=allow_late]").checked),
         active: !!(f.querySelector("[name=active]") && f.querySelector("[name=active]").checked),
       };
       save.disabled = true;

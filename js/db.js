@@ -2262,19 +2262,40 @@
       checkout_end: normT(payload.checkout_end, "08:40:00"),
       timezone: payload.timezone || "Asia/Jakarta",
       require_checkout: payload.require_checkout !== false,
+      allow_late: !!payload.allow_late,
       active: payload.active !== false,
       updated_at: new Date().toISOString(),
     };
-    if (payload.id) {
-      const { data, error } = await sb.from("gallery_attendance_sessions").update(row).eq("id", payload.id).select("*").single();
-      if (error) throw new Error(error.message || JSON.stringify(error));
+    async function writeSession(isUpdate) {
+      if (isUpdate) {
+        const { data, error } = await sb.from("gallery_attendance_sessions").update(row).eq("id", payload.id).select("*").single();
+        if (error) {
+          // kolom allow_late belum ada
+          if (String(error.message || "").includes("allow_late")) {
+            delete row.allow_late;
+            const r2 = await sb.from("gallery_attendance_sessions").update(row).eq("id", payload.id).select("*").single();
+            if (r2.error) throw new Error(r2.error.message || JSON.stringify(r2.error));
+            return r2.data;
+          }
+          throw new Error(error.message || JSON.stringify(error));
+        }
+        return data;
+      }
+      row.created_by = session.user.id;
+      row.created_by_email = session.user.email || "";
+      const { data, error } = await sb.from("gallery_attendance_sessions").insert(row).select("*").single();
+      if (error) {
+        if (String(error.message || "").includes("allow_late")) {
+          delete row.allow_late;
+          const r2 = await sb.from("gallery_attendance_sessions").insert(row).select("*").single();
+          if (r2.error) throw new Error(r2.error.message || JSON.stringify(r2.error));
+          return r2.data;
+        }
+        throw new Error(error.message || JSON.stringify(error));
+      }
       return data;
     }
-    row.created_by = session.user.id;
-    row.created_by_email = session.user.email || "";
-    const { data, error } = await sb.from("gallery_attendance_sessions").insert(row).select("*").single();
-    if (error) throw new Error(error.message || JSON.stringify(error));
-    return data;
+    return writeSession(!!payload.id);
   }
 
   async function deleteAttendanceSession(id) {
@@ -2335,6 +2356,27 @@
     const prof = await getMyProfile();
     if (!prof || !prof.linked_student_name) throw new Error("Tautkan nama siswa di Profil dulu");
     const now = new Date().toISOString();
+    // status on_time / late dari jendela sesi
+    let checkin_status = "on_time";
+    try {
+      const { data: sess } = await sb.from("gallery_attendance_sessions").select("checkin_start,checkin_end,allow_late,active").eq("id", sessionId).maybeSingle();
+      if (sess) {
+        const fmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hour12: false });
+        const parts = Object.fromEntries(fmt.formatToParts(new Date()).map((p) => [p.type, p.value]));
+        const mins = parseInt(parts.hour, 10) * 60 + parseInt(parts.minute, 10);
+        const toMin = (t) => { const p = String(t || "0:0").slice(0, 5).split(":"); return parseInt(p[0], 10) * 60 + parseInt(p[1] || 0, 10); };
+        const ci0 = toMin(sess.checkin_start);
+        const ci1 = toMin(sess.checkin_end);
+        if (mins > ci1) {
+          if (sess.allow_late) checkin_status = "late";
+          else throw new Error("Waktu check-in sudah ditutup. Admin tidak mengizinkan absen terlambat.");
+        } else if (mins < ci0) {
+          throw new Error("Belum masuk waktu check-in.");
+        }
+      }
+    } catch (e) {
+      if (e && e.message && (e.message.includes("check-in") || e.message.includes("terlambat"))) throw e;
+    }
     const row = {
       session_id: sessionId,
       user_id: session.user.id,
@@ -2343,8 +2385,8 @@
       class_code: String(prof.linked_class_code || ""),
       email: session.user.email || "",
       checkin_at: now,
-      checkin_note: String(note || "").slice(0, 280),
-      checkin_status: "on_time",
+      checkin_note: String(note || "").slice(0, 120),
+      checkin_status,
       updated_at: now,
     };
     const { data: existing } = await sb
@@ -2382,7 +2424,7 @@
       .from("gallery_attendance_records")
       .update({
         checkout_at: now,
-        checkout_note: String(note || "").slice(0, 280),
+        checkout_note: String(note || "").slice(0, 120),
         checkout_status: "done",
         updated_at: now,
       })

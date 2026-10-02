@@ -50,12 +50,16 @@
     const co0 = timeToMin(s.checkout_start);
     const co1 = timeToMin(s.checkout_end);
     const m = nowP.minutes;
+    const allowLate = !!s.allow_late;
+    const inCheckin = m >= ci0 && m <= ci1;
+    const lateButAllowed = allowLate && m > ci1 && m < co0;
     return {
-      canCheckin: m >= ci0 && m <= ci1,
+      canCheckin: inCheckin || lateButAllowed,
       canCheckout: m >= co0 && m <= co1,
-      checkinOpen: m >= ci0 && m <= ci1,
-      checkinLateClosed: m > ci1,
+      checkinOpen: inCheckin,
+      checkinLateClosed: m > ci1 && !allowLate,
       checkoutOpen: m >= co0 && m <= co1,
+      isLateWindow: lateButAllowed,
     };
   }
 
@@ -203,16 +207,16 @@
         const rec = recFor(s.id);
         const w = windowStatus(s, nowP);
         const badge =
-          status === "done" ? "✓ Selesai" : status === "missed" ? "Terlewat" : w.canCheckin ? "Check-in buka" : w.canCheckout ? "Check-out buka" : "Aktif";
+          status === "done" ? "✓ Selesai" : status === "missed" ? "Terlewat" : w.isLateWindow ? "Check-in (terlambat)" : w.canCheckin ? "Check-in buka" : w.canCheckout ? "Check-out buka" : "Aktif";
         let body = "";
         if (!rec || !rec.checkin_at) {
           body = `<label class="field"><span>Rencana belajar (singkat)</span>
-            <input type="text" maxlength="280" data-ci-note="${s.id}" placeholder="Contoh: praktek domain & hosting"></label>
+            <input type="text" maxlength="120" data-ci-note="${s.id}" placeholder="Contoh: praktek domain & hosting"></label>
             <button type="button" class="btn btn-primary" data-ci="${s.id}" ${w.canCheckin ? "" : "disabled"}>Check-in hadir</button>`;
         } else if (s.require_checkout !== false && !rec.checkout_at) {
           body = `<p class="muted" style="font-size:12px">Check-in: ${esc(rec.checkin_note || "—")}</p>
             <label class="field"><span>Yang sudah dikerjakan (ringkas)</span>
-            <input type="text" maxlength="280" data-co-note="${s.id}" placeholder="Contoh: selesai setting custom domain"></label>
+            <input type="text" maxlength="120" data-co-note="${s.id}" placeholder="Contoh: selesai setting custom domain"></label>
             <button type="button" class="btn btn-primary" data-co="${s.id}" ${w.canCheckout ? "" : "disabled"}>Check-out</button>`;
         } else {
           body = `<p class="muted" style="font-size:13px">In: ${esc(rec.checkin_note || "—")}<br>Out: ${esc(rec.checkout_note || "—")}</p>`;
