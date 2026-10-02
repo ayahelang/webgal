@@ -784,11 +784,9 @@
         rows
           .map(
             (r) => `<div class="admin-row">
-            <div><strong>${esc(r.title)}</strong>
-              <small class="muted"> · ${esc(r.subject_code)} · ${r.active ? "aktif" : "nonaktif"}</small>
-              <br><small class="muted">In ${esc(String(r.checkin_start||"").slice(0,5))}–${esc(String(r.checkin_end||"").slice(0,5))} · Out ${esc(String(r.checkout_start||"").slice(0,5))}–${esc(String(r.checkout_end||"").slice(0,5))}
-              ${r.session_date ? " · " + esc(r.session_date) : (r.weekdays && r.weekdays.length ? " · hari " + esc(r.weekdays.join(",")) : "")}
-              · ${(r.target_students&&r.target_students.length) ? (r.target_students.length+" siswa") : (r.audience||"all_linked")}</small>
+            <div><strong>${esc(r.title || "Sesi absensi")}</strong>
+              <small class="muted"> · ${r.active === false ? "nonaktif" : "aktif"}</small>
+              <br><small class="muted">Check-in ${esc(String(r.checkin_start||"").slice(0,5))}–${esc(String(r.checkin_end||"").slice(0,5))} · Check-out ${esc(String(r.checkout_start||"").slice(0,5))}–${esc(String(r.checkout_end||"").slice(0,5))}</small>
             </div>
             <div style="display:flex;gap:6px">
               <button type="button" data-edit-att="${r.id}">Ubah</button>
@@ -940,8 +938,7 @@
         const saved = await GalleryDB.upsertAttendanceSession(payload);
         if (msg) {
           msg.style.color = "#7dffb3";
-          msg.textContent = "Sesi disimpan: " + (saved && saved.title ? saved.title : title) +
-            (saved && saved.id ? " · id " + String(saved.id).slice(0, 8) + "…" : "");
+          msg.textContent = "Sesi disimpan: " + (saved && saved.title ? saved.title : title);
         }
         f.querySelector("[name=id]").value = "";
         if (titleEl) titleEl.value = "";
