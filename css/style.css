@@ -545,3 +545,141 @@ html.sh-tour-active body{cursor:none}
 .admin-search-wrap input.admin-list-search:focus{outline:none;border-color:#5ec8ff}
 
 .link-edit-panel.is-collapsed{display:none}
+
+/* === UI polish desktop + mobile (ss41–ss44) === */
+.topbar{
+  height:auto;min-height:64px;flex-wrap:wrap;gap:8px 12px;padding:10px 20px;
+}
+.topnav{
+  display:flex;flex-wrap:wrap;gap:4px;align-items:center;
+  max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+}
+.topnav a{white-space:nowrap;flex-shrink:0}
+
+/* Admin list rows: horizontal, hemat vertikal */
+.admin-list .admin-row,
+.privacy-tree .admin-row,
+#linkTree .admin-row,
+#userList .admin-row{
+  display:flex !important;
+  flex-direction:row;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px 14px;
+  padding:8px 10px;
+}
+.admin-row > div:first-child{
+  flex:1 1 auto;
+  min-width:0;
+}
+.admin-row > div:first-child strong,
+.admin-row .admin-row-main{
+  display:inline;
+}
+.admin-row small{
+  display:inline;
+  margin-left:6px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:min(42vw,280px);
+  vertical-align:baseline;
+}
+.admin-row .admin-row-actions,
+.admin-row > div:last-child{
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  flex:0 0 auto;margin-left:auto;
+}
+
+/* Tree parent: jumlah di kanan satu baris */
+.pt-row{
+  display:flex;align-items:center;gap:8px;flex-wrap:nowrap;
+  width:100%;
+}
+.pt-row strong{flex:0 1 auto;min-width:0}
+.pt-row .muted,
+.pt-row small.muted{
+  margin-left:auto;
+  white-space:nowrap;
+  flex-shrink:0;
+  font-size:12px;
+}
+
+.link-coverage-box{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:6px 16px;
+  align-items:start;
+}
+.link-coverage-box > div{margin:0 !important}
+
+/* Admin forms: 2 kolom jika lebar cukup */
+.admin-pane form,
+#videoForm,#webForm,#alumniForm,#angForm{
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+}
+.admin-pane form .field,
+#videoForm .field,#webForm .field{min-width:0}
+.admin-pane form button[type=submit],
+.admin-pane form .btn{grid-column:1 / -1;justify-self:start}
+
+/* Hero actions & filters hemat tinggi */
+.hero-actions{flex-wrap:wrap}
+.filters{flex-wrap:wrap;max-width:100%}
+.toolbar{
+  grid-template-columns:minmax(0,1fr) auto auto;
+}
+
+/* Student card meta satu baris di desktop */
+.student-row{
+  display:flex;align-items:center;gap:8px;flex-wrap:nowrap;
+}
+.student-row .student{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.student-row .class-badge{flex-shrink:0;white-space:nowrap}
+.card-eng{flex-shrink:0;margin-left:auto}
+
+@media (max-width:900px){
+  .topbar{padding:8px 14px}
+  .topnav{width:100%;order:3;padding-bottom:4px}
+  .brand{order:1}
+  .status,#shAuthSlot{order:2;margin-left:auto}
+  .stats{grid-template-columns:repeat(3,1fr)}
+  .toolbar{grid-template-columns:1fr}
+  .link-coverage-box{grid-template-columns:1fr}
+}
+
+@media (max-width:620px){
+  .topbar{padding:8px 12px}
+  /* jangan sembunyikan navigasi — biarkan scroll horizontal */
+  .status{display:none !important}
+  .topnav a{padding:6px 8px;font-size:11px}
+  .stats{grid-template-columns:repeat(2,1fr) !important}
+  .admin-list .admin-row,
+  #linkTree .admin-row{
+    align-items:flex-start;
+  }
+  .admin-row small{
+    display:block;
+    margin-left:0;
+    margin-top:2px;
+    white-space:normal;
+    max-width:100%;
+  }
+  .admin-row .admin-row-actions,
+  .admin-row > div:last-child{
+    margin-left:0;
+    width:100%;
+    justify-content:flex-start;
+  }
+  .pt-row{flex-wrap:wrap}
+  .pt-row .muted{margin-left:0;width:100%}
+  .student-row{flex-wrap:wrap}
+  .hero h1{font-size:clamp(36px,11vw,56px);letter-spacing:-2px}
+  .sh-tour-toggle,.sh-health-btn{font-size:10px;padding:6px 10px}
+  .filters{overflow-x:auto;flex-wrap:nowrap;justify-content:flex-start}
+}
+
+/* Prevent fixed controls covering content */
+body{padding-bottom:72px}

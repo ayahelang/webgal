@@ -993,7 +993,7 @@
                   const sn = esc(r.linked_student_name);
                   const y = String(r.linked_angkatan_year || "2025");
                   const c = String(r.linked_class_code || "51");
-                  return `<div class="admin-row" style="margin:4px 0;display:block">
+                  return `<div class="admin-row" style="margin:4px 0">
                     <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
                       <div><strong>${sn}</strong><br><small>${who}</small></div>
                       <div style="display:flex;gap:6px">
@@ -1019,7 +1019,7 @@
                 })
                 .join("");
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="c-${y}-${c}">▾</button><strong>Kelas ${esc(c)}</strong></div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="c-${y}-${c}">▾</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${tree[y][c].length} tautan)</small></div>
                 <div class="pt-children" data-parent="c-${y}-${c}">${list}</div>
               </div>`;
             })
@@ -1124,7 +1124,7 @@
             <div class="pt-row"><button type="button" class="pt-toggle" data-t="link-nolink">▾</button><strong>Akun Google belum pilih nama siswa</strong> <small class="muted">(${noLink.length} akun · bukan daftar siswa)</small></div>
             <div class="pt-children" data-parent="link-nolink">${noLink
               .map(
-                (u) => `<div class="admin-row" style="display:block">
+                (u) => `<div class="admin-row">
                 <div><strong>${esc(u.display_name || u.email)}</strong><br><small>${esc(u.email)}</small></div>
                 <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:end">
                   <label class="field" style="margin:0"><span>Angkatan</span>
