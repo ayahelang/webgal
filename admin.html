@@ -198,22 +198,25 @@
           <label class="field"><span>Label mapel</span><input name="subject_label" value="Social Media Marketing"></label>
           <label class="field"><span>Tanggal khusus (opsional)</span><input type="date" name="session_date"></label>
           <label class="field" style="grid-column:1/-1"><span>Hari berulang (kosongi jika pakai tanggal khusus)</span>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
-              <label class="check"><input type="checkbox" name="wd" value="1"> Sen</label>
-              <label class="check"><input type="checkbox" name="wd" value="2"> Sel</label>
-              <label class="check"><input type="checkbox" name="wd" value="3"> Rab</label>
-              <label class="check"><input type="checkbox" name="wd" value="4"> Kam</label>
-              <label class="check"><input type="checkbox" name="wd" value="5"> Jum</label>
-              <label class="check"><input type="checkbox" name="wd" value="6"> Sab</label>
-              <label class="check"><input type="checkbox" name="wd" value="7"> Min</label>
+            <div class="weekday-checks">
+              <label class="wd-item"><input type="checkbox" name="wd" value="1"><span>Sen</span></label>
+              <label class="wd-item"><input type="checkbox" name="wd" value="2"><span>Sel</span></label>
+              <label class="wd-item"><input type="checkbox" name="wd" value="3"><span>Rab</span></label>
+              <label class="wd-item"><input type="checkbox" name="wd" value="4"><span>Kam</span></label>
+              <label class="wd-item"><input type="checkbox" name="wd" value="5"><span>Jum</span></label>
+              <label class="wd-item"><input type="checkbox" name="wd" value="6"><span>Sab</span></label>
+              <label class="wd-item"><input type="checkbox" name="wd" value="7"><span>Min</span></label>
             </div>
           </label>
           <label class="field"><span>Check-in mulai</span><input type="time" name="checkin_start" value="07:00"></label>
           <label class="field"><span>Check-in akhir (batas hadir)</span><input type="time" name="checkin_end" value="07:15"></label>
           <label class="field"><span>Check-out mulai</span><input type="time" name="checkout_start" value="08:20"></label>
           <label class="field"><span>Check-out akhir</span><input type="time" name="checkout_end" value="08:40"></label>
-          <label class="field"><span>Angkatan (kosong=semua tertaut)</span><input name="target_years" placeholder="2025 atau 2024,2025"></label>
-          <label class="field"><span>Kelas (kosong=semua)</span><input name="target_classes" placeholder="51 atau 51,52"></label>
+          <div class="field" style="grid-column:1/-1">
+            <span>Siswa penerima (tree checkbox · multi pilih)</span>
+            <p class="muted" style="font-size:12px;margin:4px 0 8px">Centang angkatan / kelas / nama. Parent penuh = biru; sebagian = abu (indeterminate).</p>
+            <div id="attStudentTree" class="privacy-tree sh-cb-tree" style="max-height:320px;overflow:auto;padding:10px;border:1px solid rgba(125,227,255,.15);border-radius:12px"></div>
+          </div>
           <label class="check" style="align-self:center"><input type="checkbox" name="require_checkout" checked> Wajib check-out</label>
           <label class="check" style="align-self:center"><input type="checkbox" name="active" checked> Aktif</label>
           <div class="admin-form-actions" style="grid-column:1/-1">

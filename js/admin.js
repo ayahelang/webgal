@@ -320,6 +320,137 @@
       });
     });
   }
+
+  /** Tree checkbox tri-state (standar: full / partial / empty) */
+  function bindTriStateTree(root) {
+    if (!root) return;
+    root.querySelectorAll(".sh-cb-toggle").forEach((b) => {
+      b.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = b.dataset.t;
+        const kids = root.querySelector('[data-parent="' + id + '"]');
+        if (!kids) return;
+        kids.classList.toggle("is-collapsed");
+        b.textContent = kids.classList.contains("is-collapsed") ? "▸" : "▾";
+      };
+    });
+    function childBoxes(node) {
+      return [...node.querySelectorAll('input[type=checkbox][data-sh-cb]')];
+    }
+    function syncParent(cb) {
+      let p = cb.closest("[data-sh-children]");
+      while (p) {
+        const parentRow = p.previousElementSibling;
+        const parentCb = parentRow && parentRow.querySelector('input[type=checkbox][data-sh-cb="group"]');
+        if (parentCb) {
+          const boxes = childBoxes(p).filter((x) => x.getAttribute("data-sh-cb") === "leaf" || x.getAttribute("data-sh-cb") === "group");
+          // only direct? use all descendant leaves
+          const leaves = [...p.querySelectorAll('input[type=checkbox][data-sh-cb="leaf"]')];
+          const n = leaves.length;
+          const c = leaves.filter((x) => x.checked).length;
+          parentCb.checked = n > 0 && c === n;
+          parentCb.indeterminate = c > 0 && c < n;
+        }
+        const wrap = p.parentElement && p.parentElement.closest("[data-sh-children]");
+        p = wrap;
+      }
+    }
+    root.querySelectorAll('input[type=checkbox][data-sh-cb]').forEach((cb) => {
+      cb.addEventListener("change", () => {
+        if (cb.getAttribute("data-sh-cb") === "group") {
+          const row = cb.closest(".pt-row") || cb.closest(".sh-cb-row");
+          const kids = row && row.nextElementSibling && row.nextElementSibling.matches("[data-sh-children]")
+            ? row.nextElementSibling
+            : null;
+          if (kids) {
+            kids.querySelectorAll('input[type=checkbox][data-sh-cb]').forEach((x) => {
+              x.checked = cb.checked;
+              x.indeterminate = false;
+            });
+          }
+          cb.indeterminate = false;
+        }
+        syncParent(cb);
+      });
+    });
+  }
+
+  function readTreeStudentTargets(root) {
+    if (!root) return [];
+    return [...root.querySelectorAll('input[type=checkbox][data-sh-cb="leaf"]:checked')].map((cb) => {
+      const parts = (cb.getAttribute("data-stu") || "").split("|");
+      return { year: parts[0] || "", class: parts[1] || "", name: parts.slice(2).join("|") };
+    });
+  }
+
+  function setTreeStudentTargets(root, list) {
+    if (!root) return;
+    const set = new Set((list || []).map((t) => (t.year || "") + "|" + (t.class || t.class_code || "") + "|" + (t.name || "")));
+    root.querySelectorAll('input[type=checkbox][data-sh-cb="leaf"]').forEach((cb) => {
+      cb.checked = set.has(cb.getAttribute("data-stu") || "");
+      cb.indeterminate = false;
+    });
+    // bubble parents
+    root.querySelectorAll('input[type=checkbox][data-sh-cb="group"]').forEach((g) => {
+      const row = g.closest(".pt-row") || g.closest(".sh-cb-row");
+      const kids = row && row.nextElementSibling;
+      if (!kids) return;
+      const leaves = [...kids.querySelectorAll('input[type=checkbox][data-sh-cb="leaf"]')];
+      const c = leaves.filter((x) => x.checked).length;
+      g.checked = leaves.length > 0 && c === leaves.length;
+      g.indeterminate = c > 0 && c < leaves.length;
+    });
+  }
+
+  async function buildStudentCheckTree(hostId, opts) {
+    opts = opts || {};
+    const host = typeof hostId === "string" ? $(hostId) : hostId;
+    if (!host) return;
+    host.innerHTML = "<p class='muted'>Memuat daftar siswa…</p>";
+    await loadRoster(true);
+    const cov = rosterCache || {};
+    const years = Object.keys(cov).sort().reverse();
+    if (!years.length) {
+      host.innerHTML = "<p class='muted'>Roster kosong.</p>";
+      return;
+    }
+    host.innerHTML = years
+      .map((y) => {
+        const classes = Object.keys(cov[y] || {}).sort();
+        const totalY = classes.reduce((n, c) => n + (cov[y][c] || []).length, 0);
+        const cHtml = classes
+          .map((c) => {
+            const names = (cov[y][c] || []).slice();
+            const nHtml = names
+              .map(
+                (n) =>
+                  `<label class="sh-cb-row leaf"><input type="checkbox" data-sh-cb="leaf" data-stu="${esc(y)}|${esc(c)}|${esc(n)}"> <span>${esc(n)}</span></label>`
+              )
+              .join("");
+            return `<div class="pt-node">
+              <div class="pt-row sh-cb-row">
+                <button type="button" class="pt-toggle sh-cb-toggle" data-t="stu-${esc(y)}-${esc(c)}">▸</button>
+                <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong>Kelas ${esc(c)}</strong> <small class="muted">(${names.length})</small></label>
+              </div>
+              <div class="pt-children is-collapsed" data-sh-children data-parent="stu-${esc(y)}-${esc(c)}">${nHtml}</div>
+            </div>`;
+          })
+          .join("");
+        return `<div class="pt-node">
+          <div class="pt-row sh-cb-row">
+            <button type="button" class="pt-toggle sh-cb-toggle" data-t="stu-y-${esc(y)}">▾</button>
+            <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong>Angkatan ${esc(y)}</strong> <small class="muted">(${totalY})</small></label>
+          </div>
+          <div class="pt-children" data-sh-children data-parent="stu-y-${esc(y)}">${cHtml}</div>
+        </div>`;
+      })
+      .join("");
+    bindTriStateTree(host);
+    if (opts.selected) setTreeStudentTargets(host, opts.selected);
+  }
+
+
   function esc(t) {
     return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   }
@@ -345,7 +476,7 @@
             const nHtml = names
               .map(
                 (n) =>
-                  `<label class="check ann-stu-check"><input type="checkbox" data-ann-stu="${esc(y)}|${esc(c)}|${esc(n)}"> <span>${esc(n)}</span></label>`
+                  `<label class="check ann-stu-check"><input type="checkbox" data-sh-cb="leaf" data-ann-stu="${esc(y)}|${esc(c)}|${esc(n)}" data-stu="${esc(y)}|${esc(c)}|${esc(n)}"> <span>${esc(n)}</span></label>`
               )
               .join("");
             return `<div class="pt-node">
@@ -656,15 +787,15 @@
           f.querySelector("[name=checkin_end]").value = String(r.checkin_end || "").slice(0, 5);
           f.querySelector("[name=checkout_start]").value = String(r.checkout_start || "").slice(0, 5);
           f.querySelector("[name=checkout_end]").value = String(r.checkout_end || "").slice(0, 5);
-          f.querySelector("[name=target_years]").value = (r.target_years || []).join(",");
-          f.querySelector("[name=target_classes]").value = (r.target_classes || []).join(",");
           f.querySelector("[name=require_checkout]").checked = r.require_checkout !== false;
           f.querySelector("[name=active]").checked = r.active !== false;
           $$("#attSessForm [name=wd]").forEach((cb) => {
             cb.checked = (r.weekdays || []).map(Number).indexOf(Number(cb.value)) >= 0;
           });
-          $("#attSessMsg").textContent = "Mode edit: " + (r.title || "");
-          scrollToForm("#attSessForm");
+          buildStudentCheckTree("#attStudentTree", { selected: r.target_students || [] }).then(() => {
+            $("#attSessMsg").textContent = "Mode edit: " + (r.title || "");
+            scrollToForm("#attSessForm");
+          });
         })
       );
     } catch (e) {
@@ -673,20 +804,16 @@
   }
 
   function bindAttendanceAdmin() {
+    buildStudentCheckTree("#attStudentTree");
     const save = $("#attSessSave");
     if (!save) return;
     save.onclick = async () => {
       const f = $("#attSessForm");
       const fd = new FormData(f);
       const weekdays = $$("#attSessForm [name=wd]:checked").map((c) => Number(c.value));
-      const years = String(fd.get("target_years") || "")
-        .split(/[,\s]+/)
-        .map((x) => x.trim())
-        .filter(Boolean);
-      const classes = String(fd.get("target_classes") || "")
-        .split(/[,\s]+/)
-        .map((x) => x.trim())
-        .filter(Boolean);
+      const targets = readTreeStudentTargets($("#attStudentTree"));
+      const years = [...new Set(targets.map((t) => t.year).filter(Boolean))];
+      const classes = [...new Set(targets.map((t) => t.class).filter(Boolean))];
       const payload = {
         id: fd.get("id") || null,
         title: fd.get("title"),
@@ -700,7 +827,8 @@
         checkout_end: fd.get("checkout_end"),
         target_years: years,
         target_classes: classes,
-        audience: years.length || classes.length ? "class" : "all_linked",
+        target_students: targets,
+        audience: targets.length ? "students" : "all_linked",
         require_checkout: f.querySelector("[name=require_checkout]").checked,
         active: f.querySelector("[name=active]").checked,
       };
@@ -834,7 +962,7 @@
         if (tab === "links") refreshLinks().catch(console.warn);
         if (tab === "users") refreshUsers().catch(console.warn);
         if (tab === "announce") refreshAnnouncements().catch(console.warn);
-        if (tab === "attendance") refreshAttendance().catch(console.warn);
+        if (tab === "attendance") { refreshAttendance().catch(console.warn); buildStudentCheckTree("#attStudentTree"); }
       })
     );
 
