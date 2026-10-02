@@ -212,10 +212,12 @@
           <label class="field"><span>Check-in akhir (batas hadir)</span><input type="time" name="checkin_end" value="07:15"></label>
           <label class="field"><span>Check-out mulai</span><input type="time" name="checkout_start" value="08:20"></label>
           <label class="field"><span>Check-out akhir</span><input type="time" name="checkout_end" value="08:40"></label>
-          <div class="field" style="grid-column:1/-1">
-            <span>Siswa penerima (tree checkbox · multi pilih)</span>
-            <p class="muted" style="font-size:12px;margin:4px 0 8px">Hierarki div: Angkatan → Kelas → Nama. Centang parent untuk pilih semua anak. Penuh = biru; sebagian = abu (indeterminate).</p>
-            <div id="attStudentTree" class="privacy-tree sh-cb-tree att-student-tree" style="max-height:320px;overflow:auto"></div>
+          <div class="field att-student-field" style="grid-column:1/-1">
+            <label class="check att-tree-master">
+              <input type="checkbox" id="attShowStudentTree" checked>
+              <span>Siswa penerima (tree checkbox · multi pilih)</span>
+            </label>
+            <div id="attStudentTree" class="privacy-tree sh-cb-tree att-student-tree" style="max-height:320px;overflow:auto;margin-top:8px;text-align:left"></div>
           </div>
           <label class="check" style="align-self:center"><input type="checkbox" name="require_checkout" checked> Wajib check-out</label>
           <label class="check" style="align-self:center"><input type="checkbox" name="active" checked> Aktif</label>
@@ -261,8 +263,7 @@
             <label class="check"><input type="checkbox" name="show_home" checked> Halaman depan (pengunjung) — splash</label>
             <label class="check"><input type="checkbox" name="show_logged"> Panel user yang sudah login — splash</label>
             <label class="check"><input type="checkbox" name="show_students"> Siswa tertentu (login + taut nama) — splash</label>
-            <p class="muted" style="font-size:12px;margin:4px 0 0">Setelah dicentang, pilih Angkatan / Kelas / Nama (checkbox di parent &amp; anak).</p>
-            <div id="annStudentTree" class="privacy-tree sh-cb-tree ann-student-tree is-collapsed" style="max-height:320px;overflow:auto;margin-top:8px"></div>
+            <div id="annStudentTree" class="privacy-tree sh-cb-tree ann-student-tree is-collapsed" style="max-height:320px;overflow:auto;margin-top:8px;text-align:left"></div>
           </fieldset>
           <label class="field"><span>Mulai</span><input type="datetime-local" name="starts_at"></label>
           <label class="field"><span>Selesai (opsional)</span><input type="datetime-local" name="ends_at"></label>

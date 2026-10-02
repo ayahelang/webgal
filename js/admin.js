@@ -324,12 +324,17 @@
   /** Tree checkbox tri-state (standar: full / partial / empty) */
   function bindTriStateTree(root) {
     if (!root) return;
-    root.querySelectorAll(".sh-cb-toggle").forEach((b) => {
+    root.querySelectorAll(".sh-cb-toggle, .pt-toggle").forEach((b) => {
       b.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const id = b.dataset.t;
-        const kids = root.querySelector('[data-parent="' + id + '"]');
+        // Cari anak di sibling dalam .pt-node yang sama (lebih andal daripada query global)
+        const row = b.closest(".pt-row") || b.parentElement;
+        let kids = row && row.nextElementSibling;
+        if (!kids || !kids.classList.contains("pt-children")) {
+          const id = b.dataset.t;
+          kids = id ? root.querySelector('[data-parent="' + CSS.escape(id) + '"]') : null;
+        }
         if (!kids) return;
         kids.classList.toggle("is-collapsed");
         b.textContent = kids.classList.contains("is-collapsed") ? "▸" : "▾";
@@ -500,8 +505,9 @@
         </div>`;
       })
       .join("");
+    // Jangan panggil treeToggleBind di sini — bindTriStateTree sudah handle ▸/▾.
+    // Dobel handler membuat panah tampak tidak berfungsi (toggle dua kali).
     bindTriStateTree(host);
-    treeToggleBind(host);
     host.dataset.built = "1";
   }
 
@@ -829,6 +835,22 @@
 
   function bindAttendanceAdmin() {
     buildStudentCheckTree("#attStudentTree");
+    // Checkbox master: tampilkan / sembunyikan tree (posisi kiri, rapi)
+    const master = $("#attShowStudentTree");
+    const treeHost = $("#attStudentTree");
+    if (master && treeHost) {
+      const syncTreeVis = () => {
+        if (master.checked) {
+          treeHost.style.display = "block";
+          treeHost.classList.remove("is-collapsed");
+        } else {
+          treeHost.style.display = "none";
+          treeHost.classList.add("is-collapsed");
+        }
+      };
+      master.addEventListener("change", syncTreeVis);
+      syncTreeVis();
+    }
     const save = $("#attSessSave");
     if (!save) return;
     save.onclick = async () => {

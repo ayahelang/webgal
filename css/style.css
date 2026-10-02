@@ -1402,3 +1402,25 @@ body.page-skills .skills-main{
   font-size:13px;
   cursor:pointer;
 }
+
+/* Absensi / Pengumuman student tree — rapih kiri */
+.att-student-field { text-align: left; }
+.att-tree-master {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #c5d8e0;
+}
+.att-student-tree,
+.ann-student-tree {
+  text-align: left;
+}
+.att-student-tree.is-collapsed,
+.ann-student-tree.is-collapsed {
+  display: none !important;
+}
+.sh-cb-tree .pt-row {
+  justify-content: flex-start;
+}
