@@ -27,10 +27,20 @@
     </nav>
   </header>
   <main class="skills-main">
-    <section class="skills-hero">
-      <div class="eyebrow">ADMIN</div>
-      <h1>Panel Admin</h1>
-      <p class="skills-lead">Login Google. Kelola video, data user, dan undang admin tambahan.</p>
+    <section class="skills-hero admin-hero-row">
+      <div class="admin-hero-text">
+        <div class="eyebrow">ADMIN</div>
+        <h1>Panel Admin</h1>
+        <p class="skills-lead">Login Google. Kelola video, data user, dan undang admin tambahan.</p>
+      </div>
+      <div class="admin-who summary-card" id="adminWhoCard" hidden>
+        <img id="adminAvatar" alt="" class="admin-avatar" hidden>
+        <div class="admin-who-meta">
+          <div id="adminName" style="font-weight:700"></div>
+          <div id="adminEmail" class="muted" style="font-size:13px"></div>
+        </div>
+        <button type="button" class="btn btn-ghost" id="btnLogout">Keluar</button>
+      </div>
     </section>
 
     <div id="gate" class="summary-card" style="display:grid;gap:12px;max-width:440px">
@@ -43,14 +53,6 @@
     </div>
 
     <div id="panel" hidden>
-      <div class="admin-who summary-card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px">
-        <img id="adminAvatar" alt="" class="admin-avatar" hidden>
-        <div>
-          <div id="adminName" style="font-weight:700"></div>
-          <div id="adminEmail" class="muted" style="font-size:13px"></div>
-        </div>
-        <button type="button" class="btn btn-ghost" id="btnLogout">Keluar</button>
-      </div>
       <div class="filters" style="margin-bottom:16px" id="adminTabs">
         <button class="filter active" data-tab="videos">Video</button>
         <button class="filter" data-tab="websites">Website Siswa</button>

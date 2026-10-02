@@ -197,41 +197,40 @@
   function coverageSummaryHtml(cov) {
     const years = Object.keys(cov.totals || {}).sort().reverse();
     if (!years.length) return "<p class='muted'>Belum ada daftar siswa (roster/alumni).</p>";
-    return (
-      "<div class='link-coverage-box' style='margin:0 0 12px;padding:10px 12px;border:1px solid rgba(125,227,255,.2);border-radius:12px;font-size:13px'>" +
-      years
-        .map((y) => {
-          const total = cov.totals[y] || 0;
-          // hitung linked unik per nama siswa di tahun itu
-          let linked = 0;
-          const st = cov.students[y] || {};
-          Object.keys(st).forEach((c) => {
-            st[c].forEach((name, key) => {
-              const hit = cov.linkedProfiles.some((p) => {
-                if (String(p.linked_angkatan_year) !== y) return false;
-                const nk = String(p.linked_student_name || "")
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]+/g, " ")
-                  .trim();
-                return nk === key;
-              });
-              if (hit) linked++;
+    const yearCards = years
+      .map((y) => {
+        const total = cov.totals[y] || 0;
+        let linked = 0;
+        const st = cov.students[y] || {};
+        Object.keys(st).forEach((c) => {
+          st[c].forEach((name, key) => {
+            const hit = cov.linkedProfiles.some((p) => {
+              if (String(p.linked_angkatan_year) !== y) return false;
+              const nk = String(p.linked_student_name || "")
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, " ")
+                .trim();
+              return nk === key;
             });
+            if (hit) linked++;
           });
-          const belum = total - linked;
-          const ok = linked + belum === total;
-          return (
-            `<div style="margin:4px 0"><strong>Angkatan ${esc(y)}</strong>: ` +
-            `<b>${total}</b> siswa · ` +
-            `<span style="color:#8ff5bd">${linked} sudah taut Google</span> · ` +
-            `<span style="color:#fde68a">${belum} belum taut</span>` +
-            (ok ? " · ✓" : " · ⚠ cek data") +
-            `</div>`
-          );
-        })
-        .join("") +
-      `<div class="muted" style="margin-top:6px;font-size:12px">Akun Google belum pilih nama: <b>${(cov.unlinkedAccounts || []).length}</b> (bukan jumlah siswa)</div>` +
-      "</div>"
+        });
+        const belum = total - linked;
+        const ok = linked + belum === total;
+        return (
+          `<div class="cov-year"><strong>Angkatan ${esc(y)}</strong> · <b>${total}</b> siswa` +
+          ` · <span style="color:#8ff5bd">${linked} taut</span>` +
+          ` · <span style="color:#fde68a">${belum} belum</span>` +
+          (ok ? " · ✓" : " · ⚠") +
+          `</div>`
+        );
+      })
+      .join("");
+    return (
+      `<div class="link-coverage-box">` +
+      `<div class="cov-accounts muted">Akun Google: <b>${(cov.profiles || []).length}</b> · sudah pilih nama <b>${(cov.linkedProfiles || []).length}</b> · belum pilih nama <b>${(cov.unlinkedAccounts || []).length}</b></div>` +
+      `<div class="cov-years">${yearCards}</div>` +
+      `</div>`
     );
   }
 
@@ -321,6 +320,8 @@
     gate.hidden = true;
     gate.style.display = "none";
     panel.hidden = false;
+    const whoCard = $("#adminWhoCard");
+    if (whoCard) whoCard.hidden = false;
 
     const session = auth.session;
     const meta = (session.user && session.user.user_metadata) || {};
@@ -1095,7 +1096,7 @@
           const boxS = document.createElement("div");
           boxS.style.marginTop = "16px";
           boxS.innerHTML =
-            `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="link-siswa-belum">▾</button><strong>Siswa belum tertaut akun Google</strong> <small class="muted">(${cov.unlinkedStudents.length} nama · ini yang harus dijumlahkan dengan yang sudah taut)</small></div><div class="pt-children" data-parent="link-siswa-belum">` +
+            `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="link-siswa-belum">▾</button><strong>Siswa belum tertaut akun Google</strong> <small class="muted">(${cov.unlinkedStudents.length})</small></div><div class="pt-children" data-parent="link-siswa-belum">` +
             Object.keys(byY)
               .sort()
               .reverse()

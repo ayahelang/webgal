@@ -683,3 +683,68 @@ html.sh-tour-active body{cursor:none}
 
 /* Prevent fixed controls covering content */
 body{padding-bottom:72px}
+
+
+/* === Admin hero: profil di kanan (ss43) === */
+.admin-hero-row{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  gap:20px;flex-wrap:wrap;margin-bottom:8px;
+}
+.admin-hero-text{flex:1 1 280px;min-width:0}
+.admin-who{
+  display:flex;align-items:center;gap:12px;flex:0 1 320px;
+  margin:0;padding:12px 14px;max-width:100%;
+}
+.admin-who-meta{min-width:0}
+.admin-who-meta #adminName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Coverage hemat horizontal (ss42) */
+.link-coverage-box{
+  display:flex;flex-direction:column;gap:8px;
+  margin:0 0 12px;padding:10px 12px;
+  border:1px solid rgba(125,227,255,.2);border-radius:12px;font-size:13px;
+}
+.cov-years{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:6px 18px;
+}
+.cov-year{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cov-accounts{font-size:12px;white-space:normal}
+
+/* Topnav selalu bisa digeser — semua item tetap ada (ss41) */
+.topnav{
+  display:flex !important;flex-wrap:nowrap !important;
+  overflow-x:auto !important;-webkit-overflow-scrolling:touch;
+  gap:2px;max-width:100%;
+  scrollbar-width:thin;
+}
+.topnav a{flex:0 0 auto}
+
+/* Share float jangan numpuk teks (ss41) */
+.sh-share-bar, .share-float, #shShareBar{
+  z-index:8500;
+}
+@media (max-width:720px){
+  .sh-share-bar, #shShareBar, .share-float{
+    bottom:56px !important;
+    right:10px !important;
+    transform:scale(.92);
+  }
+  .admin-hero-row{flex-direction:column}
+  .admin-who{width:100%;flex:1 1 auto}
+  .cov-year{white-space:normal}
+}
+
+/* pt-row count selalu di kanan satu baris (ss44) */
+.pt-row{
+  display:flex;align-items:center;gap:8px;
+  width:100%;
+}
+.pt-row > strong{flex:1 1 auto;min-width:0}
+.pt-row > .muted,
+.pt-row > small.muted{
+  margin-left:auto !important;
+  flex:0 0 auto;
+  white-space:nowrap;
+}
