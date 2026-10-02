@@ -826,11 +826,15 @@
         $$(".admin-pane").forEach((p) => {
           p.hidden = p.getAttribute("data-panel") !== btn.dataset.tab;
         });
-        if (btn.dataset.tab === "links") refreshLinks();
-        if (btn.dataset.tab === "users") refreshUsers();
-        if (btn.dataset.tab === "sync") { /* noop */ }
-        if (btn.dataset.tab === "announce") refreshAnnouncements();
-        if (btn.dataset.tab === "attendance") refreshAttendance();
+        const tab = btn.dataset.tab;
+        if (tab === "videos") refreshVideos().catch(console.warn);
+        if (tab === "websites") refreshWebs().catch(console.warn);
+        if (tab === "alumni") refreshAlumni().catch(console.warn);
+        if (tab === "angkatan") refreshAngkatan().catch(console.warn);
+        if (tab === "links") refreshLinks().catch(console.warn);
+        if (tab === "users") refreshUsers().catch(console.warn);
+        if (tab === "announce") refreshAnnouncements().catch(console.warn);
+        if (tab === "attendance") refreshAttendance().catch(console.warn);
       })
     );
 
@@ -887,12 +891,15 @@
       };
     }
 
-    await refreshCats();
-    await refreshAngkatan();
-    await refreshAlumni();
-    await refreshVideos();
-    await refreshWebs();
-    await refreshUsers();
+    // Muat ringan dulu; list berat (video/web) lazy saat tab dibuka
+    try {
+      await Promise.all([refreshCats(), refreshAngkatan()]);
+    } catch (e) {
+      console.warn(e);
+    }
+    // preload tab aktif (video) di background
+    refreshVideos().catch((e) => console.warn("videos", e));
+    // sisanya on-demand
   }
 
   function bindForms(session) {
@@ -1046,7 +1053,7 @@
     };
 
     // Users admin
-    $("#btnSaveAdmin").onclick = async () => {
+    ($("#btnSaveAdmin")||{}).onclick = async () => {
       if (!selectedUser) return;
       const permissions = {};
       $$("#permChecks input[type=checkbox]").forEach((c) => {
@@ -1060,7 +1067,7 @@
         alert(e.message || e);
       }
     };
-    $("#btnRevokeAdmin").onclick = async () => {
+    ($("#btnRevokeAdmin")||{}).onclick = async () => {
       if (!selectedUser) return;
       if (!confirm("Cabut hak admin user ini?")) return;
       try {
@@ -1104,22 +1111,43 @@
   }
 
   async function refreshVideos() {
-    const rows = await GalleryDB.listVideos();
+    const host = $("#vidList");
+    if (host) host.innerHTML = "<p class='muted'>Memuat video…</p>";
+    let rows = [];
+    try {
+      rows = await GalleryDB.listVideos();
+    } catch (e) {
+      if (host) host.innerHTML = "<p class='muted'>Gagal muat video: " + esc(e.message || e) + "</p>";
+      return;
+    }
     videoCache = rows || [];
     function countDeep(obj) {
       if (Array.isArray(obj)) return obj.length;
       if (!obj || typeof obj !== "object") return 0;
       return Object.keys(obj).reduce((n, k) => n + countDeep(obj[k]), 0);
     }
-    // siapkan meta siswa
+    // meta siswa ringan (alumni + cache)
     let students = [];
     try {
-      const g = await GalleryDB.fetchGalleryFromDb();
-      students = (g && g.students) || [];
-    } catch (e) {}
+      if (!window.__adminAlumniLite) {
+        const al = await GalleryDB.adminListAlumni();
+        window.__adminAlumniLite = (al || []).map((x) => {
+          const ang = x.gallery_angkatan || {};
+          const m = String(ang.label || "").match(/20\d{2}/);
+          return { name: x.name, class: x.class_code, angkatan: m ? m[0] : "" };
+        });
+      }
+      students = window.__adminAlumniLite || [];
+    } catch (e) {
+      console.warn("alumni lite", e);
+    }
+    const nameIndex = {};
+    students.forEach((s) => {
+      if (s.name) nameIndex[String(s.name).toLowerCase()] = s;
+    });
     function metaFor(v) {
       const on = v.owner_name || "";
-      const hit = students.find((s) => String(s.name || "").toLowerCase() === on.toLowerCase());
+      const hit = nameIndex[on.toLowerCase()];
       let year = hit ? String(hit.angkatan || "") : "";
       let kelas = hit ? String(hit.class || "") : "";
       if (!year) {
@@ -1337,7 +1365,15 @@
 
 
   async function refreshWebs() {
-    const rows = await GalleryDB.adminListWebsites();
+    const host = $("#webList");
+    if (host) host.innerHTML = "<p class='muted'>Memuat website…</p>";
+    let rows = [];
+    try {
+      rows = await GalleryDB.adminListWebsites();
+    } catch (e) {
+      if (host) host.innerHTML = "<p class='muted'>Gagal muat website: " + esc(e.message || e) + "</p>";
+      return;
+    }
     webCache = rows || [];
     await fillAlumniSelects();
     // tree: angkatan → kelas → student → sites (from alumni join)

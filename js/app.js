@@ -172,11 +172,25 @@
   }
 
   async function loadData(){
-    // Sumber utama: Supabase (retry 1x)
+    // Cache session singkat (30s) agar navigasi antar halaman lebih cepat
+    try {
+      const raw = sessionStorage.getItem("sh_gallery_cache_v1");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.t && Date.now() - parsed.t < 30000 && parsed.data && parsed.data.students && parsed.data.students.length) {
+          return parsed.data;
+        }
+      }
+    } catch (e) {}
     async function fromDb() {
       if (!window.GalleryDB || !GalleryDB.enabled()) return null;
       const dbData = await GalleryDB.fetchGalleryFromDb();
-      if (dbData && Array.isArray(dbData.students) && dbData.students.length) return dbData;
+      if (dbData && Array.isArray(dbData.students) && dbData.students.length) {
+        try {
+          sessionStorage.setItem("sh_gallery_cache_v1", JSON.stringify({ t: Date.now(), data: dbData }));
+        } catch (e) {}
+        return dbData;
+      }
       return null;
     }
     try {

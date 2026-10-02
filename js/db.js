@@ -167,7 +167,15 @@
     return { alumniId, added, skipped: links.length - added };
   }
 
-  async function fetchGalleryFromDb() {
+  let __galleryCache = null;
+  let __galleryCacheAt = 0;
+  const GALLERY_CACHE_MS = 60 * 1000;
+
+  async function fetchGalleryFromDb(opts) {
+    opts = opts || {};
+    if (!opts.force && __galleryCache && Date.now() - __galleryCacheAt < GALLERY_CACHE_MS) {
+      return __galleryCache;
+    }
     const sb = client();
     if (!sb) return null;
     const { data: alumni, error: e1 } = await sb
@@ -264,10 +272,13 @@
       })
       .filter((s) => s.works && s.works.length);
 
-    return {
+    const out = {
       meta: { title: "Gallery", source: "Supabase", updated: new Date().toISOString().slice(0, 10) },
       students,
     };
+    __galleryCache = out;
+    __galleryCacheAt = Date.now();
+    return out;
   }
 
   function defaultContactPrivacy(classCode, year) {
@@ -484,7 +495,7 @@
       .from("gallery_websites")
       .select("id,title,url,category,alumni_id,created_at, gallery_alumni(name,class_code,angkatan_id, gallery_angkatan(label))")
       .order("created_at", { ascending: false })
-      .limit(500);
+      .limit(2000);
     if (error) throw error;
     return data || [];
   }
