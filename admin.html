@@ -53,7 +53,7 @@
     </div>
 
     <div id="panel" hidden>
-      <div class="filters" style="margin-bottom:16px" id="adminTabs">
+      <div id="adminTabs" class="filters admin-tabs">
         <button class="filter active" data-tab="videos">Video</button>
         <button class="filter" data-tab="websites">Website Siswa</button>
         <button class="filter" data-tab="alumni">Alumni</button>
@@ -183,7 +183,7 @@
       <section data-panel="announce" class="summary-card admin-pane" hidden>
         <h3>Pengumuman</h3>
         <p class="muted" style="font-size:13px">Splash 15 detik (bisa ditutup). Atur audiens, jadwal, dan konten (teks, link, gambar).</p>
-        <form id="annForm" class="ann-form">
+        <form id="annForm" class="ann-form" method="post" action="javascript:void(0)" onsubmit="return false;">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul</span><input name="title" required placeholder="Judul pengumuman"></label>
           <div class="field" style="grid-column:1/-1">
@@ -211,7 +211,7 @@
           <label class="field"><span>Durasi splash (detik)</span><input type="number" name="splash_seconds" min="5" max="120" value="15"></label>
           <label class="check" style="align-self:center"><input type="checkbox" name="active" checked> Aktif</label>
           <div class="admin-form-actions" style="grid-column:1/-1">
-            <button class="btn btn-primary" type="submit">Simpan pengumuman</button>
+            <button class="btn btn-primary" type="button" id="annSave">Simpan pengumuman</button>
             <button class="btn btn-ghost" type="button" id="annReset">Batal edit</button>
             <button class="btn btn-ghost" type="button" id="annPreview">Preview splash</button>
           </div>

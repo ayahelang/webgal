@@ -411,11 +411,32 @@
   function bindAnnouncementForm() {
     const f = $("#annForm");
     if (!f) return;
+    // cegah submit native / navigasi
+    f.setAttribute("method", "post");
+    f.setAttribute("action", "javascript:void(0)");
+    f.addEventListener("submit", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    });
     const studCb = f.querySelector("[name=show_students]");
     if (studCb) {
-      studCb.onchange = () => {
-        $("#annStudentTree").classList.toggle("is-collapsed", !studCb.checked);
-      };
+      studCb.addEventListener("change", async () => {
+        const on = studCb.checked;
+        const tree = $("#annStudentTree");
+        if (!tree) return;
+        if (on) {
+          tree.classList.remove("is-collapsed");
+          tree.style.display = "block";
+          if (!tree.dataset.built) {
+            await buildAnnStudentTree();
+            tree.dataset.built = "1";
+          }
+        } else {
+          tree.classList.add("is-collapsed");
+          tree.style.display = "none";
+        }
+      });
     }
     const ed = $("#annEditor");
     if (ed) {
@@ -484,8 +505,8 @@
           });
         }
       };
-    f.onsubmit = async (ev) => {
-      ev.preventDefault();
+    async function saveAnnouncement(ev) {
+      if (ev) { ev.preventDefault(); ev.stopPropagation(); }
       const fd = new FormData(f);
       const showHome = f.querySelector("[name=show_home]").checked;
       const showLogged = f.querySelector("[name=show_logged]").checked;
@@ -539,7 +560,10 @@
       } catch (e) {
         $("#annStatus").textContent = e.message || String(e);
       }
-    };
+    }
+    f.onsubmit = saveAnnouncement;
+    const annSave = $("#annSave");
+    if (annSave) annSave.onclick = (e) => { e.preventDefault(); saveAnnouncement(e); };
   }
 
   async function boot() {
@@ -605,10 +629,12 @@
         if (btn.dataset.tab === "links") refreshLinks();
         if (btn.dataset.tab === "users") refreshUsers();
         if (btn.dataset.tab === "sync") { /* noop */ }
+        if (btn.dataset.tab === "announce") refreshAnnouncements();
       })
     );
 
     bindForms(session);
+    bindAnnouncementForm();
     const msg = () => $("#syncMsg");
     const log = () => $("#syncLog");
     const sheetId = () => (($("#syncSheetId") && $("#syncSheetId").value) || "").trim();
