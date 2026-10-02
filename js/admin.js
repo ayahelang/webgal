@@ -989,7 +989,10 @@
     });
     function vidRow(v) {
       return `<div class="admin-row">
-        <div><strong>${esc(v.title)}</strong><br><small>${esc(v.platform)} · ${esc(v.url)}</small></div>
+        <div>
+          <a href="#" class="admin-link-preview" data-preview-vid="${v.id}"><strong>${esc(v.title)}</strong></a>
+          <br><small class="muted">${esc(v.platform || "")}</small>
+        </div>
         <div style="display:flex;gap:6px">
           <button type="button" data-edit-vid="${v.id}">Ubah</button>
           <button type="button" data-del-vid="${v.id}">Hapus</button>
@@ -1017,20 +1020,20 @@
                     })
                     .join("");
                   return `<div class="pt-node">
-                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y][c])})</small></div>
-                    <div class="pt-children" data-parent="v-${esc(cat)}-${esc(y)}-${esc(c)}">${nHtml}</div>
+                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y][c])})</small></div>
+                    <div class="pt-children is-collapsed" data-parent="v-${esc(cat)}-${esc(y)}-${esc(c)}">${nHtml}</div>
                   </div>`;
                 })
                 .join("");
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y])})</small></div>
-                <div class="pt-children" data-parent="v-${esc(cat)}-${esc(y)}">${cHtml}</div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y])})</small></div>
+                <div class="pt-children is-collapsed" data-parent="v-${esc(cat)}-${esc(y)}">${cHtml}</div>
               </div>`;
             })
             .join("");
           return `<div class="pt-node" style="margin-bottom:12px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-cat-${esc(cat)}">▾</button><strong>${esc(cat)}</strong> <small class="muted pt-count">(${countDeep(root[cat])})</small></div>
-            <div class="pt-children" data-parent="v-cat-${esc(cat)}">${yHtml}</div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-cat-${esc(cat)}">▸</button><strong>${esc(cat)}</strong> <small class="muted pt-count">(${countDeep(root[cat])})</small></div>
+            <div class="pt-children is-collapsed" data-parent="v-cat-${esc(cat)}">${yHtml}</div>
           </div>`;
         })
         .join("") || "<p class='muted'>Belum ada video.</p>";
@@ -1045,6 +1048,19 @@
         } catch (e) {
           alert(e.message || e);
         }
+      })
+    );
+    $$("#vidList [data-preview-vid]").forEach((b) =>
+      b.addEventListener("click", (e) => {
+        e.preventDefault();
+        const v = videoCache.find((x) => String(x.id) === String(b.dataset.previewVid));
+        if (!v || !window.SHPreview) return;
+        SHPreview.previewVideo({
+          title: v.title,
+          url: v.url,
+          description: v.description || "",
+          owner: v.owner_name || "",
+        });
       })
     );
     $$("#vidList [data-edit-vid]").forEach((b) =>
@@ -1199,7 +1215,7 @@
                   const sites = tree[y][c][nm]
                     .map(
                       (w) => `<div class="admin-row">
-                      <div><strong>${esc((w.title || "").replace(/\s*[·•\-]\s*Domain\s*$/i, "").replace(/\bDomain\b/gi, "").trim() || nm)}</strong><br><small>${esc(w.url)}</small></div>
+                      <div><a href="${esc(w.url || '#')}" target="_blank" rel="noopener noreferrer" class="admin-link-open"><strong>${esc((w.title || "").replace(/\s*[·•\-]\s*Domain\s*$/i, "").replace(/\bDomain\b/gi, "").trim() || nm)}</strong></a><br><small>${esc(w.url)}</small></div>
                       <div style="display:flex;gap:6px">
                         <button type="button" data-edit-web="${w.id}">Ubah</button>
                         <button type="button" data-del-web="${w.id}">Hapus</button>
@@ -1448,15 +1464,15 @@
                   const sn = esc(r.linked_student_name);
                   const y = String(r.linked_angkatan_year || "2025");
                   const c = String(r.linked_class_code || "51");
-                  return `<div class="admin-row" style="margin:4px 0">
-                    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
-                      <div><strong>${sn}</strong><br><small>${who}</small></div>
-                      <div style="display:flex;gap:6px">
+                  return `<div class="admin-row link-row" style="margin:4px 0;flex-direction:column;align-items:stretch">
+                    <div class="link-row-top" style="display:flex;justify-content:space-between;gap:8px;align-items:center;width:100%">
+                      <div class="link-row-info"><strong>${sn}</strong><br><small>${who}</small></div>
+                      <div class="link-row-actions" style="display:flex;gap:6px;flex-shrink:0">
                         <button type="button" class="btn btn-ghost" data-edit-link="${r.id}" style="padding:6px 10px;font-size:12px">Ubah</button>
                         <button type="button" class="btn btn-ghost" data-unlink="${r.id}" style="padding:6px 10px;font-size:12px">Lepas</button>
                       </div>
                     </div>
-                    <div class="link-edit-panel is-collapsed" data-edit-panel="${r.id}" style="margin-top:8px;padding:10px;border:1px dashed rgba(125,227,255,.25);border-radius:10px">
+                    <div class="link-edit-panel is-collapsed" data-edit-panel="${r.id}" style="margin-top:8px;margin-right:auto;max-width:100%;padding:10px;border:1px dashed rgba(125,227,255,.25);border-radius:10px">
                       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end">
                         <label class="field" style="margin:0"><span>Angkatan</span>
                           <select data-link-year="${r.id}"><option value="2025" ${y==="2025"?"selected":""}>2025</option><option value="2024" ${y==="2024"?"selected":""}>2024</option></select>

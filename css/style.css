@@ -1311,3 +1311,20 @@ body.page-skills .skills-main{
 .user-perm-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#b7cdd6}
 .user-node{margin:0}
 .user-node .admin-row{margin:0}
+
+.admin-link-preview, .admin-link-open {
+  color: #9ee7ff;
+  text-decoration: none;
+  cursor: pointer;
+}
+.admin-link-preview:hover, .admin-link-open:hover {
+  text-decoration: underline;
+  color: #c5f3ff;
+}
+.link-row { display: flex !important; flex-direction: column !important; align-items: stretch !important; }
+.link-row-top { width: 100%; }
+.link-edit-panel { align-self: flex-start; width: min(100%, 520px); }
+.link-edit-panel.is-collapsed { display: none !important; }
+@media (max-width: 620px) {
+  .one-line-desktop { white-space: normal !important; }
+}
