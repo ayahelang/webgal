@@ -75,10 +75,11 @@
 
   let rosterCache = null;
   async function loadRoster(force) {
-    if (rosterCache && !force) return rosterCache;
+    if (rosterCache && Object.keys(rosterCache).length && !force) return rosterCache;
     if (!rosterCache) rosterCache = {};
+    // 1) JSON lokal (cepat)
     try {
-      const r = await fetch("data/student-roster.json", { cache: "no-store" });
+      const r = await fetch("data/student-roster.json", { cache: "force-cache" });
       if (r.ok) {
         const j = await r.json();
         Object.keys(j || {}).forEach((y) => {
@@ -92,32 +93,27 @@
         });
       }
     } catch (e) {}
+    // 2) Alumni ringan saja (bukan full gallery + websites)
     try {
-      if (GalleryDB.fetchGalleryFromDb) {
-        const g = await GalleryDB.fetchGalleryFromDb();
-        (g.students || []).forEach((s) => {
-          const y = String(s.angkatan || s.angkatan_year || "");
-          const c = String(s.class || s.class_code || "");
-          if (!y || !c) return;
-          if (!rosterCache[y]) rosterCache[y] = {};
-          if (!rosterCache[y][c]) rosterCache[y][c] = [];
-          if (s.name && !rosterCache[y][c].includes(s.name)) rosterCache[y][c].push(s.name);
+      if (!window.__adminAlumniLite) {
+        const rows = await GalleryDB.adminListAlumni();
+        window.__adminAlumniLite = (rows || []).map((x) => {
+          const ang = x.gallery_angkatan || {};
+          const m = String(ang.label || "").match(/20\d{2}/);
+          return { name: x.name, class: x.class_code, angkatan: m ? m[0] : "" };
         });
       }
-    } catch (e) {}
-    try {
-      const rows = await GalleryDB.adminListAlumni();
-      (rows || []).forEach((al) => {
-        const ang = al.gallery_angkatan || {};
-        const m = String(ang.label || "").match(/20\d{2}/);
-        const y = m ? m[0] : "";
-        const c = String(al.class_code || "");
-        if (!y || !c) return;
+      (window.__adminAlumniLite || []).forEach((s) => {
+        const y = String(s.angkatan || "");
+        const c = String(s.class || "");
+        if (!y || !c || !s.name) return;
         if (!rosterCache[y]) rosterCache[y] = {};
         if (!rosterCache[y][c]) rosterCache[y][c] = [];
-        if (al.name && !rosterCache[y][c].includes(al.name)) rosterCache[y][c].push(al.name);
+        if (!rosterCache[y][c].includes(s.name)) rosterCache[y][c].push(s.name);
       });
-    } catch (e) {}
+    } catch (e) {
+      console.warn("roster alumni", e);
+    }
     Object.keys(rosterCache).forEach((y) => {
       Object.keys(rosterCache[y]).forEach((c) => {
         rosterCache[y][c].sort((a, b) => a.localeCompare(b, "id"));
@@ -403,7 +399,7 @@
     if (!host) return;
     host.classList.add("sh-stu-tree");
     host.innerHTML = "<p class='muted'>Memuat daftar siswa…</p>";
-    await loadRoster(true);
+    await loadRoster(false);
     const cov = rosterCache || {};
     const years = Object.keys(cov).sort().reverse();
     if (!years.length) {
@@ -759,7 +755,7 @@
   }
 
   function bindAttendanceAdmin() {
-    buildStudentCheckTree("#attStudentTree");
+    // tree dimuat saat tab Absensi dibuka (bukan di boot)
     const save = $("#attSessSave");
     if (!save) return;
     save.onclick = async () => {
@@ -910,14 +906,28 @@
           p.hidden = p.getAttribute("data-panel") !== btn.dataset.tab;
         });
         const tab = btn.dataset.tab;
-        if (tab === "videos") refreshVideos().catch(console.warn);
-        if (tab === "websites") refreshWebs().catch(console.warn);
-        if (tab === "alumni") refreshAlumni().catch(console.warn);
-        if (tab === "angkatan") refreshAngkatan().catch(console.warn);
-        if (tab === "links") refreshLinks().catch(console.warn);
-        if (tab === "users") refreshUsers().catch(console.warn);
-        if (tab === "announce") refreshAnnouncements().catch(console.warn);
-        if (tab === "attendance") { refreshAttendance().catch(console.warn); buildStudentCheckTree("#attStudentTree"); }
+        window.__adminTabLoaded = window.__adminTabLoaded || {};
+        const loadTab = (key, fn) => {
+          if (window.__adminTabLoaded[key]) return;
+          window.__adminTabLoaded[key] = true;
+          Promise.resolve(fn()).catch((e) => {
+            window.__adminTabLoaded[key] = false;
+            console.warn(key, e);
+          });
+        };
+        if (tab === "videos") loadTab("videos", () => refreshVideos());
+        if (tab === "websites") loadTab("websites", () => refreshWebs());
+        if (tab === "alumni") loadTab("alumni", () => refreshAlumni());
+        if (tab === "angkatan") loadTab("angkatan", () => refreshAngkatan());
+        if (tab === "links") loadTab("links", () => refreshLinks());
+        if (tab === "users") loadTab("users", () => refreshUsers());
+        if (tab === "announce") loadTab("announce", () => refreshAnnouncements());
+        if (tab === "attendance") {
+          loadTab("attendance", async () => {
+            await refreshAttendance();
+            await buildStudentCheckTree("#attStudentTree");
+          });
+        }
       })
     );
 
@@ -974,15 +984,12 @@
       };
     }
 
-    // Muat ringan dulu; list berat (video/web) lazy saat tab dibuka
-    try {
-      await Promise.all([refreshCats(), refreshAngkatan()]);
-    } catch (e) {
-      console.warn(e);
-    }
-    // preload tab aktif (video) di background
-    refreshVideos().catch((e) => console.warn("videos", e));
-    // sisanya on-demand
+    // Boot minimal — list dimuat saat tab diklik (cepat & tidak nge-block)
+    const vidHost = $("#vidList");
+    if (vidHost) vidHost.innerHTML = "<p class='muted'>Buka tab ini untuk memuat data…</p>";
+    const webHost = $("#webList");
+    if (webHost) webHost.innerHTML = "<p class='muted'>Buka tab ini untuk memuat data…</p>";
+    Promise.all([refreshCats().catch(() => {}), refreshAngkatan().catch(() => {})]);
   }
 
   function bindForms(session) {
@@ -1027,7 +1034,9 @@
         $("#vidStatus").textContent = id ? "Video diperbarui." : "Video ditambah.";
         ev.target.reset();
         ev.target.querySelector('[name=id]').value = "";
+        window.__adminTabLoaded && (window.__adminTabLoaded.videos = false);
         await refreshVideos();
+        window.__adminTabLoaded && (window.__adminTabLoaded.videos = true);
       } catch (e) {
         $("#vidStatus").textContent = e.message || String(e);
       }
@@ -1193,12 +1202,23 @@
     $("#vidCat").innerHTML = cats.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
   }
 
+  let __vidLoad = null;
   async function refreshVideos() {
     const host = $("#vidList");
     if (host) host.innerHTML = "<p class='muted'>Memuat video…</p>";
+    if (__vidLoad) {
+      try { await __vidLoad; } catch (e) {}
+    }
     let rows = [];
+    __vidLoad = (async () => {
+      try {
+        return await GalleryDB.listVideos();
+      } finally {
+        __vidLoad = null;
+      }
+    })();
     try {
-      rows = await GalleryDB.listVideos();
+      rows = await __vidLoad;
     } catch (e) {
       if (host) host.innerHTML = "<p class='muted'>Gagal muat video: " + esc(e.message || e) + "</p>";
       return;
@@ -1447,12 +1467,23 @@
   }
 
 
+  let __webLoad = null;
   async function refreshWebs() {
     const host = $("#webList");
     if (host) host.innerHTML = "<p class='muted'>Memuat website…</p>";
+    if (__webLoad) {
+      try { await __webLoad; } catch (e) {}
+    }
     let rows = [];
+    __webLoad = (async () => {
+      try {
+        return await GalleryDB.adminListWebsites();
+      } finally {
+        __webLoad = null;
+      }
+    })();
     try {
-      rows = await GalleryDB.adminListWebsites();
+      rows = await __webLoad;
     } catch (e) {
       if (host) host.innerHTML = "<p class='muted'>Gagal muat website: " + esc(e.message || e) + "</p>";
       return;
@@ -1833,7 +1864,7 @@
           }
         })
       );
-      await loadRoster(true);
+      await loadRoster(false);
       bindLinkNameSelects(host);
       // siswa/user belum taut
       try {

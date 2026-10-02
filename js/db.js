@@ -493,9 +493,8 @@
     const sb = client();
     const { data, error } = await sb
       .from("gallery_websites")
-      .select("id,title,url,category,alumni_id,created_at, gallery_alumni(name,class_code,angkatan_id, gallery_angkatan(label))")
-      .order("created_at", { ascending: false })
-      .limit(2000);
+      .select("id,title,url,category,alumni_id, gallery_alumni(name,class_code,angkatan_id, gallery_angkatan(label))")
+      .limit(1500);
     if (error) throw error;
     return data || [];
   }
@@ -931,7 +930,7 @@
     if (!sb) return [];
     let q = sb
       .from("gallery_videos")
-      .select("id,title,url,platform,embed_url,description,created_at,category_id,owner_name,owner_user_id,created_by, gallery_video_categories(name,slug)")
+      .select("id,title,url,platform,description,created_at,category_id,owner_name, gallery_video_categories(name)")
       .order("created_at", { ascending: false });
     if (categoryId) q = q.eq("category_id", categoryId);
     const { data, error } = await q;
