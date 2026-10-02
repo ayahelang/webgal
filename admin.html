@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/favicon.svg">
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Panel Admin — Silverhawk Gallery</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-skills" data-shlock-mode="normal" data-shlock-domain="webgal.silverhawk.web.id" data-shlock-brand="Silverhawk Gallery" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
+  <div class="bg-grid"></div>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Admin</small></span></a>
+    <nav class="topnav">
+      <a href="index.html">Gallery</a>
+      <a href="videos.html">Video</a>
+      <a href="skills.html">Skills</a>
+      <a href="refleksi.html">Nilai Proses</a>
+      <a href="stats.html">Statistik</a>
+      <a href="chat.html">Chat</a>
+      <a href="about.html">About</a>
+      <a href="profile.html">Profil</a>
+      <a href="admin.html" class="active nav-admin" title="Admin">Admin</a>
+    </nav>
+  </header>
+  <main class="skills-main">
+    <section class="skills-hero admin-hero-row">
+      <div class="admin-hero-text">
+        <div class="eyebrow">ADMIN</div>
+        <h1>Panel Admin</h1>
+        <p class="skills-lead">Login Google. Kelola video, data user, dan undang admin tambahan.</p>
+      </div>
+      <div class="admin-who summary-card" id="adminWhoCard" hidden>
+        <img id="adminAvatar" alt="" class="admin-avatar" hidden>
+        <div class="admin-who-meta">
+          <div id="adminName" style="font-weight:700"></div>
+          <div id="adminEmail" class="muted" style="font-size:13px"></div>
+        </div>
+        <button type="button" class="btn btn-ghost" id="btnLogout">Keluar</button>
+      </div>
+    </section>
+
+    <div id="gate" class="summary-card" style="display:grid;gap:12px;max-width:440px">
+      <p class="muted" id="gateMsg">Masuk dengan akun Google yang diizinkan sebagai admin.</p>
+      <button type="button" class="btn-google" id="btnGoogle">
+        <span class="g-icon" aria-hidden="true"></span>
+        Login with Google
+      </button>
+      <p class="muted" style="font-size:12px">Akun utama: admin@silverhawk.web.id · teddyskom63@guru.sma.belajar.id · ted834r@gmail.com</p>
+    </div>
+
+    <div id="panel" hidden>
+      <div id="adminTabs" class="filters admin-tabs">
+        <button class="filter active" data-tab="videos">Video</button>
+        <button class="filter" data-tab="websites">Website Siswa</button>
+        <button class="filter" data-tab="alumni">Alumni</button>
+        <button class="filter" data-tab="angkatan">Angkatan</button>
+        <button class="filter" data-tab="links">Tautan Siswa</button>
+        <button class="filter" data-tab="users">Users & Admin</button>
+        <button class="filter" data-tab="attendance">Absensi</button>
+        <button class="filter" data-tab="announce">Pengumuman</button>
+        <button class="filter" data-tab="sync">Sync Docs</button>
+      </div>
+
+      <section data-panel="videos" class="summary-card admin-pane">
+        <h3>Tambah video (YouTube / Dailymotion)</h3>
+        <form id="videoForm" style="display:grid;gap:10px;margin-top:12px">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Judul</span><input name="title" required></label>
+          <label class="field"><span>URL</span><input name="url" required placeholder="https://youtube.com/... "></label>
+          <label class="field"><span>Kategori</span><select name="categoryId" id="vidCat"></select></label>
+          <label class="field"><span>Deskripsi</span><input name="description"></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" type="submit">Simpan video</button>
+            <button class="btn btn-ghost" type="button" id="vidPreview">Preview card</button>
+            <button class="btn btn-ghost" type="button" id="vidReset">Batal edit</button>
+            <button class="btn btn-ghost" type="button" id="btnAddCat">+ Kategori</button>
+          </div>
+        </form>
+        <p id="vidStatus" class="muted" style="font-size:13px"></p>
+                <label class="field admin-search-wrap" style="margin:12px 0 8px">
+          <span>Cari di list</span>
+          <input type="search" id="vidSearch" class="admin-list-search" placeholder="Cari judul, URL, nama siswa…" autocomplete="off">
+        </label>
+<div id="vidList" class="admin-list"></div>
+      </section>
+
+      <section data-panel="websites" class="summary-card admin-pane" hidden>
+        <h3>Website Siswa</h3>
+        <form id="webForm" style="display:grid;gap:10px;margin-top:12px">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Judul</span><input name="title" required placeholder="Judul website"></label>
+          <label class="field"><span>URL</span><input name="url" required placeholder="https://..."></label>
+          <label class="field"><span>Kategori</span><input name="category" placeholder="Web Kreatif"></label>
+          <label class="field"><span>Angkatan</span>
+            <select name="ownerYear" id="webOwnerYear" required>
+              <option value="2025">2025</option>
+              <option value="2024">2024</option>
+            </select>
+          </label>
+          <label class="field"><span>Kelas</span>
+            <select name="ownerClass" id="webOwnerClass" required>
+              <option value="51">51</option>
+              <option value="52">52</option>
+            </select>
+          </label>
+          <label class="field"><span>Nama siswa</span>
+            <select name="ownerName" id="webOwnerName" required>
+              <option value="">— pilih nama —</option>
+            </select>
+          </label>
+          <input type="hidden" name="alumniId" id="webAlumniSelect" value="">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" type="submit">Simpan website</button>
+            <button class="btn btn-ghost" type="button" id="webPreview">Preview card</button>
+            <button class="btn btn-ghost" type="button" id="webReset">Batal edit</button>
+          </div>
+        </form>
+        <p id="webStatus" class="muted" style="font-size:13px"></p>
+                <label class="field admin-search-wrap" style="margin:12px 0 8px">
+          <span>Cari di list</span>
+          <input type="search" id="webSearch" class="admin-list-search" placeholder="Cari judul, URL, nama siswa…" autocomplete="off">
+        </label>
+<div id="webList" class="admin-list"></div>
+      </section>
+      <section data-panel="alumni" class="summary-card admin-pane" hidden>
+        <h3>Siswa / santriwati</h3>
+        <form id="alumniForm" style="display:grid;gap:10px;margin-top:12px">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Nama</span><input name="name" required placeholder="Nama lengkap"></label>
+          <label class="field"><span>Angkatan</span><select name="angkatanId" id="alumniAngSelect" required><option value="">— pilih —</option></select></label>
+          <label class="field"><span>Kelas</span>
+            <select name="classCode">
+              <option value="51">51</option>
+              <option value="52">52</option>
+              <option value="">—</option>
+            </select>
+          </label>
+          <label class="field"><span>Role</span><input name="role" value="Santriwati"></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" type="submit">Simpan alumni</button>
+            <button class="btn btn-ghost" type="button" id="alumniReset">Batal edit</button>
+          </div>
+        </form>
+        <p id="alumniStatus" class="muted" style="font-size:13px"></p>
+                <label class="field admin-search-wrap" style="margin:12px 0 8px">
+          <span>Cari di list</span>
+          <input type="search" id="alumniSearch" class="admin-list-search" placeholder="Cari nama siswa, kelas, angkatan…" autocomplete="off">
+        </label>
+<div id="alumniList" class="admin-list"></div>
+      </section>
+      <section data-panel="angkatan" class="summary-card admin-pane" hidden>
+        <h3>Angkatan</h3>
+        <form id="angForm" style="display:grid;gap:10px;margin-top:12px;max-width:420px">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Label angkatan</span><input name="label" required placeholder="Angkatan 2025"></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" type="submit">Simpan angkatan</button>
+            <button class="btn btn-ghost" type="button" id="angReset">Batal edit</button>
+          </div>
+        </form>
+        <p id="angStatus" class="muted" style="font-size:13px"></p>
+                <label class="field admin-search-wrap" style="margin:12px 0 8px">
+          <span>Cari di list</span>
+          <input type="search" id="angSearch" class="admin-list-search" placeholder="Cari label angkatan…" autocomplete="off">
+        </label>
+<div id="angList" class="admin-list"></div>
+      </section>
+      <section data-panel="links" class="summary-card admin-pane" hidden>
+        <h3>Tautan akun Google ↔ nama siswa</h3>
+        <p class="muted" style="font-size:13px">Tree per angkatan → kelas → siswa. Admin dapat melepas tautan mana pun.</p>
+                <label class="field admin-search-wrap" style="margin:12px 0 8px">
+          <span>Cari di list</span>
+          <input type="search" id="linkSearch" class="admin-list-search" placeholder="Cari nama siswa atau email…" autocomplete="off">
+        </label>
+<div id="linkTree" class="privacy-tree" style="max-height:none"></div>
+        <p id="linkAdminMsg" class="muted" style="font-size:13px"></p>
+      </section>
+
+      
+      
+      <section data-panel="attendance" class="summary-card admin-pane" hidden>
+        <h3>Absensi Online</h3>
+        <p class="muted one-line-desktop" style="font-size:13px">Buat sesi check-in/out, rekap, dan unduh CSV. Guru tambahan: centang hak manage_attendance di Atur user.</p>
+        <form id="attSessForm" class="ann-form">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Judul sesi</span><input name="title" required placeholder="SMM Minggu 7 — Domain"></label>
+          <label class="field"><span>Kode mapel</span>
+            <select name="subject_code">
+              <option value="SMM">SMM</option>
+              <option value="DG">Desain Grafis</option>
+              <option value="OTHER">Lainnya</option>
+            </select>
+          </label>
+          <label class="field"><span>Label mapel</span><input name="subject_label" value="Social Media Marketing"></label>
+          <label class="field"><span>Tanggal khusus (opsional)</span><input type="date" name="session_date"></label>
+          <label class="field" style="grid-column:1/-1"><span>Hari berulang (kosongi jika pakai tanggal khusus)</span>
+            <div class="weekday-checks">
+              <label class="wd-item"><input type="checkbox" name="wd" value="1"><span>Sen</span></label>
+              <label class="wd-item"><input type="checkbox" name="wd" value="2"><span>Sel</span></label>
+              <label class="wd-item"><input type="checkbox" name="wd" value="3"><span>Rab</span></label>
+              <label class="wd-item"><input type="checkbox" name="wd" value="4"><span>Kam</span></label>
+              <label class="wd-item"><input type="checkbox" name="wd" value="5"><span>Jum</span></label>
+              <label class="wd-item"><input type="checkbox" name="wd" value="6"><span>Sab</span></label>
+              <label class="wd-item"><input type="checkbox" name="wd" value="7"><span>Min</span></label>
+            </div>
+          </label>
+          <label class="field"><span>Check-in mulai</span><input type="time" name="checkin_start" value="07:00"></label>
+          <label class="field"><span>Check-in akhir (batas hadir)</span><input type="time" name="checkin_end" value="07:15"></label>
+          <label class="field"><span>Check-out mulai</span><input type="time" name="checkout_start" value="08:20"></label>
+          <label class="field"><span>Check-out akhir</span><input type="time" name="checkout_end" value="08:40"></label>
+          <div class="field" style="grid-column:1/-1">
+            <span>Siswa penerima (tree checkbox · multi pilih)</span>
+            <p class="muted" style="font-size:12px;margin:4px 0 8px">Centang angkatan / kelas / nama. Parent penuh = biru; sebagian = abu (indeterminate).</p>
+            <div id="attStudentTree" class="sh-stu-tree" style="max-height:340px;overflow:auto"></div>
+          </div>
+          <label class="check" style="align-self:center"><input type="checkbox" name="require_checkout" checked> Wajib check-out</label>
+          <label class="check" style="align-self:center"><input type="checkbox" name="active" checked> Aktif</label>
+          <div class="admin-form-actions" style="grid-column:1/-1">
+            <button type="button" class="btn btn-primary" id="attSessSave">Simpan sesi</button>
+            <button type="button" class="btn btn-ghost" id="attSessReset">Batal</button>
+          </div>
+        </form>
+        <p id="attSessMsg" class="muted" style="font-size:13px"></p>
+        <div id="attSessList" class="admin-list" style="margin-top:12px"></div>
+        <hr style="border:0;border-top:1px solid rgba(125,227,255,.12);margin:18px 0">
+        <h3 style="font-size:1.05rem">Rekap kehadiran</h3>
+        <div class="att-admin-grid" style="margin-top:10px">
+          <label class="field"><span>Filter sesi (id opsional)</span><input id="attRecSession" placeholder="UUID sesi / kosong=semua"></label>
+          <label class="field"><span>Kelas</span><input id="attRecClass" placeholder="51 / 52"></label>
+          <label class="field"><span>Nama</span><input id="attRecName" placeholder="cari nama"></label>
+        </div>
+        <div class="admin-form-actions" style="margin-top:10px">
+          <button type="button" class="btn btn-primary" id="attRecLoad">Muat rekap</button>
+          <button type="button" class="btn btn-ghost" id="attRecCsv">Unduh CSV</button>
+          <a class="btn btn-ghost" href="absensi.html" target="_blank" style="display:inline-flex;align-items:center">Buka halaman siswa</a>
+        </div>
+        <div id="attRecList" class="admin-list" style="margin-top:12px"></div>
+      </section>
+
+      <section data-panel="announce" class="summary-card admin-pane" hidden>
+        <h3>Pengumuman</h3>
+        <p class="muted one-line-desktop" style="font-size:13px;margin:0 0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Splash bisa ditutup · atur audiens, jadwal, dan konten (teks, link, gambar).</p>
+        <form id="annForm" class="ann-form" method="post" action="javascript:void(0)" onsubmit="return false;">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Judul</span><input name="title" required placeholder="Judul pengumuman"></label>
+          <div class="field" style="grid-column:1/-1">
+            <span>Isi pengumuman</span>
+            <div id="annEditor" class="ann-editor" contenteditable="true" tabindex="0" role="textbox" aria-multiline="true" data-placeholder="Ketik pengumuman… tempel screenshot (Ctrl+V) atau sisipkan URL gambar"></div>
+            <div class="ann-editor-tools">
+              <button type="button" class="btn btn-ghost" id="annInsertImg">+ URL gambar</button>
+              <button type="button" class="btn btn-ghost" id="annInsertLink">+ Link</button>
+              <span class="muted" style="font-size:11px">Tempel (paste) gambar langsung dari clipboard juga bisa</span>
+            </div>
+          </div>
+          <fieldset class="ann-fieldset">
+            <legend>Tampil di mana &amp; siapa</legend>
+            <label class="check"><input type="checkbox" name="show_home" checked> Halaman depan (pengunjung) — splash</label>
+            <label class="check"><input type="checkbox" name="show_logged"> Panel user yang sudah login — splash</label>
+            <label class="check"><input type="checkbox" name="show_students"> Siswa tertentu (login + taut nama) — splash</label>
+            <div id="annStudentTree" class="sh-stu-tree ann-student-tree is-collapsed" style="max-height:340px;overflow:auto;margin-top:8px"></div>
+          </fieldset>
+          <label class="field"><span>Mulai</span><input type="datetime-local" name="starts_at"></label>
+          <label class="field"><span>Selesai (opsional)</span><input type="datetime-local" name="ends_at"></label>
+          <label class="field"><span>Berlaku (hari)</span><input type="number" name="duration_days" min="0" placeholder="mis. 7"></label>
+          <label class="field"><span>Berlaku (jam)</span><input type="number" name="duration_hours" min="0" placeholder="mis. 24"></label>
+          <label class="field"><span>Berapa kali / hari</span><input type="number" name="times_per_day" min="1" max="24" value="1"></label>
+          <label class="field"><span>Jam tampil (0–23, pisah koma)</span><input name="schedule_hours" placeholder="kosong = otomatis merata, mis. 8,12,18"></label>
+          <label class="field"><span>Durasi splash (detik)</span><input type="number" name="splash_seconds" min="5" max="120" value="15"></label>
+          <label class="check" style="align-self:center"><input type="checkbox" name="active" checked> Aktif</label>
+          <div class="admin-form-actions" style="grid-column:1/-1">
+            <button class="btn btn-primary" type="button" id="annSave">Simpan pengumuman</button>
+            <button class="btn btn-ghost" type="button" id="annReset">Batal edit</button>
+            <button class="btn btn-ghost" type="button" id="annPreview">Preview splash</button>
+          </div>
+        </form>
+        <p id="annStatus" class="muted" style="font-size:13px"></p>
+        <label class="field admin-search-wrap" style="margin:12px 0 8px">
+          <span>Cari di list</span>
+          <input type="search" id="annSearch" class="admin-list-search" placeholder="Cari judul pengumuman…" autocomplete="off">
+        </label>
+        <div id="annList" class="admin-list"></div>
+      </section>
+
+      <section data-panel="sync" class="summary-card admin-pane" hidden>
+        <h3>Sinkronisasi Google Docs → Skills & Nilai Proses</h3>
+        <p class="muted" style="font-size:13px">Membaca dokumen testimoni (export teks). Data lama tidak dihapus; entri baru digabung. Dokumen harus <b>bisa diakses siapa saja dengan link</b>.</p>
+        <label class="field"><span>Docs Tab Kelas 51 · Angkatan 2025</span>
+          <input id="syncDocsUrl51" type="url" value="https://docs.google.com/document/d/12zjFUs-ZihCvIqeINS8YbXF8revUSnQmZO2y7Njqe8k/edit?tab=t.0">
+        </label>
+        <label class="field"><span>Docs Tab Kelas 52 · Angkatan 2025</span>
+          <input id="syncDocsUrl52" type="url" value="https://docs.google.com/document/d/12zjFUs-ZihCvIqeINS8YbXF8revUSnQmZO2y7Njqe8k/edit?tab=t.yuf1q9pk5z6t">
+        </label>
+        <label class="field"><span>Google Sheet roster 2025 (ID)</span>
+          <input id="syncSheetId" type="text" value="1kr4Dvd2LcrCJLYvhwnYkWcRhUXPgTw9uZlOaeTK8SXE">
+        </label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button type="button" class="btn btn-primary" id="btnImportSheet">1. Import Sheet (nama + nickname + intro video)</button>
+          <button type="button" class="btn btn-primary" id="btnSyncDocs">2. Analisis AI dari Google Docs</button>
+          <button type="button" class="btn btn-ghost" id="btnSyncDocsPlain">Sync teks biasa (tanpa AI)</button>
+        </div>
+        <p class="muted" style="font-size:12px;margin-top:8px">AI membutuhkan Edge Function <code>sync-ai-docs</code> + secret <code>OPENAI_API_KEY</code> atau <code>GROQ_API_KEY</code> di Supabase.</p>
+        <p id="syncMsg" class="muted" style="font-size:13px;margin-top:10px"></p>
+        <pre id="syncLog" class="muted" style="font-size:11px;white-space:pre-wrap;max-height:200px;overflow:auto"></pre>
+      </section>
+      <section data-panel="users" class="summary-card admin-pane" hidden>
+        <p id="userLinkSummary" class="muted" style="font-size:13px;margin:0 0 10px"></p>
+        <h3>User Google & undangan admin</h3>
+        <p class="muted" style="font-size:13px">Klik pengguna → centang hak akses → jadikan admin tambahan. User terdaftar: riwayat chat tidak dihapus setelah 7 hari.</p>
+                <label class="field admin-search-wrap" style="margin:12px 0 8px">
+          <span>Cari di list</span>
+          <input type="search" id="userSearch" class="admin-list-search" placeholder="Cari nama, email, tautan…" autocomplete="off">
+        </label>
+<div id="userList" class="admin-list"></div>
+</section>
+    </div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data/supabase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/preview-card.js"></script>
+  <script src="js/profile-status.js"></script>
+  <script src="js/auth-ui.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/share.js"></script>
+  <script src="https://silverhawk.web.id/lock/lock.js"></script>
+  <script src="js/health-check.js"></script>
+  <script src="js/idle-tour.js"></script>
+  <script src="js/announce.js"></script>
+</body>
+</html>
