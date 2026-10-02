@@ -460,6 +460,19 @@
     return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   }
 
+  /** Tampilkan nama pembuat; hindari email mentah */
+  function creatorDisplayName(v) {
+    const s = String(v || "").trim();
+    if (!s) return "—";
+    if (s.includes("@")) {
+      const local = s.split("@")[0].replace(/[._]+/g, " ").trim();
+      return local || "Pengajar";
+    }
+    // uuid-like
+    if (/^[0-9a-f-]{32,}$/i.test(s)) return "Pengajar";
+    return s;
+  }
+
 
   async function buildAnnStudentTree() {
     // Tree div hierarki sama seperti Absensi: Angkatan → Kelas → Nama + checkbox parent (tri-state)
@@ -566,7 +579,7 @@
                 : r.audience === "logged_in"
                   ? "User login"
                   : "Publik / depan";
-            const creator = r.created_by_email || r.created_by || "—";
+            const creator = creatorDisplayName(r.created_by_name || r.created_by_email || r.created_by);
             return `<div class="admin-row ann-sess-row" data-ann-id="${r.id}">
               <div class="ann-sess-top">
                 <div class="ann-sess-title">
@@ -1063,20 +1076,16 @@
         rows
           .map(
             (r) => {
-              const creator = r.created_by_email || r.created_by_name || (r.created_by ? "Pengajar" : "Admin");
-              return `<div class="admin-row att-sess-row" data-att-id="${r.id}">
-            <div class="att-sess-main">
-              <div class="att-sess-top">
-                <div class="att-sess-title">
+              const creator = creatorDisplayName(r.created_by_name || r.created_by_email || r.created_by);
+              return `<div class="admin-row ann-sess-row att-sess-row" data-att-id="${r.id}">
+              <div class="ann-sess-top">
+                <div class="ann-sess-title">
                   <strong>${esc(r.title || "Sesi absensi")}</strong>
                   <small class="muted"> · ${r.active === false ? "nonaktif" : "aktif"}${r.allow_late ? " · izin terlambat" : ""}</small>
                   <span class="att-sess-creator">Dibuat oleh: ${esc(creator)}</span>
+                  <br><small class="muted">Check-in ${esc(String(r.checkin_start || "").slice(0, 5))}–${esc(String(r.checkin_end || "").slice(0, 5))} · Check-out ${esc(String(r.checkout_start || "").slice(0, 5))}–${esc(String(r.checkout_end || "").slice(0, 5))}</small>
                 </div>
-                <div class="att-sess-times muted">
-                  <span>Check-in ${esc(String(r.checkin_start || "").slice(0, 5))}–${esc(String(r.checkin_end || "").slice(0, 5))}</span>
-                  <span>Check-out ${esc(String(r.checkout_start || "").slice(0, 5))}–${esc(String(r.checkout_end || "").slice(0, 5))}</span>
-                </div>
-                <div class="att-sess-actions">
+                <div class="ann-sess-actions">
                   <button type="button" class="btn btn-ghost btn-xs" data-att-stats="${r.id}">Statistik ▾</button>
                   <button type="button" class="btn btn-ghost btn-xs" data-att-info="${r.id}">Info</button>
                   <button type="button" class="btn btn-ghost btn-xs" data-att-dl="${r.id}">Unduh CSV</button>
@@ -1084,9 +1093,8 @@
                   <button type="button" data-del-att="${r.id}">Hapus</button>
                 </div>
               </div>
-              <div class="att-sess-detail" id="attDetail-${r.id}" hidden></div>
-            </div>
-          </div>`;
+              <div class="ann-sess-detail" id="attDetail-${r.id}" hidden></div>
+            </div>`;
             }
           )
           .join("") || "<p class='muted'>Belum ada sesi absensi.</p>";
@@ -1130,6 +1138,8 @@
           const id = b.dataset.attStats;
           const panel = $("#attDetail-" + id);
           if (!panel) return;
+          // tutup info sibling label
+          const infoBtn = panel.parentElement && panel.parentElement.querySelector("[data-att-info]");
           if (!panel.hidden && panel.dataset.mode === "stats") {
             panel.hidden = true;
             b.textContent = "Statistik ▾";
@@ -1137,8 +1147,9 @@
           }
           panel.hidden = false;
           panel.dataset.mode = "stats";
-          panel.innerHTML = "<p class='muted'>Memuat statistik…</p>";
           b.textContent = "Statistik ▴";
+          if (infoBtn) infoBtn.textContent = "Info";
+          panel.innerHTML = "<p class='muted'>Memuat statistik…</p>";
           const r = rows.find((x) => String(x.id) === String(id));
           panel.innerHTML = await buildSessionStatsHtml(r || { id });
           panel.querySelectorAll("[data-att-note]").forEach((nb) => {
@@ -1158,12 +1169,16 @@
           const panel = $("#attDetail-" + id);
           const r = rows.find((x) => String(x.id) === String(id));
           if (!panel || !r) return;
+          const statsBtn = panel.parentElement && panel.parentElement.querySelector("[data-att-stats]");
           if (!panel.hidden && panel.dataset.mode === "info") {
             panel.hidden = true;
+            b.textContent = "Info";
             return;
           }
           panel.hidden = false;
           panel.dataset.mode = "info";
+          b.textContent = "Info ▴";
+          if (statsBtn) statsBtn.textContent = "Statistik ▾";
           const reasons = attVisibilityInfo(r);
           panel.innerHTML =
             "<div class='att-info-panel'><strong>Kenapa sesi ini mungkin tidak tampil di layar siswa?</strong><ul>" +

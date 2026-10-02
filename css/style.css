@@ -1751,67 +1751,8 @@ html{
 
 
 /* Absensi admin session row — judul | jam | tombol ; detail di BAWAH */
-.admin-row.att-sess-row{
-  display:block!important;
-  padding:12px 14px!important;
-}
-.att-sess-main{width:100%;display:block}
-.att-sess-top{
-  display:flex;
-  flex-direction:row;
-  flex-wrap:nowrap;
-  align-items:center;
-  gap:12px 16px;
-  width:100%;
-}
-.att-sess-title{
-  flex:1 1 auto;
-  min-width:140px;
-  max-width:none;
-}
-.att-sess-title strong{font-size:15px;word-break:break-word}
-.att-sess-times{
-  flex:0 0 auto;
-  display:flex;
-  flex-direction:column;
-  gap:2px;
-  font-size:12px;
-  line-height:1.35;
-  white-space:nowrap;
-}
-.att-sess-actions{
-  flex:0 0 auto;
-  display:flex;
-  flex-direction:row;
-  flex-wrap:nowrap;
-  gap:6px;
-  align-items:center;
-  justify-content:flex-end;
-}
-.att-sess-actions .btn-xs,
-.att-sess-actions button{
-  padding:5px 10px!important;
-  font-size:12px!important;
-  border-radius:8px;
-  border:1px solid var(--line);
-  background:rgba(0,0,0,.2);
-  color:#c5d8e0;
-  cursor:pointer;
-  white-space:nowrap;
-  flex-shrink:0;
-}
-.att-sess-detail{
-  display:block;
-  width:100%;
-  margin-top:10px;
-  padding:12px;
-  border-radius:12px;
-  border:1px solid var(--line);
-  background:rgba(0,0,0,.22);
-  font-size:13px;
-  box-sizing:border-box;
-}
-.att-sess-detail[hidden]{display:none!important}
+/* Absensi memakai kelas yang sama dengan pengumuman (.ann-sess-*) */
+.admin-row.att-sess-row{display:block!important;padding:12px 14px!important}
 .att-sess-creator{display:block;font-size:11px;margin-top:2px;color:var(--muted,#8fa7b4)}
 .att-stat-summary{font-size:12px;margin:0 0 10px;line-height:1.45}
 .att-stat-block{margin:8px 0}

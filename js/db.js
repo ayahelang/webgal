@@ -1775,7 +1775,12 @@
       schedule_hours: payload.schedule_hours || [],
       splash_seconds: Number(payload.splash_seconds) || 15,
       active: payload.active !== false,
-      created_by: (session && session.user && session.user.email) || "",
+      created_by: (function () {
+        const u = session && session.user;
+        if (!u) return "";
+        const meta = u.user_metadata || {};
+        return meta.full_name || meta.name || u.email || "";
+      })(),
       updated_at: new Date().toISOString(),
     };
     if (payload.id) {
@@ -2283,7 +2288,10 @@
         return data;
       }
       row.created_by = session.user.id;
-      row.created_by_email = session.user.email || "";
+      {
+        const meta = (session.user && session.user.user_metadata) || {};
+        row.created_by_email = meta.full_name || meta.name || session.user.email || "Pengajar";
+      }
       const { data, error } = await sb.from("gallery_attendance_sessions").insert(row).select("*").single();
       if (error) {
         if (String(error.message || "").includes("allow_late")) {
