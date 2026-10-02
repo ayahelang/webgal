@@ -2615,6 +2615,278 @@
     return data || [];
   }
 
+
+  function sheetCsvUrl(input) {
+    const s = String(input || "").trim();
+    if (!s) throw new Error("Link Google Sheet kosong");
+    // already csv export
+    if (/export\?format=csv/i.test(s) || /\.csv(\?|$)/i.test(s)) return s;
+    const m = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!m) throw new Error("Link Google Sheet tidak dikenali");
+    const id = m[1];
+    let gid = "0";
+    const g = s.match(/[#&?]gid=([0-9]+)/);
+    if (g) gid = g[1];
+    return "https://docs.google.com/spreadsheets/d/" + id + "/export?format=csv&gid=" + gid;
+  }
+
+  function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let cur = "";
+    let inQ = false;
+    const s = String(text || "").replace(/^\uFEFF/, "");
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (inQ) {
+        if (c === '"') {
+          if (s[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else inQ = false;
+        } else cur += c;
+      } else if (c === '"') inQ = true;
+      else if (c === ",") {
+        row.push(cur);
+        cur = "";
+      } else if (c === "\n" || c === "\r") {
+        if (c === "\r" && s[i + 1] === "\n") i++;
+        row.push(cur);
+        cur = "";
+        if (row.some((x) => String(x).trim())) rows.push(row);
+        row = [];
+      } else cur += c;
+    }
+    if (cur.length || row.length) {
+      row.push(cur);
+      if (row.some((x) => String(x).trim())) rows.push(row);
+    }
+    return rows;
+  }
+
+  function normalizeHeader(h) {
+    return String(h || "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function mapSheetRows(csvText, kind) {
+    const table = parseCsv(csvText);
+    if (!table.length) return [];
+    const headers = table[0].map(normalizeHeader);
+    const idx = (aliases) => {
+      for (let a of aliases) {
+        const i = headers.indexOf(a);
+        if (i >= 0) return i;
+      }
+      // partial
+      for (let a of aliases) {
+        const i = headers.findIndex((h) => h.includes(a));
+        if (i >= 0) return i;
+      }
+      return -1;
+    };
+    let map;
+    if (kind === "website") {
+      map = {
+        title: idx(["nama website", "judul", "title", "nama", "name"]),
+        description: idx(["deskripsi", "description", "desc", "keterangan"]),
+        url: idx(["link", "url", "tautan", "website", "alamat"]),
+      };
+    } else if (kind === "video") {
+      map = {
+        title: idx(["nama video", "judul", "title", "nama", "name"]),
+        category: idx(["kategori", "category", "cat"]),
+        url: idx(["link", "url", "tautan", "video"]),
+      };
+    } else {
+      map = {
+        title: idx(["judul karya", "judul", "title", "nama", "name"]),
+        description: idx(["deskripsi", "description", "desc", "keterangan"]),
+        url: idx(["link", "url", "tautan", "gambar", "image", "image_url"]),
+      };
+    }
+    if (map.title < 0 || map.url < 0) {
+      throw new Error("Kolom wajib tidak ditemukan di baris header Sheet (butuh judul/nama + link). Header: " + headers.join(" | "));
+    }
+    const out = [];
+    for (let r = 1; r < table.length; r++) {
+      const line = table[r];
+      const title = String(line[map.title] || "").trim();
+      const url = String(line[map.url] || "").trim();
+      if (!title || !url) continue;
+      if (!/^https?:\/\//i.test(url)) continue;
+      const item = { title, url };
+      if (map.description >= 0) item.description = String(line[map.description] || "").trim();
+      if (map.category >= 0) item.category = String(line[map.category] || "").trim();
+      out.push(item);
+    }
+    return out;
+  }
+
+  async function fetchSheetRows(sheetUrl, kind) {
+    const csvUrl = sheetCsvUrl(sheetUrl);
+    const res = await fetch(csvUrl, { mode: "cors" });
+    if (!res.ok) {
+      throw new Error(
+        "Gagal unduh Sheet (HTTP " +
+          res.status +
+          "). Pastikan share: «Siapa saja yang memiliki link dapat melihat»."
+      );
+    }
+    const text = await res.text();
+    if (/<!DOCTYPE html>/i.test(text) && /sign in/i.test(text)) {
+      throw new Error("Sheet terkunci. Ubah akses menjadi publik (viewer).");
+    }
+    return mapSheetRows(text, kind);
+  }
+
+  async function assertCanBulkImport() {
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Login Google dulu");
+    await upsertMyProfileFromSession();
+    const prof = await getMyProfile();
+    const isTeacher = !!(prof && (prof.is_admin || prof.role === "teacher"));
+    const isStudent = !!(prof && prof.linked_student_name && String(prof.linked_student_name).trim());
+    if (!isTeacher && !isStudent) {
+      throw new Error("Akses ditolak. Siswa harus taut nama; pengajar harus disetujui admin.");
+    }
+    return { session, prof, isTeacher, isStudent };
+  }
+
+  async function bulkImportWebsites(sheetUrl) {
+    const { session, prof, isTeacher } = await assertCanBulkImport();
+    const items = await fetchSheetRows(sheetUrl, "website");
+    if (!items.length) throw new Error("Tidak ada baris valid di Sheet website");
+    const sb = client();
+    let ok = 0;
+    const errors = [];
+    for (const it of items) {
+      try {
+        const payload = {
+          title: it.title.slice(0, 200),
+          url: it.url.slice(0, 500),
+          category: "Web Kreatif",
+          description: (it.description || "").slice(0, 500),
+          owner_user_id: session.user.id,
+          owner_name: isTeacher
+            ? (prof.display_name || "Pengajar")
+            : prof.linked_student_name,
+        };
+        // reuse addMyWebsite if student path exists
+        if (!isTeacher) {
+          await addMyWebsite({ title: payload.title, url: payload.url, category: payload.category });
+        } else {
+          const { error } = await sb.from("gallery_websites").insert({
+            title: payload.title,
+            url: payload.url,
+            category: payload.category,
+            owner_user_id: payload.owner_user_id,
+            owner_name: payload.owner_name,
+            angkatan_year: prof.linked_angkatan_year || null,
+            class_code: prof.linked_class_code || "",
+          });
+          if (error) throw error;
+        }
+        ok++;
+      } catch (e) {
+        errors.push((it.title || "") + ": " + (e.message || e));
+      }
+    }
+    return { ok, total: items.length, errors };
+  }
+
+  async function bulkImportVideos(sheetUrl) {
+    const { session, prof, isTeacher } = await assertCanBulkImport();
+    const items = await fetchSheetRows(sheetUrl, "video");
+    if (!items.length) throw new Error("Tidak ada baris valid di Sheet video");
+    let ok = 0;
+    const errors = [];
+    for (const it of items) {
+      try {
+        await addMyVideo({
+          title: it.title,
+          url: it.url,
+          description: it.description || it.category || "",
+        });
+        ok++;
+      } catch (e) {
+        // teacher without linked name: insert directly
+        if (isTeacher) {
+          try {
+            const meta = await fetchVideoMeta(it.url);
+            const parsed = parseVideoUrl(it.url);
+            const cats = await listVideoCategories();
+            let catId = null;
+            if (it.category) {
+              const hit = cats.find(
+                (c) =>
+                  String(c.name || "").toLowerCase() === String(it.category).toLowerCase() ||
+                  String(c.slug || "").toLowerCase() === String(it.category).toLowerCase()
+              );
+              catId = hit ? hit.id : null;
+            }
+            if (!catId) {
+              const ks = cats.find((c) => c.slug === "karya-siswa") || cats[0];
+              catId = ks ? ks.id : null;
+            }
+            const sb = client();
+            const { error } = await sb.from("gallery_videos").insert({
+              title: it.title,
+              url: it.url,
+              platform: meta.platform || parsed.platform,
+              embed_url: parsed.embed_url || it.url,
+              category_id: catId,
+              description: it.description || it.category || "",
+              created_by: session.user.email || "",
+              owner_user_id: session.user.id,
+              owner_name: prof.display_name || "Pengajar",
+            });
+            if (error) throw error;
+            ok++;
+            continue;
+          } catch (e2) {
+            errors.push((it.title || "") + ": " + (e2.message || e2));
+            continue;
+          }
+        }
+        errors.push((it.title || "") + ": " + (e.message || e));
+      }
+    }
+    return { ok, total: items.length, errors };
+  }
+
+  async function bulkImportDesigns(sheetUrl) {
+    const { session, prof, isTeacher } = await assertCanBulkImport();
+    const items = await fetchSheetRows(sheetUrl, "design");
+    if (!items.length) throw new Error("Tidak ada baris valid di Sheet desain");
+    let ok = 0;
+    const errors = [];
+    const sb = client();
+    for (const it of items) {
+      try {
+        const { error } = await sb.from("gallery_designs").insert({
+          title: it.title.slice(0, 200),
+          image_url: it.url.slice(0, 500),
+          category: "Umum",
+          description: (it.description || "").slice(0, 500),
+          author_name: isTeacher
+            ? (prof.display_name || "Pengajar")
+            : (prof.linked_student_name || ""),
+          author_user_id: session.user.id,
+          active: true,
+        });
+        if (error) throw error;
+        ok++;
+      } catch (e) {
+        errors.push((it.title || "") + ": " + (e.message || e));
+      }
+    }
+    return { ok, total: items.length, errors };
+  }
+
+
   global.GalleryDB = {
     enabled,
     client,
@@ -2701,6 +2973,10 @@
     myAttendanceRecords,
     listAttendanceRecords,
     listDesigns,
+    bulkImportWebsites,
+    bulkImportVideos,
+    bulkImportDesigns,
+    fetchSheetRows,
     recordAnnouncementRead,
     listAnnouncementReads,
     adminListDesigns,

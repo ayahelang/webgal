@@ -52,10 +52,12 @@
     try {
       await GalleryDB.upsertMyProfileFromSession();
       const prof = await GalleryDB.getMyProfile();
-      if (!prof || !prof.linked_student_name || !prof.linked_angkatan_year) {
+      const isTeacher = !!(prof && (prof.is_admin || prof.role === "teacher"));
+      const isStudent = !!(prof && prof.linked_student_name && prof.linked_angkatan_year);
+      if (!isTeacher && !isStudent) {
         $("#needLogin").innerHTML =
-          `<p class="muted">Profil belum ditautkan ke nama siswa & angkatan.</p>
-           <p><a class="btn btn-primary" href="profile.html">Lengkapi Profil</a></p>`;
+          `<p class="muted">Siswa: tautkan nama & angkatan di Profil. Pengajar: minta admin menyetujui peran pengajar.</p>
+           <p><a class="btn btn-primary" href="profile.html">Buka Profil</a></p>`;
         return;
       }
     } catch (e) {
@@ -127,6 +129,32 @@
 
     await loadWeb();
     await loadVid();
+
+    function bindBulk(btnId, inputId, msgId, fn) {
+      const btn = document.getElementById(btnId);
+      if (!btn || btn.dataset.bound) return;
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", async () => {
+        const url = (document.getElementById(inputId) || {}).value || "";
+        const msg = document.getElementById(msgId);
+        if (msg) msg.textContent = "Mengunduh & mengimpor Sheet…";
+        btn.disabled = true;
+        try {
+          const r = await fn(url.trim());
+          let t = "Berhasil " + r.ok + " dari " + r.total + " baris.";
+          if (r.errors && r.errors.length) t += " Gagal: " + r.errors.slice(0, 3).join("; ");
+          if (msg) msg.textContent = t;
+          await loadWeb();
+          await loadVid();
+        } catch (e) {
+          if (msg) msg.textContent = e.message || String(e);
+        }
+        btn.disabled = false;
+      });
+    }
+    bindBulk("bulkRunWeb", "bulkSheetWeb", "bulkMsgWeb", (u) => GalleryDB.bulkImportWebsites(u));
+    bindBulk("bulkRunVid", "bulkSheetVid", "bulkMsgVid", (u) => GalleryDB.bulkImportVideos(u));
+    bindBulk("bulkRunDes", "bulkSheetDes", "bulkMsgDes", (u) => GalleryDB.bulkImportDesigns(u));
   }
 
   async function loadWeb() {

@@ -44,6 +44,7 @@
       <div class="filters" style="margin-bottom:14px" id="tabs">
         <button class="filter active" data-tab="web">Website saya</button>
         <button class="filter" data-tab="vid">Video saya</button>
+      <button type="button" class="filter" data-tab="bulk">Bulk Sheet</button>
       </div>
 
       <section data-pane="web" class="summary-card">
@@ -82,9 +83,31 @@
         <p id="vidMsg" class="muted" style="font-size:13px"></p>
         <div id="vidList" class="admin-list"></div>
       </section>
+    <section data-pane="bulk" hidden class="summary-card" style="margin-top:14px">
+      <h3>Import massal dari Google Sheet</h3>
+      <p class="muted" style="font-size:13px">Sheet harus <b>bisa dilihat siapa saja yang punya link</b>. Satu baris header + data di bawahnya.</p>
+      <div class="field" style="margin-top:12px">
+        <span>Website → kolom: <code>Nama Website</code>, <code>Deskripsi</code>, <code>Link</code></span>
+        <input id="bulkSheetWeb" type="url" placeholder="https://docs.google.com/spreadsheets/d/…">
+        <button type="button" class="btn btn-primary" id="bulkRunWeb" style="margin-top:8px">Import Website</button>
+        <p id="bulkMsgWeb" class="muted" style="font-size:12px"></p>
+      </div>
+      <div class="field" style="margin-top:14px">
+        <span>Video → kolom: <code>Nama Video</code>, <code>Kategori</code>, <code>Link</code></span>
+        <input id="bulkSheetVid" type="url" placeholder="https://docs.google.com/spreadsheets/d/…">
+        <button type="button" class="btn btn-primary" id="bulkRunVid" style="margin-top:8px">Import Video</button>
+        <p id="bulkMsgVid" class="muted" style="font-size:12px"></p>
+      </div>
+      <div class="field" style="margin-top:14px">
+        <span>Desain grafis → kolom: <code>Judul Karya</code>, <code>Deskripsi</code>, <code>Link</code> (URL gambar)</span>
+        <input id="bulkSheetDes" type="url" placeholder="https://docs.google.com/spreadsheets/d/…">
+        <button type="button" class="btn btn-primary" id="bulkRunDes" style="margin-top:8px">Import Desain</button>
+        <p id="bulkMsgDes" class="muted" style="font-size:12px"></p>
+      </div>
+    </section>
     </div>
   </main>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="data/supabase-config.js"></script>
   <script src="js/db.js"></script>
   <script src="js/preview-card.js"></script>
