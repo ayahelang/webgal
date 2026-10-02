@@ -60,6 +60,7 @@
         <button class="filter" data-tab="angkatan">Angkatan</button>
         <button class="filter" data-tab="links">Tautan Siswa</button>
         <button class="filter" data-tab="users">Users & Admin</button>
+        <button class="filter" data-tab="announce">Pengumuman</button>
         <button class="filter" data-tab="sync">Sync Docs</button>
       </div>
 
@@ -178,6 +179,50 @@
         <p id="linkAdminMsg" class="muted" style="font-size:13px"></p>
       </section>
 
+      
+      <section data-panel="announce" class="summary-card admin-pane" hidden>
+        <h3>Pengumuman</h3>
+        <p class="muted" style="font-size:13px">Splash 15 detik (bisa ditutup). Atur audiens, jadwal, dan konten (teks, link, gambar).</p>
+        <form id="annForm" class="ann-form">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Judul</span><input name="title" required placeholder="Judul pengumuman"></label>
+          <label class="field" style="grid-column:1/-1"><span>Isi pengumuman</span>
+            <div id="annEditor" class="ann-editor" contenteditable="true" data-placeholder="Ketik pengumuman… tempel screenshot (Ctrl+V) atau sisipkan URL gambar"></div>
+            <div class="ann-editor-tools">
+              <button type="button" class="btn btn-ghost" id="annInsertImg">+ URL gambar</button>
+              <button type="button" class="btn btn-ghost" id="annInsertLink">+ Link</button>
+              <span class="muted" style="font-size:11px">Tempel (paste) gambar langsung dari clipboard juga bisa</span>
+            </div>
+          </label>
+          <fieldset class="ann-fieldset">
+            <legend>Tampil di mana &amp; siapa</legend>
+            <label class="check"><input type="checkbox" name="show_home" checked> Halaman depan (pengunjung) — splash</label>
+            <label class="check"><input type="checkbox" name="show_logged"> Panel user yang sudah login — splash</label>
+            <label class="check"><input type="checkbox" name="show_students"> Siswa tertentu (login + taut nama) — splash</label>
+            <div id="annStudentTree" class="privacy-tree ann-student-tree is-collapsed" style="max-height:280px;overflow:auto;margin-top:8px"></div>
+          </fieldset>
+          <label class="field"><span>Mulai</span><input type="datetime-local" name="starts_at"></label>
+          <label class="field"><span>Selesai (opsional)</span><input type="datetime-local" name="ends_at"></label>
+          <label class="field"><span>Berlaku (hari)</span><input type="number" name="duration_days" min="0" placeholder="mis. 7"></label>
+          <label class="field"><span>Berlaku (jam)</span><input type="number" name="duration_hours" min="0" placeholder="mis. 24"></label>
+          <label class="field"><span>Berapa kali / hari</span><input type="number" name="times_per_day" min="1" max="24" value="1"></label>
+          <label class="field"><span>Jam tampil (0–23, pisah koma)</span><input name="schedule_hours" placeholder="kosong = otomatis merata, mis. 8,12,18"></label>
+          <label class="field"><span>Durasi splash (detik)</span><input type="number" name="splash_seconds" min="5" max="120" value="15"></label>
+          <label class="check" style="align-self:center"><input type="checkbox" name="active" checked> Aktif</label>
+          <div class="admin-form-actions" style="grid-column:1/-1">
+            <button class="btn btn-primary" type="submit">Simpan pengumuman</button>
+            <button class="btn btn-ghost" type="button" id="annReset">Batal edit</button>
+            <button class="btn btn-ghost" type="button" id="annPreview">Preview splash</button>
+          </div>
+        </form>
+        <p id="annStatus" class="muted" style="font-size:13px"></p>
+        <label class="field admin-search-wrap" style="margin:12px 0 8px">
+          <span>Cari di list</span>
+          <input type="search" id="annSearch" class="admin-list-search" placeholder="Cari judul pengumuman…" autocomplete="off">
+        </label>
+        <div id="annList" class="admin-list"></div>
+      </section>
+
       <section data-panel="sync" class="summary-card admin-pane" hidden>
         <h3>Sinkronisasi Google Docs → Skills & Nilai Proses</h3>
         <p class="muted" style="font-size:13px">Membaca dokumen testimoni (export teks). Data lama tidak dihapus; entri baru digabung. Dokumen harus <b>bisa diakses siapa saja dengan link</b>.</p>
@@ -232,5 +277,6 @@
   <script src="https://silverhawk.web.id/lock/lock.js"></script>
   <script src="js/health-check.js"></script>
   <script src="js/idle-tour.js"></script>
+  <script src="js/announce.js"></script>
 </body>
 </html>

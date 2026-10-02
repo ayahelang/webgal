@@ -806,3 +806,41 @@ body{padding-bottom:72px}
   #alumniList > p.muted{white-space:normal}
   .sync-help{grid-template-columns:1fr}
 }
+
+/* Pengumuman */
+.ann-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px}
+.ann-editor{
+  min-height:140px;max-height:320px;overflow:auto;padding:12px;
+  border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.25);
+  color:#e8f4f8;line-height:1.5;outline:none;
+}
+.ann-editor:empty:before{content:attr(data-placeholder);color:#6a8490}
+.ann-editor img{max-width:100%;border-radius:8px;margin:6px 0}
+.ann-editor-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px}
+.ann-fieldset{grid-column:1/-1;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0}
+.ann-fieldset legend{padding:0 6px;color:#9db5c0;font-size:12px}
+.ann-fieldset .check{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:13px}
+.ann-student-tree.is-collapsed{display:none}
+.ann-student-tree:not(.is-collapsed){display:block}
+
+.sh-ann-splash{
+  position:fixed;inset:0;z-index:12000;
+  background:rgba(2,8,14,.72);display:flex;align-items:center;justify-content:center;
+  padding:16px;backdrop-filter:blur(6px);
+}
+.sh-ann-splash[hidden]{display:none!important}
+.sh-ann-card{
+  width:min(520px,100%);max-height:min(80vh,640px);overflow:auto;
+  background:linear-gradient(160deg,#0f1c28,#0a141c);
+  border:1px solid rgba(125,227,255,.35);border-radius:18px;
+  padding:18px 18px 14px;box-shadow:0 20px 60px rgba(0,0,0,.45);
+  animation:shAnnIn .35s ease;
+}
+@keyframes shAnnIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+.sh-ann-card h2{margin:0 0 10px;font-size:1.25rem;letter-spacing:-.3px}
+.sh-ann-body{font-size:14px;line-height:1.55;color:#c5d8e0}
+.sh-ann-body img{max-width:100%;border-radius:10px}
+.sh-ann-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+.sh-ann-timer{font-size:12px;color:#8aa3ae}
+.sh-ann-close{border:1px solid var(--line);background:rgba(255,255,255,.08);color:#e8f4f8;border-radius:10px;padding:8px 14px;cursor:pointer}
+.sh-ann-close:hover{border-color:#5ec8ff}

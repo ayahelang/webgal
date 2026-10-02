@@ -281,6 +281,261 @@
     return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
   }
 
+
+  async function buildAnnStudentTree() {
+    const host = $("#annStudentTree");
+    if (!host) return;
+    await loadRoster();
+    const cov = rosterCache || {};
+    const years = Object.keys(cov).sort().reverse();
+    host.innerHTML =
+      years
+        .map((y) => {
+          const classes = Object.keys(cov[y] || {}).sort();
+          const cHtml = classes
+            .map((c) => {
+              const names = (cov[y][c] || []).slice().sort((a, b) => a.localeCompare(b, "id"));
+              const nHtml = names
+                .map(
+                  (n) =>
+                    `<label class="check" style="margin-left:18px"><input type="checkbox" data-ann-stu="${esc(y)}|${esc(c)}|${esc(n)}"> ${esc(n)}</label>`
+                )
+                .join("");
+              return `<div class="pt-node">
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="ann-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong></div>
+                <div class="pt-children is-collapsed" data-parent="ann-${esc(y)}-${esc(c)}">${nHtml}</div>
+              </div>`;
+            })
+            .join("");
+          return `<div class="pt-node">
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="ann-y-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong></div>
+            <div class="pt-children" data-parent="ann-y-${esc(y)}">${cHtml}</div>
+          </div>`;
+        })
+        .join("") || "<p class='muted'>Roster kosong.</p>";
+    treeToggleBind(host);
+  }
+
+  function readAnnTargets() {
+    return [...document.querySelectorAll("[data-ann-stu]:checked")].map((cb) => {
+      const parts = cb.getAttribute("data-ann-stu").split("|");
+      return { year: parts[0], class: parts[1], name: parts.slice(2).join("|") };
+    });
+  }
+
+  function setAnnTargets(list) {
+    document.querySelectorAll("[data-ann-stu]").forEach((cb) => (cb.checked = false));
+    (list || []).forEach((t) => {
+      const key = (t.year || t.angkatan_year || "") + "|" + (t.class || t.class_code || "") + "|" + (t.name || "");
+      document.querySelectorAll("[data-ann-stu]").forEach((el) => {
+        if (el.getAttribute("data-ann-stu") === key) el.checked = true;
+      });
+    });
+  }
+
+  function toLocalInput(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+
+  async function refreshAnnouncements() {
+    const host = $("#annList");
+    if (!host) return;
+    try {
+      await buildAnnStudentTree();
+      const rows = await GalleryDB.listAnnouncementsAdmin();
+      host.innerHTML =
+        rows
+          .map((r) => {
+            const aud =
+              r.audience === "students"
+                ? "Siswa tertentu (" + ((r.target_students || []).length) + ")"
+                : r.audience === "logged_in"
+                  ? "User login"
+                  : "Publik / depan";
+            return `<div class="admin-row">
+              <div><strong>${esc(r.title)}</strong>
+                <small class="muted"> · ${esc(aud)} · ${r.active ? "aktif" : "nonaktif"}</small>
+                <br><small class="muted">${esc((r.body_html || "").replace(/<[^>]+>/g, " ").slice(0, 80))}</small>
+              </div>
+              <div style="display:flex;gap:6px">
+                <button type="button" data-edit-ann="${r.id}">Ubah</button>
+                <button type="button" data-del-ann="${r.id}">Hapus</button>
+              </div>
+            </div>`;
+          })
+          .join("") || "<p class='muted'>Belum ada pengumuman.</p>";
+      bindListSearch("#annSearch", "#annList");
+      $$("#annList [data-del-ann]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          if (!confirm("Hapus pengumuman?")) return;
+          await GalleryDB.deleteAnnouncement(b.dataset.delAnn);
+          await refreshAnnouncements();
+        })
+      );
+      $$("#annList [data-edit-ann]").forEach((b) =>
+        b.addEventListener("click", () => {
+          const r = rows.find((x) => String(x.id) === String(b.dataset.editAnn));
+          if (!r) return;
+          const f = $("#annForm");
+          f.querySelector("[name=id]").value = r.id;
+          f.querySelector("[name=title]").value = r.title || "";
+          $("#annEditor").innerHTML = r.body_html || "";
+          f.querySelector("[name=show_home]").checked =
+            (r.show_on || "").indexOf("home") >= 0 || r.audience === "public" || r.show_on === "both";
+          f.querySelector("[name=show_logged]").checked =
+            (r.show_on || "").indexOf("user") >= 0 || r.audience === "logged_in" || r.show_on === "both";
+          f.querySelector("[name=show_students]").checked = r.audience === "students";
+          $("#annStudentTree").classList.toggle("is-collapsed", r.audience !== "students");
+          setAnnTargets(r.target_students || []);
+          f.querySelector("[name=starts_at]").value = toLocalInput(r.starts_at);
+          f.querySelector("[name=ends_at]").value = toLocalInput(r.ends_at);
+          f.querySelector("[name=duration_days]").value = r.duration_days || "";
+          f.querySelector("[name=duration_hours]").value = r.duration_hours || "";
+          f.querySelector("[name=times_per_day]").value = r.times_per_day || 1;
+          f.querySelector("[name=schedule_hours]").value = (r.schedule_hours || []).join(",");
+          f.querySelector("[name=splash_seconds]").value = r.splash_seconds || 15;
+          f.querySelector("[name=active]").checked = r.active !== false;
+          $("#annStatus").textContent = "Mode edit: " + (r.title || "");
+          scrollToForm("#annForm");
+        })
+      );
+    } catch (e) {
+      host.innerHTML = "<p class='muted'>" + esc(e.message || e) + "</p>";
+    }
+  }
+
+  function bindAnnouncementForm() {
+    const f = $("#annForm");
+    if (!f) return;
+    const studCb = f.querySelector("[name=show_students]");
+    if (studCb) {
+      studCb.onchange = () => {
+        $("#annStudentTree").classList.toggle("is-collapsed", !studCb.checked);
+      };
+    }
+    const ed = $("#annEditor");
+    if (ed) {
+      ed.addEventListener("paste", (ev) => {
+        const items = ev.clipboardData && ev.clipboardData.items;
+        if (!items) return;
+        for (const it of items) {
+          if (it.type && it.type.indexOf("image") === 0) {
+            ev.preventDefault();
+            const file = it.getAsFile();
+            const reader = new FileReader();
+            reader.onload = () => {
+              document.execCommand("insertHTML", false, '<p><img src="' + reader.result + '" alt="gambar"></p>');
+            };
+            reader.readAsDataURL(file);
+            break;
+          }
+        }
+      });
+    }
+    const btnImg = $("#annInsertImg");
+    if (btnImg)
+      btnImg.onclick = () => {
+        const url = prompt("URL gambar (https://...)");
+        if (!url) return;
+        document.execCommand("insertHTML", false, '<p><img src="' + url.replace(/"/g, "") + '" alt=""></p>');
+      };
+    const btnLink = $("#annInsertLink");
+    if (btnLink)
+      btnLink.onclick = () => {
+        const url = prompt("URL link");
+        if (!url) return;
+        const label = prompt("Teks link", url) || url;
+        document.execCommand(
+          "insertHTML",
+          false,
+          '<a href="' + url.replace(/"/g, "") + '" target="_blank" rel="noopener">' + label + "</a>"
+        );
+      };
+    const btnReset = $("#annReset");
+    if (btnReset)
+      btnReset.onclick = () => {
+        f.reset();
+        f.querySelector("[name=id]").value = "";
+        $("#annEditor").innerHTML = "";
+        $("#annStatus").textContent = "";
+        $("#annStudentTree").classList.add("is-collapsed");
+      };
+    const btnPrev = $("#annPreview");
+    if (btnPrev)
+      btnPrev.onclick = () => {
+        if (window.SHAnnounce) {
+          SHAnnounce.showSplash({
+            title: f.querySelector("[name=title]").value || "Preview",
+            body_html: $("#annEditor").innerHTML,
+            splash_seconds: Number(f.querySelector("[name=splash_seconds]").value) || 15,
+            id: "preview-" + Date.now(),
+            times_per_day: 99,
+            active: true,
+          });
+        }
+      };
+    f.onsubmit = async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(f);
+      const showHome = f.querySelector("[name=show_home]").checked;
+      const showLogged = f.querySelector("[name=show_logged]").checked;
+      const showStudents = f.querySelector("[name=show_students]").checked;
+      let audience = "public";
+      let show_on = "home";
+      if (showStudents) {
+        audience = "students";
+        show_on = "user_panel";
+      } else if (showLogged && showHome) {
+        audience = "public";
+        show_on = "both";
+      } else if (showLogged) {
+        audience = "logged_in";
+        show_on = "user_panel";
+      } else {
+        audience = "public";
+        show_on = "home";
+      }
+      const hoursRaw = String(fd.get("schedule_hours") || "")
+        .split(/[,\s]+/)
+        .map((x) => parseInt(x, 10))
+        .filter((n) => !isNaN(n) && n >= 0 && n <= 23);
+      let starts = fd.get("starts_at");
+      starts = starts ? new Date(starts).toISOString() : new Date().toISOString();
+      let ends = fd.get("ends_at");
+      ends = ends ? new Date(ends).toISOString() : null;
+      const payload = {
+        id: fd.get("id") || null,
+        title: fd.get("title"),
+        body_html: $("#annEditor").innerHTML,
+        audience,
+        show_on,
+        target_students: showStudents ? readAnnTargets() : [],
+        starts_at: starts,
+        ends_at: ends,
+        duration_days: fd.get("duration_days") ? Number(fd.get("duration_days")) : null,
+        duration_hours: fd.get("duration_hours") ? Number(fd.get("duration_hours")) : null,
+        times_per_day: Number(fd.get("times_per_day")) || 1,
+        schedule_hours: hoursRaw,
+        splash_seconds: Number(fd.get("splash_seconds")) || 15,
+        active: f.querySelector("[name=active]").checked,
+      };
+      try {
+        await GalleryDB.upsertAnnouncement(payload);
+        $("#annStatus").textContent = "Pengumuman disimpan.";
+        f.reset();
+        f.querySelector("[name=id]").value = "";
+        $("#annEditor").innerHTML = "";
+        await refreshAnnouncements();
+      } catch (e) {
+        $("#annStatus").textContent = e.message || String(e);
+      }
+    };
+  }
+
   async function boot() {
     const gate = $("#gate");
     const panel = $("#panel");

@@ -1712,6 +1712,68 @@
     return data;
   }
 
+
+  async function listAnnouncementsAdmin() {
+    if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
+    const sb = client();
+    const { data, error } = await sb.from("gallery_announcements").select("*").order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function upsertAnnouncement(payload) {
+    if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
+    const sb = client();
+    const session = await getSession();
+    const row = {
+      title: payload.title || "",
+      body_html: payload.body_html || "",
+      audience: payload.audience || "public",
+      target_students: payload.target_students || [],
+      show_on: payload.show_on || "home",
+      starts_at: payload.starts_at || new Date().toISOString(),
+      ends_at: payload.ends_at || null,
+      duration_days: payload.duration_days != null ? Number(payload.duration_days) : null,
+      duration_hours: payload.duration_hours != null ? Number(payload.duration_hours) : null,
+      times_per_day: Number(payload.times_per_day) || 1,
+      schedule_hours: payload.schedule_hours || [],
+      splash_seconds: Number(payload.splash_seconds) || 15,
+      active: payload.active !== false,
+      created_by: (session && session.user && session.user.email) || "",
+      updated_at: new Date().toISOString(),
+    };
+    if (payload.id) {
+      const { data, error } = await sb.from("gallery_announcements").update(row).eq("id", payload.id).select("*").single();
+      if (error) throw error;
+      return data;
+    }
+    const { data, error } = await sb.from("gallery_announcements").insert(row).select("*").single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function deleteAnnouncement(id) {
+    if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
+    const sb = client();
+    const { error } = await sb.from("gallery_announcements").delete().eq("id", id);
+    if (error) throw error;
+  }
+
+  async function fetchActiveAnnouncements() {
+    const sb = client();
+    if (!sb) return [];
+    const { data, error } = await sb
+      .from("gallery_announcements")
+      .select("*")
+      .eq("active", true)
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.warn(error);
+      return [];
+    }
+    return data || [];
+  }
+
   async function batchEngagement(urls) {
     const sb = client();
     const map = {};
@@ -2174,6 +2236,10 @@
     importRosterFromSheet2025,
     runAiDocsSync,
     loadAiSkills,
+    listAnnouncementsAdmin,
+    upsertAnnouncement,
+    deleteAnnouncement,
+    fetchActiveAnnouncements,
     loadRefleksiFromDb,
     loadSkillsMetaFromDb,
     fetchGoogleDocsText,
