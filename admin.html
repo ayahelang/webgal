@@ -87,13 +87,30 @@
       </section>
 
       <section data-panel="websites" class="summary-card admin-pane" hidden>
-        <h3>Website Siswa (CRUD)</h3>
+        <h3>Website Siswa</h3>
         <form id="webForm" style="display:grid;gap:10px;margin-top:12px">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul</span><input name="title" required placeholder="Judul website"></label>
           <label class="field"><span>URL</span><input name="url" required placeholder="https://..."></label>
           <label class="field"><span>Kategori</span><input name="category" placeholder="Web Kreatif"></label>
-          <label class="field"><span>Pemilik (alumni)</span><select name="alumniId" id="webAlumniSelect" required><option value="">— pilih —</option></select></label>
+          <label class="field"><span>Angkatan</span>
+            <select name="ownerYear" id="webOwnerYear" required>
+              <option value="2025">2025</option>
+              <option value="2024">2024</option>
+            </select>
+          </label>
+          <label class="field"><span>Kelas</span>
+            <select name="ownerClass" id="webOwnerClass" required>
+              <option value="51">51</option>
+              <option value="52">52</option>
+            </select>
+          </label>
+          <label class="field"><span>Nama siswa</span>
+            <select name="ownerName" id="webOwnerName" required>
+              <option value="">— pilih nama —</option>
+            </select>
+          </label>
+          <input type="hidden" name="alumniId" id="webAlumniSelect" value="">
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary" type="submit">Simpan website</button>
             <button class="btn btn-ghost" type="button" id="webPreview">Preview card</button>
@@ -108,7 +125,7 @@
 <div id="webList" class="admin-list"></div>
       </section>
       <section data-panel="alumni" class="summary-card admin-pane" hidden>
-        <h3>Alumni / santriwati (CRUD)</h3>
+        <h3>Siswa / santriwati</h3>
         <form id="alumniForm" style="display:grid;gap:10px;margin-top:12px">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Nama</span><input name="name" required placeholder="Nama lengkap"></label>
@@ -134,7 +151,7 @@
 <div id="alumniList" class="admin-list"></div>
       </section>
       <section data-panel="angkatan" class="summary-card admin-pane" hidden>
-        <h3>Angkatan (CRUD)</h3>
+        <h3>Angkatan</h3>
         <form id="angForm" style="display:grid;gap:10px;margin-top:12px;max-width:420px">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Label angkatan</span><input name="label" required placeholder="Angkatan 2025"></label>

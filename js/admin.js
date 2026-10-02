@@ -3,6 +3,7 @@
   const $$ = (s) => document.querySelectorAll(s);
   let selectedUser = null;
   let alumniCache = [];
+  let alumniAllCache = [];
   let angkatanCache = [];
   let videoCache = [];
   let webCache = [];
@@ -483,6 +484,13 @@
         alumniId: fd.get("alumniId"),
       };
       try {
+        if (!payload.alumniId) {
+          payload.alumniId = await resolveOwnerAlumniId(
+            fd.get("ownerYear"),
+            fd.get("ownerClass"),
+            fd.get("ownerName")
+          );
+        }
         await GalleryDB.adminUpsertWebsite(payload);
         $("#webStatus").textContent = payload.id ? "Website diperbarui." : "Website ditambah.";
         ev.target.reset();
@@ -609,6 +617,11 @@
   async function refreshVideos() {
     const rows = await GalleryDB.listVideos();
     videoCache = rows || [];
+    function countDeep(obj) {
+      if (Array.isArray(obj)) return obj.length;
+      if (!obj || typeof obj !== "object") return 0;
+      return Object.keys(obj).reduce((n, k) => n + countDeep(obj[k]), 0);
+    }
     // siapkan meta siswa
     let students = [];
     try {
@@ -671,19 +684,19 @@
                     })
                     .join("");
                   return `<div class="pt-node">
-                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong></div>
+                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y][c])})</small></div>
                     <div class="pt-children" data-parent="v-${esc(cat)}-${esc(y)}-${esc(c)}">${nHtml}</div>
                   </div>`;
                 })
                 .join("");
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong></div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y])})</small></div>
                 <div class="pt-children" data-parent="v-${esc(cat)}-${esc(y)}">${cHtml}</div>
               </div>`;
             })
             .join("");
           return `<div class="pt-node" style="margin-bottom:12px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-cat-${esc(cat)}">▾</button><strong>${esc(cat)}</strong></div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-cat-${esc(cat)}">▾</button><strong>${esc(cat)}</strong> <small class="muted pt-count">(${countDeep(root[cat])})</small></div>
             <div class="pt-children" data-parent="v-cat-${esc(cat)}">${yHtml}</div>
           </div>`;
         })
@@ -718,16 +731,105 @@
   }
 
   async function fillAlumniSelects() {
-    const sel = $("#webAlumniSelect");
-    if (!sel) return;
-    const cur = sel.value;
-    sel.innerHTML =
-      '<option value="">— pilih alumni —</option>' +
-      alumniCache
-        .map((a) => `<option value="${a.id}">${esc(a.name)} · K${esc(a.class_code || "?")}</option>`)
-        .join("");
-    if (cur) sel.value = cur;
+    const angSel = $("#alumniAngSelect");
+    if (angSel) {
+      const curA = angSel.value;
+      const angs = angkatanCache.length ? angkatanCache : await GalleryDB.adminListAngkatanAll();
+      angkatanCache = angs || angkatanCache;
+      angSel.innerHTML =
+        '<option value="">— pilih —</option>' +
+        (angkatanCache || [])
+          .map((x) => `<option value="${x.id}">${esc(x.label)}</option>`)
+          .join("");
+      if (curA) angSel.value = curA;
+    }
+    await loadRoster();
+    bindWebOwnerPickers();
   }
+
+  function bindWebOwnerPickers() {
+    const ySel = $("#webOwnerYear");
+    const cSel = $("#webOwnerClass");
+    const nSel = $("#webOwnerName");
+    const hid = $("#webAlumniSelect");
+    if (!ySel || !cSel || !nSel) return;
+    const syncAlumniId = () => {
+      if (!hid) return;
+      const name = nSel.value;
+      const y = ySel.value;
+      const c = cSel.value;
+      const hit = (alumniAllCache || alumniCache || []).find((al) => {
+        const ang = al.gallery_angkatan || {};
+        const m = String(ang.label || "").match(/20\d{2}/);
+        const yy = m ? m[0] : "";
+        return (
+          String(al.name || "").toLowerCase() === name.toLowerCase() &&
+          yy === y &&
+          String(al.class_code || "") === String(c)
+        );
+      });
+      hid.value = hit ? hit.id : "";
+    };
+    const refreshNames = () => {
+      const y = ySel.value;
+      const c = cSel.value;
+      const names = ((rosterCache[y] || {})[c] || []).slice();
+      (alumniAllCache || alumniCache || []).forEach((al) => {
+        const ang = al.gallery_angkatan || {};
+        const m = String(ang.label || "").match(/20\d{2}/);
+        const yy = m ? m[0] : "";
+        if (yy === y && String(al.class_code) === String(c) && al.name && !names.includes(al.name)) {
+          names.push(al.name);
+        }
+      });
+      names.sort((a, b) => a.localeCompare(b, "id"));
+      const cur = nSel.value;
+      nSel.innerHTML =
+        '<option value="">— pilih nama —</option>' +
+        names.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+      if (cur && names.includes(cur)) nSel.value = cur;
+      syncAlumniId();
+    };
+    ySel.onchange = refreshNames;
+    cSel.onchange = refreshNames;
+    nSel.onchange = syncAlumniId;
+    refreshNames();
+  }
+
+  async function resolveOwnerAlumniId(year, classCode, name) {
+    name = String(name || "").trim();
+    if (!name) throw new Error("Pilih nama siswa");
+    await loadRoster();
+    let angs = angkatanCache.length ? angkatanCache : await GalleryDB.adminListAngkatanAll();
+    angkatanCache = angs || [];
+    let ang = angkatanCache.find((x) => String(x.label || "").includes(String(year)));
+    if (!ang) {
+      ang = await GalleryDB.adminUpsertAngkatan({ label: "Angkatan " + year });
+      await refreshAngkatan();
+      ang = angkatanCache.find((x) => String(x.label || "").includes(String(year))) || ang;
+    }
+    const hit = (alumniAllCache || alumniCache || []).find((al) => {
+      const ag = al.gallery_angkatan || {};
+      const m = String(ag.label || "").match(/20\d{2}/);
+      const yy = m ? m[0] : "";
+      return (
+        String(al.name || "").toLowerCase() === name.toLowerCase() &&
+        yy === String(year) &&
+        String(al.class_code || "") === String(classCode)
+      );
+    });
+    if (hit) return hit.id;
+    const created = await GalleryDB.adminUpsertAlumni({
+      name,
+      angkatanId: ang.id,
+      classCode: String(classCode),
+      role: "Santriwati",
+    });
+    await refreshAlumni();
+    const again = (alumniCache || []).find((x) => String(x.name || "").toLowerCase() === name.toLowerCase());
+    return (created && created.id) || (again && again.id);
+  }
+
 
   async function refreshWebs() {
     const rows = await GalleryDB.adminListWebsites();
@@ -813,6 +915,20 @@
         f.querySelector("[name=url]").value = w.url || "";
         f.querySelector("[name=category]").value = w.category || "";
         if (w.alumni_id) f.querySelector("[name=alumniId]").value = w.alumni_id;
+        const al = (alumniAllCache || alumniCache || []).find((x) => String(x.id) === String(w.alumni_id));
+        if (al) {
+          const ang = al.gallery_angkatan || {};
+          const m = String(ang.label || "").match(/20\d{2}/);
+          const ySel = f.querySelector("[name=ownerYear]");
+          const cSel = f.querySelector("[name=ownerClass]");
+          const nSel = f.querySelector("[name=ownerName]");
+          if (ySel && m) ySel.value = m[0];
+          if (cSel) cSel.value = al.class_code || "51";
+          bindWebOwnerPickers();
+          if (nSel) nSel.value = al.name || "";
+        } else {
+          bindWebOwnerPickers();
+        }
         $("#webStatus").textContent = "Mode edit";
         scrollToForm("#webForm");
       })
@@ -822,8 +938,9 @@
 
   async function refreshAlumni() {
     const rows = await GalleryDB.adminListAlumni();
-    // hanya yang sudah status alumni resmi (Juli tahun+3)
-    alumniCache = (rows || []).filter((a) => {
+    alumniAllCache = rows || [];
+    // list tab: hanya alumni resmi (Juli tahun+3)
+    alumniCache = alumniAllCache.filter((a) => {
       const ang = a.gallery_angkatan || {};
       const m = String(ang.label || "").match(/20\d{2}/);
       const year = m ? m[0] : "";
@@ -872,7 +989,7 @@
             <div class="pt-children" data-parent="al-y-${esc(y)}">${cHtml}</div>
           </div>`;
         })
-        .join("") || "<p class='muted'>Belum ada data alumni resmi. Angkatan 2024 alumni Juli 2027; angkatan 2025 alumni Juli 2028.</p>";
+        .join("") || "<p class='muted'>Belum ada data alumni resmi (Angkatan 2024 → Juli 2027; 2025 → Juli 2028).</p>";
     treeToggleBind($("#alumniList"));
     bindListSearch("#alumniSearch", "#alumniList");
     $$("#alumniList [data-del-al]").forEach((b) =>
@@ -1184,9 +1301,9 @@
     if (sum) {
       let extra = "";
       if (cov) extra = coverageSummaryHtml(cov);
-      sum.innerHTML =
-        `<div><strong>${rows.length}</strong> akun Google · <strong>${linked.length}</strong> sudah pilih nama siswa · <strong>${unlinked}</strong> akun belum pilih nama</div>` +
-        extra;
+      sum.innerHTML = extra || (
+        `<div class="cov-accounts muted">Akun Google: <b>${rows.length}</b> · sudah pilih nama <b>${linked.length}</b> · belum <b>${unlinked}</b></div>`
+      );
     }
     // tree: linked by year/class, then unlinked
     const tree = {};

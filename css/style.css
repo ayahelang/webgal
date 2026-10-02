@@ -748,3 +748,61 @@ body{padding-bottom:72px}
   flex:0 0 auto;
   white-space:nowrap;
 }
+
+
+/* Counts & meta: dekat judul tree (bukan ujung kanan) — desktop */
+.pt-row{
+  display:flex !important;
+  align-items:center !important;
+  gap:8px !important;
+  flex-wrap:nowrap !important;
+  width:100%;
+  justify-content:flex-start !important;
+}
+.pt-row > strong{
+  flex:0 1 auto !important;
+  min-width:0;
+}
+.pt-row > .muted,
+.pt-row > small.muted,
+.pt-row .pt-count{
+  margin-left:0.4em !important;
+  flex:0 0 auto !important;
+  white-space:nowrap !important;
+  font-size:12px;
+}
+
+/* Angkatan form actions satu baris di desktop */
+#angForm, #alumniForm, #webForm, #videoForm{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:10px;
+  align-items:end;
+}
+#angForm .field:first-child{grid-column:1 / span 1}
+.admin-form-actions{
+  display:flex;flex-wrap:nowrap;gap:8px;align-items:center;
+  grid-column:auto;
+}
+@media (min-width:900px){
+  .admin-form-actions{flex-wrap:nowrap}
+  .muted.one-line-desktop,
+  #alumniList > p.muted,
+  .admin-pane > p.muted.lead-msg{
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .sync-help{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;align-items:start}
+  .sync-actions{display:flex;flex-wrap:wrap;gap:8px}
+  #userLinkSummary .link-coverage-box{max-width:100%}
+  .user-row-main{display:flex;flex-wrap:nowrap;gap:8px;align-items:baseline}
+  .user-row-main .user-extra{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
+@media (max-width:720px){
+  .pt-row{flex-wrap:wrap !important}
+  .admin-form-actions{flex-wrap:wrap}
+  .muted.one-line-desktop,
+  #alumniList > p.muted{white-space:normal}
+  .sync-help{grid-template-columns:1fr}
+}
