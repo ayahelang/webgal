@@ -312,16 +312,46 @@
         <p id="syncMsg" class="muted" style="font-size:13px;margin-top:10px"></p>
         <pre id="syncLog" class="muted" style="font-size:11px;white-space:pre-wrap;max-height:200px;overflow:auto"></pre>
       </section>
+      
+      <section data-panel="designs" class="summary-card admin-pane" hidden>
+        <h3>Galeri Desain Grafis</h3>
+        <p class="muted" style="font-size:13px">Hotlink gambar saja (tidak diunggah ke database). Mirip galeri video.</p>
+        <form id="designForm" class="ann-form">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Judul</span><input name="title" required placeholder="Judul karya"></label>
+          <label class="field"><span>URL gambar</span><input name="image_url" type="url" required placeholder="https://…"></label>
+          <label class="field"><span>Kategori</span><input name="category" placeholder="Poster / Logo / Feed" value="Umum"></label>
+          <label class="field"><span>Pembuat</span><input name="author_name" placeholder="Nama"></label>
+          <label class="field" style="grid-column:1/-1"><span>Deskripsi</span><textarea name="description" rows="2" placeholder="Ringkas"></textarea></label>
+          <div class="admin-form-actions" style="grid-column:1/-1">
+            <button type="button" class="btn btn-primary" id="designSave">Simpan karya</button>
+            <button type="button" class="btn btn-ghost" id="designReset">Batal</button>
+          </div>
+        </form>
+        <p id="designMsg" class="muted" style="font-size:13px"></p>
+        <div id="designList" class="admin-list" style="margin-top:12px"></div>
+      </section>
+
       <section data-panel="users" class="summary-card admin-pane" hidden>
         <p id="userLinkSummary" class="muted" style="font-size:13px;margin:0 0 10px"></p>
-        <h3>User Google & undangan admin</h3>
-        <p class="muted" style="font-size:13px">Klik pengguna → centang hak akses → jadikan admin tambahan. User terdaftar: riwayat chat tidak dihapus setelah 7 hari.</p>
-                <label class="field admin-search-wrap" style="margin:12px 0 8px">
+        <h3>User Google · peran · hak akses</h3>
+        <p class="muted" style="font-size:13px">Tunjuk sebagai <b>siswa</b> (taut nama) atau <b>pengajar</b>, lalu centang privilege tab admin. Admin utama bisa hapus akun yang belum disetujui.</p>
+        <div class="summary-card" style="margin:10px 0;padding:12px">
+          <h4 style="margin:0 0 8px;font-size:14px">Bersih-bersih akun belum disetujui</h4>
+          <p class="muted" style="font-size:12px;margin:0 0 8px">Akun Gmail yang belum ditunjuk pengajar dan belum tertaut sebagai murid.</p>
+          <label class="check"><input type="checkbox" id="userCleanupSelectAll"> Pilih semua di list bawah (belum disetujui)</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+            <button type="button" class="btn btn-primary" id="userCleanupDelete">Hapus yang dicentang</button>
+            <label class="check" style="margin:0"><input type="checkbox" id="userAutoCleanup"> Auto-hapus di masa depan (setiap Kamis &amp; Minggu 23:00 — via cron/edge)</label>
+          </div>
+          <p id="userCleanupMsg" class="muted" style="font-size:12px;margin:8px 0 0"></p>
+        </div>
+        <label class="field admin-search-wrap" style="margin:12px 0 8px">
           <span>Cari di list</span>
           <input type="search" id="userSearch" class="admin-list-search" placeholder="Cari nama, email, tautan…" autocomplete="off">
         </label>
-<div id="userList" class="admin-list"></div>
-</section>
+        <div id="userList" class="admin-list"></div>
+      </section>
     </div>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

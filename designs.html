@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Galeri desain grafis santriwati SMA PMA — Silverhawk Gallery">
+  <meta property="og:title" content="Galeri Desain Grafis — Silverhawk">
+  <meta property="og:image" content="https://webgal.silverhawk.web.id/assets/og-cover.png">
+  <title>Galeri Desain Grafis — Silverhawk</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-skills" data-shlock-mode="normal" data-shlock-domain="webgal.silverhawk.web.id" data-shlock-brand="Silverhawk Gallery" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
+  <div class="bg-grid"></div>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Desain Grafis</small></span></a>
+    <nav class="topnav">
+      <a href="index.html">Gallery</a>
+      <a href="videos.html">Video</a>
+      <a href="designs.html" class="active">Desain</a>
+      <a href="skills.html">Skills</a>
+      <a href="refleksi.html">Nilai Proses</a>
+      <a href="stats.html">Statistik</a>
+      <a href="absensi.html">Absensi</a>
+      <a href="chat.html">Chat</a>
+      <a href="about.html">About</a>
+      <a href="support.html">Support Us</a>
+      <a href="profile.html">Profil</a>
+      <a href="admin.html" class="nav-admin" title="Admin">Admin</a>
+    </nav>
+  </header>
+  <main class="skills-main">
+    <section class="skills-hero" style="margin-bottom:14px">
+      <div class="eyebrow">DESAIN GRAFIS</div>
+      <h1>Karya visual santriwati</h1>
+      <p class="skills-lead">Koleksi poster, feed, logo, dan eksperimen desain — gambar dihosting eksternal (hotlink).</p>
+    </section>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px">
+      <input id="designSearch" type="search" placeholder="Cari judul, pembuat, deskripsi…" style="flex:1;min-width:220px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:#e8f4f8">
+    </div>
+    <div class="filters" id="designFilters" style="margin-bottom:10px">
+      <button type="button" class="filter active" data-cat="all">Semua</button>
+    </div>
+    <p class="muted" id="designResultInfo" style="margin:0 0 14px;font-size:13px"></p>
+    <div id="designGrid" class="video-grid"></div>
+    <p id="designEmpty" class="muted" hidden>Belum ada karya desain.</p>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data/supabase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/profile-status.js"></script>
+  <script src="js/auth-ui.js"></script>
+  <script src="js/designs.js"></script>
+  <script src="js/share.js"></script>
+  <script src="js/stats-float.js"></script>
+  <script src="https://silverhawk.web.id/lock/lock.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/announce.js"></script>
+</body>
+</html>

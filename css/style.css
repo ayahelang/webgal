@@ -1750,26 +1750,30 @@ html{
 
 
 
-/* Absensi admin session row */
+/* Absensi admin session row — satu baris */
 .att-sess-row{
-  align-items:stretch!important;
-  flex-direction:column!important;
-  display:block!important;
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  gap:12px;
+  flex-wrap:wrap;
 }
-.att-sess-main{width:100%;display:flex;flex-direction:column;gap:8px}
-.att-sess-head{
-  display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 16px;
-  align-items:flex-start;
+.att-sess-main{
+  width:100%;
+  display:grid;
+  grid-template-columns: minmax(120px,1.4fr) auto minmax(200px,auto);
+  gap:10px 14px;
+  align-items:center;
 }
-.att-sess-title{flex:1 1 180px;min-width:0}
-.att-sess-title strong{font-size:15px}
+.att-sess-head{display:contents}
+.att-sess-title{min-width:0}
+.att-sess-title strong{font-size:15px;display:inline}
 .att-sess-times{
-  display:flex;flex-direction:column;align-items:flex-end;gap:2px;
-  font-size:12px;line-height:1.35;flex:0 0 auto;
+  display:flex;flex-direction:column;gap:2px;
+  font-size:12px;line-height:1.35;white-space:nowrap;
 }
 .att-sess-actions{
-  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
-  width:100%;
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end;
 }
 .att-sess-actions .btn-xs,
 .att-sess-actions button{
@@ -1777,7 +1781,8 @@ html{
   border:1px solid var(--line);background:rgba(0,0,0,.2);color:#c5d8e0;cursor:pointer;
 }
 .att-sess-detail{
-  display:block;width:100%;
+  grid-column:1 / -1;
+  width:100%;
   margin:0;padding:12px;border-radius:12px;
   border:1px solid var(--line);background:rgba(0,0,0,.22);font-size:13px;
   box-sizing:border-box;
@@ -1786,7 +1791,6 @@ html{
 .att-stat-block{margin:8px 0}
 .att-stat-class{margin:6px 0 6px 4px}
 .att-stat-class ul{margin:4px 0 0 16px;padding:0}
-.att-stat-class li{margin:3px 0}
 .att-name-list{list-style:none;margin-left:0!important;padding-left:0!important}
 .att-name-item{margin:4px 0}
 .att-name-btn{
@@ -1798,10 +1802,8 @@ html{
   margin:6px 0 8px 8px;padding:10px 12px;border-radius:10px;
   border:1px solid var(--line);background:rgba(0,0,0,.35);font-size:12px;line-height:1.45;
 }
-.att-note-text{color:#c5d8e0}
 .att-info-panel ul{margin:8px 0 0 18px}
-@media (max-width:560px){
-  .att-sess-times{align-items:flex-start;width:100%}
-  .att-sess-head{flex-direction:column}
+@media (max-width:720px){
+  .att-sess-main{grid-template-columns:1fr; }
+  .att-sess-actions{justify-content:flex-start}
 }
-

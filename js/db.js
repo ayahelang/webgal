@@ -1346,7 +1346,7 @@
     return data || [];
   }
 
-  async function setUserAdmin(userId, { isAdmin, permissions }) {
+  async function setUserAdmin(userId, { isAdmin, permissions, role }) {
     const sb = client();
     if (!(await hasPermission("manage_admins")) && !(await isCurrentUserAdmin())) {
       // main allowlist always can
@@ -1358,6 +1358,7 @@
       .update({
         is_admin: !!isAdmin,
         permissions: permissions || {},
+        ...(role !== undefined ? { role: role || "" } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("id", userId)
@@ -2454,6 +2455,117 @@
     return data;
   }
 
+
+  async function listDesigns() {
+    const sb = client();
+    if (!sb) return [];
+    const { data, error } = await sb.from("gallery_designs").select("*").eq("active", true).order("created_at", { ascending: false });
+    if (error) {
+      console.warn(error);
+      return [];
+    }
+    return data || [];
+  }
+
+  async function adminListDesigns() {
+    const sb = client();
+    if (!sb) return [];
+    if (!(await isCurrentUserAdmin()) && !(await hasPermission("designs"))) throw new Error("Tidak berhak");
+    const { data, error } = await sb.from("gallery_designs").select("*").order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function upsertDesign(payload) {
+    const sb = client();
+    const session = await getSession();
+    if (!sb || !session) throw new Error("Login dulu");
+    if (!(await isCurrentUserAdmin()) && !(await hasPermission("designs")) && !(await hasPermission("websites"))) {
+      throw new Error("Tidak berhak mengelola desain");
+    }
+    const row = {
+      title: String(payload.title || "").trim().slice(0, 200),
+      image_url: String(payload.image_url || "").trim().slice(0, 500),
+      category: String(payload.category || "Umum").trim().slice(0, 80),
+      description: String(payload.description || "").trim().slice(0, 500),
+      author_name: String(payload.author_name || "").trim().slice(0, 120),
+      author_user_id: session.user.id,
+      active: payload.active !== false,
+      updated_at: new Date().toISOString(),
+    };
+    if (!row.title || !row.image_url) throw new Error("Judul dan URL gambar wajib");
+    if (payload.id) {
+      const { data, error } = await sb.from("gallery_designs").update(row).eq("id", payload.id).select("*").single();
+      if (error) throw error;
+      return data;
+    }
+    const { data, error } = await sb.from("gallery_designs").insert(row).select("*").single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function deleteDesign(id) {
+    if (!(await isCurrentUserAdmin()) && !(await hasPermission("designs"))) throw new Error("Tidak berhak");
+    const sb = client();
+    const { error } = await sb.from("gallery_designs").delete().eq("id", id);
+    if (error) throw error;
+  }
+
+  async function deleteUserProfiles(ids) {
+    if (!(await isCurrentUserAdmin())) throw new Error("Hanya admin utama");
+    const sb = client();
+    const list = (ids || []).filter(Boolean);
+    if (!list.length) return { removed: 0 };
+    // jangan hapus admin
+    const { data: admins } = await sb.from("gallery_profiles").select("id,is_admin,email").in("id", list);
+    const safe = (admins || []).filter((u) => !u.is_admin).map((u) => u.id);
+    if (!safe.length) return { removed: 0, skippedAdmin: true };
+    const { error } = await sb.from("gallery_profiles").delete().in("id", safe);
+    if (error) throw error;
+    return { removed: safe.length };
+  }
+
+  async function setUserRole(userId, role) {
+    if (!(await isCurrentUserAdmin())) throw new Error("Hanya admin");
+    const sb = client();
+    const session = await getSession();
+    const r = String(role || "").toLowerCase();
+    if (r && r !== "student" && r !== "teacher") throw new Error("Peran tidak valid");
+    const { data, error } = await sb
+      .from("gallery_profiles")
+      .update({
+        role: r,
+        approved_at: r ? new Date().toISOString() : null,
+        approved_by: r && session && session.user ? session.user.id : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function setAppSetting(key, value) {
+    if (!(await isCurrentUserAdmin())) throw new Error("Hanya admin");
+    const sb = client();
+    const { data, error } = await sb
+      .from("gallery_app_settings")
+      .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function getAppSetting(key) {
+    const sb = client();
+    if (!sb) return null;
+    const { data } = await sb.from("gallery_app_settings").select("*").eq("key", key).maybeSingle();
+    return data;
+  }
+
+
   global.GalleryDB = {
     enabled,
     client,
@@ -2539,6 +2651,14 @@
     listActiveAttendanceSessions,
     myAttendanceRecords,
     listAttendanceRecords,
+    listDesigns,
+    adminListDesigns,
+    upsertDesign,
+    deleteDesign,
+    deleteUserProfiles,
+    setUserRole,
+    setAppSetting,
+    getAppSetting,
     submitAttendanceCheckin,
     submitAttendanceCheckout,
     canManageAttendance,

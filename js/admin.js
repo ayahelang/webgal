@@ -1379,6 +1379,7 @@
         if (tab === "angkatan") refreshAngkatan().catch(console.warn);
         if (tab === "links") refreshLinks().catch(console.warn);
         if (tab === "users") refreshUsers().catch(console.warn);
+        if (tab === "designs") { bindDesignsAdmin(); refreshDesigns().catch(console.warn); }
         if (tab === "announce") refreshAnnouncements().catch(console.warn);
         if (tab === "attendance") { refreshAttendance().catch(console.warn); buildStudentCheckTree("#attStudentTree"); }
       })
@@ -1387,6 +1388,7 @@
     bindForms(session);
     bindAnnouncementForm();
     bindAttendanceAdmin();
+    bindDesignsAdmin();
     const msg = () => $("#syncMsg");
     const log = () => $("#syncLog");
     const sheetId = () => (($("#syncSheetId") && $("#syncSheetId").value) || "").trim();
@@ -2389,6 +2391,137 @@
     }
   }
 
+
+  function bindUserCleanup() {
+    const selAll = $("#userCleanupSelectAll");
+    if (selAll && !selAll.dataset.bound) {
+      selAll.dataset.bound = "1";
+      selAll.addEventListener("change", () => {
+        $$(".user-cleanup-cb").forEach((cb) => { cb.checked = selAll.checked; });
+      });
+    }
+    const del = $("#userCleanupDelete");
+    if (del && !del.dataset.bound) {
+      del.dataset.bound = "1";
+      del.addEventListener("click", async () => {
+        const ids = $$(".user-cleanup-cb:checked").map((c) => c.getAttribute("data-cleanup-id")).filter(Boolean);
+        const msg = $("#userCleanupMsg");
+        if (!ids.length) {
+          if (msg) msg.textContent = "Centang dulu akun yang akan dihapus.";
+          return;
+        }
+        if (!confirm("Hapus " + ids.length + " akun belum disetujui dari database profil?")) return;
+        try {
+          const r = await GalleryDB.deleteUserProfiles(ids);
+          if (msg) msg.textContent = "Dihapus: " + (r.removed || 0) + " akun.";
+          await refreshUsers();
+        } catch (e) {
+          if (msg) msg.textContent = e.message || String(e);
+        }
+      });
+    }
+    const auto = $("#userAutoCleanup");
+    if (auto && !auto.dataset.bound) {
+      auto.dataset.bound = "1";
+      GalleryDB.getAppSetting("auto_cleanup_unapproved").then((s) => {
+        if (s && s.value && s.value.enabled) auto.checked = true;
+      }).catch(() => {});
+      auto.addEventListener("change", async () => {
+        try {
+          await GalleryDB.setAppSetting("auto_cleanup_unapproved", {
+            enabled: auto.checked,
+            schedule: "Thu 23:00 & Sun 23:00 Asia/Jakarta",
+          });
+          const msg = $("#userCleanupMsg");
+          if (msg) msg.textContent = auto.checked ? "Auto-hapus diaktifkan (perlu cron/edge function di server)." : "Auto-hapus dimatikan.";
+        } catch (e) {
+          const msg = $("#userCleanupMsg");
+          if (msg) msg.textContent = e.message || String(e);
+        }
+      });
+    }
+  }
+
+  async function refreshDesigns() {
+    const host = $("#designList");
+    if (!host) return;
+    try {
+      const rows = await GalleryDB.adminListDesigns();
+      host.innerHTML =
+        rows
+          .map(
+            (r) => `<div class="admin-row">
+              <div style="display:flex;gap:10px;align-items:center">
+                <img src="${esc(r.image_url)}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;background:#111">
+                <div><strong>${esc(r.title)}</strong><br><small class="muted">${esc(r.category)} · ${esc(r.author_name || "—")}</small></div>
+              </div>
+              <div style="display:flex;gap:6px">
+                <button type="button" data-edit-design="${r.id}">Ubah</button>
+                <button type="button" data-del-design="${r.id}">Hapus</button>
+              </div>
+            </div>`
+          )
+          .join("") || "<p class='muted'>Belum ada karya desain.</p>";
+      const all = rows;
+      $$("#designList [data-del-design]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          if (!confirm("Hapus karya ini?")) return;
+          await GalleryDB.deleteDesign(b.dataset.delDesign);
+          await refreshDesigns();
+        })
+      );
+      $$("#designList [data-edit-design]").forEach((b) =>
+        b.addEventListener("click", () => {
+          const r = all.find((x) => String(x.id) === String(b.dataset.editDesign));
+          if (!r) return;
+          const f = $("#designForm");
+          f.querySelector("[name=id]").value = r.id;
+          f.querySelector("[name=title]").value = r.title || "";
+          f.querySelector("[name=image_url]").value = r.image_url || "";
+          f.querySelector("[name=category]").value = r.category || "Umum";
+          f.querySelector("[name=author_name]").value = r.author_name || "";
+          f.querySelector("[name=description]").value = r.description || "";
+          $("#designMsg").textContent = "Mode edit: " + (r.title || "");
+        })
+      );
+    } catch (e) {
+      host.innerHTML = "<p class='muted'>" + esc(e.message || e) + "</p>";
+    }
+  }
+
+  function bindDesignsAdmin() {
+    const save = $("#designSave");
+    if (!save || save.dataset.bound) return;
+    save.dataset.bound = "1";
+    save.addEventListener("click", async () => {
+      const f = $("#designForm");
+      const msg = $("#designMsg");
+      try {
+        await GalleryDB.upsertDesign({
+          id: f.querySelector("[name=id]").value || null,
+          title: f.querySelector("[name=title]").value,
+          image_url: f.querySelector("[name=image_url]").value,
+          category: f.querySelector("[name=category]").value,
+          author_name: f.querySelector("[name=author_name]").value,
+          description: f.querySelector("[name=description]").value,
+        });
+        if (msg) msg.textContent = "Karya disimpan.";
+        f.reset();
+        f.querySelector("[name=id]").value = "";
+        await refreshDesigns();
+      } catch (e) {
+        if (msg) msg.textContent = e.message || String(e);
+      }
+    });
+    $("#designReset") &&
+      ($("#designReset").onclick = () => {
+        $("#designForm").reset();
+        $("#designForm [name=id]").value = "";
+        $("#designMsg").textContent = "";
+      });
+  }
+
+
   async function refreshUsers() {
     await loadRoster();
     const rows = await GalleryDB.listRegisteredUsers();
@@ -2436,7 +2569,8 @@
         ? (window.SHStatus ? SHStatus.compute(u.linked_angkatan_year).label : "Taut")
         : "Belum tautkan";
       const keys = Object.keys((u.permissions && typeof u.permissions === "object" ? u.permissions : {}) || {});
-      const permKeys = keys.length ? keys : ["videos", "websites", "alumni", "users", "angkatan", "manage_attendance", "announce"];
+      const ALL_PERMS = ["videos", "websites", "designs", "alumni", "users", "angkatan", "manage_attendance", "announce", "sync"];
+      const permKeys = ALL_PERMS;
       const permHtml = permKeys
         .map(
           (k) =>
@@ -2448,21 +2582,30 @@
       const taut = u.linked_student_name
         ? ` · ${esc(u.linked_student_name)} · ${esc(u.linked_angkatan_year || "")} K${esc(u.linked_class_code || "")}`
         : "";
+      const unapproved = !u.is_admin && !(u.linked_student_name && String(u.linked_student_name).trim()) && u.role !== "teacher" && u.role !== "student";
+      const roleLab = u.is_admin ? "admin" : u.role === "teacher" ? "pengajar" : u.linked_student_name ? "siswa" : "belum disetujui";
       return `<div class="pt-node user-node" data-uid="${u.id}">
         <div class="admin-row user-row-compact" data-toggle-user="${u.id}">
           <div class="user-row-main">
+            ${unapproved ? `<label class="check" style="margin:0" onclick="event.stopPropagation()"><input type="checkbox" class="user-cleanup-cb" data-cleanup-id="${u.id}"></label>` : ""}
             ${u.avatar_url ? `<img class="user-row-av" src="${esc(u.avatar_url)}" alt="">` : `<span class="user-row-av user-row-av-ph">👤</span>`}
             <div class="user-row-text">
-              <strong>${esc(u.display_name || u.email)}</strong>${u.is_admin ? ' <em class="user-admin-tag">Admin</em>' : ""}
+              <strong>${esc(u.display_name || u.email)}</strong>${u.is_admin ? ' <em class="user-admin-tag">Admin</em>' : ""} <em class="muted" style="font-size:11px">(${esc(roleLab)})</em>
               <span class="user-row-meta">${esc(u.email)} · ${esc(st)}${taut}</span>
             </div>
           </div>
           <button type="button" class="btn-atur" data-toggle-user-btn="${u.id}">Atur</button>
         </div>
         <div class="user-perm-panel is-collapsed" data-parent-user="${u.id}">
-          <label class="user-perm-item"><input type="checkbox" data-is-admin ${u.is_admin ? "checked" : ""}> Jadikan admin</label>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+            <label class="user-perm-item"><input type="radio" name="role-${u.id}" data-role="student" ${u.role === "student" || u.linked_student_name ? "checked" : ""}> Siswa</label>
+            <label class="user-perm-item"><input type="radio" name="role-${u.id}" data-role="teacher" ${u.role === "teacher" ? "checked" : ""}> Pengajar</label>
+            <label class="user-perm-item"><input type="radio" name="role-${u.id}" data-role="" ${!u.role && !u.linked_student_name ? "checked" : ""}> Belum ditunjuk</label>
+          </div>
+          <label class="user-perm-item"><input type="checkbox" data-is-admin ${u.is_admin ? "checked" : ""}> Jadikan admin (penuh)</label>
+          <p class="muted" style="font-size:11px;margin:6px 0">Privilege tab admin untuk pengajar:</p>
           <div class="user-perm-grid">${permHtml}</div>
-          <button type="button" class="btn btn-primary" data-save-user="${u.id}" style="margin-top:8px;padding:6px 12px;font-size:12px">Simpan hak akses</button>
+          <button type="button" class="btn btn-primary" data-save-user="${u.id}" style="margin-top:8px;padding:6px 12px;font-size:12px">Simpan peran &amp; hak akses</button>
         </div>
       </div>`;
     }
@@ -2533,7 +2676,9 @@
           permissions[cb.getAttribute("data-perm")] = cb.checked;
         });
         try {
-          await GalleryDB.setUserAdmin(id, { isAdmin, permissions });
+          const roleEl = panel.querySelector("[data-role]:checked") || panel.querySelector("input[data-role]:checked");
+          const role = roleEl ? roleEl.getAttribute("data-role") || "" : "";
+          await GalleryDB.setUserAdmin(id, { isAdmin, permissions, role });
           alert("Hak akses disimpan.");
           await refreshUsers();
         } catch (err) {
