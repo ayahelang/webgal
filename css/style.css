@@ -1402,3 +1402,74 @@ body.page-skills .skills-main{
   font-size:13px;
   cursor:pointer;
 }
+
+/* Unified student picker tree (Absensi + Pengumuman) */
+.sh-stu-tree{
+  width:100%;
+  max-width:100%;
+  padding:12px 14px;
+  border:1px solid rgba(125,227,255,.18);
+  border-radius:14px;
+  background:rgba(0,0,0,.22);
+  box-sizing:border-box;
+}
+.sh-stu-tree.is-collapsed,
+.ann-student-tree.is-collapsed{display:none!important}
+.sh-stu-node{margin:2px 0}
+.sh-stu-year{margin-bottom:6px}
+.sh-stu-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 4px;
+  border-radius:8px;
+}
+.sh-stu-row:hover{background:rgba(255,255,255,.03)}
+.sh-stu-group{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:1;
+  min-width:0;
+  cursor:pointer;
+  font-size:13px;
+  color:#e8f4f8;
+}
+.sh-stu-group strong{font-weight:650}
+.sh-stu-group small{color:#7a96a4;font-weight:500}
+.sh-stu-group input[type=checkbox],
+.sh-stu-leaf input[type=checkbox]{
+  width:16px;height:16px;
+  accent-color:#3b9eff;
+  flex-shrink:0;
+  cursor:pointer;
+  margin:0;
+}
+.sh-stu-kids{
+  padding-left:14px;
+  margin-left:12px;
+  border-left:1px solid rgba(125,227,255,.12);
+}
+.sh-stu-kids.is-collapsed{display:none}
+.sh-stu-leaf{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:5px 4px 5px 28px;
+  font-size:13px;
+  color:#c5d8e0;
+  cursor:pointer;
+  border-radius:6px;
+}
+.sh-stu-leaf:hover{background:rgba(125,227,255,.06);color:#fff}
+.sh-stu-tree .pt-toggle,
+.sh-stu-tree .sh-cb-toggle{
+  width:28px;height:28px;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.05);
+  color:#9db5c0;
+  cursor:pointer;
+  flex-shrink:0;
+  font-size:12px;
+}

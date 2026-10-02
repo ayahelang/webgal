@@ -335,32 +335,26 @@
         b.textContent = kids.classList.contains("is-collapsed") ? "▸" : "▾";
       };
     });
-    function childBoxes(node) {
-      return [...node.querySelectorAll('input[type=checkbox][data-sh-cb]')];
-    }
     function syncParent(cb) {
       let p = cb.closest("[data-sh-children]");
       while (p) {
         const parentRow = p.previousElementSibling;
         const parentCb = parentRow && parentRow.querySelector('input[type=checkbox][data-sh-cb="group"]');
         if (parentCb) {
-          const boxes = childBoxes(p).filter((x) => x.getAttribute("data-sh-cb") === "leaf" || x.getAttribute("data-sh-cb") === "group");
-          // only direct? use all descendant leaves
           const leaves = [...p.querySelectorAll('input[type=checkbox][data-sh-cb="leaf"]')];
           const n = leaves.length;
           const c = leaves.filter((x) => x.checked).length;
           parentCb.checked = n > 0 && c === n;
           parentCb.indeterminate = c > 0 && c < n;
         }
-        const wrap = p.parentElement && p.parentElement.closest("[data-sh-children]");
-        p = wrap;
+        p = p.parentElement && p.parentElement.closest("[data-sh-children]");
       }
     }
     root.querySelectorAll('input[type=checkbox][data-sh-cb]').forEach((cb) => {
       cb.addEventListener("change", () => {
         if (cb.getAttribute("data-sh-cb") === "group") {
-          const row = cb.closest(".pt-row") || cb.closest(".sh-cb-row");
-          const kids = row && row.nextElementSibling && row.nextElementSibling.matches("[data-sh-children]")
+          const row = cb.closest(".sh-stu-row") || cb.closest(".pt-row") || cb.closest(".sh-cb-row");
+          const kids = row && row.nextElementSibling && row.nextElementSibling.hasAttribute("data-sh-children")
             ? row.nextElementSibling
             : null;
           if (kids) {
@@ -407,6 +401,7 @@
     opts = opts || {};
     const host = typeof hostId === "string" ? $(hostId) : hostId;
     if (!host) return;
+    host.classList.add("sh-stu-tree");
     host.innerHTML = "<p class='muted'>Memuat daftar siswa…</p>";
     await loadRoster(true);
     const cov = rosterCache || {};
@@ -418,31 +413,31 @@
     host.innerHTML = years
       .map((y) => {
         const classes = Object.keys(cov[y] || {}).sort();
-        const totalY = classes.reduce((n, c) => n + (cov[y][c] || []).length, 0);
+        const totalY = classes.reduce((n, c) => n + ((cov[y][c] || []).length), 0);
         const cHtml = classes
           .map((c) => {
             const names = (cov[y][c] || []).slice();
             const nHtml = names
               .map(
                 (n) =>
-                  `<label class="sh-cb-row leaf"><input type="checkbox" data-sh-cb="leaf" data-stu="${esc(y)}|${esc(c)}|${esc(n)}"> <span>${esc(n)}</span></label>`
+                  `<label class="sh-stu-leaf"><input type="checkbox" data-sh-cb="leaf" data-stu="${esc(y)}|${esc(c)}|${esc(n)}" data-ann-stu="${esc(y)}|${esc(c)}|${esc(n)}"><span>${esc(n)}</span></label>`
               )
               .join("");
-            return `<div class="pt-node">
-              <div class="pt-row sh-cb-row">
-                <button type="button" class="pt-toggle sh-cb-toggle" data-t="stu-${esc(y)}-${esc(c)}">▸</button>
-                <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong>Kelas ${esc(c)}</strong> <small class="muted">(${names.length})</small></label>
+            return `<div class="sh-stu-node">
+              <div class="sh-stu-row">
+                <button type="button" class="pt-toggle sh-cb-toggle" data-t="stu-${esc(y)}-${esc(c)}" aria-label="buka">▸</button>
+                <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><strong>Kelas ${esc(c)}</strong><small class="muted">(${names.length})</small></label>
               </div>
-              <div class="pt-children is-collapsed" data-sh-children data-parent="stu-${esc(y)}-${esc(c)}">${nHtml}</div>
+              <div class="sh-stu-kids is-collapsed" data-sh-children data-parent="stu-${esc(y)}-${esc(c)}">${nHtml}</div>
             </div>`;
           })
           .join("");
-        return `<div class="pt-node">
-          <div class="pt-row sh-cb-row">
-            <button type="button" class="pt-toggle sh-cb-toggle" data-t="stu-y-${esc(y)}">▾</button>
-            <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong>Angkatan ${esc(y)}</strong> <small class="muted">(${totalY})</small></label>
+        return `<div class="sh-stu-node sh-stu-year">
+          <div class="sh-stu-row">
+            <button type="button" class="pt-toggle sh-cb-toggle" data-t="stu-y-${esc(y)}" aria-label="buka">▾</button>
+            <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><strong>Angkatan ${esc(y)}</strong><small class="muted">(${totalY})</small></label>
           </div>
-          <div class="pt-children" data-sh-children data-parent="stu-y-${esc(y)}">${cHtml}</div>
+          <div class="sh-stu-kids" data-sh-children data-parent="stu-y-${esc(y)}">${cHtml}</div>
         </div>`;
       })
       .join("");
@@ -450,51 +445,11 @@
     if (opts.selected) setTreeStudentTargets(host, opts.selected);
   }
 
-
-  function esc(t) {
-    return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-  }
-
-
   async function buildAnnStudentTree() {
     const host = $("#annStudentTree");
     if (!host) return;
-    host.innerHTML = "<p class='muted'>Memuat daftar siswa…</p>";
-    await loadRoster(true);
-    const cov = rosterCache || {};
-    const years = Object.keys(cov).sort().reverse();
-    if (!years.length) {
-      host.innerHTML = "<p class='muted'>Daftar siswa kosong. Pastikan roster/alumni di database terisi.</p>";
-      return;
-    }
-    host.innerHTML = years
-      .map((y) => {
-        const classes = Object.keys(cov[y] || {}).sort();
-        const cHtml = classes
-          .map((c) => {
-            const names = (cov[y][c] || []).slice();
-            const nHtml = names
-              .map(
-                (n) =>
-                  `<label class="check ann-stu-check"><input type="checkbox" data-sh-cb="leaf" data-ann-stu="${esc(y)}|${esc(c)}|${esc(n)}" data-stu="${esc(y)}|${esc(c)}|${esc(n)}"> <span>${esc(n)}</span></label>`
-              )
-              .join("");
-            return `<div class="pt-node">
-              <div class="pt-row"><button type="button" class="pt-toggle" data-t="ann-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${names.length})</small></div>
-              <div class="pt-children is-collapsed" data-parent="ann-${esc(y)}-${esc(c)}">${nHtml || "<p class='muted'>Kosong</p>"}</div>
-            </div>`;
-          })
-          .join("");
-        return `<div class="pt-node">
-          <div class="pt-row"><button type="button" class="pt-toggle" data-t="ann-y-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${Object.values(cov[y] || {}).reduce((n, arr) => n + (arr || []).length, 0)})</small></div>
-          <div class="pt-children" data-parent="ann-y-${esc(y)}">${cHtml}</div>
-        </div>`;
-      })
-      .join("");
-    treeToggleBind(host);
-    host.dataset.built = "1";
+    await buildStudentCheckTree(host);
   }
-
 
   function readAnnTargets() {
     return [...document.querySelectorAll("[data-ann-stu]:checked")].map((cb) => {
