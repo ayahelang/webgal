@@ -2420,12 +2420,31 @@
     if (e1) throw e1;
     if (!existing || !existing.checkin_at) throw new Error("Belum check-in");
     if (existing.checkout_at) throw new Error("Sudah check-out");
+    let checkout_status = "on_time";
+    try {
+      const { data: sess } = await sb
+        .from("gallery_attendance_sessions")
+        .select("checkout_start,checkout_end,allow_late")
+        .eq("id", sessionId)
+        .maybeSingle();
+      if (sess) {
+        const fmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hour12: false });
+        const parts = Object.fromEntries(fmt.formatToParts(new Date()).map((p) => [p.type, p.value]));
+        const mins = parseInt(parts.hour, 10) * 60 + parseInt(parts.minute, 10);
+        const toMin = (x) => {
+          const p = String(x || "0:0").slice(0, 5).split(":");
+          return parseInt(p[0], 10) * 60 + parseInt(p[1] || 0, 10);
+        };
+        const co1 = toMin(sess.checkout_end);
+        if (mins > co1) checkout_status = "late";
+      }
+    } catch (e) {}
     const { data, error } = await sb
       .from("gallery_attendance_records")
       .update({
         checkout_at: now,
         checkout_note: String(note || "").slice(0, 120),
-        checkout_status: "done",
+        checkout_status,
         updated_at: now,
       })
       .eq("id", existing.id)

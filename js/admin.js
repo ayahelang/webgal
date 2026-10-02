@@ -855,6 +855,24 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
 
+
+  function attFmtTime(iso) {
+    if (!iso) return "—";
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+    } catch (e) {
+      return String(iso).replace("T", " ").slice(0, 16);
+    }
+  }
+
+  function attStatusLabel(kind, status, hasAt) {
+    if (!hasAt) return "belum";
+    if (status === "late") return "terlambat";
+    if (status === "on_time" || status === "done" || !status) return "tepat waktu";
+    return status;
+  }
+
   async function buildSessionStatsHtml(session) {
     const targets = session.target_students || [];
     let records = [];
@@ -868,14 +886,11 @@
       const k = (r.angkatan_year || "") + "|" + (r.class_code || "") + "|" + String(r.student_name || "").toLowerCase().trim();
       byKey[k] = r;
     });
-    // expected list: targets, or unique from records if all_linked
     let expected = targets.slice();
     if (!expected.length) {
-      // fallback: semua yang sudah isi + info audience
       expected = records.map((r) => ({ year: r.angkatan_year, class: r.class_code, name: r.student_name }));
     }
-    const done = [];
-    const late = [];
+    const present = [];
     const missing = [];
     const seen = new Set();
     expected.forEach((t) => {
@@ -883,71 +898,96 @@
       if (seen.has(k)) return;
       seen.add(k);
       const r = byKey[k];
-      if (r && r.checkin_at) {
-        if (r.checkin_status === "late") late.push({ t, r });
-        else done.push({ t, r });
-      } else {
-        missing.push(t);
-      }
+      if (r && r.checkin_at) present.push({ t, r });
+      else missing.push(t);
     });
-    // also people who filled but not in targets
     records.forEach((r) => {
       const k = (r.angkatan_year || "") + "|" + (r.class_code || "") + "|" + String(r.student_name || "").toLowerCase().trim();
       if (!seen.has(k)) {
         seen.add(k);
-        if (r.checkin_status === "late") late.push({ t: { year: r.angkatan_year, class: r.class_code, name: r.student_name }, r });
-        else done.push({ t: { year: r.angkatan_year, class: r.class_code, name: r.student_name }, r });
+        present.push({ t: { year: r.angkatan_year, class: r.class_code, name: r.student_name }, r });
       }
     });
+
+    let nInOk = 0, nInLate = 0, nOutOk = 0, nOutLate = 0, nOutMiss = 0;
+    present.forEach(({ r }) => {
+      if (r.checkin_status === "late") nInLate++;
+      else nInOk++;
+      if (r.checkout_at) {
+        if (r.checkout_status === "late") nOutLate++;
+        else nOutOk++;
+      } else if (session.require_checkout !== false) {
+        nOutMiss++;
+      }
+    });
+
     const group = (arr) => {
       const g = {};
       arr.forEach((item) => {
-        const t = item.t || item;
-        const key = (t.year || "?") + " · K" + (t.class || t.class_code || "?");
+        const t0 = item.t || item;
+        const key = (t0.year || "?") + " · K" + (t0.class || t0.class_code || "?");
         if (!g[key]) g[key] = [];
         g[key].push(item);
       });
       return g;
     };
-    function renderGroup(title, arr, mode) {
-      if (!arr.length) return "<p class='muted' style='margin:4px 0'>" + title + ": —</p>";
+
+    function renderPresent(arr) {
+      if (!arr.length) return "<p class='muted' style='margin:4px 0'>Sudah absen: —</p>";
       const g = group(arr);
-      let h = "<div class='att-stat-block'><strong>" + title + " (" + arr.length + ")</strong>";
-      Object.keys(g)
-        .sort()
-        .forEach((k) => {
-          h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + "</span><ul>";
-          g[k].forEach((item) => {
-            const t = item.t || item;
-            const r = item.r;
-            let extra = "";
-            if (r) {
-              extra =
-                " <small class='muted'>· " +
-                esc(String(r.checkin_at || "").replace("T", " ").slice(0, 16)) +
-                (r.checkin_note ? " · «" + esc(r.checkin_note) + "»" : "") +
-                (r.checkout_note ? " / out: «" + esc(r.checkout_note) + "»" : "") +
-                "</small>";
-            }
-            h += "<li>" + esc(t.name || "") + extra + "</li>";
-          });
-          h += "</ul></div>";
+      let h = "<div class='att-stat-block'><strong>Sudah absen (" + arr.length + ")</strong>";
+      h += "<p class='muted' style='font-size:12px;margin:4px 0 8px'>Klik nama untuk melihat pesan check-in / check-out</p>";
+      Object.keys(g).sort().forEach((k) => {
+        h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + "</span><ul class='att-name-list'>";
+        g[k].forEach((item, idx) => {
+          const t0 = item.t || item;
+          const r = item.r;
+          const uid = "attn-" + String(session.id).slice(0, 8) + "-" + idx + "-" + Math.random().toString(36).slice(2, 7);
+          const inLab = attStatusLabel("in", r.checkin_status, r.checkin_at);
+          const outLab = r.checkout_at ? attStatusLabel("out", r.checkout_status, r.checkout_at) : (session.require_checkout === false ? "tidak wajib" : "belum check-out");
+          h +=
+            "<li class='att-name-item'>" +
+            "<button type='button' class='att-name-btn' data-att-note='" + uid + "'>" +
+            esc(t0.name || "") +
+            " <small class='muted'>(" + esc(inLab) + " / " + esc(outLab) + ")</small>" +
+            "</button>" +
+            "<div class='att-note-pop' id='" + uid + "' hidden>" +
+            "<div><b>Check-in</b> · " + esc(inLab) + " · " + esc(attFmtTime(r.checkin_at)) +
+            "<br><span class='att-note-text'>" + esc(r.checkin_note || "(tidak ada pesan)") + "</span></div>" +
+            "<div style='margin-top:6px'><b>Check-out</b> · " + esc(outLab) + (r.checkout_at ? " · " + esc(attFmtTime(r.checkout_at)) : "") +
+            "<br><span class='att-note-text'>" + esc(r.checkout_note || (r.checkout_at ? "(tidak ada pesan)" : "—")) + "</span></div>" +
+            "</div></li>";
         });
+        h += "</ul></div>";
+      });
       h += "</div>";
       return h;
     }
+
+    function renderMissing(arr) {
+      if (!arr.length) return "<p class='muted' style='margin:4px 0'>Belum absen: —</p>";
+      const g = group(arr.map((t) => ({ t })));
+      let h = "<div class='att-stat-block'><strong>Belum absen (" + arr.length + ")</strong>";
+      Object.keys(g).sort().forEach((k) => {
+        h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + "</span><ul>";
+        g[k].forEach((item) => {
+          h += "<li>" + esc((item.t || item).name || "") + "</li>";
+        });
+        h += "</ul></div>";
+      });
+      h += "</div>";
+      return h;
+    }
+
     return (
       "<div class='att-stats-panel'>" +
-      "<p class='muted' style='font-size:12px;margin:0 0 8px'>Hadir tepat: <b>" +
-      done.length +
-      "</b> · Terlambat: <b>" +
-      late.length +
-      "</b> · Belum: <b>" +
-      missing.length +
-      "</b></p>" +
-      renderGroup("Sudah absen (tepat waktu)", done) +
-      renderGroup("Terlambat", late) +
-      renderGroup("Belum absen", missing.map((t) => ({ t }))) +
+      "<p class='att-stat-summary'>" +
+      "Check-in tepat <b>" + nInOk + "</b> · terlambat <b>" + nInLate + "</b>" +
+      " · Check-out tepat <b>" + nOutOk + "</b> · terlambat <b>" + nOutLate + "</b>" +
+      (session.require_checkout !== false ? " · belum out <b>" + nOutMiss + "</b>" : "") +
+      " · belum absen <b>" + missing.length + "</b></p>" +
+      renderPresent(present) +
+      renderMissing(missing) +
       "</div>"
     );
   }
@@ -971,9 +1011,16 @@
           .map(
             (r) => `<div class="admin-row att-sess-row" data-att-id="${r.id}">
             <div class="att-sess-main">
-              <strong>${esc(r.title || "Sesi absensi")}</strong>
-              <small class="muted"> · ${r.active === false ? "nonaktif" : "aktif"}${r.allow_late ? " · izin terlambat" : ""}</small>
-              <br><small class="muted">Check-in ${esc(String(r.checkin_start || "").slice(0, 5))}–${esc(String(r.checkin_end || "").slice(0, 5))} · Check-out ${esc(String(r.checkout_start || "").slice(0, 5))}–${esc(String(r.checkout_end || "").slice(0, 5))}</small>
+              <div class="att-sess-head">
+                <div class="att-sess-title">
+                  <strong>${esc(r.title || "Sesi absensi")}</strong>
+                  <small class="muted"> · ${r.active === false ? "nonaktif" : "aktif"}${r.allow_late ? " · izin terlambat" : ""}</small>
+                </div>
+                <div class="att-sess-times muted">
+                  <span>Check-in ${esc(String(r.checkin_start || "").slice(0, 5))}–${esc(String(r.checkin_end || "").slice(0, 5))}</span>
+                  <span>Check-out ${esc(String(r.checkout_start || "").slice(0, 5))}–${esc(String(r.checkout_end || "").slice(0, 5))}</span>
+                </div>
+              </div>
               <div class="att-sess-actions">
                 <button type="button" class="btn btn-ghost btn-xs" data-att-stats="${r.id}">Statistik ▾</button>
                 <button type="button" class="btn btn-ghost btn-xs" data-att-info="${r.id}">Info</button>
@@ -1037,6 +1084,15 @@
           b.textContent = "Statistik ▴";
           const r = rows.find((x) => String(x.id) === String(id));
           panel.innerHTML = await buildSessionStatsHtml(r || { id });
+          panel.querySelectorAll("[data-att-note]").forEach((nb) => {
+            nb.addEventListener("click", () => {
+              const pop = document.getElementById(nb.getAttribute("data-att-note"));
+              if (!pop) return;
+              const open = pop.hidden;
+              panel.querySelectorAll(".att-note-pop").forEach((x) => { x.hidden = true; });
+              pop.hidden = !open;
+            });
+          });
         })
       );
       $$("#attSessList [data-att-info]").forEach((b) =>

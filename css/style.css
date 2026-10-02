@@ -1749,21 +1749,59 @@ html{
 }
 
 
+
 /* Absensi admin session row */
-.att-sess-row{align-items:flex-start!important;flex-direction:column}
-.att-sess-main{width:100%}
-.att-sess-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.att-sess-row{
+  align-items:stretch!important;
+  flex-direction:column!important;
+  display:block!important;
+}
+.att-sess-main{width:100%;display:flex;flex-direction:column;gap:8px}
+.att-sess-head{
+  display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 16px;
+  align-items:flex-start;
+}
+.att-sess-title{flex:1 1 180px;min-width:0}
+.att-sess-title strong{font-size:15px}
+.att-sess-times{
+  display:flex;flex-direction:column;align-items:flex-end;gap:2px;
+  font-size:12px;line-height:1.35;flex:0 0 auto;
+}
+.att-sess-actions{
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  width:100%;
+}
 .att-sess-actions .btn-xs,
 .att-sess-actions button{
   padding:5px 10px!important;font-size:12px!important;border-radius:8px;
   border:1px solid var(--line);background:rgba(0,0,0,.2);color:#c5d8e0;cursor:pointer;
 }
 .att-sess-detail{
-  margin-top:10px;padding:12px;border-radius:12px;
+  display:block;width:100%;
+  margin:0;padding:12px;border-radius:12px;
   border:1px solid var(--line);background:rgba(0,0,0,.22);font-size:13px;
+  box-sizing:border-box;
 }
+.att-stat-summary{font-size:12px;margin:0 0 10px;line-height:1.45}
 .att-stat-block{margin:8px 0}
-.att-stat-class{margin:6px 0 6px 8px}
+.att-stat-class{margin:6px 0 6px 4px}
 .att-stat-class ul{margin:4px 0 0 16px;padding:0}
-.att-stat-class li{margin:2px 0}
+.att-stat-class li{margin:3px 0}
+.att-name-list{list-style:none;margin-left:0!important;padding-left:0!important}
+.att-name-item{margin:4px 0}
+.att-name-btn{
+  background:none;border:none;color:var(--accent,#5ec8ff);cursor:pointer;
+  padding:2px 0;font-size:13px;text-align:left;text-decoration:underline;
+}
+.att-name-btn:hover{color:#fff}
+.att-note-pop{
+  margin:6px 0 8px 8px;padding:10px 12px;border-radius:10px;
+  border:1px solid var(--line);background:rgba(0,0,0,.35);font-size:12px;line-height:1.45;
+}
+.att-note-text{color:#c5d8e0}
 .att-info-panel ul{margin:8px 0 0 18px}
+@media (max-width:560px){
+  .att-sess-times{align-items:flex-start;width:100%}
+  .att-sess-head{flex-direction:column}
+}
+
