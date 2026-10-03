@@ -1,5 +1,10 @@
 # Riwayat versi (ringkas)
 
+## v2026.10.03b
+- Hero leaf physics: fase terbang cepat-acak mentok kiri/kiri-atas, lalu pantulan daun ringan meliuk-liuk
+- Benturan AABB + restitution rendah (tidak saling menusuk); durasi lebih lama agar thumb fully loaded
+- Easing dua fase (easeOutSine → easeInOutCubic) + sway rotasi daun
+
 ## v2026.10.03
 - Roles: Siswa / Pengajar / Alumni / Belum ditunjuk
 - Tab Users (kelola data) & Roles (akun Google)
