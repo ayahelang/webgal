@@ -1987,3 +1987,33 @@ a#btnStuTplSheet{
   font-size:9px;
   letter-spacing:1px;
 }
+
+/* Hero stack fly 3D */
+.glass-stack{
+  perspective:900px;
+  transform-style:preserve-3d;
+}
+.glass-stack .mini-card{
+  transform-style:preserve-3d;
+  will-change:transform;
+  backface-visibility:hidden;
+}
+.glass-stack.is-flying .mini-card{
+  box-shadow:0 24px 48px rgba(0,0,0,.45),0 0 0 1px rgba(197,238,247,.12);
+  transition:none;
+}
+/* Label kartu video (1) kanan atas saat diam */
+.mini-card.mini-one.mini-thumb .mini-thumb-meta{
+  left:auto;
+  right:14px;
+  top:12px;
+  bottom:auto;
+  text-align:right;
+}
+.mini-card.mini-one.mini-thumb .mini-thumb-meta b{
+  font-size:12px;
+  max-height:2.5em;
+}
+@media (prefers-reduced-motion: reduce){
+  .glass-stack .mini-card{transition:none!important}
+}
