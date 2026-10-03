@@ -68,34 +68,97 @@
   }
 
   let audioCtx = null;
+  function ensureAudio() {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
   function playWhoosh(soft) {
     try {
       if (reduced) return;
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === "suspended") audioCtx.resume();
-      const t0 = audioCtx.currentTime;
-      const dur = soft ? 0.28 : 0.2;
-      const buf = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate * dur), audioCtx.sampleRate);
+      const ctx = ensureAudio();
+      const t0 = ctx.currentTime;
+      if (soft) {
+        // angin + gemerisik daun (noise berlapis)
+        const dur = 0.85;
+        const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+          const env = Math.sin((i / data.length) * Math.PI);
+          data[i] = (Math.random() * 2 - 1) * env * 0.55;
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const lp = ctx.createBiquadFilter();
+        lp.type = "lowpass";
+        lp.frequency.setValueAtTime(280, t0);
+        lp.frequency.linearRampToValueAtTime(720, t0 + 0.35);
+        lp.frequency.linearRampToValueAtTime(320, t0 + dur);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(0.09, t0 + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        src.connect(lp);
+        lp.connect(gain);
+        gain.connect(ctx.destination);
+        src.start(t0);
+        src.stop(t0 + dur + 0.02);
+        // "crack" daun singkat
+        for (let k = 0; k < 3; k++) {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = "triangle";
+          const tk = t0 + 0.12 + k * 0.18 + Math.random() * 0.05;
+          o.frequency.setValueAtTime(220 + Math.random() * 400, tk);
+          o.frequency.exponentialRampToValueAtTime(80, tk + 0.08);
+          g.gain.setValueAtTime(0.025, tk);
+          g.gain.exponentialRampToValueAtTime(0.0001, tk + 0.09);
+          o.connect(g);
+          g.connect(ctx.destination);
+          o.start(tk);
+          o.stop(tk + 0.1);
+        }
+        return;
+      }
+      const dur = 0.2;
+      const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
       const data = buf.getChannelData(0);
       for (let i = 0; i < data.length; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, soft ? 2.2 : 1.6);
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 1.6);
       }
-      const src = audioCtx.createBufferSource();
+      const src = ctx.createBufferSource();
       src.buffer = buf;
-      const filt = audioCtx.createBiquadFilter();
-      filt.type = soft ? "lowpass" : "bandpass";
-      filt.frequency.value = soft ? 400 + Math.random() * 500 : 900 + Math.random() * 1200;
+      const filt = ctx.createBiquadFilter();
+      filt.type = "bandpass";
+      filt.frequency.value = 900 + Math.random() * 1200;
       filt.Q.value = 0.6;
-      const gain = audioCtx.createGain();
-      const peak = soft ? 0.07 : 0.12;
+      const gain = ctx.createGain();
       gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.exponentialRampToValueAtTime(peak, t0 + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.12, t0 + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
       src.connect(filt);
       filt.connect(gain);
-      gain.connect(audioCtx.destination);
+      gain.connect(ctx.destination);
       src.start(t0);
       src.stop(t0 + dur + 0.02);
+    } catch (e) {}
+  }
+  function playLeafBump() {
+    try {
+      if (reduced) return;
+      const ctx = ensureAudio();
+      const t0 = ctx.currentTime;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(140 + Math.random() * 60, t0);
+      o.frequency.exponentialRampToValueAtTime(50, t0 + 0.07);
+      g.gain.setValueAtTime(0.035, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.08);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start(t0);
+      o.stop(t0 + 0.09);
     } catch (e) {}
   }
 
@@ -167,65 +230,140 @@
     requestAnimationFrame(frame);
   }
 
-  /** Hari biasa: daun melayang — putar lembut, menjauh ke area layar, tidak “menusuk” */
+  /** Hari biasa: daun melayang + benturan sederhana (tidak menusuk) */
   function flyLeafMode(cards, stack) {
     playWhoosh(true);
-    const midSwap = 0.42 + Math.random() * 0.1;
+    const midSwap = 0.35 + Math.random() * 0.08;
     let swapped = false;
-    const duration = 1400 + Math.random() * 400; // sedikit lebih panjang, natural
+    const duration = 2400 + Math.random() * 600; // lebih lama: muat thumb + dramatis
     const mobile = window.innerWidth < 700;
-    const spanX = mobile ? 120 : 220;
-    const spanY = mobile ? 160 : 260;
-    const starts = cards.map((c, i) => {
-      // arah utama ke atas / samping acak, seperti daun
-      const dirX = Math.random() * 2 - 1;
-      const dirY = -0.35 - Math.random() * 0.9; // cenderung naik
+    // jauh ke kiri agar menutupi teks hero
+    const leftBias = mobile ? -160 : -280;
+    const spanX = mobile ? 100 : 160;
+    const spanY = mobile ? 140 : 220;
+
+    const states = cards.map((c, i) => {
+      const dirY = -0.25 - Math.random() * 0.85;
       return {
         el: c,
-        dx: dirX * spanX * (0.55 + Math.random() * 0.55),
-        dy: dirY * spanY * (0.5 + Math.random() * 0.55),
-        // putar pelan (daun), hindari scale ekstrem
-        rz: (Math.random() * 2 - 1) * 28,
-        rx: (Math.random() * 2 - 1) * 12,
-        ry: (Math.random() * 2 - 1) * 16,
-        scale: 0.94 + Math.random() * 0.12,
-        drift: (Math.random() * 2 - 1) * 18, // goyangan horizontal ekstra
-        delay: i * 0.04,
+        // posisi relatif selama animasi (diupdate tiap frame)
+        x: 0,
+        y: 0,
+        // target puncak terbang
+        tx: leftBias + (Math.random() * 2 - 1) * spanX * 0.6 + i * (mobile ? -12 : -20),
+        ty: dirY * spanY * (0.55 + Math.random() * 0.5),
+        rz: (Math.random() * 2 - 1) * 32,
+        rx: (Math.random() * 2 - 1) * 10,
+        ry: (Math.random() * 2 - 1) * 14,
+        phase: Math.random() * Math.PI * 2,
+        wobbleAmp: 14 + Math.random() * 18,
+        delay: i * 0.05,
         z: 12 + i,
-        ease: easingsSoft[Math.floor(Math.random() * easingsSoft.length)],
+        w: c.offsetWidth || 240,
+        h: c.offsetHeight || 160,
+        vx: 0,
+        vy: 0,
       };
     });
+
+    // radius approx for collision (half diagonal soft)
+    function collideResolve() {
+      let bumped = false;
+      for (let i = 0; i < states.length; i++) {
+        for (let j = i + 1; j < states.length; j++) {
+          const a = states[i];
+          const b = states[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const minDist = Math.min(a.w, b.w) * 0.42;
+          const dist = Math.hypot(dx, dy) || 0.01;
+          if (dist < minDist) {
+            const overlap = (minDist - dist) * 0.55;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            a.x -= nx * overlap;
+            a.y -= ny * overlap;
+            b.x += nx * overlap;
+            b.y += ny * overlap;
+            // pentalan ringan
+            const push = 1.2 + Math.random();
+            a.vx -= nx * push;
+            a.vy -= ny * push;
+            b.vx += nx * push;
+            b.vy += ny * push;
+            bumped = true;
+          }
+        }
+      }
+      if (bumped) playLeafBump();
+    }
+
     const t0 = performance.now();
+    let lastBump = 0;
     function frame(now) {
       const p = Math.min(1, (now - t0) / duration);
-      starts.forEach((s) => {
-        const local = Math.max(0, Math.min(1, (p - s.delay) / (1 - s.delay * 0.5)));
-        // envelope: naik pelan, melayang, turun — tanpa “menusuk”
-        const out = local < 0.55 ? s.ease(local / 0.55) : 1 - s.ease((local - 0.55) / 0.45);
-        const wobble = Math.sin(local * Math.PI * 2.2) * s.drift * out;
-        s.el.style.zIndex = String(20 + s.z);
+      states.forEach((s) => {
+        const local = Math.max(0, Math.min(1, (p - s.delay) / Math.max(0.01, 1 - s.delay * 0.4)));
+        // envelope naik-turun lembut (smoothstep)
+        const e =
+          local < 0.5
+            ? local * 2 * local * 2 * (3 - 2 * local * 2) // approx
+            : 1 - Math.pow((local - 0.5) * 2, 2) * (0.5 + 0.5 * local);
+        const env = local < 0.55 ? easeInOutCubic(local / 0.55) : 1 - easeInOutCubic((local - 0.55) / 0.45);
+        // target + ombang-ambing daun
+        const sway = Math.sin(local * Math.PI * 3 + s.phase) * s.wobbleAmp * env;
+        const swayY = Math.cos(local * Math.PI * 2.2 + s.phase) * (s.wobbleAmp * 0.45) * env;
+        const targetX = s.tx * env + sway;
+        const targetY = s.ty * env + swayY;
+        // integrasi ringan ke target + velocity dari benturan
+        s.vx *= 0.88;
+        s.vy *= 0.88;
+        s.x += (targetX - s.x) * 0.18 + s.vx;
+        s.y += (targetY - s.y) * 0.18 + s.vy;
+      });
+      // benturan tiap frame (throttle sound)
+      const before = states.map((s) => ({ x: s.x, y: s.y }));
+      collideResolve();
+      if (now - lastBump > 180) {
+        let moved = false;
+        for (let i = 0; i < states.length; i++) {
+          if (Math.hypot(states[i].x - before[i].x, states[i].y - before[i].y) > 3) moved = true;
+        }
+        if (moved) lastBump = now;
+      }
+
+      states.forEach((s) => {
+        const local = Math.max(0, Math.min(1, (p - s.delay) / Math.max(0.01, 1 - s.delay * 0.4)));
+        const env = local < 0.55 ? easeInOutCubic(local / 0.55) : 1 - easeInOutCubic((local - 0.55) / 0.45);
+        const rotZ = s.rz * env + Math.sin(local * Math.PI * 2.5 + s.phase) * 10;
+        s.el.style.zIndex = String(30 + Math.round(10 + s.y * -0.02 + s.z));
         s.el.style.transform =
           "translate3d(" +
-          (s.dx * out + wobble).toFixed(1) +
+          s.x.toFixed(1) +
           "px," +
-          (s.dy * out).toFixed(1) +
+          s.y.toFixed(1) +
           "px,0) rotateX(" +
-          (s.rx * out).toFixed(1) +
+          (s.rx * env).toFixed(1) +
           "deg) rotateY(" +
-          (s.ry * out).toFixed(1) +
+          (s.ry * env).toFixed(1) +
           "deg) rotateZ(" +
-          (s.rz * out + Math.sin(local * Math.PI) * 8).toFixed(1) +
+          rotZ.toFixed(1) +
           "deg) scale(" +
-          (1 + (s.scale - 1) * out).toFixed(3) +
+          (1 + 0.04 * env).toFixed(3) +
           ")";
       });
+
       if (!swapped && p >= midSwap) {
         swapped = true;
         applyRandomContent();
         playWhoosh(true);
       }
       if (p < 1) requestAnimationFrame(frame);
-      else finish(cards, stack, starts);
+      else finish(
+        cards,
+        stack,
+        states.map((s) => ({ el: s.el }))
+      );
     }
     requestAnimationFrame(frame);
   }
