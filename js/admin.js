@@ -306,16 +306,37 @@
     window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
     try { f.querySelector("input,select,textarea") && f.querySelector("input,select,textarea").focus({ preventScroll: true }); } catch (e) {}
   }
+  function collapseTreeParents(root, depthKeepOpen) {
+    if (!root) return;
+    depthKeepOpen = depthKeepOpen || 0;
+    root.querySelectorAll(".pt-children").forEach((c) => {
+      c.classList.add("is-collapsed");
+    });
+    root.querySelectorAll(".pt-toggle, .sh-cb-toggle").forEach((b) => {
+      b.textContent = "▸";
+      b.setAttribute("aria-expanded", "false");
+    });
+  }
+
   function treeToggleBind(root) {
-    root.querySelectorAll(".pt-toggle").forEach((b) => {
+    if (!root) return;
+    root.querySelectorAll(".pt-toggle, .sh-cb-toggle").forEach((b) => {
+      if (b.dataset.toggleBound === "1") return;
+      b.dataset.toggleBound = "1";
       b.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const id = b.dataset.t;
-        const kids = root.querySelector('[data-parent="' + id + '"]');
+        const row = b.closest(".pt-row") || b.closest(".sh-stu-row") || b.parentElement;
+        let kids = row && row.nextElementSibling;
+        if (!kids || !(kids.classList && kids.classList.contains("pt-children"))) {
+          const id = b.dataset.t;
+          kids = id ? root.querySelector('[data-parent="' + CSS.escape(id) + '"]') : null;
+        }
         if (!kids) return;
         kids.classList.toggle("is-collapsed");
-        b.textContent = kids.classList.contains("is-collapsed") ? "▸" : "▾";
+        const closed = kids.classList.contains("is-collapsed");
+        b.textContent = closed ? "▸" : "▾";
+        b.setAttribute("aria-expanded", closed ? "false" : "true");
       });
     });
   }
@@ -323,22 +344,8 @@
   /** Tree checkbox tri-state (standar: full / partial / empty) */
   function bindTriStateTree(root) {
     if (!root) return;
-    root.querySelectorAll(".sh-cb-toggle, .pt-toggle").forEach((b) => {
-      b.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        // Cari anak di sibling dalam .pt-node yang sama (lebih andal daripada query global)
-        const row = b.closest(".pt-row") || b.parentElement;
-        let kids = row && row.nextElementSibling;
-        if (!kids || !kids.classList.contains("pt-children")) {
-          const id = b.dataset.t;
-          kids = id ? root.querySelector('[data-parent="' + CSS.escape(id) + '"]') : null;
-        }
-        if (!kids) return;
-        kids.classList.toggle("is-collapsed");
-        b.textContent = kids.classList.contains("is-collapsed") ? "▸" : "▾";
-      };
-    });
+    // expand/collapse hanya lewat treeToggleBind (hindari double-toggle)
+    treeToggleBind(root);
     function childBoxes(node) {
       return [...node.querySelectorAll('input[type=checkbox][data-sh-cb]')];
     }
@@ -2518,14 +2525,8 @@
       if (!years.length && !host.innerHTML.includes("link-coverage")) {
         host.innerHTML = summary;
       }
-      host.querySelectorAll(".pt-toggle").forEach((b) =>
-        b.addEventListener("click", () => {
-          const kids = host.querySelector('[data-parent="' + b.dataset.t + '"]');
-          if (!kids) return;
-          kids.classList.toggle("is-collapsed");
-          b.textContent = kids.classList.contains("is-collapsed") ? "▸" : "▾";
-        })
-      );
+      collapseTreeParents(host);
+      treeToggleBind(host);
       bindListSearch("#linkSearch", "#linkTree");
       host.querySelectorAll("[data-unlink]").forEach((b) =>
         b.addEventListener("click", async () => {
@@ -2614,7 +2615,7 @@
           const box = document.createElement("div");
           box.style.marginTop = "16px";
           box.innerHTML = `<div class="pt-node">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="link-nolink">▾</button><strong>Akun Google belum pilih nama siswa</strong> <small class="muted">(${noLink.length} akun · bukan daftar siswa)</small></div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="link-nolink">▸</button><strong>Akun Google belum pilih nama siswa</strong> <small class="muted">(${noLink.length} akun · bukan daftar siswa)</small></div>
             <div class="pt-children" data-parent="link-nolink">${noLink
               .map(
                 (u) => `<div class="admin-row">

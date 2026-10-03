@@ -1872,3 +1872,33 @@ a#btnStuTplSheet{
 }
 .about-link-card b{font-size:13px;color:#e8f4f8}
 .about-link-card span{font-size:11px;color:#8fa7b4;line-height:1.3}
+
+/* Support payment logos */
+.support-pay-item{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  list-style:none;
+  margin:0 0 12px;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid rgba(125,227,255,.12);
+  background:rgba(0,0,0,.18);
+}
+.support-pay-list{list-style:none;margin:0;padding:0}
+.support-pay-item .support-num{display:block;font-size:14px;letter-spacing:.02em;margin-top:2px}
+.pay-logo{flex-shrink:0;display:flex;line-height:0}
+.pay-logo svg{display:block;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+
+/* Announce form */
+.ann-body-field span,
+.ann-body-field > span{text-align:left!important;justify-self:start}
+.ann-form .ann-active-align{
+  display:flex;
+  align-items:center;
+  align-self:end;
+  height:42px;
+  margin:0;
+  gap:8px;
+}
+.ann-form label.field span{text-align:left;display:block}

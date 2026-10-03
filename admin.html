@@ -259,7 +259,7 @@
           </fieldset>
           <label class="check" style="align-self:center"><input type="checkbox" name="require_checkout" checked> Wajib check-out</label>
           <label class="check" style="align-self:center"><input type="checkbox" name="allow_late"> Izinkan absen terlambat</label>
-          <label class="check" style="align-self:center"><input type="checkbox" name="active" checked> Aktif</label>
+          <label class="check ann-active-align"><input type="checkbox" name="active" checked> Aktif</label>
           <div class="admin-form-actions" style="grid-column:1/-1">
             <button type="button" class="btn btn-primary" id="attSessSave">Simpan sesi</button>
             <button type="button" class="btn btn-ghost" id="attSessReset">Batal</button>
@@ -296,8 +296,8 @@
         <form id="annForm" class="ann-form" method="post" action="javascript:void(0)" onsubmit="return false;">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul</span><input name="title" required placeholder="Judul pengumuman"></label>
-          <div class="field" style="grid-column:1/-1">
-            <span>Isi pengumuman</span>
+          <div class="field ann-body-field" style="grid-column:1/-1;text-align:left">
+            <span style="display:block;text-align:left">Isi pengumuman</span>
             <div id="annEditor" class="ann-editor" contenteditable="true" tabindex="0" role="textbox" aria-multiline="true" data-placeholder="Ketik pengumuman… tempel screenshot (Ctrl+V) atau sisipkan URL gambar"></div>
             <div class="ann-editor-tools">
               <button type="button" class="btn btn-ghost" id="annInsertImg">+ URL gambar</button>
@@ -319,7 +319,7 @@
           <label class="field"><span>Berapa kali / hari</span><input type="number" name="times_per_day" min="1" max="24" value="1"></label>
           <label class="field"><span>Jam tampil (0–23, pisah koma)</span><input name="schedule_hours" placeholder="kosong = otomatis merata, mis. 8,12,18"></label>
           <label class="field"><span>Durasi splash (detik)</span><input type="number" name="splash_seconds" min="5" max="120" value="15"></label>
-          <label class="check" style="align-self:center"><input type="checkbox" name="active" checked> Aktif</label>
+          <label class="check ann-active-align"><input type="checkbox" name="active" checked> Aktif</label>
           <div class="admin-form-actions" style="grid-column:1/-1">
             <button class="btn btn-primary" type="button" id="annSave">Simpan pengumuman</button>
             <button class="btn btn-ghost" type="button" id="annReset">Batal edit</button>
