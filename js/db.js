@@ -2599,6 +2599,18 @@
     return data || [];
   }
 
+
+  async function listDesignsPublic() {
+    const sb = client();
+    if (!sb) return [];
+    const { data, error } = await sb
+      .from("gallery_designs")
+      .select("id,title,image_url,category,author_name,created_at")
+      .order("created_at", { ascending: false })
+      .limit(80);
+    if (error) throw error;
+    return data || [];
+  }
   async function adminListDesigns() {
     const sb = client();
     if (!sb) return [];
@@ -3109,6 +3121,7 @@
     recordAnnouncementRead,
     listAnnouncementReads,
     adminListDesigns,
+    listDesignsPublic,
     upsertDesign,
     deleteDesign,
     deleteUserProfiles,

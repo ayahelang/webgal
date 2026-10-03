@@ -1902,3 +1902,88 @@ a#btnStuTplSheet{
   gap:8px;
 }
 .ann-form label.field span{text-align:left;display:block}
+
+/* Pengumuman: label & tools rata kiri (bukan tengah) */
+.ann-form .ann-body-field{
+  grid-column:1 / -1 !important;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  text-align:left !important;
+  justify-items:start;
+}
+.ann-form .ann-body-field > span{
+  display:block;
+  width:100%;
+  text-align:left !important;
+  margin:0 0 6px;
+  font-size:11px;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  color:#8fa7b4;
+}
+.ann-form .ann-editor-tools{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+  justify-content:flex-start !important;
+  text-align:left !important;
+  width:100%;
+  margin-top:8px;
+}
+.ann-form .ann-editor{width:100%;box-sizing:border-box}
+
+/* Hero stack: dynamic thumbnails */
+.mini-card.mini-thumb{
+  padding:0;
+  overflow:hidden;
+  background-size:cover;
+  background-position:center;
+  background-color:rgba(8,17,24,.85);
+}
+.mini-card.mini-thumb .mini-thumb-bg{
+  position:absolute;
+  inset:0;
+  background-size:cover;
+  background-position:center;
+  transition:opacity .4s ease,transform .5s ease;
+}
+.mini-card.mini-thumb .mini-thumb-scrim{
+  position:absolute;
+  inset:0;
+  background:linear-gradient(160deg,rgba(8,17,24,.15),rgba(8,17,24,.72) 55%,rgba(8,17,24,.88));
+  pointer-events:none;
+}
+.mini-card.mini-thumb .mini-thumb-meta{
+  position:absolute;
+  left:16px;
+  right:16px;
+  bottom:14px;
+  z-index:2;
+  text-align:left;
+}
+.mini-card.mini-thumb .mini-thumb-meta span{
+  font-size:9px;
+  color:#8ee7fa;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+}
+.mini-card.mini-thumb .mini-thumb-meta b{
+  display:block;
+  font-size:13px;
+  letter-spacing:-0.2px;
+  margin-top:4px;
+  line-height:1.25;
+  max-height:2.6em;
+  overflow:hidden;
+  color:#fff;
+  font-weight:700;
+}
+.mini-card.mini-thumb .mini-thumb-meta small{
+  display:block;
+  color:#a8bcc5;
+  margin-top:4px;
+  font-size:9px;
+  letter-spacing:1px;
+}
