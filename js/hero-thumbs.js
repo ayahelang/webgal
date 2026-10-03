@@ -230,44 +230,55 @@
     requestAnimationFrame(frame);
   }
 
-  /** Hari biasa: daun melayang + benturan sederhana (tidak menusuk) */
+  /** Hari biasa: daun melayang — fase cepat acak ke kiri/kiri-atas, lalu pantulan daun ringan + tidak menusuk */
   function flyLeafMode(cards, stack) {
     playWhoosh(true);
-    const midSwap = 0.35 + Math.random() * 0.08;
+    const midSwap = 0.28 + Math.random() * 0.1;
     let swapped = false;
-    const duration = 2400 + Math.random() * 600; // lebih lama: muat thumb + dramatis
+    // lebih lama supaya thumb sempat fully loaded + dramatika daun
+    const duration = 3200 + Math.random() * 900;
     const mobile = window.innerWidth < 700;
-    // jauh ke kiri agar menutupi teks hero
-    const leftBias = mobile ? -160 : -280;
-    const spanX = mobile ? 100 : 160;
-    const spanY = mobile ? 140 : 220;
+    // target mentok kiri & kiri-atas (agak tidak wajar di fase awal)
+    const leftBias = mobile ? -200 : -340;
+    const topBias = mobile ? -110 : -180;
+    const spanX = mobile ? 90 : 140;
+    const spanY = mobile ? 80 : 120;
 
     const states = cards.map((c, i) => {
-      const dirY = -0.25 - Math.random() * 0.85;
+      // arah acak tapi bias kuat ke kiri / kiri-atas
+      const biasX = leftBias + (Math.random() * 2 - 1) * spanX * 0.55 + i * (mobile ? -18 : -28);
+      const biasY = topBias + Math.random() * spanY * 0.7 + (Math.random() * 2 - 1) * 30;
+      // velocity awal acak (fase "tidak wajar" cepat)
+      const speed = (mobile ? 9 : 14) + Math.random() * (mobile ? 7 : 11);
+      const ang = Math.atan2(biasY, biasX) + (Math.random() * 2 - 1) * 0.55;
       return {
         el: c,
-        // posisi relatif selama animasi (diupdate tiap frame)
         x: 0,
         y: 0,
-        // target puncak terbang
-        tx: leftBias + (Math.random() * 2 - 1) * spanX * 0.6 + i * (mobile ? -12 : -20),
-        ty: dirY * spanY * (0.55 + Math.random() * 0.5),
-        rz: (Math.random() * 2 - 1) * 32,
-        rx: (Math.random() * 2 - 1) * 10,
-        ry: (Math.random() * 2 - 1) * 14,
+        // target puncak (mentok kiri / kiri-atas)
+        tx: biasX,
+        ty: biasY,
+        // rotasi daun
+        rz: (Math.random() * 2 - 1) * 42,
+        rx: (Math.random() * 2 - 1) * 12,
+        ry: (Math.random() * 2 - 1) * 16,
         phase: Math.random() * Math.PI * 2,
-        wobbleAmp: 14 + Math.random() * 18,
-        delay: i * 0.05,
-        z: 12 + i,
+        wobbleAmp: 18 + Math.random() * 22,
+        delay: i * 0.04 + Math.random() * 0.03,
+        z: 14 + i,
         w: c.offsetWidth || 240,
         h: c.offsetHeight || 160,
-        vx: 0,
-        vy: 0,
+        // physics body
+        vx: Math.cos(ang) * speed,
+        vy: Math.sin(ang) * speed,
+        // half-size untuk AABB (sedikit diperkecil agar visual gap wajar)
+        hw: (c.offsetWidth || 240) * 0.48,
+        hh: (c.offsetHeight || 160) * 0.48,
       };
     });
 
-    // radius approx for collision (half diagonal soft)
-    function collideResolve() {
+    // pemisahan keras + pantulan elastis ringan (daun) — mencegah saling menusuk
+    function collideResolve(now) {
       let bumped = false;
       for (let i = 0; i < states.length; i++) {
         for (let j = i + 1; j < states.length; j++) {
@@ -275,81 +286,122 @@
           const b = states[j];
           const dx = b.x - a.x;
           const dy = b.y - a.y;
-          const minDist = Math.min(a.w, b.w) * 0.42;
-          const dist = Math.hypot(dx, dy) || 0.01;
-          if (dist < minDist) {
-            const overlap = (minDist - dist) * 0.55;
-            const nx = dx / dist;
-            const ny = dy / dist;
-            a.x -= nx * overlap;
-            a.y -= ny * overlap;
-            b.x += nx * overlap;
-            b.y += ny * overlap;
-            // pentalan ringan
-            const push = 1.2 + Math.random();
-            a.vx -= nx * push;
-            a.vy -= ny * push;
-            b.vx += nx * push;
-            b.vy += ny * push;
+          // AABB overlap check (lebih akurat untuk kartu persegi)
+          const ox = a.hw + b.hw - Math.abs(dx);
+          const oy = a.hh + b.hh - Math.abs(dy);
+          if (ox > 0 && oy > 0) {
+            // pisahkan di sumbu overlap terkecil
+            if (ox < oy) {
+              const sx = dx < 0 ? -1 : 1;
+              const push = ox * 0.55;
+              a.x -= sx * push;
+              b.x += sx * push;
+              // pantulan ringan (daun: restitution rendah)
+              const relVx = a.vx - b.vx;
+              if (relVx * sx > 0) {
+                const impulse = relVx * 0.35;
+                a.vx -= impulse * sx;
+                b.vx += impulse * sx;
+              }
+              a.vx -= sx * (0.8 + Math.random() * 0.6);
+              b.vx += sx * (0.8 + Math.random() * 0.6);
+            } else {
+              const sy = dy < 0 ? -1 : 1;
+              const push = oy * 0.55;
+              a.y -= sy * push;
+              b.y += sy * push;
+              const relVy = a.vy - b.vy;
+              if (relVy * sy > 0) {
+                const impulse = relVy * 0.35;
+                a.vy -= impulse * sy;
+                b.vy += impulse * sy;
+              }
+              a.vy -= sy * (0.8 + Math.random() * 0.6);
+              b.vy += sy * (0.8 + Math.random() * 0.6);
+            }
             bumped = true;
           }
         }
       }
-      if (bumped) playLeafBump();
+      if (bumped && now - lastBump > 160) {
+        playLeafBump();
+        lastBump = now;
+      }
     }
 
     const t0 = performance.now();
     let lastBump = 0;
     function frame(now) {
       const p = Math.min(1, (now - t0) / duration);
-      states.forEach((s) => {
-        const local = Math.max(0, Math.min(1, (p - s.delay) / Math.max(0.01, 1 - s.delay * 0.4)));
-        // envelope naik-turun lembut (smoothstep)
-        const e =
-          local < 0.5
-            ? local * 2 * local * 2 * (3 - 2 * local * 2) // approx
-            : 1 - Math.pow((local - 0.5) * 2, 2) * (0.5 + 0.5 * local);
-        const env = local < 0.55 ? easeInOutCubic(local / 0.55) : 1 - easeInOutCubic((local - 0.55) / 0.45);
-        // target + ombang-ambing daun
-        const sway = Math.sin(local * Math.PI * 3 + s.phase) * s.wobbleAmp * env;
-        const swayY = Math.cos(local * Math.PI * 2.2 + s.phase) * (s.wobbleAmp * 0.45) * env;
-        const targetX = s.tx * env + sway;
-        const targetY = s.ty * env + swayY;
-        // integrasi ringan ke target + velocity dari benturan
-        s.vx *= 0.88;
-        s.vy *= 0.88;
-        s.x += (targetX - s.x) * 0.18 + s.vx;
-        s.y += (targetY - s.y) * 0.18 + s.vy;
-      });
-      // benturan tiap frame (throttle sound)
-      const before = states.map((s) => ({ x: s.x, y: s.y }));
-      collideResolve();
-      if (now - lastBump > 180) {
-        let moved = false;
-        for (let i = 0; i < states.length; i++) {
-          if (Math.hypot(states[i].x - before[i].x, states[i].y - before[i].y) > 3) moved = true;
-        }
-        if (moved) lastBump = now;
-      }
+      const dt = 1; // frame unit
 
       states.forEach((s) => {
-        const local = Math.max(0, Math.min(1, (p - s.delay) / Math.max(0.01, 1 - s.delay * 0.4)));
-        const env = local < 0.55 ? easeInOutCubic(local / 0.55) : 1 - easeInOutCubic((local - 0.55) / 0.45);
-        const rotZ = s.rz * env + Math.sin(local * Math.PI * 2.5 + s.phase) * 10;
-        s.el.style.zIndex = String(30 + Math.round(10 + s.y * -0.02 + s.z));
+        const local = Math.max(0, Math.min(1, (p - s.delay) / Math.max(0.01, 1 - s.delay * 0.35)));
+        // dua fase: 0–0.42 cepat acak (mentok), 0.42–1 daun melayang meliuk + kembali
+        const peak = 0.42;
+        let env;
+        if (local < peak) {
+          // cepat naik dengan easeOut (agak tidak wajar / "terlempar")
+          env = easeOutSine(local / peak);
+        } else {
+          // turun lembut seperti daun jatuh meliuk
+          env = 1 - easeInOutCubic((local - peak) / (1 - peak));
+        }
+
+        // target + sway daun (hanya kuat di puncak & turun)
+        const swayX = Math.sin(local * Math.PI * 3.4 + s.phase) * s.wobbleAmp * env;
+        const swayY = Math.cos(local * Math.PI * 2.6 + s.phase * 1.1) * (s.wobbleAmp * 0.55) * env;
+        const targetX = s.tx * env + swayX;
+        const targetY = s.ty * env + swayY;
+
+        // fase awal: velocity dominan (cepat random); fase akhir: soft spring ke target
+        if (local < peak) {
+          // drag ringan + tarik ke target agar mentok kiri/kiri-atas
+          s.vx *= 0.94;
+          s.vy *= 0.94;
+          s.vx += (targetX - s.x) * 0.07;
+          s.vy += (targetY - s.y) * 0.07;
+          s.x += s.vx * dt;
+          s.y += s.vy * dt;
+        } else {
+          // daun: damping lebih kuat + spring lembut + sisa velocity dari benturan
+          s.vx *= 0.86;
+          s.vy *= 0.86;
+          s.x += (targetX - s.x) * 0.14 + s.vx;
+          s.y += (targetY - s.y) * 0.14 + s.vy;
+        }
+      });
+
+      collideResolve(now);
+
+      states.forEach((s) => {
+        const local = Math.max(0, Math.min(1, (p - s.delay) / Math.max(0.01, 1 - s.delay * 0.35)));
+        const peak = 0.42;
+        const env =
+          local < peak
+            ? easeOutSine(local / peak)
+            : 1 - easeInOutCubic((local - peak) / (1 - peak));
+        // rotasi meliuk-liuk seperti daun ringan
+        const rotZ =
+          s.rz * env +
+          Math.sin(local * Math.PI * 3.1 + s.phase) * 14 * env +
+          Math.sin(local * Math.PI * 5.2 + s.phase * 0.7) * 5 * env;
+        const rotX = s.rx * env + Math.cos(local * Math.PI * 2.4 + s.phase) * 6 * env;
+        const rotY = s.ry * env + Math.sin(local * Math.PI * 2.8 + s.phase * 1.2) * 7 * env;
+        s.el.style.zIndex = String(30 + Math.round(12 + s.y * -0.025 + s.z));
         s.el.style.transform =
           "translate3d(" +
           s.x.toFixed(1) +
           "px," +
           s.y.toFixed(1) +
           "px,0) rotateX(" +
-          (s.rx * env).toFixed(1) +
+          rotX.toFixed(1) +
           "deg) rotateY(" +
-          (s.ry * env).toFixed(1) +
+          rotY.toFixed(1) +
           "deg) rotateZ(" +
           rotZ.toFixed(1) +
           "deg) scale(" +
-          (1 + 0.04 * env).toFixed(3) +
+          (1 + 0.05 * env).toFixed(3) +
           ")";
       });
 
@@ -359,11 +411,12 @@
         playWhoosh(true);
       }
       if (p < 1) requestAnimationFrame(frame);
-      else finish(
-        cards,
-        stack,
-        states.map((s) => ({ el: s.el }))
-      );
+      else
+        finish(
+          cards,
+          stack,
+          states.map((s) => ({ el: s.el }))
+        );
     }
     requestAnimationFrame(frame);
   }
