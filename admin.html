@@ -129,7 +129,9 @@
 <div id="webList" class="admin-list"></div>
       </section>
       <section data-panel="alumni" class="summary-card admin-pane" hidden>
-        <h3>Tambah Pengguna</h3>
+        <h3>Users — semua akun data (siswa, pengajar, alumni)</h3>
+        <p class="muted" style="font-size:13px;margin:0 0 8px">List di bawah menampilkan <b>seluruh angkatan</b> (termasuk 2023 alumni) dan cabang <b>Pengajar</b>. Gunakan kotak cari untuk memfilter. Centang tree untuk pilih massal.</p>
+        <h4 style="margin:12px 0 0;font-size:14px">Tambah / ubah pengguna</h4>
         <form id="alumniForm" style="display:grid;gap:10px;margin-top:12px">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Nama</span><input name="name" required placeholder="Nama lengkap"></label>
@@ -156,7 +158,7 @@
         <p id="alumniStatus" class="muted" style="font-size:13px"></p>
                 <label class="field admin-search-wrap" style="margin:12px 0 8px">
           <span>Cari di list</span>
-          <input type="search" id="alumniSearch" class="admin-list-search" placeholder="Cari nama siswa, kelas, angkatan…" autocomplete="off">
+          <input type="search" id="alumniSearch" class="admin-list-search" placeholder="Cari nama, kelas, angkatan, role, kampus…" autocomplete="off">
         </label>
 
         <div class="summary-card" style="margin:14px 0;padding:14px 16px;border:1px solid rgba(125,227,255,.15)">

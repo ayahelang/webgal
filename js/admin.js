@@ -14,28 +14,25 @@
     if (!input || !host) return;
     const run = () => {
       const q = (input.value || "").trim().toLowerCase();
-      const rows = host.querySelectorAll(".admin-row, .user-node");
+      const leafSel = ".admin-row, .user-node, .sh-stu-leaf, .user-leaf, [data-search-row]";
+      const rows = host.querySelectorAll(leafSel);
       if (!q) {
         rows.forEach((r) => {
           r.style.display = "";
           r.hidden = false;
         });
-        host.querySelectorAll(".pt-children").forEach((c) => {
-          // restore: only those with is-collapsed stay collapsed — leave structure
-        });
         host.querySelectorAll(".pt-node").forEach((n) => {
           n.style.display = "";
+          n.hidden = false;
         });
         return;
       }
-      // mark matching rows
       rows.forEach((r) => {
-        const text = (r.textContent || "").toLowerCase();
+        const text = ((r.getAttribute("data-search") || "") + " " + (r.textContent || "")).toLowerCase();
         const ok = text.indexOf(q) >= 0;
         r.style.display = ok ? "" : "none";
         r.hidden = !ok;
         if (ok) {
-          // expand all parent pt-children
           let p = r.parentElement;
           while (p && p !== host) {
             if (p.classList && p.classList.contains("pt-children")) {
@@ -44,19 +41,21 @@
             }
             if (p.classList && p.classList.contains("pt-node")) {
               p.style.display = "";
+              p.hidden = false;
             }
             p = p.parentElement;
           }
         }
       });
-      // hide empty branches
       host.querySelectorAll(".pt-node").forEach((node) => {
-        const kids = node.querySelector(".pt-children");
-        if (!kids) return;
-        const visible = kids.querySelector(".admin-row:not([hidden]), .user-node:not([hidden]), .admin-row[style*=''], .pt-node");
-        // if any descendant row visible
-        const any = [...kids.querySelectorAll(".admin-row, .user-node")].some((r) => r.style.display !== "none" && !r.hidden);
+        const kids = node.querySelector(":scope > .pt-children");
+        if (!kids) {
+          // leaf-only node
+          return;
+        }
+        const any = [...kids.querySelectorAll(leafSel)].some((r) => r.style.display !== "none" && !r.hidden);
         node.style.display = any ? "" : "none";
+        node.hidden = !any;
         if (any) kids.classList.remove("is-collapsed");
       });
     };
@@ -2186,88 +2185,206 @@
 
 
   async function refreshAlumni() {
-    const rows = await GalleryDB.adminListAlumni();
+    const host = $("#alumniList");
+    if (host) host.innerHTML = "<p class='muted'>Memuat semua pengguna…</p>";
+    let rows = [];
+    try {
+      rows = await GalleryDB.adminListAlumni();
+    } catch (e) {
+      if (host) host.innerHTML = "<p class='muted'>Gagal muat: " + esc(e.message || e) + "</p>";
+      return;
+    }
     alumniAllCache = rows || [];
-    // list tab: hanya alumni resmi (Juli tahun+3)
-    alumniCache = alumniAllCache.filter((a) => {
-      const ang = a.gallery_angkatan || {};
-      const m = String(ang.label || "").match(/20\d{2}/);
-      const year = m ? m[0] : "";
-      return isAlumniCohort(year);
-    });
+    // Tab Users: SEMUA entri (siswa semua angkatan + alumni + pengajar), bukan filter Juli+3
+    alumniCache = alumniAllCache.slice();
     await fillAlumniSelects();
-    const tree = {};
-    alumniCache.forEach((a) => {
-      let year = "?";
+
+    function roleKey(a) {
+      const r = String(a.role || "").toLowerCase();
+      if (r.includes("ajar") || r === "teacher" || r === "pengajar") return "pengajar";
+      if (r.includes("admin")) return "admin";
+      if (r === "alumni" || r.includes("alumni")) return "alumni";
+      return "siswa";
+    }
+    function yearOf(a) {
       const ang = a.gallery_angkatan || {};
       const m = String(ang.label || "").match(/20\d{2}/);
-      if (m) year = m[0];
-      const c = a.class_code || "?";
-      if (!tree[year]) tree[year] = {};
-      if (!tree[year][c]) tree[year][c] = [];
-      tree[year][c].push(a);
+      return m ? m[0] : "";
+    }
+    function statusLabel(a) {
+      const y = yearOf(a);
+      const rk = roleKey(a);
+      if (rk === "pengajar") return "Pengajar";
+      if (rk === "admin") return "Admin";
+      if (rk === "alumni" || (y && isAlumniCohort(y))) return "Alumni";
+      if (y) {
+        const nowY = new Date().getFullYear();
+        if (parseInt(y, 10) === nowY - 1) return "Kakak kelas";
+        if (parseInt(y, 10) >= nowY) return "Siswa aktif";
+        return "Alumni cohort";
+      }
+      return a.role || "User";
+    }
+
+    // tree: group -> year|special -> class -> people
+    // Groups: Pengajar (no year), then years descending, then tanpa angkatan
+    const pengajar = [];
+    const byYear = {};
+    const noYear = [];
+    alumniCache.forEach((a) => {
+      const rk = roleKey(a);
+      if (rk === "pengajar") {
+        pengajar.push(a);
+        return;
+      }
+      const y = yearOf(a);
+      if (!y) {
+        noYear.push(a);
+        return;
+      }
+      const c = a.class_code || "—";
+      if (!byYear[y]) byYear[y] = {};
+      if (!byYear[y][c]) byYear[y][c] = [];
+      byYear[y][c].push(a);
     });
-    const years = Object.keys(tree).sort().reverse();
-    $("#alumniList").innerHTML =
-      years
-        .map((y) => {
-          const classes = Object.keys(tree[y]).sort();
-          const cHtml = classes
-            .map((c) => {
-              const list = tree[y][c]
-                .slice()
-                .sort((a, b) => (a.name || "").localeCompare(b.name || "", "id"))
-                .map(
-                  (a) => `<div class="admin-row">
-                  <div><strong>${esc(a.name)}</strong><br><small>Kelas ${esc(a.class_code || "?")} · ${esc((a.gallery_angkatan && a.gallery_angkatan.label) || "")}</small></div>
-                  <div style="display:flex;gap:6px">
-                    <button type="button" data-edit-al="${a.id}">Ubah</button>
-                    <button type="button" data-del-al="${a.id}">Hapus</button>
-                  </div>
-                </div>`
-                )
-                .join("");
-              return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="al-${esc(y)}-${esc(c)}">▾</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${tree[y][c].length})</small></div>
-                <div class="pt-children" data-parent="al-${esc(y)}-${esc(c)}">${list}</div>
-              </div>`;
-            })
-            .join("");
-          return `<div class="pt-node" style="margin-bottom:10px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="al-y-${esc(y)}">▾</button><strong>Angkatan ${esc(y)}</strong></div>
-            <div class="pt-children" data-parent="al-y-${esc(y)}">${cHtml}</div>
-          </div>`;
-        })
-        .join("") || "<p class='muted'>Belum ada data alumni resmi (Angkatan 2024 → Juli 2027; 2025 → Juli 2028).</p>";
+
+    function leafRow(a) {
+      const y = yearOf(a);
+      const st = statusLabel(a);
+      const school = a.school ? " · " + esc(a.school) : "";
+      const search = [a.name, a.class_code, y, a.role, a.school, st].filter(Boolean).join(" ");
+      return `<label class="admin-row user-leaf" data-search-row data-search="${esc(search)}" style="cursor:default">
+        <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+          <input type="checkbox" data-sh-cb="leaf" data-user-id="${a.id}">
+          <div style="min-width:0">
+            <strong>${esc(a.name)}</strong>
+            <br><small class="muted">${esc(st)}${a.class_code ? " · Kelas " + esc(a.class_code) : ""}${y ? " · " + esc(y) : ""}${school}</small>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button type="button" data-edit-al="${a.id}">Ubah</button>
+          <button type="button" data-del-al="${a.id}">Hapus</button>
+        </div>
+      </label>`;
+    }
+
+    function classBranch(y, c, list) {
+      const id = "al-" + y + "-" + c;
+      const rows = list
+        .slice()
+        .sort((a, b) => (a.name || "").localeCompare(b.name || "", "id"))
+        .map(leafRow)
+        .join("");
+      return `<div class="pt-node">
+        <div class="pt-row sh-stu-row">
+          <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▸</button>
+          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"> <strong>Kelas ${esc(c)}</strong> <small class="muted">(${list.length})</small></label>
+        </div>
+        <div class="pt-children is-collapsed" data-sh-children data-parent="${esc(id)}">${rows}</div>
+      </div>`;
+    }
+
+    function yearBranch(y, classesObj) {
+      const classes = Object.keys(classesObj).sort();
+      const total = classes.reduce((n, c) => n + classesObj[c].length, 0);
+      const id = "al-y-" + y;
+      const cHtml = classes.map((c) => classBranch(y, c, classesObj[c])).join("");
+      return `<div class="pt-node" style="margin-bottom:10px">
+        <div class="pt-row sh-stu-row">
+          <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▾</button>
+          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"> <strong>Angkatan ${esc(y)}</strong> <small class="muted">(${total})</small></label>
+        </div>
+        <div class="pt-children" data-sh-children data-parent="${esc(id)}">${cHtml}</div>
+      </div>`;
+    }
+
+    let html = "";
+    const totalAll = alumniCache.length;
+    html += `<p class="muted admin-one-line" style="font-size:13px;margin:0 0 10px">Total di list: <b>${totalAll}</b> · Angkatan: <b>${Object.keys(byYear).length}</b> · Pengajar: <b>${pengajar.length}</b></p>`;
+
+    if (pengajar.length) {
+      const id = "al-pengajar";
+      const rows = pengajar
+        .slice()
+        .sort((a, b) => (a.name || "").localeCompare(b.name || "", "id"))
+        .map(leafRow)
+        .join("");
+      html += `<div class="pt-node" style="margin-bottom:10px">
+        <div class="pt-row sh-stu-row">
+          <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▾</button>
+          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"> <strong>Pengajar</strong> <small class="muted">(${pengajar.length})</small></label>
+        </div>
+        <div class="pt-children" data-sh-children data-parent="${esc(id)}">${rows}</div>
+      </div>`;
+    }
+
+    Object.keys(byYear)
+      .sort()
+      .reverse()
+      .forEach((y) => {
+        html += yearBranch(y, byYear[y]);
+      });
+
+    if (noYear.length) {
+      const id = "al-noyear";
+      const rows = noYear
+        .slice()
+        .sort((a, b) => (a.name || "").localeCompare(b.name || "", "id"))
+        .map(leafRow)
+        .join("");
+      html += `<div class="pt-node" style="margin-bottom:10px">
+        <div class="pt-row sh-stu-row">
+          <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▾</button>
+          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"> <strong>Tanpa angkatan</strong> <small class="muted">(${noYear.length})</small></label>
+        </div>
+        <div class="pt-children" data-sh-children data-parent="${esc(id)}">${rows}</div>
+      </div>`;
+    }
+
+    if (!totalAll) html = "<p class='muted'>Belum ada data pengguna. Tambah lewat form di atas atau bulk upload.</p>";
+
+    $("#alumniList").innerHTML = html;
     treeToggleBind($("#alumniList"));
+    if (typeof bindTriStateTree === "function") bindTriStateTree($("#alumniList"));
     bindListSearch("#alumniSearch", "#alumniList");
     $$("#alumniList [data-del-al]").forEach((b) =>
-      b.addEventListener("click", async () => {
-        if (!confirm("Hapus alumni beserta website-nya?")) return;
+      b.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!confirm("Hapus user ini beserta website terkait?")) return;
         try {
           await GalleryDB.adminDeleteAlumni(b.dataset.delAl);
           await refreshAlumni();
           await refreshWebs();
-        } catch (e) {
-          alert(e.message || e);
+        } catch (err) {
+          alert(err.message || err);
         }
       })
     );
     $$("#alumniList [data-edit-al]").forEach((b) =>
-      b.addEventListener("click", () => {
+      b.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const a = alumniCache.find((x) => String(x.id) === String(b.dataset.editAl));
         if (!a) return;
         const f = $("#alumniForm");
         f.querySelector("[name=id]").value = a.id;
         f.querySelector("[name=name]").value = a.name || "";
-        f.querySelector("[name=class_code]").value = a.class_code || "51";
-        if (a.angkatan_id) f.querySelector("[name=angkatan_id]").value = a.angkatan_id;
+        const cls = f.querySelector("[name=classCode]");
+        if (cls) cls.value = a.class_code || "";
+        const ang = f.querySelector("[name=angkatanId]");
+        if (ang && a.angkatan_id) ang.value = a.angkatan_id;
+        const role = f.querySelector("[name=role]");
+        if (role) {
+          const r = a.role || "Santriwati";
+          if ([...role.options].some((o) => o.value === r)) role.value = r;
+          else role.value = "Santriwati";
+        }
         $("#alumniStatus").textContent = "Mode edit: " + (a.name || "");
         scrollToForm("#alumniForm");
       })
     );
   }
-
 
   async function refreshAngkatan() {
     const rows = await GalleryDB.adminListAngkatanAll();
