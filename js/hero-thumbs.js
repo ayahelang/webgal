@@ -2,6 +2,8 @@
   const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let cache = { videos: [], designs: [], webs: [] };
   let flying = false;
+  // Jumat (getDay()===5) = animasi lempar kartu; hari lain = daun melayang
+  const isFriday = () => new Date().getDay() === 5;
 
   function pick(arr) {
     if (!arr || !arr.length) return null;
@@ -65,48 +67,35 @@
     }
   }
 
-  /* --- soft card whoosh via Web Audio (no external file) --- */
   let audioCtx = null;
-  function playWhoosh() {
+  function playWhoosh(soft) {
     try {
       if (reduced) return;
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === "suspended") audioCtx.resume();
       const t0 = audioCtx.currentTime;
-      // noise burst
-      const dur = 0.22;
-      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
+      const dur = soft ? 0.28 : 0.2;
+      const buf = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate * dur), audioCtx.sampleRate);
       const data = buf.getChannelData(0);
       for (let i = 0; i < data.length; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 1.8);
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, soft ? 2.2 : 1.6);
       }
       const src = audioCtx.createBufferSource();
       src.buffer = buf;
       const filt = audioCtx.createBiquadFilter();
-      filt.type = "bandpass";
-      filt.frequency.value = 900 + Math.random() * 1200;
-      filt.Q.value = 0.7;
+      filt.type = soft ? "lowpass" : "bandpass";
+      filt.frequency.value = soft ? 400 + Math.random() * 500 : 900 + Math.random() * 1200;
+      filt.Q.value = 0.6;
       const gain = audioCtx.createGain();
+      const peak = soft ? 0.07 : 0.12;
       gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.exponentialRampToValueAtTime(0.12, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(peak, t0 + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
       src.connect(filt);
       filt.connect(gain);
       gain.connect(audioCtx.destination);
       src.start(t0);
       src.stop(t0 + dur + 0.02);
-      // soft "tick"
-      const o = audioCtx.createOscillator();
-      const g2 = audioCtx.createGain();
-      o.type = "triangle";
-      o.frequency.setValueAtTime(180 + Math.random() * 80, t0);
-      o.frequency.exponentialRampToValueAtTime(60, t0 + 0.12);
-      g2.gain.setValueAtTime(0.04, t0);
-      g2.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14);
-      o.connect(g2);
-      g2.connect(audioCtx.destination);
-      o.start(t0);
-      o.stop(t0 + 0.15);
     } catch (e) {}
   }
 
@@ -122,7 +111,133 @@
     if (t === 0 || t === 1) return t;
     return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1;
   }
-  const easings = [easeOutBack, easeInOutCubic, easeOutElastic, (t) => 1 - Math.pow(1 - t, 3)];
+  function easeOutSine(t) {
+    return Math.sin((t * Math.PI) / 2);
+  }
+  const easingsHard = [easeOutBack, easeInOutCubic, easeOutElastic, (t) => 1 - Math.pow(1 - t, 3)];
+  const easingsSoft = [easeInOutCubic, easeOutSine, (t) => t * t * (3 - 2 * t), (t) => 1 - Math.pow(1 - t, 2)];
+
+  /** Jumat: lempar kartu 3D (versi heboh) */
+  function flyThrowMode(cards, stack) {
+    playWhoosh(false);
+    const midSwap = 0.38 + Math.random() * 0.12;
+    let swapped = false;
+    const duration = 900 + Math.random() * 350;
+    const mobile = window.innerWidth < 700;
+    const starts = cards.map((c) => ({
+      el: c,
+      dx: (Math.random() * 2 - 1) * (mobile ? 90 : 160),
+      dy: (Math.random() * 2 - 1) * (mobile ? 70 : 130),
+      rz: (Math.random() * 2 - 1) * 48,
+      rx: (Math.random() * 2 - 1) * 36,
+      ry: (Math.random() * 2 - 1) * 50,
+      scale: 0.82 + Math.random() * 0.45,
+      z: Math.floor(Math.random() * 40),
+      ease: easingsHard[Math.floor(Math.random() * easingsHard.length)],
+    }));
+    const t0 = performance.now();
+    function frame(now) {
+      const p = Math.min(1, (now - t0) / duration);
+      starts.forEach((s) => {
+        const out = p < 0.5 ? s.ease(p * 2) : 1 - s.ease((p - 0.5) * 2);
+        s.el.style.zIndex = String(10 + s.z);
+        s.el.style.transform =
+          "translate3d(" +
+          (s.dx * out).toFixed(1) +
+          "px," +
+          (s.dy * out).toFixed(1) +
+          "px,0) rotateX(" +
+          (s.rx * out).toFixed(1) +
+          "deg) rotateY(" +
+          (s.ry * out).toFixed(1) +
+          "deg) rotateZ(" +
+          (s.rz * out).toFixed(1) +
+          "deg) scale(" +
+          (1 + (s.scale - 1) * out).toFixed(3) +
+          ")";
+      });
+      if (!swapped && p >= midSwap) {
+        swapped = true;
+        applyRandomContent();
+        playWhoosh(false);
+      }
+      if (p < 1) requestAnimationFrame(frame);
+      else finish(cards, stack, starts);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  /** Hari biasa: daun melayang — putar lembut, menjauh ke area layar, tidak “menusuk” */
+  function flyLeafMode(cards, stack) {
+    playWhoosh(true);
+    const midSwap = 0.42 + Math.random() * 0.1;
+    let swapped = false;
+    const duration = 1400 + Math.random() * 400; // sedikit lebih panjang, natural
+    const mobile = window.innerWidth < 700;
+    const spanX = mobile ? 120 : 220;
+    const spanY = mobile ? 160 : 260;
+    const starts = cards.map((c, i) => {
+      // arah utama ke atas / samping acak, seperti daun
+      const dirX = Math.random() * 2 - 1;
+      const dirY = -0.35 - Math.random() * 0.9; // cenderung naik
+      return {
+        el: c,
+        dx: dirX * spanX * (0.55 + Math.random() * 0.55),
+        dy: dirY * spanY * (0.5 + Math.random() * 0.55),
+        // putar pelan (daun), hindari scale ekstrem
+        rz: (Math.random() * 2 - 1) * 28,
+        rx: (Math.random() * 2 - 1) * 12,
+        ry: (Math.random() * 2 - 1) * 16,
+        scale: 0.94 + Math.random() * 0.12,
+        drift: (Math.random() * 2 - 1) * 18, // goyangan horizontal ekstra
+        delay: i * 0.04,
+        z: 12 + i,
+        ease: easingsSoft[Math.floor(Math.random() * easingsSoft.length)],
+      };
+    });
+    const t0 = performance.now();
+    function frame(now) {
+      const p = Math.min(1, (now - t0) / duration);
+      starts.forEach((s) => {
+        const local = Math.max(0, Math.min(1, (p - s.delay) / (1 - s.delay * 0.5)));
+        // envelope: naik pelan, melayang, turun — tanpa “menusuk”
+        const out = local < 0.55 ? s.ease(local / 0.55) : 1 - s.ease((local - 0.55) / 0.45);
+        const wobble = Math.sin(local * Math.PI * 2.2) * s.drift * out;
+        s.el.style.zIndex = String(20 + s.z);
+        s.el.style.transform =
+          "translate3d(" +
+          (s.dx * out + wobble).toFixed(1) +
+          "px," +
+          (s.dy * out).toFixed(1) +
+          "px,0) rotateX(" +
+          (s.rx * out).toFixed(1) +
+          "deg) rotateY(" +
+          (s.ry * out).toFixed(1) +
+          "deg) rotateZ(" +
+          (s.rz * out + Math.sin(local * Math.PI) * 8).toFixed(1) +
+          "deg) scale(" +
+          (1 + (s.scale - 1) * out).toFixed(3) +
+          ")";
+      });
+      if (!swapped && p >= midSwap) {
+        swapped = true;
+        applyRandomContent();
+        playWhoosh(true);
+      }
+      if (p < 1) requestAnimationFrame(frame);
+      else finish(cards, stack, starts);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function finish(cards, stack, starts) {
+    (starts || []).forEach((s) => {
+      s.el.style.transform = "";
+      s.el.style.zIndex = "";
+    });
+    if (stack) stack.classList.remove("is-flying", "is-leaf");
+    flying = false;
+  }
 
   function flyCards() {
     if (flying || reduced) {
@@ -131,78 +246,22 @@
     }
     const stack = document.getElementById("heroThumbStack");
     const cards = stack ? [...stack.querySelectorAll(".mini-card")] : [];
-    if (cards.length < 1) return;
+    if (!cards.length) return;
     flying = true;
     stack.classList.add("is-flying");
-    playWhoosh();
-
-    const midSwap = 0.38 + Math.random() * 0.12;
-    let swapped = false;
-    const duration = 900 + Math.random() * 350; // ~0.9–1.25s natural & quick
-    const starts = cards.map((c) => {
-      const dx = (Math.random() * 2 - 1) * (window.innerWidth < 700 ? 90 : 160);
-      const dy = (Math.random() * 2 - 1) * (window.innerWidth < 700 ? 70 : 130);
-      const rz = (Math.random() * 2 - 1) * 48;
-      const rx = (Math.random() * 2 - 1) * 36;
-      const ry = (Math.random() * 2 - 1) * 50;
-      const scale = 0.82 + Math.random() * 0.45;
-      const z = Math.floor(Math.random() * 40);
-      return { el: c, dx, dy, rz, rx, ry, scale, z, ease: easings[Math.floor(Math.random() * easings.length)] };
-    });
-
-    const t0 = performance.now();
-    function frame(now) {
-      const p = Math.min(1, (now - t0) / duration);
-      // fly out then back: 0→0.5 out, 0.5→1 return
-      starts.forEach((s) => {
-        const out = p < 0.5 ? s.ease(p * 2) : 1 - s.ease((p - 0.5) * 2);
-        const x = s.dx * out;
-        const y = s.dy * out;
-        const rz = s.rz * out;
-        const rx = s.rx * out;
-        const ry = s.ry * out;
-        const sc = 1 + (s.scale - 1) * out;
-        s.el.style.zIndex = String(10 + s.z);
-        s.el.style.transform =
-          "translate3d(" +
-          x.toFixed(1) +
-          "px," +
-          y.toFixed(1) +
-          "px,0) rotateX(" +
-          rx.toFixed(1) +
-          "deg) rotateY(" +
-          ry.toFixed(1) +
-          "deg) rotateZ(" +
-          rz.toFixed(1) +
-          "deg) scale(" +
-          sc.toFixed(3) +
-          ")";
-      });
-      if (!swapped && p >= midSwap) {
-        swapped = true;
-        applyRandomContent();
-        playWhoosh();
-      }
-      if (p < 1) {
-        requestAnimationFrame(frame);
-      } else {
-        starts.forEach((s) => {
-          s.el.style.transform = "";
-          s.el.style.zIndex = "";
-        });
-        stack.classList.remove("is-flying");
-        flying = false;
-      }
+    if (isFriday()) {
+      stack.classList.remove("is-leaf");
+      flyThrowMode(cards, stack);
+    } else {
+      stack.classList.add("is-leaf");
+      flyLeafMode(cards, stack);
     }
-    requestAnimationFrame(frame);
   }
 
   function bindDragFly() {
     const stack = document.getElementById("heroThumbStack");
     if (!stack || reduced) return;
     let last = null;
-    let armed = false;
-
     function speed(e) {
       const x = e.clientX != null ? e.clientX : e.touches && e.touches[0] ? e.touches[0].clientX : 0;
       const y = e.clientY != null ? e.clientY : e.touches && e.touches[0] ? e.touches[0].clientY : 0;
@@ -214,42 +273,24 @@
       const dt = Math.max(1, t - last.t);
       const dist = Math.hypot(x - last.x, y - last.y);
       last = { x, y, t };
-      return dist / dt; // px/ms
+      return dist / dt;
     }
-
-    function onMove(e) {
-      if (flying) return;
-      if (!armed && e.type === "pointermove" && e.buttons === 0 && e.pointerType === "mouse") {
-        // mouse hover drag without button: still count quick sweeps
-      }
-      const v = speed(e);
-      // ~0.55 px/ms ≈ quick flick
-      if (v > 0.55) {
-        flyCards();
-        last = null;
-      }
-    }
-    function onDown(e) {
-      armed = true;
-      last = null;
-      speed(e);
-    }
-    function onUp() {
-      armed = false;
-      last = null;
-    }
-
-    stack.addEventListener("pointerdown", onDown, { passive: true });
-    stack.addEventListener("pointermove", onMove, { passive: true });
-    stack.addEventListener("pointerup", onUp, { passive: true });
-    stack.addEventListener("pointerleave", onUp, { passive: true });
-    // also quick mouse move without press
+    stack.addEventListener(
+      "pointermove",
+      (e) => {
+        if (flying) return;
+        if (speed(e) > 0.55) {
+          flyCards();
+          last = null;
+        }
+      },
+      { passive: true }
+    );
     stack.addEventListener(
       "mousemove",
       (e) => {
         if (flying) return;
-        const v = speed(e);
-        if (v > 0.7) {
+        if (speed(e) > 0.7) {
           flyCards();
           last = null;
         }

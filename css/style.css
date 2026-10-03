@@ -2017,3 +2017,7 @@ a#btnStuTplSheet{
 @media (prefers-reduced-motion: reduce){
   .glass-stack .mini-card{transition:none!important}
 }
+
+.glass-stack.is-leaf .mini-card{
+  box-shadow:0 18px 40px rgba(0,0,0,.35);
+}
