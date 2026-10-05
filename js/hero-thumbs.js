@@ -163,49 +163,62 @@
     } catch (e) {}
   }
 
-  /** Suara putaran roulette / roda — klik cepat lalu melambat */
+  /** Suara putaran roulette / roda — klik cepat lalu melambat (lebih nyaring) */
   function playRoulette(durationSec) {
     try {
       if (reduced) return;
       const ctx = ensureAudio();
       const t0 = ctx.currentTime;
       const dur = Math.max(0.6, durationSec || 1.2);
-      // interval klik: mulai cepat (~45ms), melambat ke ~180ms
       let t = 0;
-      let interval = 0.04 + Math.random() * 0.015;
+      let interval = 0.038 + Math.random() * 0.012;
       let n = 0;
-      while (t < dur && n < 40) {
+      while (t < dur && n < 42) {
         const tk = t0 + t;
+        // klik utama (square)
         const o = ctx.createOscillator();
         const g = ctx.createGain();
         o.type = "square";
-        // pitch sedikit turun seiring waktu (seperti roda melambat)
-        const freq = 880 - (t / dur) * 420 + (Math.random() * 40 - 20);
-        o.frequency.setValueAtTime(Math.max(180, freq), tk);
+        const freq = 920 - (t / dur) * 480 + (Math.random() * 50 - 25);
+        o.frequency.setValueAtTime(Math.max(160, freq), tk);
         g.gain.setValueAtTime(0.0001, tk);
-        g.gain.exponentialRampToValueAtTime(0.028 + Math.random() * 0.012, tk + 0.004);
-        g.gain.exponentialRampToValueAtTime(0.0001, tk + 0.035);
+        g.gain.exponentialRampToValueAtTime(0.07 + Math.random() * 0.025, tk + 0.003);
+        g.gain.exponentialRampToValueAtTime(0.0001, tk + 0.04);
         o.connect(g);
         g.connect(ctx.destination);
         o.start(tk);
-        o.stop(tk + 0.04);
-        // interval membesar (melambat)
-        interval *= 1.08 + Math.random() * 0.04;
+        o.stop(tk + 0.045);
+        // layer noise pendek biar lebih "kayu/plastik"
+        if (n % 2 === 0) {
+          const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.03), ctx.sampleRate);
+          const data = buf.getChannelData(0);
+          for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+          const src = ctx.createBufferSource();
+          src.buffer = buf;
+          const ng = ctx.createGain();
+          ng.gain.setValueAtTime(0.045, tk);
+          ng.gain.exponentialRampToValueAtTime(0.0001, tk + 0.028);
+          src.connect(ng);
+          ng.connect(ctx.destination);
+          src.start(tk);
+          src.stop(tk + 0.03);
+        }
+        interval *= 1.075 + Math.random() * 0.035;
         t += interval;
         n++;
       }
-      // "stop" soft thump di akhir
+      // thump stop
       const o2 = ctx.createOscillator();
       const g2 = ctx.createGain();
       o2.type = "sine";
-      o2.frequency.setValueAtTime(120, t0 + dur);
-      o2.frequency.exponentialRampToValueAtTime(55, t0 + dur + 0.12);
-      g2.gain.setValueAtTime(0.04, t0 + dur);
-      g2.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.14);
+      o2.frequency.setValueAtTime(140, t0 + dur);
+      o2.frequency.exponentialRampToValueAtTime(48, t0 + dur + 0.14);
+      g2.gain.setValueAtTime(0.09, t0 + dur);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.16);
       o2.connect(g2);
       g2.connect(ctx.destination);
       o2.start(t0 + dur);
-      o2.stop(t0 + dur + 0.15);
+      o2.stop(t0 + dur + 0.17);
     } catch (e) {}
   }
 
@@ -515,66 +528,115 @@
   }
 
   /**
-   * Hari biasa (bukan Kamis/Jumat): kartu berpencar → putar 3D (Z) → kembali bareng
-   * Arah pencaran: [0]=atas, [1]=kiri-atas, [2]=kanan-atas sedikit
+   * Hari biasa (bukan Kamis/Jumat): kartu berpencar → putar horizontal (rotateY) → kembali bareng
+   * Arah: [0]=atas, [1]=kiri, [2]=kanan agak bawah — tetap di dalam layar, tidak overlap
    */
   function flySpinMode(cards, stack) {
     playWhoosh(false);
     const midSwap = 0.3 + Math.random() * 0.1;
     let swapped = false;
-    // cukup lama agar thumb sempat load saat kembali ke posisi awal
     const duration = 3000 + Math.random() * 700;
     const mobile = window.innerWidth < 700;
+    const pad = 16;
 
-    // target relatif posisi awal — berpencar
-    const targets = [
-      // kartu 1 → naik lurus
+    // batas aman agar kartu tidak keluar viewport
+    function safeTarget(el, preferDx, preferDy) {
+      const r = el.getBoundingClientRect();
+      const maxLeft = -(r.left - pad);
+      const maxRight = window.innerWidth - r.right - pad;
+      const maxUp = -(r.top - pad);
+      const maxDown = window.innerHeight - r.bottom - pad;
+      let dx = preferDx;
+      let dy = preferDy;
+      if (dx < 0) dx = Math.max(dx, maxLeft);
+      else dx = Math.min(dx, maxRight);
+      if (dy < 0) dy = Math.max(dy, maxUp);
+      else dy = Math.min(dy, maxDown);
+      return { dx, dy };
+    }
+
+    // arah pencaran ideal (sebelum clamp)
+    const preferred = [
+      // kartu 1 → atas
       {
-        dx: (Math.random() * 2 - 1) * (mobile ? 18 : 28),
-        dy: mobile ? -(110 + Math.random() * 40) : -(150 + Math.random() * 55),
+        dx: (Math.random() * 2 - 1) * (mobile ? 12 : 20),
+        dy: mobile ? -(100 + Math.random() * 30) : -(130 + Math.random() * 40),
       },
-      // kartu 2 → kiri agak atas
+      // kartu 2 → kiri (agak netral vertikal)
       {
-        dx: mobile ? -(90 + Math.random() * 40) : -(130 + Math.random() * 55),
-        dy: mobile ? -(70 + Math.random() * 35) : -(95 + Math.random() * 45),
+        dx: mobile ? -(85 + Math.random() * 35) : -(120 + Math.random() * 45),
+        dy: (Math.random() * 2 - 1) * (mobile ? 18 : 28),
       },
-      // kartu 3 → kanan-atas sedikit
+      // kartu 3 → kanan, agak ke bawah boleh
       {
-        dx: mobile ? 45 + Math.random() * 35 : 60 + Math.random() * 50,
-        dy: mobile ? -(80 + Math.random() * 35) : -(105 + Math.random() * 45),
+        dx: mobile ? 55 + Math.random() * 35 : 75 + Math.random() * 45,
+        dy: mobile ? 20 + Math.random() * 35 : 25 + Math.random() * 45,
       },
     ];
 
+    // pastikan target tidak overlap kasar: minimal jarak antar pusat ~ 130px
+    const rawTargets = cards.map((c, i) => {
+      const p = preferred[i] || { dx: 0, dy: -80 };
+      return safeTarget(c, p.dx, p.dy);
+    });
+    // separasi sederhana jika terlalu dekat
+    for (let i = 0; i < rawTargets.length; i++) {
+      for (let j = i + 1; j < rawTargets.length; j++) {
+        const a = rawTargets[i];
+        const b = rawTargets[j];
+        let dx = b.dx - a.dx;
+        let dy = b.dy - a.dy;
+        const dist = Math.hypot(dx, dy);
+        const minDist = mobile ? 110 : 140;
+        if (dist < minDist && dist > 0.1) {
+          const push = (minDist - dist) / 2;
+          const nx = dx / dist;
+          const ny = dy / dist;
+          a.dx -= nx * push;
+          a.dy -= ny * push;
+          b.dx += nx * push;
+          b.dy += ny * push;
+          // re-clamp setelah push
+          const sa = safeTarget(cards[i], a.dx, a.dy);
+          const sb = safeTarget(cards[j], b.dx, b.dy);
+          rawTargets[i] = sa;
+          rawTargets[j] = sb;
+        }
+      }
+    }
+
+    // arah putar: pastikan TIDAK semua sama
+    const dirs = cards.map(() => (Math.random() < 0.5 ? 1 : -1));
+    if (dirs.length >= 2 && dirs.every((d) => d === dirs[0])) {
+      dirs[1] = -dirs[0];
+    }
+    // kalau 3 kartu dan 2 sama, biarkan; kalau semua sama sudah diforce di atas
+    // kecepatan putar sangat beda (putaran penuh di fase spin)
+    const speedPool = [1.2, 1.75, 2.35].sort(() => Math.random() - 0.5);
+
     const states = cards.map((c, i) => {
-      const t = targets[i] || {
-        dx: (Math.random() * 2 - 1) * 60,
-        dy: -(90 + Math.random() * 40),
-      };
-      // arah putar Z: +1 atau -1 (random per kartu → biasanya beda)
-      const spinDir = Math.random() < 0.5 ? 1 : -1;
-      // kecepatan putar berbeda, tidak lemot: ~1.1–2.0 putaran penuh di fase spin
-      const spins = 1.15 + Math.random() * 0.9;
-      // tilt 3D ringan di sumbu X/Y agar terasa volume
+      const t = rawTargets[i] || { dx: 0, dy: -80 };
+      const spinDir = dirs[i];
+      const spins = (speedPool[i] || 1.5) + (Math.random() * 0.2 - 0.1);
       return {
         el: c,
         tx: t.dx,
         ty: t.dy,
-        spinDir,
-        totalRz: spinDir * spins * 360,
-        rx: (Math.random() * 2 - 1) * (mobile ? 10 : 16),
-        ry: (Math.random() * 2 - 1) * (mobile ? 12 : 20),
-        // sedikit offset delay agar tidak 100% sinkron di awal, tapi return bareng
-        delay: i * 0.025 + Math.random() * 0.02,
+        // putar horizontal = rotateY
+        totalRy: spinDir * spins * 360,
+        // tilt X ringan saja biar ada volume, Z hampir diam
+        rx: (Math.random() * 2 - 1) * (mobile ? 6 : 10),
+        rz: (Math.random() * 2 - 1) * 4,
+        delay: i * 0.02 + Math.random() * 0.015,
         z: 16 + i,
       };
     });
 
-    // suara roulette per kartu (offset sedikit)
+    // suara roulette per kartu (lebih nyaring, offset)
     states.forEach((s, i) => {
       setTimeout(() => {
-        // durasi suara ≈ fase spin (~1s)
-        playRoulette(0.95 + Math.random() * 0.35);
-      }, 280 + i * 90 + Math.random() * 60);
+        playRoulette(1.0 + Math.random() * 0.3);
+      }, 260 + i * 100 + Math.random() * 50);
     });
 
     const t0 = performance.now();
@@ -583,54 +645,45 @@
       const p = Math.min(1, (now - t0) / duration);
 
       states.forEach((s) => {
-        // progress lokal (delay kecil di awal saja)
         const local = Math.max(0, Math.min(1, (p - s.delay) / Math.max(0.01, 1 - s.delay)));
 
-        // 3 fase:
-        // 0.00–0.30  : berpencar ke target (easeOut)
-        // 0.30–0.62  : di puncak, putar Z (ease linear-ish, kecepatan wajar)
-        // 0.62–1.00  : kembali ke origin bareng (easeInOut) + sisa putaran meredam
-        const OUT_END = 0.3;
-        const SPIN_END = 0.62;
+        // 0.00–0.28  berpencar
+        // 0.28–0.64  putar horizontal di tempat (rotateY)
+        // 0.64–1.00  kembali bareng + sisa putaran meredam
+        const OUT_END = 0.28;
+        const SPIN_END = 0.64;
 
-        let x, y, rz, rx, ry, scale;
+        let x, y, ry, rx, rz, scale;
 
         if (local < OUT_END) {
-          // berpencar
           const t = easeOutSine(local / OUT_END);
           x = s.tx * t;
           y = s.ty * t;
-          // mulai putar pelan
-          rz = s.totalRz * 0.12 * t;
+          ry = s.totalRy * 0.1 * t; // mulai putar pelan
           rx = s.rx * t;
-          ry = s.ry * t;
-          scale = 1 + 0.06 * t;
+          rz = s.rz * t;
+          scale = 1 + 0.05 * t;
         } else if (local < SPIN_END) {
-          // putar di puncak
-          const t = (local - OUT_END) / (SPIN_END - OUT_END); // 0→1
+          const t = (local - OUT_END) / (SPIN_END - OUT_END);
           x = s.tx;
           y = s.ty;
-          // mayoritas putaran terjadi di sini (0.12 → 0.88 dari total)
-          const spinProgress = 0.12 + t * 0.76;
-          rz = s.totalRz * spinProgress;
-          // goyang 3D ringan selama spin
-          rx = s.rx + Math.sin(t * Math.PI * 2) * 4;
-          ry = s.ry + Math.cos(t * Math.PI * 2.3) * 5;
-          scale = 1.06;
+          // mayoritas putaran horizontal di sini
+          const spinProgress = 0.1 + t * 0.8;
+          ry = s.totalRy * spinProgress;
+          rx = s.rx;
+          rz = s.rz;
+          scale = 1.05;
         } else {
-          // kembali bareng ke posisi awal, sisa putaran meredam dengan easing
-          const t = (local - SPIN_END) / (1 - SPIN_END); // 0→1
+          const t = (local - SPIN_END) / (1 - SPIN_END);
           const ease = easeInOutCubic(t);
-          // posisi: dari target → 0
           x = s.tx * (1 - ease);
           y = s.ty * (1 - ease);
-          // di akhir fase spin rz ≈ totalRz * 0.88; lanjutkan sisa lalu redam ke 0
-          // supaya tidak loncat: interpolasi dari 0.88 → 1.0 (selesai putaran) lalu visual damp
-          const spinEndVal = s.totalRz * (0.88 + 0.12 * Math.min(1, ease * 1.4));
-          rz = spinEndVal * (1 - ease); // sisa putaran meredam seiring kembali
+          // sisa putaran meredam ke 0
+          const spinEndVal = s.totalRy * (0.9 + 0.1 * Math.min(1, ease * 1.3));
+          ry = spinEndVal * (1 - ease);
           rx = s.rx * (1 - ease);
-          ry = s.ry * (1 - ease);
-          scale = 1.06 - 0.06 * ease;
+          rz = s.rz * (1 - ease);
+          scale = 1.05 - 0.05 * ease;
         }
 
         s.el.style.zIndex = String(20 + s.z + Math.round(Math.abs(y) * 0.02));
