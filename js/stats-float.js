@@ -176,22 +176,26 @@
       }
     }
 
+    function setOnline(n) {
+      const o = document.getElementById("fs-online");
+      if (!o) return;
+      const v = typeof n === "number" && n >= 0 ? n : 1;
+      o.textContent = String(Math.max(1, v));
+      o.title = "Pengunjung online saat ini (login + browsing)";
+    }
+
     function startPresence() {
+      // default segera (jangan "—")
+      setOnline(1);
       try {
         if (window.GalleryDB && typeof GalleryDB.joinPresenceOnline === "function") {
           GalleryDB.joinPresenceOnline(function (n) {
-            const o = document.getElementById("fs-online");
-            if (o) {
-              o.textContent = typeof n === "number" ? String(n) : "—";
-              o.title = "Pengunjung online saat ini (login + browsing)";
-            }
+            setOnline(n);
           });
-        } else {
-          const o = document.getElementById("fs-online");
-          if (o) o.textContent = "—";
         }
       } catch (e) {
         console.warn("[stats-float] presence", e);
+        setOnline(1);
       }
     }
 

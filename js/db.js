@@ -2255,96 +2255,125 @@
   }
 
   /**
-   * Online realtime: heartbeat ke tabel gallery_online (login + browsing).
-   * Jalankan dulu: sql/patch-online-presence.sql di SQL Editor Supabase.
+   * Online count — sederhana & andal:
+   * 1) Langsung tampilkan minimal 1 (diri sendiri)
+   * 2) Supabase Realtime Presence (tanpa tabel) = sumber utama antar-pengunjung
+   * 3) Opsional: tabel gallery_online jika ada (heartbeat)
    */
   function joinPresenceOnline(onCount) {
     const sb = client();
-    if (!sb) return { leave() {} };
-
     let left = false;
-    let heartbeat = null;
     let channel = null;
+    let heartbeat = null;
+    let lastN = 1;
 
-    async function identity() {
-      let userId = null;
+    function report(n) {
+      if (left) return;
+      const v = Math.max(1, parseInt(n, 10) || 1);
+      lastN = v;
       try {
-        const sess = await getSession();
-        if (sess && sess.user) userId = sess.user.id;
+        if (typeof onCount === "function") onCount(v);
       } catch (e) {}
-      return {
-        session_id: sessionId(),
-        last_seen: new Date().toISOString(),
-        logged_in: !!userId,
-        user_id: userId,
-        path: (location && location.pathname) || "/",
-        user_agent:
-          typeof navigator !== "undefined" && navigator.userAgent
-            ? String(navigator.userAgent).slice(0, 180)
-            : null,
-      };
     }
 
-    async function upsertHeartbeat() {
-      if (left) return;
-      try {
-        const row = await identity();
-        await sb.from("gallery_online").upsert(row, { onConflict: "session_id" });
-      } catch (e) {
-        console.warn("[presence] upsert", e);
-      }
+    // SELALU langsung tampil (jangan biarkan "—")
+    report(1);
+
+    if (!sb) {
+      return { leave() { left = true; } };
     }
 
-    async function fetchCount() {
-      if (left) return;
-      try {
-        const { data, error } = await sb.rpc("gallery_online_count", { max_age_seconds: 45 });
-        if (!error && typeof data === "number") {
-          onCount && onCount(data);
-          return;
+    const key = sessionId();
+
+    // --- Realtime Presence (inti, tanpa SQL tabel) ---
+    try {
+      channel = sb.channel("online-visitors", {
+        config: { presence: { key: key } },
+      });
+
+      function countPresence() {
+        try {
+          const state = channel.presenceState() || {};
+          const n = Object.keys(state).length;
+          report(n > 0 ? n : lastN);
+        } catch (e) {
+          report(lastN);
         }
-      } catch (e) {}
+      }
+
+      channel
+        .on("presence", { event: "sync" }, countPresence)
+        .on("presence", { event: "join" }, countPresence)
+        .on("presence", { event: "leave" }, countPresence)
+        .subscribe(async (status) => {
+          if (status === "SUBSCRIBED") {
+            try {
+              let loggedIn = false;
+              let userId = null;
+              try {
+                const sess = await getSession();
+                if (sess && sess.user) {
+                  loggedIn = true;
+                  userId = sess.user.id;
+                }
+              } catch (e) {}
+              await channel.track({
+                online_at: new Date().toISOString(),
+                path: (location && location.pathname) || "/",
+                logged_in: loggedIn,
+                user_id: userId,
+              });
+              countPresence();
+            } catch (e) {
+              report(1);
+            }
+          }
+        });
+    } catch (e) {
+      console.warn("[online] presence", e);
+      report(1);
+    }
+
+    // --- Opsional: heartbeat ke tabel (jika sudah di-SQL) ---
+    async function dbTick() {
+      if (left || !sb) return;
       try {
-        const since = new Date(Date.now() - 45000).toISOString();
+        const row = {
+          session_id: key,
+          last_seen: new Date().toISOString(),
+          path: (location && location.pathname) || "/",
+        };
+        const up = await sb.from("gallery_online").upsert(row, { onConflict: "session_id" });
+        if (up.error) return; // tabel belum ada → abaikan
+        const since = new Date(Date.now() - 60000).toISOString();
         const { count, error } = await sb
           .from("gallery_online")
           .select("session_id", { count: "exact", head: true })
           .gt("last_seen", since);
-        if (!error && typeof count === "number") onCount && onCount(count);
+        if (!error && typeof count === "number" && count > 0) {
+          // ambil max antara presence & db
+          report(Math.max(count, lastN));
+        }
       } catch (e) {
-        console.warn("[presence] count", e);
+        /* diam — presence tetap jalan */
       }
     }
 
-    async function tick() {
-      await upsertHeartbeat();
-      await fetchCount();
-    }
-
-    tick();
-    heartbeat = setInterval(tick, 15000);
-
-    try {
-      channel = sb.channel("gallery-online", {
-        config: { presence: { key: sessionId() } },
-      });
-      channel.subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          try {
-            const row = await identity();
-            await channel.track({
-              at: Date.now(),
-              path: row.path,
-              logged_in: row.logged_in,
-              user_id: row.user_id,
-            });
-          } catch (e) {}
-        }
-      });
-    } catch (e) {}
+    dbTick();
+    heartbeat = setInterval(dbTick, 20000);
 
     function onVis() {
-      if (document.visibilityState === "visible") tick();
+      if (document.visibilityState === "visible") {
+        try {
+          if (channel) {
+            channel.track({
+              online_at: new Date().toISOString(),
+              path: (location && location.pathname) || "/",
+            });
+          }
+        } catch (e) {}
+        dbTick();
+      }
     }
     document.addEventListener("visibilitychange", onVis);
 
@@ -2354,7 +2383,7 @@
         try {
           if (heartbeat) clearInterval(heartbeat);
           document.removeEventListener("visibilitychange", onVis);
-          if (channel) sb.removeChannel(channel);
+          if (channel && sb) sb.removeChannel(channel);
         } catch (e) {}
       },
     };
