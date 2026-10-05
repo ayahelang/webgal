@@ -117,10 +117,14 @@
           <label class="field"><span>TikTok</span>
             <input name="tiktok" id="contactTiktok" type="text" placeholder="@username" maxlength="120">
           </label>
+          <label class="field"><span>Foto profil (hotlink URL gambar)</span>
+            <input name="photo" id="contactPhoto" type="url" placeholder="https://…/foto.jpg — kosong = foto Google" maxlength="500">
+          </label>
+          <p class="muted" style="font-size:12px;margin:0">Tampil di popup profil saat pengunjung mengklik namamu di Gallery. Kosong = foto akun Google.</p>
           <label class="field"><span>URL gambar QRIS (uang jajan)</span>
             <input name="qris" id="contactQris" type="url" placeholder="https://…/qris.png" maxlength="500">
           </label>
-          <p class="muted" style="font-size:12px;margin:0">Sosmed di atas: tampil untuk semua pengunjung. QRIS muncul sebagai tombol «Kasih uang jajan» di kartu gallery.</p>
+          <p class="muted" style="font-size:12px;margin:0">Sosmed di atas: tampil untuk semua pengunjung. QRIS sebagai tombol «Kasih uang jajan» (rasio asli agar mudah di-scan).</p>
           <button class="btn btn-primary" type="submit">Simpan kontak</button>
           <p id="contactMsg" class="muted" style="font-size:13px"></p>
         </form>

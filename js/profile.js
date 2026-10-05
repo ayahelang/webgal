@@ -194,6 +194,7 @@
         $("#contactTwitter").value = prof.contact_twitter || "";
         $("#contactTiktok").value = prof.contact_tiktok || "";
         if ($("#contactQris")) $("#contactQris").value = prof.qris_image_url || "";
+        if ($("#contactPhoto")) $("#contactPhoto").value = prof.profile_photo_url || "";
         await buildWaPrivacyTree(prof);
       }
     }
@@ -268,9 +269,10 @@
             twitter: $("#contactTwitter").value,
             tiktok: $("#contactTiktok").value,
             qrisImageUrl: ($("#contactQris") && $("#contactQris").value) || "",
+            profilePhotoUrl: ($("#contactPhoto") && $("#contactPhoto").value) || "",
             privacy,
           });
-          $("#contactMsg").textContent = "Kontak & privasi tersimpan.";
+          $("#contactMsg").textContent = "Kontak, foto & privasi tersimpan.";
         } catch (e) {
           $("#contactMsg").textContent = e.message || String(e);
         }

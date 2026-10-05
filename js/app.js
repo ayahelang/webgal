@@ -350,7 +350,8 @@
         <div class="cover-title"><h3 title="${escapeAttr(w.title)}">${w.title}</h3><span>${s.works.length} karya</span></div>
       </div>
       <div class="card-body">
-        <div class="student-row"><div class="student">${s.name}</div>
+        <div class="student-row">
+          <button type="button" class="student student-name-btn" data-student-id="${escapeAttr(s.id)}" title="Lihat profil">${s.name}</button>
           <div class="card-eng" title="Total love & komentar semua karya">
             <span class="eng-love">♥ ${(s._eng&&s._eng.love)||0}</span>
             <span class="eng-cmt">💬 ${(s._eng&&s._eng.comment)||0}</span>
@@ -408,7 +409,33 @@
     }));
     bindTooltips(document);
     bindQrisButtons(document);
+    bindStudentProfile(document);
   }
+
+  function ensureQrisModal() {
+    let modal = document.getElementById("qrisModal");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "qrisModal";
+    modal.className = "qris-modal";
+    modal.hidden = true;
+    modal.innerHTML =
+      '<div class="qris-modal-panel summary-card">' +
+      '<h3 id="qrisModalTitle" style="margin:0 0 6px"></h3>' +
+      '<p class="muted" style="font-size:12px;margin:0">Scan QRIS untuk berbagi rezeki (uang jajan).</p>' +
+      '<div class="qris-img-wrap"><img id="qrisModalImg" alt="QRIS"></div>' +
+      '<button type="button" class="btn btn-ghost" id="qrisModalClose">Tutup</button>' +
+      "</div>";
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (ev) => {
+      if (ev.target === modal) modal.hidden = true;
+    });
+    modal.querySelector("#qrisModalClose").onclick = () => {
+      modal.hidden = true;
+    };
+    return modal;
+  }
+
   function bindQrisButtons(root) {
     root.querySelectorAll(".btn-jajan").forEach((btn) => {
       btn.addEventListener("click", (e) => {
@@ -417,30 +444,132 @@
         const url = btn.getAttribute("data-qris") || "";
         const name = btn.getAttribute("data-qris-name") || "Siswa";
         if (!url) return;
-        let modal = document.getElementById("qrisModal");
-        if (!modal) {
-          modal = document.createElement("div");
-          modal.id = "qrisModal";
-          modal.className = "qris-modal";
-          modal.hidden = true;
-          modal.innerHTML =
-            '<div class="qris-modal-panel summary-card">' +
-            '<h3 id="qrisModalTitle" style="margin:0 0 6px"></h3>' +
-            '<p class="muted" style="font-size:12px;margin:0">Scan QRIS untuk berbagi rezeki (uang jajan).</p>' +
-            '<img id="qrisModalImg" alt="QRIS" width="280" height="280">' +
-            '<button type="button" class="btn btn-ghost" id="qrisModalClose">Tutup</button>' +
-            "</div>";
-          document.body.appendChild(modal);
-          modal.addEventListener("click", (ev) => {
-            if (ev.target === modal) modal.hidden = true;
-          });
-          modal.querySelector("#qrisModalClose").onclick = () => {
-            modal.hidden = true;
-          };
-        }
+        const modal = ensureQrisModal();
         modal.querySelector("#qrisModalTitle").textContent = "QRIS · " + name;
-        modal.querySelector("#qrisModalImg").src = url;
+        const img = modal.querySelector("#qrisModalImg");
+        img.removeAttribute("width");
+        img.removeAttribute("height");
+        img.src = url;
         modal.hidden = false;
+      });
+    });
+  }
+
+  function ensureStudentModal() {
+    let modal = document.getElementById("studentProfileModal");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "studentProfileModal";
+    modal.className = "student-profile-modal";
+    modal.hidden = true;
+    modal.innerHTML =
+      '<div class="student-profile-panel summary-card" role="dialog" aria-labelledby="spName">' +
+      '<button type="button" class="sp-close btn btn-ghost" aria-label="Tutup">✕</button>' +
+      '<div class="sp-head">' +
+      '<div class="sp-photo-wrap"><img id="spPhoto" alt="" hidden><div id="spPhotoFallback" class="sp-photo-fallback">🎓</div></div>' +
+      '<div><h2 id="spName" style="margin:0 0 4px;font-size:1.25rem"></h2>' +
+      '<p id="spMeta" class="muted" style="margin:0;font-size:13px"></p></div></div>' +
+      '<div id="spContact" class="sp-contact"></div>' +
+      '<div id="spWorks" class="sp-works"></div>' +
+      '<div id="spQris" class="sp-qris" hidden></div>' +
+      "</div>";
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (ev) => {
+      if (ev.target === modal) modal.hidden = true;
+    });
+    modal.querySelector(".sp-close").onclick = () => {
+      modal.hidden = true;
+    };
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !modal.hidden) modal.hidden = true;
+    });
+    return modal;
+  }
+
+  function openStudentProfile(s) {
+    if (!s) return;
+    const modal = ensureStudentModal();
+    const esc = (x) =>
+      String(x || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/"/g, "&quot;");
+    modal.querySelector("#spName").textContent = s.name || "Siswa";
+    modal.querySelector("#spMeta").textContent =
+      (s.classLabel || ("Kelas " + (s.class || "") + " · " + (s.angkatan || ""))) +
+      (s.school ? " · " + s.school : "") +
+      (s.role ? " · " + s.role : "");
+
+    const photo = modal.querySelector("#spPhoto");
+    const fallback = modal.querySelector("#spPhotoFallback");
+    if (s.photoUrl) {
+      photo.src = s.photoUrl;
+      photo.hidden = false;
+      photo.onerror = () => {
+        photo.hidden = true;
+        fallback.hidden = false;
+        fallback.textContent = (s.avatar || "🎓").toString().slice(0, 4);
+      };
+      fallback.hidden = true;
+    } else {
+      photo.hidden = true;
+      photo.removeAttribute("src");
+      fallback.hidden = false;
+      fallback.textContent = (s.avatar || "🎓").toString().slice(0, 4);
+    }
+
+    // kontak (reuse chip logic)
+    const bar = contactBarHtml(s);
+    modal.querySelector("#spContact").innerHTML = bar || '<p class="muted" style="font-size:12px;margin:0">Belum ada kontak publik.</p>';
+
+    const works = s.works || [];
+    modal.querySelector("#spWorks").innerHTML =
+      '<div class="works-title" style="margin-top:12px">KARYA <span>' +
+      works.length +
+      "</span></div>" +
+      (works.length
+        ? '<div class="work-list">' +
+          works
+            .map(
+              (w) =>
+                '<a class="work-choice" href="' +
+                esc(w.url) +
+                '" target="_blank" rel="noopener">' +
+                esc(w.title || w.url) +
+                "</a>"
+            )
+            .join("") +
+          "</div>"
+        : '<p class="muted" style="font-size:12px">Belum ada karya.</p>');
+
+    const qrisBox = modal.querySelector("#spQris");
+    if (s.qrisImageUrl) {
+      qrisBox.hidden = false;
+      qrisBox.innerHTML =
+        '<button type="button" class="btn-jajan" data-qris="' +
+        esc(s.qrisImageUrl) +
+        '" data-qris-name="' +
+        esc(s.name) +
+        '">🍪 Kasih uang jajan</button>';
+      bindQrisButtons(qrisBox);
+    } else {
+      qrisBox.hidden = true;
+      qrisBox.innerHTML = "";
+    }
+
+    modal.hidden = false;
+  }
+
+  function bindStudentProfile(root) {
+    root.querySelectorAll(".student-name-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = btn.getAttribute("data-student-id");
+        const s = (state.data && state.data.students ? state.data.students : []).find(
+          (x) => String(x.id) === String(id)
+        );
+        if (s) openStudentProfile(s);
       });
     });
   }

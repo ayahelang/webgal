@@ -205,22 +205,30 @@
       let pr = await sb
         .from("gallery_profiles")
         .select(
-          "linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code,contact_wa,contact_ig,contact_fb,contact_twitter,contact_tiktok,contact_privacy,qris_image_url"
+          "linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code,contact_wa,contact_ig,contact_fb,contact_twitter,contact_tiktok,contact_privacy,qris_image_url,avatar_url,profile_photo_url,display_name"
         )
         .not("linked_alumni_id", "is", null);
       if (pr.error) {
-        // kolom kontak / qris belum ada — fallback bertahap
+        // kolom kontak / qris / photo belum ada — fallback bertahap
         pr = await sb
           .from("gallery_profiles")
           .select(
-            "linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code,contact_wa,contact_ig,contact_fb,contact_twitter,contact_tiktok,contact_privacy"
+            "linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code,contact_wa,contact_ig,contact_fb,contact_twitter,contact_tiktok,contact_privacy,qris_image_url,avatar_url"
           )
           .not("linked_alumni_id", "is", null);
         if (pr.error) {
           pr = await sb
             .from("gallery_profiles")
-            .select("linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code")
+            .select(
+              "linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code,contact_wa,contact_ig,contact_fb,contact_twitter,contact_tiktok,contact_privacy"
+            )
             .not("linked_alumni_id", "is", null);
+          if (pr.error) {
+            pr = await sb
+              .from("gallery_profiles")
+              .select("linked_alumni_id,linked_student_name,linked_angkatan_year,linked_class_code")
+              .not("linked_alumni_id", "is", null);
+          }
         }
       }
       profiles = pr.data;
@@ -255,6 +263,11 @@
           });
         });
         const c = contactByAlumni[a.id] || {};
+        // foto: hotlink kustom siswa → fallback avatar Google
+        const photoUrl =
+          (c.profile_photo_url && String(c.profile_photo_url).trim()) ||
+          (c.avatar_url && String(c.avatar_url).trim()) ||
+          "";
         return {
           id: a.legacy_id || a.id,
           name: a.name,
@@ -266,6 +279,7 @@
           role: a.role || "Alumni",
           aiTool: "",
           avatar: a.avatar_emoji || "🎓",
+          photoUrl,
           works,
           _dbId: a.id,
           contact: {
@@ -307,11 +321,12 @@
     };
   }
 
-  async function updateMyContact({ wa, ig, fb, twitter, tiktok, privacy, qrisImageUrl }) {
+  async function updateMyContact({ wa, ig, fb, twitter, tiktok, privacy, qrisImageUrl, profilePhotoUrl }) {
     const sb = client();
     const session = await getSession();
     if (!session || !session.user) throw new Error("Belum login");
     const qris = String(qrisImageUrl || "").trim().slice(0, 500);
+    const photo = String(profilePhotoUrl || "").trim().slice(0, 500);
     const payload = {
       contact_wa: String(wa || "").trim().slice(0, 32),
       contact_ig: String(ig || "").trim().slice(0, 120),
@@ -324,6 +339,9 @@
     if (qris === "" || /^https?:\/\//i.test(qris)) {
       payload.qris_image_url = qris;
     }
+    if (photo === "" || /^https?:\/\//i.test(photo)) {
+      payload.profile_photo_url = photo;
+    }
     const { data, error } = await sb
       .from("gallery_profiles")
       .update(payload)
@@ -331,10 +349,12 @@
       .select("*")
       .single();
     if (error) {
-      // kolom qris belum ada di database — simpan tanpa qris
-      if (String(error.message || "").includes("qris_image_url")) {
-        delete payload.qris_image_url;
-        const r2 = await sb.from("gallery_profiles").update(payload).eq("id", session.user.id).select("*").single();
+      // kolom belum ada di database — simpan tanpa kolom bermasalah
+      let p2 = { ...payload };
+      if (String(error.message || "").includes("qris_image_url")) delete p2.qris_image_url;
+      if (String(error.message || "").includes("profile_photo_url")) delete p2.profile_photo_url;
+      if (p2 !== payload) {
+        const r2 = await sb.from("gallery_profiles").update(p2).eq("id", session.user.id).select("*").single();
         if (r2.error) throw r2.error;
         return r2.data;
       }
