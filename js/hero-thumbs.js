@@ -711,19 +711,16 @@
       };
     });
 
-    // unlock audio di gesture; suara roulette diselaraskan ke fase putar (bukan di awal)
+    // Suara: unlock + mainkan segera di rantai user-gesture (setTimeout sering kehilangan izin audio)
     unlockAudio();
+    playWhoosh(false);
     const OUT_END = 0.28;
     const SPIN_END = 0.66;
-    const spinDurSec = ((SPIN_END - OUT_END) * duration) / 1000;
-    states.forEach((s, i) => {
-      // mulai suara saat kartu memasuki fase spin (OUT_END + delay)
-      const startMs = (OUT_END + s.delay) * duration;
-      setTimeout(() => {
-        unlockAudio();
-        playRoulette(Math.max(0.7, spinDurSec * 0.95));
-        s.soundPlayed = true;
-      }, Math.max(0, startMs));
+    const spinDurSec = Math.max(0.85, ((SPIN_END - OUT_END) * duration) / 1000);
+    // satu roulette kuat di awal (masih dalam gesture geser/klik)
+    playRoulette(spinDurSec);
+    states.forEach((s) => {
+      s.soundPlayed = true;
     });
 
     const t0 = performance.now();

@@ -438,12 +438,16 @@
 
   function bindQrisButtons(root) {
     root.querySelectorAll(".btn-jajan").forEach((btn) => {
+      if (btn.dataset.qrisBound) return;
+      btn.dataset.qrisBound = "1";
       btn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
         const url = btn.getAttribute("data-qris") || "";
         const name = btn.getAttribute("data-qris-name") || "Siswa";
         if (!url) return;
+        const sp = document.getElementById("studentProfileModal");
+        if (sp) sp.hidden = true;
         const modal = ensureQrisModal();
         modal.querySelector("#qrisModalTitle").textContent = "QRIS · " + name;
         const img = modal.querySelector("#qrisModalImg");
@@ -486,7 +490,7 @@
     return modal;
   }
 
-  function openStudentProfile(s) {
+  async function openStudentProfile(s) {
     if (!s) return;
     const modal = ensureStudentModal();
     const esc = (x) =>
@@ -518,29 +522,53 @@
       fallback.textContent = (s.avatar || "🎓").toString().slice(0, 4);
     }
 
-    // kontak (reuse chip logic)
+    // kontak sosmed + WA
     const bar = contactBarHtml(s);
-    modal.querySelector("#spContact").innerHTML = bar || '<p class="muted" style="font-size:12px;margin:0">Belum ada kontak publik.</p>';
+    modal.querySelector("#spContact").innerHTML =
+      bar || '<p class="muted" style="font-size:12px;margin:0">Belum ada kontak publik.</p>';
 
-    const works = s.works || [];
+    // ringkas jumlah karya saja (bukan daftar link)
+    const webN = (s.works || []).length;
+    let vidN = 0;
+    let desN = 0;
+    const nameLc = String(s.name || "")
+      .trim()
+      .toLowerCase();
+    try {
+      if (window.GalleryDB && typeof GalleryDB.listVideos === "function") {
+        const vids = await GalleryDB.listVideos({});
+        vidN = (vids || []).filter((v) => {
+          const on = String(v.owner_name || v.author_name || "")
+            .trim()
+            .toLowerCase();
+          return on && on === nameLc;
+        }).length;
+      }
+    } catch (e) {}
+    try {
+      if (window.GalleryDB && typeof GalleryDB.listDesignsPublic === "function") {
+        const des = await GalleryDB.listDesignsPublic();
+        desN = (des || []).filter((d) => {
+          const on = String(d.author_name || "")
+            .trim()
+            .toLowerCase();
+          return on && on === nameLc;
+        }).length;
+      }
+    } catch (e) {}
+
     modal.querySelector("#spWorks").innerHTML =
-      '<div class="works-title" style="margin-top:12px">KARYA <span>' +
-      works.length +
-      "</span></div>" +
-      (works.length
-        ? '<div class="work-list">' +
-          works
-            .map(
-              (w) =>
-                '<a class="work-choice" href="' +
-                esc(w.url) +
-                '" target="_blank" rel="noopener">' +
-                esc(w.title || w.url) +
-                "</a>"
-            )
-            .join("") +
-          "</div>"
-        : '<p class="muted" style="font-size:12px">Belum ada karya.</p>');
+      '<div class="sp-stats">' +
+      '<div class="sp-stat"><b>' +
+      webN +
+      "</b><span>Website</span></div>" +
+      '<div class="sp-stat"><b>' +
+      vidN +
+      "</b><span>Video</span></div>" +
+      '<div class="sp-stat"><b>' +
+      desN +
+      "</b><span>Desain Grafis</span></div>" +
+      "</div>";
 
     const qrisBox = modal.querySelector("#spQris");
     if (s.qrisImageUrl) {
@@ -551,6 +579,10 @@
         '" data-qris-name="' +
         esc(s.name) +
         '">🍪 Kasih uang jajan</button>';
+      // re-bind (hapus flag agar listener baru)
+      qrisBox.querySelectorAll(".btn-jajan").forEach((b) => {
+        delete b.dataset.qrisBound;
+      });
       bindQrisButtons(qrisBox);
     } else {
       qrisBox.hidden = true;

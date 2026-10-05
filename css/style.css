@@ -1647,17 +1647,26 @@ body.page-skills .skills-main{
 }
 .sp-head{display:flex;gap:14px;align-items:center;padding-right:36px}
 .sp-photo-wrap{
-  width:72px;height:72px;border-radius:50%;overflow:hidden;flex-shrink:0;
-  border:2px solid rgba(125,227,255,.35);background:rgba(8,17,24,.9);
+  width:112px;height:112px;border-radius:50%;overflow:hidden;flex-shrink:0;
+  border:3px solid rgba(125,227,255,.4);background:rgba(8,17,24,.9);
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
 }
 .sp-photo-wrap img{width:100%;height:100%;object-fit:cover;display:block}
 .sp-photo-fallback{
   width:100%;height:100%;display:flex;align-items:center;justify-content:center;
-  font-size:28px;background:linear-gradient(145deg,#1a2e3a,#0c1820);
+  font-size:42px;background:linear-gradient(145deg,#1a2e3a,#0c1820);
 }
 .sp-contact{margin-top:14px}
-.sp-works .work-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
-.sp-qris{margin-top:12px}
+.sp-stats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;
+}
+.sp-stat{
+  text-align:center;padding:10px 6px;border-radius:12px;
+  border:1px solid rgba(125,227,255,.2);background:rgba(0,0,0,.25);
+}
+.sp-stat b{display:block;font-size:20px;color:#e8f7fc;letter-spacing:-0.5px}
+.sp-stat span{font-size:10px;color:#8aa0ab;text-transform:uppercase;letter-spacing:0.6px}
+.sp-qris{margin-top:14px;text-align:center}
 
 /* Support Us — Dana/GoPay + QRIS sejajar */
 .support-row{
