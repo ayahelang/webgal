@@ -91,6 +91,65 @@
         src.start(0);
         audioUnlocked = true;
       }
+      return ctx.state === "running";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  let soundToastTimer = null;
+  /** Popup atas: izinkan suara — hilang otomatis 5 detik; klik = unlock + tes bunyi */
+  function showSoundPrompt() {
+    try {
+      let el = document.getElementById("heroSoundToast");
+      if (!el) {
+        el = document.createElement("div");
+        el.id = "heroSoundToast";
+        el.setAttribute("role", "status");
+        el.style.cssText =
+          "position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-12px);" +
+          "z-index:99999;max-width:min(420px,92vw);padding:12px 18px;border-radius:14px;" +
+          "background:linear-gradient(135deg,rgba(12,28,36,.96),rgba(8,18,24,.98));" +
+          "border:1px solid rgba(125,227,255,.35);color:#e8f7fc;font:600 13px/1.4 system-ui,sans-serif;" +
+          "box-shadow:0 12px 40px rgba(0,0,0,.4);cursor:pointer;opacity:0;" +
+          "transition:opacity .25s ease,transform .25s ease;text-align:center;" +
+          "backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);";
+        el.innerHTML =
+          "🔊 Ketuk di sini untuk mengaktifkan suara animasi" +
+          '<div style="font-weight:500;font-size:11px;color:#8aa0ab;margin-top:4px">Izin browser diperlukan · hilang dalam 5 dtk</div>';
+        el.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          unlockAudio();
+          // tes bunyi langsung di dalam gesture klik
+          playRoulette(0.7);
+          el.style.opacity = "0";
+          el.style.transform = "translateX(-50%) translateY(-12px)";
+          setTimeout(() => {
+            if (el.parentNode) el.parentNode.removeChild(el);
+          }, 280);
+          if (soundToastTimer) clearTimeout(soundToastTimer);
+        });
+        document.body.appendChild(el);
+        // trigger reflow lalu fade-in
+        requestAnimationFrame(() => {
+          el.style.opacity = "1";
+          el.style.transform = "translateX(-50%) translateY(0)";
+        });
+      } else {
+        el.style.opacity = "1";
+        el.style.transform = "translateX(-50%) translateY(0)";
+      }
+      if (soundToastTimer) clearTimeout(soundToastTimer);
+      soundToastTimer = setTimeout(() => {
+        const t = document.getElementById("heroSoundToast");
+        if (!t) return;
+        t.style.opacity = "0";
+        t.style.transform = "translateX(-50%) translateY(-12px)";
+        setTimeout(() => {
+          if (t.parentNode) t.parentNode.removeChild(t);
+        }, 280);
+      }, 5000);
     } catch (e) {}
   }
   function playWhoosh(soft) {
@@ -553,6 +612,7 @@
    */
   function flySpinMode(cards, stack) {
     unlockAudio();
+    showSoundPrompt();
     playWhoosh(false);
     const midSwap = 0.3 + Math.random() * 0.1;
     let swapped = false;
@@ -581,7 +641,8 @@
         dy: mobile ? -(100 + Math.random() * 30) : -(130 + Math.random() * 40),
       },
       {
-        dx: mobile ? -(85 + Math.random() * 35) : -(120 + Math.random() * 45),
+        // kartu 2 lebih ke kiri → teks besar saling overlay (efek keren)
+        dx: mobile ? -(130 + Math.random() * 40) : -(180 + Math.random() * 50),
         dy: (Math.random() * 2 - 1) * (mobile ? 18 : 28),
       },
       {
@@ -754,6 +815,7 @@
       return;
     }
     unlockAudio();
+    showSoundPrompt();
     const stack = document.getElementById("heroThumbStack");
     const cards = stack ? [...stack.querySelectorAll(".mini-card")] : [];
     if (!cards.length) return;
