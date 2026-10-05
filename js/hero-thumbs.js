@@ -69,10 +69,29 @@
   }
 
   let audioCtx = null;
+  let audioUnlocked = false;
   function ensureAudio() {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume();
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume().catch(() => {});
+    }
     return audioCtx;
+  }
+  /** Unlock audio context (wajib user gesture di browser modern) */
+  function unlockAudio() {
+    try {
+      const ctx = ensureAudio();
+      if (ctx.state === "suspended") ctx.resume().catch(() => {});
+      // silent buffer — kunci unlock di iOS/Safari
+      if (!audioUnlocked) {
+        const buf = ctx.createBuffer(1, 1, 22050);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ctx.destination);
+        src.start(0);
+        audioUnlocked = true;
+      }
+    } catch (e) {}
   }
   function playWhoosh(soft) {
     try {
@@ -530,16 +549,17 @@
   /**
    * Hari biasa (bukan Kamis/Jumat): kartu berpencar → putar horizontal (rotateY) → kembali bareng
    * Arah: [0]=atas, [1]=kiri, [2]=kanan agak bawah — tetap di dalam layar, tidak overlap
+   * Putaran diintegrasi per-frame (omega) supaya halus 60fps.
    */
   function flySpinMode(cards, stack) {
+    unlockAudio();
     playWhoosh(false);
     const midSwap = 0.3 + Math.random() * 0.1;
     let swapped = false;
-    const duration = 3000 + Math.random() * 700;
+    const duration = 3200 + Math.random() * 600;
     const mobile = window.innerWidth < 700;
     const pad = 16;
 
-    // batas aman agar kartu tidak keluar viewport
     function safeTarget(el, preferDx, preferDy) {
       const r = el.getBoundingClientRect();
       const maxLeft = -(r.left - pad);
@@ -555,37 +575,31 @@
       return { dx, dy };
     }
 
-    // arah pencaran ideal (sebelum clamp)
     const preferred = [
-      // kartu 1 → atas
       {
         dx: (Math.random() * 2 - 1) * (mobile ? 12 : 20),
         dy: mobile ? -(100 + Math.random() * 30) : -(130 + Math.random() * 40),
       },
-      // kartu 2 → kiri (agak netral vertikal)
       {
         dx: mobile ? -(85 + Math.random() * 35) : -(120 + Math.random() * 45),
         dy: (Math.random() * 2 - 1) * (mobile ? 18 : 28),
       },
-      // kartu 3 → kanan, agak ke bawah boleh
       {
         dx: mobile ? 55 + Math.random() * 35 : 75 + Math.random() * 45,
         dy: mobile ? 20 + Math.random() * 35 : 25 + Math.random() * 45,
       },
     ];
 
-    // pastikan target tidak overlap kasar: minimal jarak antar pusat ~ 130px
     const rawTargets = cards.map((c, i) => {
       const p = preferred[i] || { dx: 0, dy: -80 };
       return safeTarget(c, p.dx, p.dy);
     });
-    // separasi sederhana jika terlalu dekat
     for (let i = 0; i < rawTargets.length; i++) {
       for (let j = i + 1; j < rawTargets.length; j++) {
         const a = rawTargets[i];
         const b = rawTargets[j];
-        let dx = b.dx - a.dx;
-        let dy = b.dy - a.dy;
+        const dx = b.dx - a.dx;
+        const dy = b.dy - a.dy;
         const dist = Math.hypot(dx, dy);
         const minDist = mobile ? 110 : 140;
         if (dist < minDist && dist > 0.1) {
@@ -596,108 +610,114 @@
           a.dy -= ny * push;
           b.dx += nx * push;
           b.dy += ny * push;
-          // re-clamp setelah push
-          const sa = safeTarget(cards[i], a.dx, a.dy);
-          const sb = safeTarget(cards[j], b.dx, b.dy);
-          rawTargets[i] = sa;
-          rawTargets[j] = sb;
+          rawTargets[i] = safeTarget(cards[i], a.dx, a.dy);
+          rawTargets[j] = safeTarget(cards[j], b.dx, b.dy);
         }
       }
     }
 
-    // arah putar: pastikan TIDAK semua sama
+    // arah putar: pastikan tidak semua sama
     const dirs = cards.map(() => (Math.random() < 0.5 ? 1 : -1));
     if (dirs.length >= 2 && dirs.every((d) => d === dirs[0])) {
       dirs[1] = -dirs[0];
     }
-    // kalau 3 kartu dan 2 sama, biarkan; kalau semua sama sudah diforce di atas
-    // kecepatan putar sangat beda (putaran penuh di fase spin)
-    const speedPool = [1.2, 1.75, 2.35].sort(() => Math.random() - 0.5);
+    // kecepatan angular beda jelas (derajat/detik saat fase spin)
+    // ~420–900 deg/s → terasa putar, tidak lemot, tetap halus di 60fps
+    const omegaPool = [420, 620, 880].sort(() => Math.random() - 0.5);
 
     const states = cards.map((c, i) => {
       const t = rawTargets[i] || { dx: 0, dy: -80 };
       const spinDir = dirs[i];
-      const spins = (speedPool[i] || 1.5) + (Math.random() * 0.2 - 0.1);
+      const omega = (omegaPool[i] || 600) + (Math.random() * 60 - 30); // deg/s
       return {
         el: c,
         tx: t.dx,
         ty: t.dy,
-        // putar horizontal = rotateY
-        totalRy: spinDir * spins * 360,
-        // tilt X ringan saja biar ada volume, Z hampir diam
-        rx: (Math.random() * 2 - 1) * (mobile ? 6 : 10),
-        rz: (Math.random() * 2 - 1) * 4,
+        ry: 0, // sudut kumulatif (diintegrasi tiap frame)
+        omega: spinDir * omega, // deg per second
+        rxBase: (Math.random() * 2 - 1) * (mobile ? 6 : 10),
+        rzBase: (Math.random() * 2 - 1) * 4,
         delay: i * 0.02 + Math.random() * 0.015,
         z: 16 + i,
+        soundPlayed: false,
       };
     });
 
-    // suara roulette per kartu (lebih nyaring, offset)
+    // unlock + mainkan roulette segera (masih dalam rantai user gesture)
+    unlockAudio();
     states.forEach((s, i) => {
+      // offset kecil tetap OK karena AudioContext sudah di-resume
       setTimeout(() => {
-        playRoulette(1.0 + Math.random() * 0.3);
-      }, 260 + i * 100 + Math.random() * 50);
+        unlockAudio();
+        playRoulette(1.05 + Math.random() * 0.25);
+      }, 180 + i * 95);
     });
 
     const t0 = performance.now();
+    let lastTs = t0;
 
     function frame(now) {
       const p = Math.min(1, (now - t0) / duration);
+      // dt detik, clamp biar tidak loncat saat tab background
+      const dt = Math.min(0.05, (now - lastTs) / 1000);
+      lastTs = now;
 
       states.forEach((s) => {
         const local = Math.max(0, Math.min(1, (p - s.delay) / Math.max(0.01, 1 - s.delay)));
 
         // 0.00–0.28  berpencar
-        // 0.28–0.64  putar horizontal di tempat (rotateY)
-        // 0.64–1.00  kembali bareng + sisa putaran meredam
+        // 0.28–0.66  putar horizontal kontinu (omega * dt)
+        // 0.66–1.00  kembali + redam sudut
         const OUT_END = 0.28;
-        const SPIN_END = 0.64;
+        const SPIN_END = 0.66;
 
-        let x, y, ry, rx, rz, scale;
+        let x, y, rx, rz, scale;
 
         if (local < OUT_END) {
           const t = easeOutSine(local / OUT_END);
           x = s.tx * t;
           y = s.ty * t;
-          ry = s.totalRy * 0.1 * t; // mulai putar pelan
-          rx = s.rx * t;
-          rz = s.rz * t;
+          // mulai putar pelan (30% omega)
+          s.ry += s.omega * 0.3 * dt;
+          rx = s.rxBase * t;
+          rz = s.rzBase * t;
           scale = 1 + 0.05 * t;
         } else if (local < SPIN_END) {
-          const t = (local - OUT_END) / (SPIN_END - OUT_END);
           x = s.tx;
           y = s.ty;
-          // mayoritas putaran horizontal di sini
-          const spinProgress = 0.1 + t * 0.8;
-          ry = s.totalRy * spinProgress;
-          rx = s.rx;
-          rz = s.rz;
+          // putar penuh, kontinu per-frame — tidak sampling dari progress
+          s.ry += s.omega * dt;
+          rx = s.rxBase;
+          rz = s.rzBase;
           scale = 1.05;
         } else {
           const t = (local - SPIN_END) / (1 - SPIN_END);
           const ease = easeInOutCubic(t);
           x = s.tx * (1 - ease);
           y = s.ty * (1 - ease);
-          // sisa putaran meredam ke 0
-          const spinEndVal = s.totalRy * (0.9 + 0.1 * Math.min(1, ease * 1.3));
-          ry = spinEndVal * (1 - ease);
-          rx = s.rx * (1 - ease);
-          rz = s.rz * (1 - ease);
+          // redam: lanjut putar dengan omega yang mengecil, lalu tarik ke kelipatan 360 terdekat → 0 visual
+          s.ry += s.omega * (1 - ease) * 0.35 * dt;
+          // soft settle ke 0 di akhir (hindari loncatan)
+          s.ry *= 1 - ease * 0.08;
+          if (ease > 0.85) s.ry *= 0.7;
+          rx = s.rxBase * (1 - ease);
+          rz = s.rzBase * (1 - ease);
           scale = 1.05 - 0.05 * ease;
         }
 
         s.el.style.zIndex = String(20 + s.z + Math.round(Math.abs(y) * 0.02));
+        // translateZ(0) + rotateY kontinu = compositing GPU lebih stabil
         s.el.style.transform =
           "translate3d(" +
-          x.toFixed(1) +
+          x.toFixed(2) +
           "px," +
-          y.toFixed(1) +
+          y.toFixed(2) +
           "px,0) rotateX(" +
-          rx.toFixed(1) +
+          rx.toFixed(2) +
           "deg) rotateY(" +
-          ry.toFixed(1) +
+          s.ry.toFixed(2) +
           "deg) rotateZ(" +
-          rz.toFixed(1) +
+          rz.toFixed(2) +
           "deg) scale(" +
           scale.toFixed(3) +
           ")";
@@ -733,6 +753,7 @@
       applyRandomContent();
       return;
     }
+    unlockAudio();
     const stack = document.getElementById("heroThumbStack");
     const cards = stack ? [...stack.querySelectorAll(".mini-card")] : [];
     if (!cards.length) return;
@@ -753,6 +774,11 @@
   function bindDragFly() {
     const stack = document.getElementById("heroThumbStack");
     if (!stack || reduced) return;
+    // unlock audio pada gesture pertama (pointer/touch/click)
+    const unlockOnce = () => unlockAudio();
+    stack.addEventListener("pointerdown", unlockOnce, { passive: true });
+    stack.addEventListener("touchstart", unlockOnce, { passive: true });
+    document.addEventListener("click", unlockOnce, { passive: true, once: true });
     let last = null;
     function speed(e) {
       const x = e.clientX != null ? e.clientX : e.touches && e.touches[0] ? e.touches[0].clientX : 0;
