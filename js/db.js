@@ -2237,26 +2237,83 @@
   function joinPresenceOnline(onCount) {
     const sb = client();
     if (!sb) return { leave() {} };
+
+    // hitung unique presence keys (1 browser = 1 orang, login maupun anon)
+    function reportCount() {
+      try {
+        const state = channel.presenceState();
+        // key = sessionId; value = array meta (bisa >1 jika multi-tab sama key)
+        // hitung per key (unik per perangkat/browser), bukan per meta
+        const n = Object.keys(state || {}).length;
+        onCount && onCount(n);
+      } catch (e) {}
+    }
+
+    async function buildMeta() {
+      let userId = null;
+      let name = null;
+      try {
+        const sess = await getSession();
+        if (sess && sess.user) {
+          userId = sess.user.id;
+          name =
+            (sess.user.user_metadata && (sess.user.user_metadata.full_name || sess.user.user_metadata.name)) ||
+            sess.user.email ||
+            null;
+        }
+      } catch (e) {}
+      return {
+        at: Date.now(),
+        path: location.pathname || "/",
+        logged_in: !!userId,
+        user_id: userId,
+        name: name,
+        // random jitter biar track selalu “baru” di heartbeat
+        tick: Math.random().toString(36).slice(2, 6),
+      };
+    }
+
     const channel = sb.channel("gallery-online", {
       config: { presence: { key: sessionId() } },
     });
+
+    let heartbeat = null;
+    let left = false;
+
+    async function trackNow() {
+      if (left) return;
+      try {
+        const meta = await buildMeta();
+        await channel.track(meta);
+      } catch (e) {}
+    }
+
     channel
-      .on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState();
-        let n = 0;
-        Object.values(state).forEach((arr) => {
-          n += (arr || []).length;
-        });
-        onCount && onCount(n);
-      })
+      .on("presence", { event: "sync" }, reportCount)
+      .on("presence", { event: "join" }, reportCount)
+      .on("presence", { event: "leave" }, reportCount)
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          await channel.track({ at: Date.now(), path: location.pathname });
+          await trackNow();
+          reportCount();
+          // heartbeat tiap 20 dtk — jaga presence tetap hidup (login & browsing)
+          if (heartbeat) clearInterval(heartbeat);
+          heartbeat = setInterval(trackNow, 20000);
         }
       });
+
+    // re-track saat tab kembali fokus
+    function onVis() {
+      if (document.visibilityState === "visible") trackNow();
+    }
+    document.addEventListener("visibilitychange", onVis);
+
     return {
       leave() {
+        left = true;
         try {
+          if (heartbeat) clearInterval(heartbeat);
+          document.removeEventListener("visibilitychange", onVis);
           sb.removeChannel(channel);
         } catch (e) {}
       },

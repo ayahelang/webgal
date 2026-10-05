@@ -704,14 +704,19 @@
       };
     });
 
-    // unlock + mainkan roulette segera (masih dalam rantai user gesture)
+    // unlock audio di gesture; suara roulette diselaraskan ke fase putar (bukan di awal)
     unlockAudio();
+    const OUT_END = 0.28;
+    const SPIN_END = 0.66;
+    const spinDurSec = ((SPIN_END - OUT_END) * duration) / 1000;
     states.forEach((s, i) => {
-      // offset kecil tetap OK karena AudioContext sudah di-resume
+      // mulai suara saat kartu memasuki fase spin (OUT_END + delay)
+      const startMs = (OUT_END + s.delay) * duration;
       setTimeout(() => {
         unlockAudio();
-        playRoulette(1.05 + Math.random() * 0.25);
-      }, 180 + i * 95);
+        playRoulette(Math.max(0.7, spinDurSec * 0.95));
+        s.soundPlayed = true;
+      }, Math.max(0, startMs));
     });
 
     const t0 = performance.now();
@@ -727,10 +732,8 @@
         const local = Math.max(0, Math.min(1, (p - s.delay) / Math.max(0.01, 1 - s.delay)));
 
         // 0.00–0.28  berpencar
-        // 0.28–0.66  putar horizontal kontinu (omega * dt)
+        // 0.28–0.66  putar horizontal kontinu (omega * dt) + suara roulette
         // 0.66–1.00  kembali + redam sudut
-        const OUT_END = 0.28;
-        const SPIN_END = 0.66;
 
         let x, y, rx, rz, scale;
 

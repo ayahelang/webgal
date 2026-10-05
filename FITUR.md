@@ -1,5 +1,12 @@
 # Riwayat versi (ringkas)
 
+## v2026.10.05
+- Hero spin mode (hari biasa): berpencar → putar horizontal `rotateY` (arah & kecepatan acak per kartu) → kembali dengan easing
+- Kamis = daun physics (mentok edge + bounce); Jumat = lempar kartu 3D
+- Suara roulette sinkron ke fase putar; toast “aktifkan suara” (5 dtk, klik = unlock)
+- **Online realtime** di float stats: presence Supabase menghitung login + browsing (heartbeat 20 dtk, re-track on focus)
+- Kartu 2 offset lebih ke kiri agar teks saling overlay
+
 ## v2026.10.03b
 - Hero leaf physics: fase terbang cepat-acak mentok kiri/kiri-atas, lalu pantulan daun ringan meliuk-liuk
 - Benturan AABB + restitution rendah (tidak saling menusuk); durasi lebih lama agar thumb fully loaded

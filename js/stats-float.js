@@ -181,10 +181,18 @@
         if (window.GalleryDB && typeof GalleryDB.joinPresenceOnline === "function") {
           GalleryDB.joinPresenceOnline(function (n) {
             const o = document.getElementById("fs-online");
-            if (o) o.textContent = n;
+            if (o) {
+              o.textContent = typeof n === "number" ? String(n) : "—";
+              o.title = "Pengunjung online saat ini (login + browsing)";
+            }
           });
+        } else {
+          const o = document.getElementById("fs-online");
+          if (o) o.textContent = "—";
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn("[stats-float] presence", e);
+      }
     }
 
     // tunggu GalleryDB siap (script order)
