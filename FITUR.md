@@ -1,5 +1,11 @@
 # Riwayat versi (ringkas)
 
+## v2026.10.05b
+- Hero card 3D: face depan+belakang + tebal ~5px
+- Menu Desain di semua halaman
+- Karya Saya: tab Desain Grafis (hotlink, upload, bulk)
+- SQL: designs storage + gallery_online
+
 ## v2026.10.05
 - Hero spin mode (hari biasa): berpencar → putar horizontal `rotateY` (arah & kecepatan acak per kartu) → kembali dengan easing
 - Kamis = daun physics (mentok edge + bounce); Jumat = lempar kartu 3D

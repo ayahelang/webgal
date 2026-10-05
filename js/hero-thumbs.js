@@ -30,12 +30,19 @@
   }
   function setCard(el, imgUrl, title, sub) {
     if (!el) return;
-    const bg = el.querySelector("[data-bg]");
+    const safe = imgUrl ? 'url("' + String(imgUrl).replace(/"/g, "") + '")' : "";
+    // depan & belakang pakai thumbnail sama → tidak ada gap saat putar Y
+    el.querySelectorAll("[data-bg], [data-bg-back]").forEach(function (bg) {
+      if (safe) bg.style.backgroundImage = safe;
+    });
     const t = el.querySelector("[data-title]");
     const s = el.querySelector("[data-sub]");
-    if (bg && imgUrl) bg.style.backgroundImage = 'url("' + String(imgUrl).replace(/"/g, "") + '")';
+    const tb = el.querySelector("[data-title-back]");
+    const sb = el.querySelector("[data-sub-back]");
     if (t) t.textContent = title || t.textContent;
     if (s) s.textContent = sub || "";
+    if (tb) tb.textContent = title || tb.textContent;
+    if (sb) sb.textContent = sub || "";
   }
 
   function applyRandomContent() {

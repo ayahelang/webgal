@@ -2682,9 +2682,10 @@
     if (!sb) return [];
     const { data, error } = await sb
       .from("gallery_designs")
-      .select("id,title,image_url,category,author_name,created_at")
+      .select("id,title,image_url,category,author_name,description,created_at")
+      .eq("active", true)
       .order("created_at", { ascending: false })
-      .limit(80);
+      .limit(120);
     if (error) throw error;
     return data || [];
   }
@@ -2697,26 +2698,74 @@
     return data || [];
   }
 
+  async function myDesigns() {
+    const sb = client();
+    const session = await getSession();
+    if (!sb || !session) return [];
+    const { data, error } = await sb
+      .from("gallery_designs")
+      .select("*")
+      .eq("author_user_id", session.user.id)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  /** Upload 1 file gambar ke bucket designs → public URL */
+  async function uploadDesignFile(file) {
+    const sb = client();
+    const session = await getSession();
+    if (!sb || !session) throw new Error("Login dulu");
+    if (!file || !file.type || !String(file.type).startsWith("image/")) {
+      throw new Error("File harus gambar (JPG/PNG/WebP/GIF)");
+    }
+    if (file.size > 8 * 1024 * 1024) throw new Error("Maks 8 MB per file");
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+    const path = session.user.id + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "." + ext;
+    const { error } = await sb.storage.from("designs").upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type,
+    });
+    if (error) throw error;
+    const { data } = sb.storage.from("designs").getPublicUrl(path);
+    return data && data.publicUrl ? data.publicUrl : null;
+  }
+
   async function upsertDesign(payload) {
     const sb = client();
     const session = await getSession();
     if (!sb || !session) throw new Error("Login dulu");
-    if (!(await isCurrentUserAdmin()) && !(await hasPermission("designs")) && !(await hasPermission("websites"))) {
-      throw new Error("Tidak berhak mengelola desain");
+    const isAdmin = await isCurrentUserAdmin();
+    const canPerm = (await hasPermission("designs")) || (await hasPermission("websites"));
+    // siswa taut nama boleh kelola karya sendiri
+    let authorName = String(payload.author_name || "").trim();
+    try {
+      const prof = await getMyProfile();
+      if (prof && prof.linked_student_name) authorName = authorName || prof.linked_student_name;
+    } catch (e) {}
+    if (!isAdmin && !canPerm) {
+      // siswa: hanya insert/update milik sendiri
+      if (!authorName) {
+        // tetap izinkan jika login
+        authorName = (session.user.user_metadata && session.user.user_metadata.full_name) || "Siswa";
+      }
     }
     const row = {
       title: String(payload.title || "").trim().slice(0, 200),
-      image_url: String(payload.image_url || "").trim().slice(0, 500),
+      image_url: String(payload.image_url || "").trim().slice(0, 800),
       category: String(payload.category || "Umum").trim().slice(0, 80),
       description: String(payload.description || "").trim().slice(0, 500),
-      author_name: String(payload.author_name || "").trim().slice(0, 120),
+      author_name: authorName.slice(0, 120),
       author_user_id: session.user.id,
       active: payload.active !== false,
       updated_at: new Date().toISOString(),
     };
-    if (!row.title || !row.image_url) throw new Error("Judul dan URL gambar wajib");
+    if (!row.title || !row.image_url) throw new Error("Judul dan gambar (URL/file) wajib");
     if (payload.id) {
-      const { data, error } = await sb.from("gallery_designs").update(row).eq("id", payload.id).select("*").single();
+      let q = sb.from("gallery_designs").update(row).eq("id", payload.id);
+      if (!isAdmin && !canPerm) q = q.eq("author_user_id", session.user.id);
+      const { data, error } = await q.select("*").single();
       if (error) throw error;
       return data;
     }
@@ -2726,10 +2775,38 @@
   }
 
   async function deleteDesign(id) {
-    if (!(await isCurrentUserAdmin()) && !(await hasPermission("designs"))) throw new Error("Tidak berhak");
     const sb = client();
-    const { error } = await sb.from("gallery_designs").delete().eq("id", id);
+    const session = await getSession();
+    if (!sb || !session) throw new Error("Login dulu");
+    const isAdmin = await isCurrentUserAdmin();
+    const canPerm = await hasPermission("designs");
+    let q = sb.from("gallery_designs").delete().eq("id", id);
+    if (!isAdmin && !canPerm) q = q.eq("author_user_id", session.user.id);
+    const { error } = await q;
     if (error) throw error;
+  }
+
+  /** Bulk: upload banyak file → tiap file jadi 1 baris desain */
+  async function bulkUploadDesignFiles(files, { category, titlePrefix } = {}) {
+    const list = Array.from(files || []).filter((f) => f && f.type && String(f.type).startsWith("image/"));
+    if (!list.length) throw new Error("Pilih minimal 1 file gambar");
+    const cat = String(category || "Umum").trim().slice(0, 80);
+    const prefix = String(titlePrefix || "Desain").trim();
+    const out = [];
+    for (let i = 0; i < list.length; i++) {
+      const f = list[i];
+      const url = await uploadDesignFile(f);
+      if (!url) continue;
+      const base = (f.name || "karya").replace(/\.[^.]+$/, "").slice(0, 80);
+      const row = await upsertDesign({
+        title: prefix + " — " + base,
+        image_url: url,
+        category: cat,
+        description: "",
+      });
+      out.push(row);
+    }
+    return out;
   }
 
   async function deleteUserProfiles(ids) {
@@ -3199,6 +3276,9 @@
     listAnnouncementReads,
     adminListDesigns,
     listDesignsPublic,
+    myDesigns,
+    uploadDesignFile,
+    bulkUploadDesignFiles,
     upsertDesign,
     deleteDesign,
     deleteUserProfiles,
