@@ -2,8 +2,9 @@
   const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let cache = { videos: [], designs: [], webs: [] };
   let flying = false;
-  // Jumat (getDay()===5) = animasi lempar kartu; hari lain = daun melayang
+  // Jumat = lempar kartu 3D; Kamis = daun melayang; hari lain = berpencar + spin
   const isFriday = () => new Date().getDay() === 5;
+  const isThursday = () => new Date().getDay() === 4;
 
   function pick(arr) {
     if (!arr || !arr.length) return null;
@@ -159,6 +160,52 @@
       g.connect(ctx.destination);
       o.start(t0);
       o.stop(t0 + 0.09);
+    } catch (e) {}
+  }
+
+  /** Suara putaran roulette / roda — klik cepat lalu melambat */
+  function playRoulette(durationSec) {
+    try {
+      if (reduced) return;
+      const ctx = ensureAudio();
+      const t0 = ctx.currentTime;
+      const dur = Math.max(0.6, durationSec || 1.2);
+      // interval klik: mulai cepat (~45ms), melambat ke ~180ms
+      let t = 0;
+      let interval = 0.04 + Math.random() * 0.015;
+      let n = 0;
+      while (t < dur && n < 40) {
+        const tk = t0 + t;
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "square";
+        // pitch sedikit turun seiring waktu (seperti roda melambat)
+        const freq = 880 - (t / dur) * 420 + (Math.random() * 40 - 20);
+        o.frequency.setValueAtTime(Math.max(180, freq), tk);
+        g.gain.setValueAtTime(0.0001, tk);
+        g.gain.exponentialRampToValueAtTime(0.028 + Math.random() * 0.012, tk + 0.004);
+        g.gain.exponentialRampToValueAtTime(0.0001, tk + 0.035);
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start(tk);
+        o.stop(tk + 0.04);
+        // interval membesar (melambat)
+        interval *= 1.08 + Math.random() * 0.04;
+        t += interval;
+        n++;
+      }
+      // "stop" soft thump di akhir
+      const o2 = ctx.createOscillator();
+      const g2 = ctx.createGain();
+      o2.type = "sine";
+      o2.frequency.setValueAtTime(120, t0 + dur);
+      o2.frequency.exponentialRampToValueAtTime(55, t0 + dur + 0.12);
+      g2.gain.setValueAtTime(0.04, t0 + dur);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.14);
+      o2.connect(g2);
+      g2.connect(ctx.destination);
+      o2.start(t0 + dur);
+      o2.stop(t0 + dur + 0.15);
     } catch (e) {}
   }
 
@@ -467,6 +514,158 @@
     requestAnimationFrame(frame);
   }
 
+  /**
+   * Hari biasa (bukan Kamis/Jumat): kartu berpencar → putar 3D (Z) → kembali bareng
+   * Arah pencaran: [0]=atas, [1]=kiri-atas, [2]=kanan-atas sedikit
+   */
+  function flySpinMode(cards, stack) {
+    playWhoosh(false);
+    const midSwap = 0.3 + Math.random() * 0.1;
+    let swapped = false;
+    // cukup lama agar thumb sempat load saat kembali ke posisi awal
+    const duration = 3000 + Math.random() * 700;
+    const mobile = window.innerWidth < 700;
+
+    // target relatif posisi awal — berpencar
+    const targets = [
+      // kartu 1 → naik lurus
+      {
+        dx: (Math.random() * 2 - 1) * (mobile ? 18 : 28),
+        dy: mobile ? -(110 + Math.random() * 40) : -(150 + Math.random() * 55),
+      },
+      // kartu 2 → kiri agak atas
+      {
+        dx: mobile ? -(90 + Math.random() * 40) : -(130 + Math.random() * 55),
+        dy: mobile ? -(70 + Math.random() * 35) : -(95 + Math.random() * 45),
+      },
+      // kartu 3 → kanan-atas sedikit
+      {
+        dx: mobile ? 45 + Math.random() * 35 : 60 + Math.random() * 50,
+        dy: mobile ? -(80 + Math.random() * 35) : -(105 + Math.random() * 45),
+      },
+    ];
+
+    const states = cards.map((c, i) => {
+      const t = targets[i] || {
+        dx: (Math.random() * 2 - 1) * 60,
+        dy: -(90 + Math.random() * 40),
+      };
+      // arah putar Z: +1 atau -1 (random per kartu → biasanya beda)
+      const spinDir = Math.random() < 0.5 ? 1 : -1;
+      // kecepatan putar berbeda, tidak lemot: ~1.1–2.0 putaran penuh di fase spin
+      const spins = 1.15 + Math.random() * 0.9;
+      // tilt 3D ringan di sumbu X/Y agar terasa volume
+      return {
+        el: c,
+        tx: t.dx,
+        ty: t.dy,
+        spinDir,
+        totalRz: spinDir * spins * 360,
+        rx: (Math.random() * 2 - 1) * (mobile ? 10 : 16),
+        ry: (Math.random() * 2 - 1) * (mobile ? 12 : 20),
+        // sedikit offset delay agar tidak 100% sinkron di awal, tapi return bareng
+        delay: i * 0.025 + Math.random() * 0.02,
+        z: 16 + i,
+      };
+    });
+
+    // suara roulette per kartu (offset sedikit)
+    states.forEach((s, i) => {
+      setTimeout(() => {
+        // durasi suara ≈ fase spin (~1s)
+        playRoulette(0.95 + Math.random() * 0.35);
+      }, 280 + i * 90 + Math.random() * 60);
+    });
+
+    const t0 = performance.now();
+
+    function frame(now) {
+      const p = Math.min(1, (now - t0) / duration);
+
+      states.forEach((s) => {
+        // progress lokal (delay kecil di awal saja)
+        const local = Math.max(0, Math.min(1, (p - s.delay) / Math.max(0.01, 1 - s.delay)));
+
+        // 3 fase:
+        // 0.00–0.30  : berpencar ke target (easeOut)
+        // 0.30–0.62  : di puncak, putar Z (ease linear-ish, kecepatan wajar)
+        // 0.62–1.00  : kembali ke origin bareng (easeInOut) + sisa putaran meredam
+        const OUT_END = 0.3;
+        const SPIN_END = 0.62;
+
+        let x, y, rz, rx, ry, scale;
+
+        if (local < OUT_END) {
+          // berpencar
+          const t = easeOutSine(local / OUT_END);
+          x = s.tx * t;
+          y = s.ty * t;
+          // mulai putar pelan
+          rz = s.totalRz * 0.12 * t;
+          rx = s.rx * t;
+          ry = s.ry * t;
+          scale = 1 + 0.06 * t;
+        } else if (local < SPIN_END) {
+          // putar di puncak
+          const t = (local - OUT_END) / (SPIN_END - OUT_END); // 0→1
+          x = s.tx;
+          y = s.ty;
+          // mayoritas putaran terjadi di sini (0.12 → 0.88 dari total)
+          const spinProgress = 0.12 + t * 0.76;
+          rz = s.totalRz * spinProgress;
+          // goyang 3D ringan selama spin
+          rx = s.rx + Math.sin(t * Math.PI * 2) * 4;
+          ry = s.ry + Math.cos(t * Math.PI * 2.3) * 5;
+          scale = 1.06;
+        } else {
+          // kembali bareng ke posisi awal, sisa putaran meredam dengan easing
+          const t = (local - SPIN_END) / (1 - SPIN_END); // 0→1
+          const ease = easeInOutCubic(t);
+          // posisi: dari target → 0
+          x = s.tx * (1 - ease);
+          y = s.ty * (1 - ease);
+          // di akhir fase spin rz ≈ totalRz * 0.88; lanjutkan sisa lalu redam ke 0
+          // supaya tidak loncat: interpolasi dari 0.88 → 1.0 (selesai putaran) lalu visual damp
+          const spinEndVal = s.totalRz * (0.88 + 0.12 * Math.min(1, ease * 1.4));
+          rz = spinEndVal * (1 - ease); // sisa putaran meredam seiring kembali
+          rx = s.rx * (1 - ease);
+          ry = s.ry * (1 - ease);
+          scale = 1.06 - 0.06 * ease;
+        }
+
+        s.el.style.zIndex = String(20 + s.z + Math.round(Math.abs(y) * 0.02));
+        s.el.style.transform =
+          "translate3d(" +
+          x.toFixed(1) +
+          "px," +
+          y.toFixed(1) +
+          "px,0) rotateX(" +
+          rx.toFixed(1) +
+          "deg) rotateY(" +
+          ry.toFixed(1) +
+          "deg) rotateZ(" +
+          rz.toFixed(1) +
+          "deg) scale(" +
+          scale.toFixed(3) +
+          ")";
+      });
+
+      if (!swapped && p >= midSwap) {
+        swapped = true;
+        applyRandomContent();
+        playWhoosh(false);
+      }
+      if (p < 1) requestAnimationFrame(frame);
+      else
+        finish(
+          cards,
+          stack,
+          states.map((s) => ({ el: s.el }))
+        );
+    }
+    requestAnimationFrame(frame);
+  }
+
   function finish(cards, stack, starts) {
     (starts || []).forEach((s) => {
       s.el.style.transform = "";
@@ -489,9 +688,12 @@
     if (isFriday()) {
       stack.classList.remove("is-leaf");
       flyThrowMode(cards, stack);
-    } else {
+    } else if (isThursday()) {
       stack.classList.add("is-leaf");
       flyLeafMode(cards, stack);
+    } else {
+      stack.classList.remove("is-leaf");
+      flySpinMode(cards, stack);
     }
   }
 
