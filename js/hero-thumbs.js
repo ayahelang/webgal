@@ -711,17 +711,13 @@
       };
     });
 
-    // Suara: unlock + mainkan segera di rantai user-gesture (setTimeout sering kehilangan izin audio)
+    // Unlock audio di gesture; suara roulette diselaraskan ke fase putar (bukan di awal)
     unlockAudio();
-    playWhoosh(false);
+    playWhoosh(true); // whoosh pelan saat berpencar
     const OUT_END = 0.28;
     const SPIN_END = 0.66;
-    const spinDurSec = Math.max(0.85, ((SPIN_END - OUT_END) * duration) / 1000);
-    // satu roulette kuat di awal (masih dalam gesture geser/klik)
-    playRoulette(spinDurSec);
-    states.forEach((s) => {
-      s.soundPlayed = true;
-    });
+    const spinDurSec = Math.max(0.75, ((SPIN_END - OUT_END) * duration) / 1000);
+    let rouletteStarted = false;
 
     const t0 = performance.now();
     let lastTs = t0;
@@ -731,6 +727,16 @@
       // dt detik, clamp biar tidak loncat saat tab background
       const dt = Math.min(0.05, (now - lastTs) / 1000);
       lastTs = now;
+
+      // Mulai roulette tepat saat fase putar dimulai (sinkron animasi, context sudah di-unlock)
+      if (!rouletteStarted && p >= OUT_END) {
+        rouletteStarted = true;
+        unlockAudio();
+        playRoulette(spinDurSec);
+        states.forEach((s) => {
+          s.soundPlayed = true;
+        });
+      }
 
       states.forEach((s) => {
         const local = Math.max(0, Math.min(1, (p - s.delay) / Math.max(0.01, 1 - s.delay)));

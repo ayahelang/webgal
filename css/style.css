@@ -2118,3 +2118,86 @@ a#btnStuTplSheet{
 .glass-stack.is-leaf .mini-card{
   box-shadow:0 18px 40px rgba(0,0,0,.35);
 }
+
+
+/* === MOBILE TOPNAV SLIDER === */
+/* Semua item menu terlihat via scroll horizontal + fade tepi */
+.topnav.topnav-scroll,
+.topnav{
+  display:flex !important;
+  flex-wrap:nowrap !important;
+  align-items:center;
+  gap:4px;
+  max-width:100%;
+  overflow-x:auto !important;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+  scroll-behavior:auto;
+  scrollbar-width:none; /* Firefox */
+  overscroll-behavior-x:contain;
+}
+.topnav::-webkit-scrollbar{display:none;height:0}
+.topnav a{
+  flex:0 0 auto;
+  white-space:nowrap;
+  color:#c5dce6 !important;
+  text-shadow:0 1px 2px rgba(0,0,0,.45);
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(125,227,255,.18) !important;
+  border-radius:999px;
+  padding:7px 12px;
+  font-size:12px;
+  font-weight:600;
+}
+.topnav a:hover,
+.topnav a:focus-visible{
+  color:#fff !important;
+  background:rgba(125,227,255,.14);
+  border-color:rgba(125,227,255,.4) !important;
+}
+.topnav a.active{
+  color:#061016 !important;
+  background:linear-gradient(135deg,#dffbff,#6bdcf4) !important;
+  border-color:transparent !important;
+  text-shadow:none;
+  font-weight:700;
+}
+.topnav a.nav-admin,
+.topnav a.nav-profile{
+  color:#dffbff !important;
+}
+
+@media (max-width:900px){
+  .topbar{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px 10px;
+    padding:10px 12px;
+    height:auto;
+    min-height:56px;
+  }
+  .topnav{
+    order:3;
+    width:100%;
+    max-width:100% !important;
+    margin:0;
+    padding:6px 2px 8px;
+    /* mask fade kiri-kanan = kesan slider modern */
+    -webkit-mask-image:linear-gradient(90deg,transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+    mask-image:linear-gradient(90deg,transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  }
+  .brand{order:1;flex:0 0 auto}
+  .status,#shAuthSlot,.theme-toggle{order:2;margin-left:auto}
+  /* batalkan rule lama yang memotong menu */
+  .topnav{flex-wrap:nowrap !important;max-width:100% !important}
+}
+
+@media (max-width:620px){
+  .topnav a{
+    padding:8px 12px;
+    font-size:12px;
+    color:#d2e8f0 !important;
+  }
+  .topnav a.active{color:#061016 !important}
+}
