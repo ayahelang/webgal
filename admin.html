@@ -59,7 +59,8 @@
     <div id="panel" hidden>
       <div id="adminTabs" class="filters admin-tabs">
         <button class="filter active" data-tab="videos">Video</button>
-        <button class="filter" data-tab="websites">Website Siswa</button>
+        <button class="filter" data-tab="websites">Website</button>
+        <button class="filter" data-tab="designs">Desain</button>
         <button class="filter" data-tab="alumni">Users</button>
         <button class="filter" data-tab="angkatan">Angkatan</button>
         <button class="filter" data-tab="links">Tautan Siswa</button>
@@ -70,12 +71,18 @@
       </div>
 
       <section data-panel="videos" class="summary-card admin-pane">
-        <h3>Tambah video (YouTube / Dailymotion)</h3>
+        <h3>Video — siswa &amp; pengajar</h3>
+        <p class="muted" style="font-size:13px;margin:0 0 8px">Kelola video karya siswa dan pengajar (YouTube / Dailymotion).</p>
         <form id="videoForm" style="display:grid;gap:10px;margin-top:12px">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul</span><input name="title" required></label>
           <label class="field"><span>URL</span><input name="url" required placeholder="https://youtube.com/... "></label>
           <label class="field"><span>Kategori</span><select name="categoryId" id="vidCat"></select></label>
+          <label class="field"><span>Pemilik (siswa / pengajar)</span>
+            <select name="ownerName" id="vidOwnerName">
+              <option value="">— opsional / dari akun —</option>
+            </select>
+          </label>
           <label class="field"><span>Deskripsi</span><input name="description"></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary" type="submit">Simpan video</button>
@@ -85,15 +92,15 @@
           </div>
         </form>
         <p id="vidStatus" class="muted" style="font-size:13px"></p>
-                <label class="field admin-search-wrap" style="margin:12px 0 8px">
+        <label class="field admin-search-wrap" style="margin:12px 0 8px">
           <span>Cari di list</span>
-          <input type="search" id="vidSearch" class="admin-list-search" placeholder="Cari judul, URL, nama siswa…" autocomplete="off">
+          <input type="search" id="vidSearch" class="admin-list-search" placeholder="Cari judul, URL, nama siswa/pengajar…" autocomplete="off">
         </label>
-<div id="vidList" class="admin-list"></div>
+        <div id="vidList" class="admin-list"></div>
       </section>
 
       <section data-panel="websites" class="summary-card admin-pane" hidden>
-        <h3>Website Siswa</h3>
+        <h3>Website</h3>
         <form id="webForm" style="display:grid;gap:10px;margin-top:12px">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul</span><input name="title" required placeholder="Judul website"></label>
@@ -369,21 +376,29 @@
       </section>
       
       <section data-panel="designs" class="summary-card admin-pane" hidden>
-        <h3>Galeri Desain Grafis</h3>
-        <p class="muted" style="font-size:13px">Hotlink gambar saja (tidak diunggah ke database). Mirip galeri video.</p>
-        <form id="designForm" class="ann-form">
+        <h3>Desain — siswa &amp; pengajar</h3>
+        <p class="muted" style="font-size:13px;margin:0 0 8px">Kelola karya desain grafis siswa dan pengajar (hotlink URL gambar).</p>
+        <form id="designForm" style="display:grid;gap:10px;margin-top:12px">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul</span><input name="title" required placeholder="Judul karya"></label>
           <label class="field"><span>URL gambar</span><input name="image_url" type="url" required placeholder="https://…"></label>
           <label class="field"><span>Kategori</span><input name="category" placeholder="Poster / Logo / Feed" value="Umum"></label>
-          <label class="field"><span>Pembuat</span><input name="author_name" placeholder="Nama"></label>
-          <label class="field" style="grid-column:1/-1"><span>Deskripsi</span><textarea name="description" rows="2" placeholder="Ringkas"></textarea></label>
-          <div class="admin-form-actions" style="grid-column:1/-1">
+          <label class="field"><span>Pemilik (siswa / pengajar)</span>
+            <select name="author_name" id="desOwnerName">
+              <option value="">— pilih nama —</option>
+            </select>
+          </label>
+          <label class="field"><span>Deskripsi</span><input name="description" placeholder="Ringkas"></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button type="button" class="btn btn-primary" id="designSave">Simpan karya</button>
-            <button type="button" class="btn btn-ghost" id="designReset">Batal</button>
+            <button type="button" class="btn btn-ghost" id="designReset">Batal edit</button>
           </div>
         </form>
         <p id="designMsg" class="muted" style="font-size:13px"></p>
+        <label class="field admin-search-wrap" style="margin:12px 0 8px">
+          <span>Cari di list</span>
+          <input type="search" id="desSearch" class="admin-list-search" placeholder="Cari judul, kategori, nama siswa/pengajar…" autocomplete="off">
+        </label>
         <div id="designList" class="admin-list" style="margin-top:12px"></div>
       </section>
 

@@ -650,23 +650,23 @@
     return data;
   }
 
-  async function adminUpdateVideo(id, { title, url, categoryId, description }) {
+  async function adminUpdateVideo(id, { title, url, categoryId, description, ownerName }) {
     const sb = client();
     const parsed = parseVideoUrl(url);
     if (parsed.platform === "other") throw new Error("Link harus YouTube atau Dailymotion.");
-    const { data, error } = await sb
-      .from("gallery_videos")
-      .update({
-        title: title || "Video",
-        url,
-        platform: parsed.platform,
-        embed_url: parsed.embed_url,
-        category_id: categoryId || null,
-        description: description || "",
-      })
-      .eq("id", id)
-      .select("*")
-      .single();
+    const patch = {
+      title: title || "Video",
+      url,
+      platform: parsed.platform,
+      embed_url: parsed.embed_url,
+      category_id: categoryId || null,
+      description: description || "",
+    };
+    if (ownerName !== undefined) {
+      const on = String(ownerName || "").trim();
+      patch.owner_name = on ? on.slice(0, 120) : null;
+    }
+    const { data, error } = await sb.from("gallery_videos").update(patch).eq("id", id).select("*").single();
     if (error) throw error;
     return data;
   }
@@ -1015,23 +1015,22 @@
     if (error) throw error;
     return data || [];
   }
-  async function addVideo({ title, url, categoryId, description, createdBy }) {
+  async function addVideo({ title, url, categoryId, description, createdBy, ownerName }) {
     const sb = client();
     const parsed = parseVideoUrl(url);
     if (parsed.platform === "other") throw new Error("Link harus YouTube atau Dailymotion.");
-    const { data, error } = await sb
-      .from("gallery_videos")
-      .insert({
-        title: title || "Video",
-        url,
-        platform: parsed.platform,
-        embed_url: parsed.embed_url,
-        category_id: categoryId || null,
-        description: description || "",
-        created_by: createdBy || "",
-      })
-      .select("*")
-      .single();
+    const row = {
+      title: title || "Video",
+      url,
+      platform: parsed.platform,
+      embed_url: parsed.embed_url,
+      category_id: categoryId || null,
+      description: description || "",
+      created_by: createdBy || "",
+    };
+    const on = String(ownerName || "").trim();
+    if (on) row.owner_name = on.slice(0, 120);
+    const { data, error } = await sb.from("gallery_videos").insert(row).select("*").single();
     if (error) throw error;
     return data;
   }

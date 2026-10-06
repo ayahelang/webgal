@@ -1736,6 +1736,7 @@
         categoryId: fd.get("categoryId") || null,
         description: fd.get("description") || "",
         createdBy: session.user.email,
+        ownerName: (fd.get("ownerName") || "").trim(),
       };
       try {
         if (id) await GalleryDB.adminUpdateVideo(id, payload);
@@ -1933,7 +1934,12 @@
         window.__adminAlumniLite = (al || []).map((x) => {
           const ang = x.gallery_angkatan || {};
           const m = String(ang.label || "").match(/20\d{2}/);
-          return { name: x.name, class: x.class_code, angkatan: m ? m[0] : "" };
+          return {
+            name: x.name,
+            class: x.class_code,
+            angkatan: m ? m[0] : "",
+            role: x.role || "Santriwati",
+          };
         });
       }
       students = window.__adminAlumniLite || [];
@@ -1946,7 +1952,10 @@
     });
     function metaFor(v) {
       const on = v.owner_name || "";
-      const hit = nameIndex[on.toLowerCase()];
+      const hit = nameIndex[String(on).toLowerCase()];
+      if (hit && /pengajar/i.test(String(hit.role || ""))) {
+        return { year: "Pengajar", kelas: "—", name: on || "Pengajar" };
+      }
       let year = hit ? String(hit.angkatan || "") : "";
       let kelas = hit ? String(hit.class || "") : "";
       if (!year) {
@@ -1956,6 +1965,10 @@
       if (!kelas) {
         const m2 = String(v.description || "").match(/Kls?\s*(\d{2})/i);
         if (m2) kelas = m2[1];
+      }
+      // tanpa metadata siswa → coba kelompokkan sebagai pengajar jika tidak ada kelas
+      if (!year && !kelas && on) {
+        return { year: "Pengajar", kelas: "—", name: on };
       }
       return { year: year || "?", kelas: kelas || "?", name: on || "Tanpa nama" };
     }
@@ -1986,7 +1999,11 @@
     $("#vidList").innerHTML =
       cats
         .map((cat) => {
-          const years = Object.keys(root[cat]).sort().reverse();
+          const years = Object.keys(root[cat]).sort((a, b) => {
+            if (a === "Pengajar") return -1;
+            if (b === "Pengajar") return 1;
+            return String(b).localeCompare(String(a));
+          });
           const yHtml = years
             .map((y) => {
               const classes = Object.keys(root[cat][y]).sort();
@@ -2056,10 +2073,80 @@
         f.querySelector("[name=url]").value = v.url || "";
         f.querySelector("[name=description]").value = v.description || "";
         if (v.category_id) f.querySelector("[name=categoryId]").value = v.category_id;
+        const own = f.querySelector("[name=ownerName]");
+        if (own && v.owner_name) {
+          // pastikan option ada
+          let found = false;
+          for (const o of own.options) {
+            if (o.value === v.owner_name) {
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            const opt = document.createElement("option");
+            opt.value = v.owner_name;
+            opt.textContent = v.owner_name;
+            own.appendChild(opt);
+          }
+          own.value = v.owner_name;
+        }
         $("#vidStatus").textContent = "Mode edit: " + (v.title || "");
         scrollToForm("#videoForm");
       })
     );
+  }
+
+
+  async function fillMediaOwnerSelects() {
+    try {
+      if (!window.__adminAlumniLite) {
+        const al = await GalleryDB.adminListAlumni();
+        window.__adminAlumniLite = (al || []).map((x) => {
+          const ang = x.gallery_angkatan || {};
+          const m = String(ang.label || "").match(/20\d{2}/);
+          return {
+            name: x.name,
+            class: x.class_code,
+            angkatan: m ? m[0] : "",
+            role: x.role || "Santriwati",
+          };
+        });
+      }
+    } catch (e) {}
+    const list = window.__adminAlumniLite || [];
+    const sorted = list.slice().sort((a, b) => {
+      const ra = /pengajar/i.test(a.role || "") ? 0 : 1;
+      const rb = /pengajar/i.test(b.role || "") ? 0 : 1;
+      if (ra !== rb) return ra - rb;
+      return String(a.name || "").localeCompare(String(b.name || ""), "id");
+    });
+    function fillSel(sel, emptyLabel) {
+      if (!sel) return;
+      const cur = sel.value;
+      sel.innerHTML =
+        '<option value="">' +
+        (emptyLabel || "— pilih —") +
+        "</option>" +
+        sorted
+          .map((s) => {
+            const tag = /pengajar/i.test(s.role || "")
+              ? "Pengajar"
+              : (s.angkatan || "") + (s.class ? " · K" + s.class : "");
+            return (
+              '<option value="' +
+              esc(s.name) +
+              '">' +
+              esc(s.name) +
+              (tag ? " (" + esc(tag) + ")" : "") +
+              "</option>"
+            );
+          })
+          .join("");
+      if (cur) sel.value = cur;
+    }
+    fillSel($("#vidOwnerName"), "— opsional / dari akun —");
+    fillSel($("#desOwnerName"), "— pilih nama —");
   }
 
   async function fillAlumniSelects() {
@@ -2077,6 +2164,7 @@
     }
     await loadRoster();
     bindWebOwnerPickers();
+    await fillMediaOwnerSelects();
   }
 
   function bindWebOwnerPickers() {
@@ -2808,48 +2896,164 @@
   async function refreshDesigns() {
     const host = $("#designList");
     if (!host) return;
+    host.innerHTML = "<p class='muted'>Memuat desain…</p>";
+    let rows = [];
     try {
-      const rows = await GalleryDB.adminListDesigns();
-      host.innerHTML =
-        rows
-          .map(
-            (r) => `<div class="admin-row">
-              <div style="display:flex;gap:10px;align-items:center">
-                <img src="${esc(r.image_url)}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;background:#111">
-                <div><strong>${esc(r.title)}</strong><br><small class="muted">${esc(r.category)} · ${esc(r.author_name || "—")}</small></div>
-              </div>
-              <div style="display:flex;gap:6px">
-                <button type="button" data-edit-design="${r.id}">Ubah</button>
-                <button type="button" data-del-design="${r.id}">Hapus</button>
-              </div>
-            </div>`
-          )
-          .join("") || "<p class='muted'>Belum ada karya desain.</p>";
-      const all = rows;
-      $$("#designList [data-del-design]").forEach((b) =>
-        b.addEventListener("click", async () => {
-          if (!confirm("Hapus karya ini?")) return;
+      rows = await GalleryDB.adminListDesigns();
+    } catch (e) {
+      host.innerHTML = "<p class='muted'>Gagal muat desain: " + esc(e.message || e) + "</p>";
+      return;
+    }
+    const designCache = rows || [];
+    function countDeep(obj) {
+      if (Array.isArray(obj)) return obj.length;
+      if (!obj || typeof obj !== "object") return 0;
+      return Object.keys(obj).reduce((n, k) => n + countDeep(obj[k]), 0);
+    }
+    let students = [];
+    try {
+      if (!window.__adminAlumniLite) {
+        const al = await GalleryDB.adminListAlumni();
+        window.__adminAlumniLite = (al || []).map((x) => {
+          const ang = x.gallery_angkatan || {};
+          const m = String(ang.label || "").match(/20\d{2}/);
+          return {
+            name: x.name,
+            class: x.class_code,
+            angkatan: m ? m[0] : "",
+            role: x.role || "Santriwati",
+          };
+        });
+      }
+      students = window.__adminAlumniLite || [];
+    } catch (e) {}
+    const nameIndex = {};
+    students.forEach((s) => {
+      if (s.name) nameIndex[String(s.name).toLowerCase()] = s;
+    });
+    function metaFor(d) {
+      const on = d.author_name || "";
+      const hit = nameIndex[String(on).toLowerCase()];
+      if (hit && /pengajar/i.test(String(hit.role || ""))) {
+        return { year: "Pengajar", kelas: "—", name: on || "Pengajar" };
+      }
+      let year = hit ? String(hit.angkatan || "") : "";
+      let kelas = hit ? String(hit.class || "") : "";
+      if (!year && !kelas && on) return { year: "Pengajar", kelas: "—", name: on };
+      return { year: year || "?", kelas: kelas || "?", name: on || "Tanpa nama" };
+    }
+    const root = {};
+    designCache.forEach((d) => {
+      const cat = d.category || "Umum";
+      const m = metaFor(d);
+      if (!root[cat]) root[cat] = {};
+      if (!root[cat][m.year]) root[cat][m.year] = {};
+      if (!root[cat][m.year][m.kelas]) root[cat][m.year][m.kelas] = {};
+      if (!root[cat][m.year][m.kelas][m.name]) root[cat][m.year][m.kelas][m.name] = [];
+      root[cat][m.year][m.kelas][m.name].push(d);
+    });
+    function desRow(d) {
+      return `<div class="admin-row">
+        <div style="display:flex;gap:10px;align-items:center;min-width:0">
+          <img src="${esc(d.image_url)}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;background:#111;flex-shrink:0">
+          <div style="min-width:0"><strong>${esc(d.title)}</strong><br><small class="muted">${esc(d.author_name || "—")}</small></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button type="button" data-edit-design="${d.id}">Ubah</button>
+          <button type="button" data-del-design="${d.id}">Hapus</button>
+        </div>
+      </div>`;
+    }
+    const cats = Object.keys(root).sort();
+    host.innerHTML =
+      cats
+        .map((cat) => {
+          const years = Object.keys(root[cat]).sort((a, b) => {
+            if (a === "Pengajar") return -1;
+            if (b === "Pengajar") return 1;
+            return String(b).localeCompare(String(a));
+          });
+          const yHtml = years
+            .map((y) => {
+              const classes = Object.keys(root[cat][y]).sort();
+              const cHtml = classes
+                .map((c) => {
+                  const names = Object.keys(root[cat][y][c]).sort((a, b) => a.localeCompare(b, "id"));
+                  const nHtml = names
+                    .map((nm) => {
+                      const list = root[cat][y][c][nm].map(desRow).join("");
+                      return `<div class="pt-node">
+                        <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><strong>${esc(nm)}</strong> <small class="muted">(${root[cat][y][c][nm].length})</small></div>
+                        <div class="pt-children is-collapsed" data-parent="d-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">${list}</div>
+                      </div>`;
+                    })
+                    .join("");
+                  const label = y === "Pengajar" ? esc(c) : "Kelas " + esc(c);
+                  return `<div class="pt-node">
+                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-${esc(cat)}-${esc(y)}-${esc(c)}">▸</button><strong>${label}</strong> <small class="muted pt-count">(${countDeep(root[cat][y][c])})</small></div>
+                    <div class="pt-children is-collapsed" data-parent="d-${esc(cat)}-${esc(y)}-${esc(c)}">${nHtml}</div>
+                  </div>`;
+                })
+                .join("");
+              const yLabel = y === "Pengajar" ? "Pengajar" : "Angkatan " + esc(y);
+              return `<div class="pt-node">
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-${esc(cat)}-${esc(y)}">▸</button><strong>${yLabel}</strong> <small class="muted pt-count">(${countDeep(root[cat][y])})</small></div>
+                <div class="pt-children is-collapsed" data-parent="d-${esc(cat)}-${esc(y)}">${cHtml}</div>
+              </div>`;
+            })
+            .join("");
+          return `<div class="pt-node" style="margin-bottom:12px">
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-cat-${esc(cat)}">▸</button><strong>${esc(cat)}</strong> <small class="muted pt-count">(${countDeep(root[cat])})</small></div>
+            <div class="pt-children is-collapsed" data-parent="d-cat-${esc(cat)}">${yHtml}</div>
+          </div>`;
+        })
+        .join("") || "<p class='muted'>Belum ada karya desain.</p>";
+    treeToggleBind(host);
+    bindListSearch("#desSearch", "#designList");
+    $$("#designList [data-del-design]").forEach((b) =>
+      b.addEventListener("click", async () => {
+        if (!confirm("Hapus karya ini?")) return;
+        try {
           await GalleryDB.deleteDesign(b.dataset.delDesign);
           await refreshDesigns();
-        })
-      );
-      $$("#designList [data-edit-design]").forEach((b) =>
-        b.addEventListener("click", () => {
-          const r = all.find((x) => String(x.id) === String(b.dataset.editDesign));
-          if (!r) return;
-          const f = $("#designForm");
-          f.querySelector("[name=id]").value = r.id;
-          f.querySelector("[name=title]").value = r.title || "";
-          f.querySelector("[name=image_url]").value = r.image_url || "";
-          f.querySelector("[name=category]").value = r.category || "Umum";
-          f.querySelector("[name=author_name]").value = r.author_name || "";
-          f.querySelector("[name=description]").value = r.description || "";
-          $("#designMsg").textContent = "Mode edit: " + (r.title || "");
-        })
-      );
-    } catch (e) {
-      host.innerHTML = "<p class='muted'>" + esc(e.message || e) + "</p>";
-    }
+        } catch (e) {
+          alert(e.message || e);
+        }
+      })
+    );
+    $$("#designList [data-edit-design]").forEach((b) =>
+      b.addEventListener("click", () => {
+        const r = designCache.find((x) => String(x.id) === String(b.dataset.editDesign));
+        if (!r) return;
+        const f = $("#designForm");
+        f.querySelector("[name=id]").value = r.id;
+        f.querySelector("[name=title]").value = r.title || "";
+        f.querySelector("[name=image_url]").value = r.image_url || "";
+        f.querySelector("[name=category]").value = r.category || "Umum";
+        const own = f.querySelector("[name=author_name]");
+        if (own) {
+          if (r.author_name) {
+            let found = false;
+            for (const o of own.options) {
+              if (o.value === r.author_name) {
+                found = true;
+                break;
+              }
+            }
+            if (!found) {
+              const opt = document.createElement("option");
+              opt.value = r.author_name;
+              opt.textContent = r.author_name;
+              own.appendChild(opt);
+            }
+            own.value = r.author_name;
+          }
+        }
+        f.querySelector("[name=description]").value = r.description || "";
+        $("#designMsg").textContent = "Mode edit: " + (r.title || "");
+        scrollToForm("#designForm");
+      })
+    );
   }
 
   function bindDesignsAdmin() {
