@@ -34,6 +34,35 @@
     const p = String(t).slice(0, 5).split(":");
     return parseInt(p[0], 10) * 60 + parseInt(p[1] || 0, 10);
   }
+  function minutesFromISO(iso) {
+    if (!iso) return null;
+    try {
+      const fmt = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Jakarta",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      const parts = Object.fromEntries(fmt.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
+      return parseInt(parts.hour, 10) * 60 + parseInt(parts.minute, 10);
+    } catch (e) {
+      return null;
+    }
+  }
+  /** Status dari batas sesi SAAT INI (bukan nilai lama di DB) */
+  function recomputeRecStatus(s, rec) {
+    const out = { in: "", out: "" };
+    if (!s || !rec) return out;
+    if (rec.checkin_at) {
+      const m = minutesFromISO(rec.checkin_at);
+      out.in = m != null && m > timeToMin(s.checkin_end) ? "late" : "on_time";
+    }
+    if (rec.checkout_at) {
+      const m = minutesFromISO(rec.checkout_at);
+      out.out = m != null && m > timeToMin(s.checkout_end) ? "late" : "on_time";
+    }
+    return out;
+  }
 
   function sessionAppliesToday(s, nowP) {
     if (s.session_date) {
@@ -214,14 +243,16 @@
             <input type="text" maxlength="120" data-ci-note="${s.id}" placeholder="Contoh: praktek domain & hosting"></label>
             <button type="button" class="btn btn-primary" data-ci="${s.id}" ${w.canCheckin ? "" : "disabled"}>Check-in hadir</button>`;
         } else if (s.require_checkout !== false && !rec.checkout_at) {
-          const stIn = rec.checkin_status === "late" ? " · <b style=\"color:#ffb86b\">Terlambat</b>" : rec.checkin_status === "on_time" ? " · Tepat waktu" : "";
+          const stR = recomputeRecStatus(s, rec);
+          const stIn = stR.in === "late" ? " · <b style=\"color:#ffb86b\">Terlambat</b>" : stR.in === "on_time" ? " · Tepat waktu" : "";
           body = `<p class="muted" style="font-size:12px">Check-in: ${esc(rec.checkin_note || "—")}${stIn}</p>
             <label class="field"><span>Yang sudah dikerjakan (ringkas)</span>
             <input type="text" maxlength="120" data-co-note="${s.id}" placeholder="Contoh: selesai setting custom domain"></label>
             <button type="button" class="btn btn-primary" data-co="${s.id}" ${w.canCheckout ? "" : "disabled"}>Check-out</button>`;
         } else {
-          const stIn = rec.checkin_status === "late" ? " · <b style=\"color:#ffb86b\">Terlambat</b>" : rec.checkin_status === "on_time" ? " · Tepat waktu" : "";
-          const stOut = rec.checkout_status === "late" ? " · <b style=\"color:#ffb86b\">Terlambat</b>" : "";
+          const stR2 = recomputeRecStatus(s, rec);
+          const stIn = stR2.in === "late" ? " · <b style=\"color:#ffb86b\">Terlambat</b>" : stR2.in === "on_time" ? " · Tepat waktu" : "";
+          const stOut = stR2.out === "late" ? " · <b style=\"color:#ffb86b\">Terlambat</b>" : stR2.out === "on_time" ? " · Tepat waktu" : "";
           body = `<p class="muted" style="font-size:13px">In: ${esc(rec.checkin_note || "—")}${stIn}<br>Out: ${esc(rec.checkout_note || "—")}${stOut}</p>`;
         }
         return `<div class="summary-card att-card" data-status="${status}">

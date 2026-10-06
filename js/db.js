@@ -2612,7 +2612,67 @@
       }
       return data;
     }
-    return writeSession(!!payload.id);
+    const saved = await writeSession(!!payload.id);
+    // Setelah guru ubah batas check-in/out: hitung ulang status record (hindari "terlambat" palsu)
+    try {
+      if (saved && saved.id) {
+        await recomputeAttendanceStatusesForSession(saved);
+      }
+    } catch (e) {
+      console.warn("[att] recompute statuses", e);
+    }
+    return saved;
+  }
+
+  /** Hitung ulang on_time/late semua record sesi berdasarkan batas waktu SESI SAAT INI */
+  async function recomputeAttendanceStatusesForSession(sess) {
+    const sb = client();
+    if (!sb || !sess || !sess.id) return;
+    const toMin = (t) => {
+      const p = String(t || "0:0").slice(0, 5).split(":");
+      return parseInt(p[0], 10) * 60 + parseInt(p[1] || 0, 10);
+    };
+    const minsJak = (iso) => {
+      if (!iso) return null;
+      const fmt = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Jakarta",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      const parts = Object.fromEntries(fmt.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
+      return parseInt(parts.hour, 10) * 60 + parseInt(parts.minute, 10);
+    };
+    const ci1 = toMin(sess.checkin_end);
+    const co1 = toMin(sess.checkout_end);
+    const { data: recs, error } = await sb
+      .from("gallery_attendance_records")
+      .select("id,checkin_at,checkout_at,checkin_status,checkout_status")
+      .eq("session_id", sess.id);
+    if (error || !recs || !recs.length) return;
+    for (const r of recs) {
+      const patch = { updated_at: new Date().toISOString() };
+      let changed = false;
+      if (r.checkin_at) {
+        const m = minsJak(r.checkin_at);
+        const st = m != null && m > ci1 ? "late" : "on_time";
+        if (st !== r.checkin_status) {
+          patch.checkin_status = st;
+          changed = true;
+        }
+      }
+      if (r.checkout_at) {
+        const m = minsJak(r.checkout_at);
+        const st = m != null && m > co1 ? "late" : "on_time";
+        if (st !== r.checkout_status) {
+          patch.checkout_status = st;
+          changed = true;
+        }
+      }
+      if (changed) {
+        await sb.from("gallery_attendance_records").update(patch).eq("id", r.id);
+      }
+    }
   }
 
   async function deleteAttendanceSession(id) {

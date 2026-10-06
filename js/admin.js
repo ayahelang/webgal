@@ -928,6 +928,48 @@
   }
 
 
+
+  /** Menit jam (Asia/Jakarta) dari ISO timestamp */
+  function attMinutesJakarta(iso) {
+    if (!iso) return null;
+    try {
+      const fmt = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Jakarta",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      const parts = Object.fromEntries(fmt.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
+      return parseInt(parts.hour, 10) * 60 + parseInt(parts.minute, 10);
+    } catch (e) {
+      return null;
+    }
+  }
+  function attTimeToMin(t) {
+    if (!t) return 0;
+    const p = String(t).slice(0, 5).split(":");
+    return parseInt(p[0], 10) * 60 + parseInt(p[1] || 0, 10);
+  }
+  /**
+   * Status dihitung ULANG dari batas sesi SAAT INI + waktu aktual check-in/out.
+   * Jadi jika guru memperpanjang jendela, status "terlambat" bisa jadi "tepat waktu".
+   */
+  function attRecomputeStatus(session, record) {
+    const out = { checkin: "", checkout: "" };
+    if (!session || !record) return out;
+    const ci1 = attTimeToMin(session.checkin_end);
+    const co1 = attTimeToMin(session.checkout_end);
+    if (record.checkin_at) {
+      const m = attMinutesJakarta(record.checkin_at);
+      out.checkin = m != null && m > ci1 ? "late" : "on_time";
+    }
+    if (record.checkout_at) {
+      const m = attMinutesJakarta(record.checkout_at);
+      out.checkout = m != null && m > co1 ? "late" : "on_time";
+    }
+    return out;
+  }
+
   function attFmtTime(iso) {
     if (!iso) return "—";
     try {
@@ -983,10 +1025,11 @@
 
     let nInOk = 0, nInLate = 0, nOutOk = 0, nOutLate = 0, nOutMiss = 0;
     present.forEach(({ r }) => {
-      if (r.checkin_status === "late") nInLate++;
+      const st = attRecomputeStatus(session, r);
+      if (st.checkin === "late") nInLate++;
       else nInOk++;
       if (r.checkout_at) {
-        if (r.checkout_status === "late") nOutLate++;
+        if (st.checkout === "late") nOutLate++;
         else nOutOk++;
       } else if (session.require_checkout !== false) {
         nOutMiss++;
@@ -1015,8 +1058,13 @@
           const t0 = item.t || item;
           const r = item.r;
           const uid = "attn-" + String(session.id).slice(0, 8) + "-" + idx + "-" + Math.random().toString(36).slice(2, 7);
-          const inLab = attStatusLabel("in", r.checkin_status, r.checkin_at);
-          const outLab = r.checkout_at ? attStatusLabel("out", r.checkout_status, r.checkout_at) : (session.require_checkout === false ? "tidak wajib" : "belum check-out");
+          const st = attRecomputeStatus(session, r);
+          const inLab = attStatusLabel("in", st.checkin, r.checkin_at);
+          const outLab = r.checkout_at
+            ? attStatusLabel("out", st.checkout, r.checkout_at)
+            : session.require_checkout === false
+              ? "tidak wajib"
+              : "belum check-out";
           h +=
             "<li class='att-name-item'>" +
             "<button type='button' class='att-name-btn' data-att-note='" + uid + "'>" +
@@ -1024,9 +1072,17 @@
             " <small class='muted'>(" + esc(inLab) + " / " + esc(outLab) + ")</small>" +
             "</button>" +
             "<div class='att-note-pop' id='" + uid + "' hidden>" +
-            "<div><b>Check-in</b> · " + esc(inLab) + " · " + esc(attFmtTime(r.checkin_at)) +
+            "<div><b>Check-in</b> · " + esc(inLab) +
+            "<br><span class='muted' style='font-size:11px'>Waktu: " + esc(attFmtTime(r.checkin_at)) +
+            " · batas sesi " + esc(String(session.checkin_start || "").slice(0, 5)) +
+            "–" + esc(String(session.checkin_end || "").slice(0, 5)) + "</span>" +
             "<br><span class='att-note-text'>" + esc(r.checkin_note || "(tidak ada pesan)") + "</span></div>" +
-            "<div style='margin-top:6px'><b>Check-out</b> · " + esc(outLab) + (r.checkout_at ? " · " + esc(attFmtTime(r.checkout_at)) : "") +
+            "<div style='margin-top:8px'><b>Check-out</b> · " + esc(outLab) +
+            (r.checkout_at
+              ? "<br><span class='muted' style='font-size:11px'>Waktu: " + esc(attFmtTime(r.checkout_at)) +
+                " · batas sesi " + esc(String(session.checkout_start || "").slice(0, 5)) +
+                "–" + esc(String(session.checkout_end || "").slice(0, 5)) + "</span>"
+              : "") +
             "<br><span class='att-note-text'>" + esc(r.checkout_note || (r.checkout_at ? "(tidak ada pesan)" : "—")) + "</span></div>" +
             "</div></li>";
         });
