@@ -1222,6 +1222,12 @@
           f.querySelector("[name=require_checkout]").checked = r.require_checkout !== false;
           const al = f.querySelector("[name=allow_late]");
           if (al) al.checked = !!r.allow_late;
+          const m1 = f.querySelector("[name=msg_checkin_ontime]");
+          if (m1) m1.value = r.msg_checkin_ontime || "";
+          const m2 = f.querySelector("[name=msg_checkin_late]");
+          if (m2) m2.value = r.msg_checkin_late || "";
+          const m3 = f.querySelector("[name=msg_checkout]");
+          if (m3) m3.value = r.msg_checkout || "";
           f.querySelector("[name=active]").checked = r.active !== false;
           $$("#attSessForm [name=wd]").forEach((cb) => {
             cb.checked = (r.weekdays || []).map(Number).indexOf(Number(cb.value)) >= 0;
@@ -1400,6 +1406,9 @@
         require_checkout: !!(f.querySelector("[name=require_checkout]") && f.querySelector("[name=require_checkout]").checked),
         allow_late: !!(f.querySelector("[name=allow_late]") && f.querySelector("[name=allow_late]").checked),
         active: !!(f.querySelector("[name=active]") && f.querySelector("[name=active]").checked),
+        msg_checkin_ontime: ((f.querySelector("[name=msg_checkin_ontime]") && f.querySelector("[name=msg_checkin_ontime]").value) || "").trim().slice(0, 280),
+        msg_checkin_late: ((f.querySelector("[name=msg_checkin_late]") && f.querySelector("[name=msg_checkin_late]").value) || "").trim().slice(0, 280),
+        msg_checkout: ((f.querySelector("[name=msg_checkout]") && f.querySelector("[name=msg_checkout]").value) || "").trim().slice(0, 280),
       };
       save.disabled = true;
       const prevLabel = save.textContent;

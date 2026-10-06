@@ -2578,6 +2578,9 @@
       require_checkout: payload.require_checkout !== false,
       allow_late: !!payload.allow_late,
       active: payload.active !== false,
+      msg_checkin_ontime: String(payload.msg_checkin_ontime || "").trim().slice(0, 280),
+      msg_checkin_late: String(payload.msg_checkin_late || "").trim().slice(0, 280),
+      msg_checkout: String(payload.msg_checkout || "").trim().slice(0, 280),
       updated_at: new Date().toISOString(),
     };
     async function writeSession(isUpdate) {
@@ -2585,8 +2588,11 @@
         const { data, error } = await sb.from("gallery_attendance_sessions").update(row).eq("id", payload.id).select("*").single();
         if (error) {
           // kolom allow_late belum ada
-          if (String(error.message || "").includes("allow_late")) {
+          if (/allow_late|msg_checkin|msg_checkout/i.test(String(error.message || ""))) {
             delete row.allow_late;
+            delete row.msg_checkin_ontime;
+            delete row.msg_checkin_late;
+            delete row.msg_checkout;
             const r2 = await sb.from("gallery_attendance_sessions").update(row).eq("id", payload.id).select("*").single();
             if (r2.error) throw new Error(r2.error.message || JSON.stringify(r2.error));
             return r2.data;
@@ -2602,8 +2608,11 @@
       }
       const { data, error } = await sb.from("gallery_attendance_sessions").insert(row).select("*").single();
       if (error) {
-        if (String(error.message || "").includes("allow_late")) {
+        if (/allow_late|msg_checkin|msg_checkout/i.test(String(error.message || ""))) {
           delete row.allow_late;
+          delete row.msg_checkin_ontime;
+          delete row.msg_checkin_late;
+          delete row.msg_checkout;
           const r2 = await sb.from("gallery_attendance_sessions").insert(row).select("*").single();
           if (r2.error) throw new Error(r2.error.message || JSON.stringify(r2.error));
           return r2.data;

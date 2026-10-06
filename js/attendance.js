@@ -218,6 +218,69 @@
     draw();
   }
 
+
+  const DEFAULT_MSG = {
+    checkin_ontime: "Terima kasih sudah hadir tepat waktu.",
+    checkin_late: "Semoga selanjutnya tidak terlambat lagi ya.",
+    checkout: "Terima kasih telah mengikuti pelajaran hingga selesai, semoga Allah tambahkan berkah kecerdasan.",
+  };
+
+  function showTeacherPopup(title, message, isLate) {
+    const existing = document.getElementById("attTeacherMsg");
+    if (existing) existing.remove();
+    const wrap = document.createElement("div");
+    wrap.id = "attTeacherMsg";
+    wrap.setAttribute("role", "dialog");
+    wrap.style.cssText =
+      "position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;" +
+      "padding:16px;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);";
+    const box = document.createElement("div");
+    box.style.cssText =
+      "max-width:min(420px,94vw);padding:22px 20px;border-radius:16px;" +
+      "background:linear-gradient(145deg,rgba(14,28,36,.98),rgba(8,16,22,.98));" +
+      "border:1px solid rgba(125,227,255,.35);box-shadow:0 20px 50px rgba(0,0,0,.45);" +
+      "color:#e8f7fc;text-align:center;font:500 15px/1.5 system-ui,sans-serif;";
+    const h = document.createElement("div");
+    h.style.cssText = "font-weight:700;font-size:16px;margin-bottom:10px;color:#9be7ff;";
+    h.textContent = title || "Pesan dari guru";
+    const body = document.createElement("p");
+    body.style.cssText = "margin:0 0 16px;color:#d5ebf3;" + (isLate ? "color:#f5d000;" : "");
+    body.textContent = message || "";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-primary";
+    btn.textContent = "Baik";
+    btn.style.minWidth = "100px";
+    btn.onclick = () => wrap.remove();
+    wrap.onclick = (e) => {
+      if (e.target === wrap) wrap.remove();
+    };
+    box.appendChild(h);
+    box.appendChild(body);
+    box.appendChild(btn);
+    wrap.appendChild(box);
+    document.body.appendChild(wrap);
+    setTimeout(() => {
+      try {
+        btn.focus();
+      } catch (e) {}
+    }, 50);
+  }
+
+  function messageForCheckin(s, isLate) {
+    if (isLate) {
+      const c = (s && s.msg_checkin_late && String(s.msg_checkin_late).trim()) || "";
+      return c || DEFAULT_MSG.checkin_late;
+    }
+    const c = (s && s.msg_checkin_ontime && String(s.msg_checkin_ontime).trim()) || "";
+    return c || DEFAULT_MSG.checkin_ontime;
+  }
+
+  function messageForCheckout(s) {
+    const c = (s && s.msg_checkout && String(s.msg_checkout).trim()) || "";
+    return c || DEFAULT_MSG.checkout;
+  }
+
   function render() {
     const host = $("#attList");
     if (!host) return;
@@ -284,8 +347,17 @@
         const note = ($('[data-ci-note="' + id + '"]') || {}).value || "";
         b.disabled = true;
         try {
-          await GalleryDB.submitAttendanceCheckin({ sessionId: id, note });
+          const row = await GalleryDB.submitAttendanceCheckin({ sessionId: id, note });
           celebrate("in");
+          const sess = sessions.find((x) => x.id === id) || {};
+          const isLate =
+            (row && row.checkin_status === "late") ||
+            (recomputeRecStatus(sess, row || { checkin_at: new Date().toISOString() }).in === "late");
+          showTeacherPopup(
+            isLate ? "Check-in (terlambat)" : "Check-in berhasil",
+            messageForCheckin(sess, isLate),
+            isLate
+          );
           await reload();
         } catch (e) {
           alert(e.message || e);
@@ -301,6 +373,8 @@
         try {
           await GalleryDB.submitAttendanceCheckout({ sessionId: id, note });
           celebrate("out");
+          const sess = sessions.find((x) => x.id === id) || {};
+          showTeacherPopup("Check-out berhasil", messageForCheckout(sess), false);
           await reload();
         } catch (e) {
           alert(e.message || e);
