@@ -14,11 +14,20 @@
     if (!window.GalleryDB || !GalleryDB.enabled()) return;
     let bar = $(".sh-userbar");
     if (!bar) {
-      const nav = $(".topnav");
-      if (!nav) return;
+      // Di luar .topnav agar item menu tidak reflow 2x (FOUC desktop)
+      const topbar = $(".topbar");
+      if (!topbar) return;
       bar = document.createElement("div");
       bar.className = "sh-userbar";
-      nav.appendChild(bar);
+      const nav = topbar.querySelector(".topnav");
+      const themeBtn = document.getElementById("themeToggle");
+      if (themeBtn && themeBtn.parentNode === topbar) {
+        topbar.insertBefore(bar, themeBtn);
+      } else if (nav && nav.parentNode === topbar) {
+        topbar.insertBefore(bar, nav.nextSibling);
+      } else {
+        topbar.appendChild(bar);
+      }
     }
     try {
       const session = await GalleryDB.getSession();

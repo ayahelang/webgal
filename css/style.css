@@ -2242,3 +2242,84 @@ a#btnStuTplSheet{
   }
   .topnav a.active{color:#061016 !important}
 }
+
+
+/* === DESKTOP TOPNAV LOCK === */
+/* Pastikan desktop tidak “kedip” ke style mobile / scrollbar */
+@media (min-width: 901px) {
+  .topbar{
+    display:flex !important;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    height:auto !important;
+    min-height:64px;
+    overflow:visible !important;
+  }
+  .topbar .topnav,
+  nav.topnav,
+  .topnav{
+    display:flex !important;
+    flex-direction:row !important;
+    flex-wrap:wrap !important;
+    justify-content:flex-end !important;
+    align-items:center !important;
+    order:unset !important;
+    flex:1 1 auto !important;
+    width:auto !important;
+    max-width:none !important;
+    margin-left:auto !important;
+    margin-right:8px !important;
+    padding:0 !important;
+    overflow:visible !important;
+    overflow-x:visible !important;
+    touch-action:auto !important;
+    cursor:default !important;
+    user-select:auto !important;
+    -webkit-mask-image:none !important;
+    mask-image:none !important;
+    scrollbar-width:none !important;
+  }
+  .topnav::-webkit-scrollbar{display:none !important;height:0 !important}
+  .topnav a{
+    flex:0 0 auto;
+    white-space:nowrap;
+    font-size:12px !important;
+    color:#9bb4c0 !important;
+    padding:8px 12px !important;
+    border-radius:10px !important;
+    border:1px solid transparent !important;
+    background:transparent !important;
+    text-shadow:none !important;
+    font-weight:500 !important;
+  }
+  .topnav a:hover{
+    color:#e8f7fc !important;
+    border-color:var(--line) !important;
+    background:transparent !important;
+  }
+  .topnav a.active{
+    color:#061016 !important;
+    background:linear-gradient(135deg,#dffbff,#6bdcf4) !important;
+    font-weight:700 !important;
+    border-color:transparent !important;
+  }
+  .topnav a.nav-admin,
+  .topnav a.nav-profile{
+    color:#9bb4c0 !important;
+  }
+  /* Slot login/avatar di luar nav — cegah reflow menu */
+  .sh-userbar{
+    order:unset;
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    min-width:72px;
+    min-height:36px;
+    margin-left:4px;
+  }
+  .theme-toggle{
+    flex:0 0 auto;
+    margin-left:4px;
+  }
+}

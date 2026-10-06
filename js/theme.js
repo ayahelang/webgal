@@ -266,6 +266,13 @@
         document.querySelectorAll(".topnav").forEach(function (nav) {
           nav.scrollLeft = 0;
           nav.classList.remove("topnav-scroll");
+          // hapus inline style mobile agar desktop CSS murni
+          nav.style.removeProperty("justify-content");
+          nav.style.removeProperty("margin-left");
+          nav.style.removeProperty("overflow-x");
+          nav.style.removeProperty("touch-action");
+          nav.style.webkitOverflowScrolling = "";
+          delete nav.dataset.navScrollBound;
         });
       } else {
         // re-init jika perlu
