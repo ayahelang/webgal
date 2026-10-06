@@ -986,6 +986,12 @@
     if (status === "on_time" || status === "done" || !status) return "tepat waktu";
     return status;
   }
+  /** Wrap label: terlambat = kuning */
+  function attStatusHtml(label) {
+    const s = String(label || "");
+    if (s === "terlambat") return '<span class="att-late">terlambat</span>';
+    return esc(s);
+  }
 
   async function buildSessionStatsHtml(session) {
     const targets = session.target_students || [];
@@ -1069,15 +1075,15 @@
             "<li class='att-name-item'>" +
             "<button type='button' class='att-name-btn' data-att-note='" + uid + "'>" +
             esc(t0.name || "") +
-            " <small class='muted'>(" + esc(inLab) + " / " + esc(outLab) + ")</small>" +
+            " <small class='muted'>(" + attStatusHtml(inLab) + " / " + attStatusHtml(outLab) + ")</small>" +
             "</button>" +
             "<div class='att-note-pop' id='" + uid + "' hidden>" +
-            "<div><b>Check-in</b> · " + esc(inLab) +
+            "<div><b>Check-in</b> · " + attStatusHtml(inLab) +
             "<br><span class='muted' style='font-size:11px'>Waktu: " + esc(attFmtTime(r.checkin_at)) +
             " · batas sesi " + esc(String(session.checkin_start || "").slice(0, 5)) +
             "–" + esc(String(session.checkin_end || "").slice(0, 5)) + "</span>" +
             "<br><span class='att-note-text'>" + esc(r.checkin_note || "(tidak ada pesan)") + "</span></div>" +
-            "<div style='margin-top:8px'><b>Check-out</b> · " + esc(outLab) +
+            "<div style='margin-top:8px'><b>Check-out</b> · " + attStatusHtml(outLab) +
             (r.checkout_at
               ? "<br><span class='muted' style='font-size:11px'>Waktu: " + esc(attFmtTime(r.checkout_at)) +
                 " · batas sesi " + esc(String(session.checkout_start || "").slice(0, 5)) +
@@ -1110,8 +1116,8 @@
     return (
       "<div class='att-stats-panel'>" +
       "<p class='att-stat-summary'>" +
-      "Check-in tepat <b>" + nInOk + "</b> · terlambat <b>" + nInLate + "</b>" +
-      " · Check-out tepat <b>" + nOutOk + "</b> · terlambat <b>" + nOutLate + "</b>" +
+      "Check-in tepat <b>" + nInOk + "</b> · <span class=\"att-late\">terlambat <b>" + nInLate + "</b></span>" +
+      " · Check-out tepat <b>" + nOutOk + "</b> · <span class=\"att-late\">terlambat <b>" + nOutLate + "</b></span>" +
       (session.require_checkout !== false ? " · belum out <b>" + nOutMiss + "</b>" : "") +
       " · belum absen <b>" + missing.length + "</b></p>" +
       renderPresent(present) +

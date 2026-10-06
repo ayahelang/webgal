@@ -236,7 +236,18 @@
         const rec = recFor(s.id);
         const w = windowStatus(s, nowP);
         const badge =
-          status === "done" ? "✓ Selesai" : status === "missed" ? "Terlewat" : w.isLateWindow ? "Check-in (terlambat)" : w.canCheckin ? "Check-in buka" : w.canCheckout ? "Check-out buka" : "Aktif";
+          status === "done"
+            ? "✓ Selesai"
+            : status === "missed"
+              ? "Terlewat"
+              : w.isLateWindow
+                ? "Check-in (terlambat)"
+                : w.canCheckin
+                  ? "Check-in buka"
+                  : w.canCheckout
+                    ? "Check-out buka"
+                    : "Aktif";
+        const badgeLate = w.isLateWindow && status !== "done" && status !== "missed";
         let body = "";
         if (!rec || !rec.checkin_at) {
           body = `<label class="field"><span>Rencana belajar (singkat)</span>
@@ -244,15 +255,15 @@
             <button type="button" class="btn btn-primary" data-ci="${s.id}" ${w.canCheckin ? "" : "disabled"}>Check-in hadir</button>`;
         } else if (s.require_checkout !== false && !rec.checkout_at) {
           const stR = recomputeRecStatus(s, rec);
-          const stIn = stR.in === "late" ? " · <b style=\"color:#ffb86b\">Terlambat</b>" : stR.in === "on_time" ? " · Tepat waktu" : "";
+          const stIn = stR.in === "late" ? " · <b style=\"color:#f5d000\">Terlambat</b>" : stR.in === "on_time" ? " · Tepat waktu" : "";
           body = `<p class="muted" style="font-size:12px">Check-in: ${esc(rec.checkin_note || "—")}${stIn}</p>
             <label class="field"><span>Yang sudah dikerjakan (ringkas)</span>
             <input type="text" maxlength="120" data-co-note="${s.id}" placeholder="Contoh: selesai setting custom domain"></label>
             <button type="button" class="btn btn-primary" data-co="${s.id}" ${w.canCheckout ? "" : "disabled"}>Check-out</button>`;
         } else {
           const stR2 = recomputeRecStatus(s, rec);
-          const stIn = stR2.in === "late" ? " · <b style=\"color:#ffb86b\">Terlambat</b>" : stR2.in === "on_time" ? " · Tepat waktu" : "";
-          const stOut = stR2.out === "late" ? " · <b style=\"color:#ffb86b\">Terlambat</b>" : stR2.out === "on_time" ? " · Tepat waktu" : "";
+          const stIn = stR2.in === "late" ? " · <b style=\"color:#f5d000\">Terlambat</b>" : stR2.in === "on_time" ? " · Tepat waktu" : "";
+          const stOut = stR2.out === "late" ? " · <b style=\"color:#f5d000\">Terlambat</b>" : stR2.out === "on_time" ? " · Tepat waktu" : "";
           body = `<p class="muted" style="font-size:13px">In: ${esc(rec.checkin_note || "—")}${stIn}<br>Out: ${esc(rec.checkout_note || "—")}${stOut}</p>`;
         }
         return `<div class="summary-card att-card" data-status="${status}">
@@ -260,7 +271,7 @@
             <div><strong>${esc(s.title)}</strong>
               <div class="muted" style="font-size:12px">${esc(s.subject_label || s.subject_code)} · ${esc(s.checkin_start)}–${esc(s.checkin_end)} → ${esc(s.checkout_start)}–${esc(s.checkout_end)}</div>
             </div>
-            <span class="att-badge">${badge}</span>
+            <span class="att-badge${badgeLate ? " late" : ""}">${badge}</span>
           </div>
           ${body}
         </div>`;

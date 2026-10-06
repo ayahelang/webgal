@@ -2351,3 +2351,13 @@ a#btnStuTplSheet{
   .topbar > .theme-toggle{position:fixed !important}
 }
 
+
+
+/* Status terlambat — kuning */
+.att-late,
+span.att-late,
+.att-badge.late,
+.att-card .att-late {
+  color: #f5d000 !important;
+  font-weight: 700;
+}
