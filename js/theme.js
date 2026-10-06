@@ -54,8 +54,7 @@
   }
 
   /**
-   * Mobile topnav: geser/usap kiri-kanan + auto mondar-mandir saat idle
-   * (memberi tahu user ada item tersembunyi di kanan)
+   * Mobile topnav: selalu mulai dari kiri; usap native; auto hint idle
    */
   function initNavScroll() {
     var navs = document.querySelectorAll(".topnav");
@@ -74,27 +73,30 @@
       nav.dataset.navScrollBound = "1";
       nav.classList.add("topnav-scroll");
 
-      // pastikan bisa di-scroll native + drag
-      nav.style.touchAction = "pan-x";
-      nav.style.overflowX = "auto";
+      // paksa layout scrollable + mulai dari kiri
+      nav.style.setProperty("justify-content", "flex-start", "important");
+      nav.style.setProperty("margin-left", "0", "important");
+      nav.style.setProperty("overflow-x", "scroll", "important");
+      nav.style.setProperty("touch-action", "pan-x", "important");
       nav.style.webkitOverflowScrolling = "touch";
+      nav.scrollLeft = 0;
 
-      var idleMs = 1800;
-      var speed = 0.55;
+      var idleMs = 2000;
+      var speed = 0.5;
       var dir = 1;
       var raf = 0;
       var idleTimer = 0;
-      var paused = false;
       var userActive = false;
+      var paused = false;
 
-      // drag dengan pointer (mouse + touch yang tidak nge-scroll native)
+      // drag mouse (touch = native)
       var dragging = false;
       var startX = 0;
       var startScroll = 0;
       var moved = false;
 
       function maxScroll() {
-        return Math.max(0, nav.scrollWidth - nav.clientWidth - 1);
+        return Math.max(0, nav.scrollWidth - nav.clientWidth);
       }
 
       function stopAuto() {
@@ -110,15 +112,15 @@
           return;
         }
         var max = maxScroll();
-        if (max < 12) {
+        if (max < 8) {
           raf = 0;
           return;
         }
         var next = nav.scrollLeft + dir * speed;
-        if (next >= max) {
+        if (next >= max - 0.5) {
           next = max;
           dir = -1;
-        } else if (next <= 0) {
+        } else if (next <= 0.5) {
           next = 0;
           dir = 1;
         }
@@ -128,7 +130,8 @@
 
       function startAuto() {
         if (prefersReduce() || userActive || paused) return;
-        if (maxScroll() < 12) return;
+        if (maxScroll() < 8) return;
+        // pastikan tidak “nyangkut” di kanan tanpa bisa balik
         if (!raf) raf = requestAnimationFrame(tick);
       }
 
@@ -149,13 +152,11 @@
         scheduleIdle();
       }
 
-      // --- Pointer drag (desktop + fallback mobile) ---
       nav.addEventListener(
         "pointerdown",
         function (e) {
           onUserStart();
-          // Touch: biarkan native scroll (touch-action:pan-x). Drag kustom hanya mouse.
-          if (e.pointerType === "touch") return;
+          if (e.pointerType === "touch") return; // native swipe
           if (e.pointerType === "mouse" && e.button !== 0) return;
           dragging = true;
           moved = false;
@@ -173,7 +174,7 @@
         function (e) {
           if (!dragging) return;
           var dx = e.clientX - startX;
-          if (Math.abs(dx) > 4) moved = true;
+          if (Math.abs(dx) > 3) moved = true;
           if (moved) {
             nav.scrollLeft = startScroll - dx;
             e.preventDefault();
@@ -183,12 +184,14 @@
       );
 
       function endPointer(e) {
-        if (!dragging) return;
+        if (!dragging) {
+          if (e.pointerType === "touch") onUserEnd();
+          return;
+        }
         dragging = false;
         try {
           nav.releasePointerCapture(e.pointerId);
         } catch (err) {}
-        // jika user drag, cegah click link
         if (moved) {
           var block = function (ev) {
             ev.preventDefault();
@@ -206,13 +209,16 @@
       nav.addEventListener("pointerup", endPointer);
       nav.addEventListener("pointercancel", endPointer);
 
-      // native touch scroll
       nav.addEventListener("touchstart", onUserStart, { passive: true });
       nav.addEventListener("touchend", onUserEnd, { passive: true });
       nav.addEventListener("touchcancel", onUserEnd, { passive: true });
       nav.addEventListener(
         "wheel",
-        function () {
+        function (e) {
+          // geser horizontal dengan trackpad/mouse wheel
+          if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && maxScroll() > 0) {
+            nav.scrollLeft += e.deltaY;
+          }
           onUserStart();
           onUserEnd();
         },
@@ -225,12 +231,23 @@
           stopAuto();
         } else {
           paused = false;
+          nav.scrollLeft = Math.min(nav.scrollLeft, maxScroll());
           scheduleIdle();
         }
       });
 
-      setTimeout(scheduleIdle, 600);
-      window.addEventListener("resize", scheduleIdle);
+      // setelah font/layout siap, reset ke kiri lalu mulai hint
+      function boot() {
+        nav.scrollLeft = 0;
+        dir = 1;
+        scheduleIdle();
+      }
+      setTimeout(boot, 100);
+      setTimeout(boot, 500);
+      window.addEventListener("resize", function () {
+        nav.scrollLeft = Math.min(nav.scrollLeft, maxScroll());
+        scheduleIdle();
+      });
     });
   }
 
