@@ -1546,6 +1546,14 @@
     bindForms(session);
     bindAnnouncementForm();
     bindAttendanceAdmin();
+    try {
+      if (window.GalleryDB && GalleryDB.subscribeAttendanceLive && !window.__attAdminLive) {
+        window.__attAdminLive = true;
+        GalleryDB.subscribeAttendanceLive(function () {
+          refreshAttendance().catch(function () {});
+        });
+      }
+    } catch (e) {}
     bindBulkStudentImport();
     const attCls = $("#attRecClass");
     if (attCls) attCls.addEventListener("change", () => fillAttRecNameOptions());

@@ -214,12 +214,15 @@
             <input type="text" maxlength="120" data-ci-note="${s.id}" placeholder="Contoh: praktek domain & hosting"></label>
             <button type="button" class="btn btn-primary" data-ci="${s.id}" ${w.canCheckin ? "" : "disabled"}>Check-in hadir</button>`;
         } else if (s.require_checkout !== false && !rec.checkout_at) {
-          body = `<p class="muted" style="font-size:12px">Check-in: ${esc(rec.checkin_note || "—")}</p>
+          const stIn = rec.checkin_status === "late" ? " · <b style=\"color:#ffb86b\">Terlambat</b>" : rec.checkin_status === "on_time" ? " · Tepat waktu" : "";
+          body = `<p class="muted" style="font-size:12px">Check-in: ${esc(rec.checkin_note || "—")}${stIn}</p>
             <label class="field"><span>Yang sudah dikerjakan (ringkas)</span>
             <input type="text" maxlength="120" data-co-note="${s.id}" placeholder="Contoh: selesai setting custom domain"></label>
             <button type="button" class="btn btn-primary" data-co="${s.id}" ${w.canCheckout ? "" : "disabled"}>Check-out</button>`;
         } else {
-          body = `<p class="muted" style="font-size:13px">In: ${esc(rec.checkin_note || "—")}<br>Out: ${esc(rec.checkout_note || "—")}</p>`;
+          const stIn = rec.checkin_status === "late" ? " · <b style=\"color:#ffb86b\">Terlambat</b>" : rec.checkin_status === "on_time" ? " · Tepat waktu" : "";
+          const stOut = rec.checkout_status === "late" ? " · <b style=\"color:#ffb86b\">Terlambat</b>" : "";
+          body = `<p class="muted" style="font-size:13px">In: ${esc(rec.checkin_note || "—")}${stIn}<br>Out: ${esc(rec.checkout_note || "—")}${stOut}</p>`;
         }
         return `<div class="summary-card att-card" data-status="${status}">
           <div class="att-card-head">
@@ -319,7 +322,22 @@
       })
     );
     await reload();
-    setInterval(() => render(), 30000);
+    // refresh status (terlambat / jendela check-in) tiap 20 dtk
+    setInterval(() => render(), 20000);
+    // Realtime: perubahan sesi/record dari guru langsung ke layar siswa
+    try {
+      if (window.GalleryDB && typeof GalleryDB.subscribeAttendanceLive === "function") {
+        GalleryDB.subscribeAttendanceLive(function () {
+          reload().catch(function () {});
+        });
+      }
+    } catch (e) {
+      console.warn("[att] realtime", e);
+    }
+    // fallback poll data
+    setInterval(function () {
+      reload().catch(function () {});
+    }, 40000);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
