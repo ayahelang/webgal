@@ -97,6 +97,7 @@
         src.connect(ctx.destination);
         src.start(0);
         audioUnlocked = true;
+        try { localStorage.setItem("sh_audio_ok", "1"); } catch (e) {}
       }
       return ctx.state === "running";
     } catch (e) {
@@ -106,8 +107,33 @@
 
   let soundToastTimer = null;
   /** Popup atas: izinkan suara — hilang otomatis 5 detik; klik = unlock + tes bunyi */
+  function audioAlreadyOk() {
+    try {
+      if (localStorage.getItem("sh_audio_ok") === "1" && audioUnlocked) return true;
+      if (audioCtx && audioCtx.state === "running" && audioUnlocked) return true;
+    } catch (e) {}
+    return false;
+  }
+
+  function markAudioOk() {
+    audioUnlocked = true;
+    try {
+      localStorage.setItem("sh_audio_ok", "1");
+    } catch (e) {}
+  }
+
   function showSoundPrompt() {
     try {
+      // jangan tampilkan jika suara sudah bisa terdengar
+      if (audioAlreadyOk()) return;
+      // cek internal: coba resume context di background
+      try {
+        const ctx = ensureAudio();
+        if (ctx && ctx.state === "running" && audioUnlocked) {
+          markAudioOk();
+          return;
+        }
+      } catch (e) {}
       let el = document.getElementById("heroSoundToast");
       if (!el) {
         el = document.createElement("div");
@@ -128,6 +154,7 @@
           e.preventDefault();
           e.stopPropagation();
           unlockAudio();
+          markAudioOk();
           // tes bunyi langsung di dalam gesture klik
           playRoulette(0.7);
           el.style.opacity = "0";
@@ -711,12 +738,13 @@
       };
     });
 
-    // Unlock audio di gesture; suara roulette diselaraskan ke fase putar (bukan di awal)
+    // Unlock di gesture; roulette mulai saat putar & berakhir bersamaan ending animasi
     unlockAudio();
     playWhoosh(true); // whoosh pelan saat berpencar
     const OUT_END = 0.28;
     const SPIN_END = 0.66;
-    const spinDurSec = Math.max(0.75, ((SPIN_END - OUT_END) * duration) / 1000);
+    // durasi suara = dari awal putar sampai akhir animasi → thump akhir = cards settle
+    const soundDurSec = Math.max(0.9, ((1 - OUT_END) * duration) / 1000);
     let rouletteStarted = false;
 
     const t0 = performance.now();
@@ -728,11 +756,12 @@
       const dt = Math.min(0.05, (now - lastTs) / 1000);
       lastTs = now;
 
-      // Mulai roulette tepat saat fase putar dimulai (sinkron animasi, context sudah di-unlock)
+      // Mulai roulette saat fase putar; berakhir saat animasi selesai (sinkron ending)
       if (!rouletteStarted && p >= OUT_END) {
         rouletteStarted = true;
         unlockAudio();
-        playRoulette(spinDurSec);
+        if (audioCtx && audioCtx.state === "running") markAudioOk();
+        playRoulette(soundDurSec);
         states.forEach((s) => {
           s.soundPlayed = true;
         });

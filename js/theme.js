@@ -54,7 +54,8 @@
   }
 
   /**
-   * Mobile topnav: scroll horizontal + auto mondar-mandir saat idle
+   * Mobile topnav: geser/usap kiri-kanan + auto mondar-mandir saat idle
+   * (memberi tahu user ada item tersembunyi di kanan)
    */
   function initNavScroll() {
     var navs = document.querySelectorAll(".topnav");
@@ -73,16 +74,27 @@
       nav.dataset.navScrollBound = "1";
       nav.classList.add("topnav-scroll");
 
-      var idleMs = 2200;
-      var speed = 0.45; // px per frame ~27px/s
+      // pastikan bisa di-scroll native + drag
+      nav.style.touchAction = "pan-x";
+      nav.style.overflowX = "auto";
+      nav.style.webkitOverflowScrolling = "touch";
+
+      var idleMs = 1800;
+      var speed = 0.55;
       var dir = 1;
       var raf = 0;
       var idleTimer = 0;
       var paused = false;
-      var userTouching = false;
+      var userActive = false;
+
+      // drag dengan pointer (mouse + touch yang tidak nge-scroll native)
+      var dragging = false;
+      var startX = 0;
+      var startScroll = 0;
+      var moved = false;
 
       function maxScroll() {
-        return Math.max(0, nav.scrollWidth - nav.clientWidth);
+        return Math.max(0, nav.scrollWidth - nav.clientWidth - 1);
       }
 
       function stopAuto() {
@@ -93,12 +105,12 @@
       }
 
       function tick() {
-        if (paused || userTouching || prefersReduce()) {
+        if (paused || userActive || prefersReduce()) {
           raf = 0;
           return;
         }
         var max = maxScroll();
-        if (max < 8) {
+        if (max < 12) {
           raf = 0;
           return;
         }
@@ -115,8 +127,8 @@
       }
 
       function startAuto() {
-        if (prefersReduce() || userTouching || paused) return;
-        if (maxScroll() < 8) return;
+        if (prefersReduce() || userActive || paused) return;
+        if (maxScroll() < 12) return;
         if (!raf) raf = requestAnimationFrame(tick);
       }
 
@@ -126,33 +138,87 @@
         idleTimer = setTimeout(startAuto, idleMs);
       }
 
-      function onInteract() {
-        userTouching = true;
+      function onUserStart() {
+        userActive = true;
         stopAuto();
         clearTimeout(idleTimer);
       }
 
-      function onInteractEnd() {
-        userTouching = false;
+      function onUserEnd() {
+        userActive = false;
         scheduleIdle();
       }
 
-      nav.addEventListener("pointerdown", onInteract, { passive: true });
-      nav.addEventListener("touchstart", onInteract, { passive: true });
-      nav.addEventListener("wheel", onInteract, { passive: true });
-      nav.addEventListener("pointerup", onInteractEnd, { passive: true });
-      nav.addEventListener("pointercancel", onInteractEnd, { passive: true });
-      nav.addEventListener("touchend", onInteractEnd, { passive: true });
+      // --- Pointer drag (desktop + fallback mobile) ---
       nav.addEventListener(
-        "scroll",
-        function () {
-          /* user scroll manual → restart idle clock */
-          if (!raf) scheduleIdle();
+        "pointerdown",
+        function (e) {
+          onUserStart();
+          // Touch: biarkan native scroll (touch-action:pan-x). Drag kustom hanya mouse.
+          if (e.pointerType === "touch") return;
+          if (e.pointerType === "mouse" && e.button !== 0) return;
+          dragging = true;
+          moved = false;
+          startX = e.clientX;
+          startScroll = nav.scrollLeft;
+          try {
+            nav.setPointerCapture(e.pointerId);
+          } catch (err) {}
         },
         { passive: true }
       );
 
-      // pause saat tab tidak terlihat
+      nav.addEventListener(
+        "pointermove",
+        function (e) {
+          if (!dragging) return;
+          var dx = e.clientX - startX;
+          if (Math.abs(dx) > 4) moved = true;
+          if (moved) {
+            nav.scrollLeft = startScroll - dx;
+            e.preventDefault();
+          }
+        },
+        { passive: false }
+      );
+
+      function endPointer(e) {
+        if (!dragging) return;
+        dragging = false;
+        try {
+          nav.releasePointerCapture(e.pointerId);
+        } catch (err) {}
+        // jika user drag, cegah click link
+        if (moved) {
+          var block = function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            nav.removeEventListener("click", block, true);
+          };
+          nav.addEventListener("click", block, true);
+          setTimeout(function () {
+            nav.removeEventListener("click", block, true);
+          }, 0);
+        }
+        onUserEnd();
+      }
+
+      nav.addEventListener("pointerup", endPointer);
+      nav.addEventListener("pointercancel", endPointer);
+
+      // native touch scroll
+      nav.addEventListener("touchstart", onUserStart, { passive: true });
+      nav.addEventListener("touchend", onUserEnd, { passive: true });
+      nav.addEventListener("touchcancel", onUserEnd, { passive: true });
+      nav.addEventListener(
+        "wheel",
+        function () {
+          onUserStart();
+          onUserEnd();
+        },
+        { passive: true }
+      );
+
       document.addEventListener("visibilitychange", function () {
         if (document.hidden) {
           paused = true;
@@ -163,11 +229,8 @@
         }
       });
 
-      // start setelah layout stabil
-      setTimeout(scheduleIdle, 800);
-      window.addEventListener("resize", function () {
-        scheduleIdle();
-      });
+      setTimeout(scheduleIdle, 600);
+      window.addEventListener("resize", scheduleIdle);
     });
   }
 

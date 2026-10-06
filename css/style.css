@@ -2121,39 +2121,48 @@ a#btnStuTplSheet{
 
 
 /* === MOBILE TOPNAV SLIDER === */
-/* Semua item menu terlihat via scroll horizontal + fade tepi */
-.topnav.topnav-scroll,
-.topnav{
+/* Scroll/geser horizontal + auto hint saat idle */
+.topnav,
+.topnav.topnav-scroll{
   display:flex !important;
   flex-wrap:nowrap !important;
   align-items:center;
-  gap:4px;
-  max-width:100%;
+  gap:6px;
+  width:100%;
+  max-width:100% !important;
+  margin:0;
   overflow-x:auto !important;
-  overflow-y:hidden;
+  overflow-y:hidden !important;
   -webkit-overflow-scrolling:touch;
-  scroll-behavior:auto;
-  scrollbar-width:none; /* Firefox */
+  touch-action:pan-x !important;
   overscroll-behavior-x:contain;
+  scroll-snap-type:x proximity;
+  scrollbar-width:none;
+  cursor:grab;
+  user-select:none;
+  -webkit-user-select:none;
 }
-.topnav::-webkit-scrollbar{display:none;height:0}
+.topnav:active{cursor:grabbing}
+.topnav::-webkit-scrollbar{display:none;width:0;height:0}
 .topnav a{
-  flex:0 0 auto;
-  white-space:nowrap;
-  color:#c5dce6 !important;
-  text-shadow:0 1px 2px rgba(0,0,0,.45);
-  background:rgba(255,255,255,.04);
-  border:1px solid rgba(125,227,255,.18) !important;
+  flex:0 0 auto !important;
+  white-space:nowrap !important;
+  scroll-snap-align:start;
+  color:#d5ebf3 !important;
+  text-shadow:0 1px 2px rgba(0,0,0,.5);
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(125,227,255,.22) !important;
   border-radius:999px;
-  padding:7px 12px;
+  padding:8px 13px;
   font-size:12px;
   font-weight:600;
+  pointer-events:auto;
 }
 .topnav a:hover,
 .topnav a:focus-visible{
   color:#fff !important;
-  background:rgba(125,227,255,.14);
-  border-color:rgba(125,227,255,.4) !important;
+  background:rgba(125,227,255,.16);
+  border-color:rgba(125,227,255,.45) !important;
 }
 .topnav a.active{
   color:#061016 !important;
@@ -2164,40 +2173,39 @@ a#btnStuTplSheet{
 }
 .topnav a.nav-admin,
 .topnav a.nav-profile{
-  color:#dffbff !important;
+  color:#e7fbff !important;
 }
 
 @media (max-width:900px){
   .topbar{
-    display:flex;
+    display:flex !important;
     flex-wrap:wrap;
     align-items:center;
     gap:8px 10px;
     padding:10px 12px;
-    height:auto;
+    height:auto !important;
     min-height:56px;
+    overflow:visible !important;
   }
-  .topnav{
-    order:3;
-    width:100%;
-    max-width:100% !important;
-    margin:0;
-    padding:6px 2px 8px;
-    /* mask fade kiri-kanan = kesan slider modern */
-    -webkit-mask-image:linear-gradient(90deg,transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
-    mask-image:linear-gradient(90deg,transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
-  }
-  .brand{order:1;flex:0 0 auto}
+  .brand{order:1;flex:0 0 auto;max-width:55%}
   .status,#shAuthSlot,.theme-toggle{order:2;margin-left:auto}
-  /* batalkan rule lama yang memotong menu */
-  .topnav{flex-wrap:nowrap !important;max-width:100% !important}
+  .topnav{
+    order:3 !important;
+    width:100% !important;
+    max-width:100% !important;
+    flex:1 1 100% !important;
+    padding:8px 4px 10px;
+    /* hint: fade kanan = masih ada item */
+    -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent 100%);
+    mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 28px),transparent 100%);
+  }
 }
 
 @media (max-width:620px){
   .topnav a{
-    padding:8px 12px;
-    font-size:12px;
-    color:#d2e8f0 !important;
+    padding:9px 14px;
+    font-size:12.5px;
+    color:#e2f3f8 !important;
   }
   .topnav a.active{color:#061016 !important}
 }
