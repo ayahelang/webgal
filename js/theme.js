@@ -57,6 +57,12 @@
    * Mobile topnav: selalu mulai dari kiri; usap native; auto hint idle
    */
   function initNavScroll() {
+    // Hanya mobile/tablet — desktop jangan diubah
+    try {
+      if (!window.matchMedia("(max-width: 900px)").matches) return;
+    } catch (e) {
+      return;
+    }
     var navs = document.querySelectorAll(".topnav");
     if (!navs.length) return;
 
@@ -250,6 +256,26 @@
       });
     });
   }
+
+
+  // jika resize ke desktop, matikan auto-scroll
+  try {
+    var mq = window.matchMedia("(max-width: 900px)");
+    mq.addEventListener("change", function (ev) {
+      if (!ev.matches) {
+        document.querySelectorAll(".topnav").forEach(function (nav) {
+          nav.scrollLeft = 0;
+          nav.classList.remove("topnav-scroll");
+        });
+      } else {
+        // re-init jika perlu
+        document.querySelectorAll(".topnav").forEach(function (n) {
+          delete n.dataset.navScrollBound;
+        });
+        initNavScroll();
+      }
+    });
+  } catch (e) {}
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initNavScroll);

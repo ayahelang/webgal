@@ -116,7 +116,7 @@ footer{max-width:1240px;margin:auto;padding:22px 24px 35px;border-top:1px solid 
 
 
 /* ===== Top nav ===== */
-.topnav{display:flex;gap:6px;align-items:center;margin-left:0;margin-right:0}
+.topnav{display:flex;gap:6px;align-items:center;margin-left:auto;margin-right:16px;flex-wrap:wrap}
 .topnav a{font-size:12px;color:#9bb4c0;padding:8px 12px;border-radius:10px;border:1px solid transparent;transition:.18s}
 .topnav a:hover{color:#e8f7fc;border-color:var(--line)}
 .topnav a.active{color:#061016;background:linear-gradient(135deg,#dffbff,#6bdcf4);font-weight:700;border-color:transparent}
@@ -552,8 +552,8 @@ html.sh-tour-active body{cursor:none}
 }
 .topnav{
   display:flex;flex-wrap:wrap;gap:4px;align-items:center;
-  max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;
-  scrollbar-width:thin;
+  max-width:min(72vw,920px);
+  overflow:visible;
 }
 .topnav a{white-space:nowrap;flex-shrink:0}
 
@@ -712,12 +712,14 @@ body{padding-bottom:72px}
 .cov-year{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cov-accounts{font-size:12px;white-space:normal}
 
-/* Topnav selalu bisa digeser — semua item tetap ada (ss41) */
+/* Topnav desktop: tampil semua, tanpa scrollbar */
 .topnav{
-  display:flex !important;flex-wrap:nowrap !important;
-  overflow-x:auto !important;-webkit-overflow-scrolling:touch;
-  gap:2px;max-width:100%;
-  scrollbar-width:thin;
+  display:flex !important;
+  flex-wrap:wrap !important;
+  overflow:visible !important;
+  gap:4px;
+  max-width:min(72vw,920px);
+  scrollbar-width:none;
 }
 .topnav a{flex:0 0 auto}
 
@@ -2120,74 +2122,8 @@ a#btnStuTplSheet{
 }
 
 
-/* === MOBILE TOPNAV SLIDER === */
-/* Mulai dari KIRI; overflow-x scroll; bisa usap; auto hint idle */
-.topbar .topnav,
-nav.topnav,
-.topnav.topnav-scroll,
-.topnav{
-  display:flex !important;
-  flex-direction:row !important;
-  flex-wrap:nowrap !important;
-  justify-content:flex-start !important;
-  align-items:center !important;
-  gap:6px !important;
-  width:100% !important;
-  max-width:100% !important;
-  margin:0 !important;
-  margin-left:0 !important;
-  margin-right:0 !important;
-  padding:8px 4px 10px !important;
-  overflow-x:scroll !important; /* scroll > auto: selalu izinkan gesture */
-  overflow-y:hidden !important;
-  -webkit-overflow-scrolling:touch !important;
-  touch-action:pan-x !important;
-  overscroll-behavior-x:contain;
-  scroll-snap-type:none; /* snap kadang mengunci di ujung */
-  scrollbar-width:thin;
-  cursor:grab;
-  user-select:none;
-  -webkit-user-select:none;
-  /* HAPUS mask — di Safari sering bikin sisi kiri “hilang” & tak bisa digeser */
-  -webkit-mask-image:none !important;
-  mask-image:none !important;
-}
-.topnav:active{cursor:grabbing}
-.topnav::-webkit-scrollbar{height:3px}
-.topnav::-webkit-scrollbar-thumb{background:rgba(125,227,255,.35);border-radius:4px}
-.topnav a{
-  flex:0 0 auto !important;
-  white-space:nowrap !important;
-  color:#d5ebf3 !important;
-  text-shadow:0 1px 2px rgba(0,0,0,.5);
-  background:rgba(255,255,255,.06);
-  border:1px solid rgba(125,227,255,.22) !important;
-  border-radius:999px;
-  padding:8px 13px;
-  font-size:12px;
-  font-weight:600;
-  pointer-events:auto;
-  position:relative;
-  z-index:1;
-}
-.topnav a:hover,
-.topnav a:focus-visible{
-  color:#fff !important;
-  background:rgba(125,227,255,.16);
-  border-color:rgba(125,227,255,.45) !important;
-}
-.topnav a.active{
-  color:#061016 !important;
-  background:linear-gradient(135deg,#dffbff,#6bdcf4) !important;
-  border-color:transparent !important;
-  text-shadow:none;
-  font-weight:700;
-}
-.topnav a.nav-admin,
-.topnav a.nav-profile{
-  color:#e7fbff !important;
-}
-
+/* === MOBILE TOPNAV SLIDER (hanya ≤900px) === */
+/* Desktop: biarkan rule di atas (wrap, tanpa scrollbar) */
 @media (max-width:900px){
   .topbar{
     display:flex !important;
@@ -2203,11 +2139,70 @@ nav.topnav,
   .brand{order:1;flex:0 0 auto;max-width:55%}
   .status,#shAuthSlot,.theme-toggle{order:2;margin-left:auto}
   .topbar .topnav,
-  nav.topnav{
+  nav.topnav,
+  .topnav.topnav-scroll,
+  .topnav{
     order:3 !important;
+    display:flex !important;
+    flex-direction:row !important;
+    flex-wrap:nowrap !important;
+    justify-content:flex-start !important;
+    align-items:center !important;
+    gap:6px !important;
     flex:1 1 100% !important;
     width:100% !important;
     max-width:100% !important;
+    margin:0 !important;
+    margin-left:0 !important;
+    margin-right:0 !important;
+    padding:8px 4px 10px !important;
+    overflow-x:scroll !important;
+    overflow-y:hidden !important;
+    -webkit-overflow-scrolling:touch !important;
+    touch-action:pan-x !important;
+    overscroll-behavior-x:contain;
+    scroll-snap-type:none;
+    scrollbar-width:thin;
+    cursor:grab;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-mask-image:none !important;
+    mask-image:none !important;
+  }
+  .topnav:active{cursor:grabbing}
+  .topnav::-webkit-scrollbar{height:3px}
+  .topnav::-webkit-scrollbar-thumb{background:rgba(125,227,255,.35);border-radius:4px}
+  .topnav a{
+    flex:0 0 auto !important;
+    white-space:nowrap !important;
+    color:#d5ebf3 !important;
+    text-shadow:0 1px 2px rgba(0,0,0,.5);
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(125,227,255,.22) !important;
+    border-radius:999px;
+    padding:8px 13px;
+    font-size:12px;
+    font-weight:600;
+    pointer-events:auto;
+    position:relative;
+    z-index:1;
+  }
+  .topnav a:hover,
+  .topnav a:focus-visible{
+    color:#fff !important;
+    background:rgba(125,227,255,.16);
+    border-color:rgba(125,227,255,.45) !important;
+  }
+  .topnav a.active{
+    color:#061016 !important;
+    background:linear-gradient(135deg,#dffbff,#6bdcf4) !important;
+    border-color:transparent !important;
+    text-shadow:none;
+    font-weight:700;
+  }
+  .topnav a.nav-admin,
+  .topnav a.nav-profile{
+    color:#e7fbff !important;
   }
 }
 
