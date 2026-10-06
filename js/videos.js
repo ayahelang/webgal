@@ -10,6 +10,11 @@
     year: "",
     kelas: "",
   };
+  try {
+    const sp = new URLSearchParams(location.search);
+    const st = (sp.get("student") || sp.get("q") || "").trim();
+    if (st) state.q = st.toLowerCase();
+  } catch (e) {}
 
   function esc(t) {
     return String(t || "")
@@ -161,6 +166,10 @@
       if (window.GalleryDB && GalleryDB.fetchGalleryFromDb) {
         const db = await GalleryDB.fetchGalleryFromDb();
         students = (db && db.students) || [];
+      const searchEl = $("#videoSearch") || document.querySelector('input[type="search"]');
+      if (searchEl && state.q) {
+        searchEl.value = state.q;
+      }
       }
     } catch (e) {}
   }

@@ -284,9 +284,32 @@
     });
   } catch (e) {}
 
+  function initNavPrefetch() {
+    document.querySelectorAll(".topnav a[href]").forEach(function (a) {
+      var href = a.getAttribute("href");
+      if (!href || href.charAt(0) === "#" || href.indexOf("http") === 0) return;
+      var done = false;
+      function warm() {
+        if (done) return;
+        done = true;
+        try {
+          var l = document.createElement("link");
+          l.rel = "prefetch";
+          l.href = href;
+          document.head.appendChild(l);
+        } catch (e) {}
+      }
+      a.addEventListener("pointerenter", warm, { passive: true });
+      a.addEventListener("touchstart", warm, { passive: true });
+    });
+  }
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initNavScroll);
+    document.addEventListener("DOMContentLoaded", function () {
+      initNavScroll();
+      initNavPrefetch();
+    });
   } else {
     initNavScroll();
+    initNavPrefetch();
   }
 })();

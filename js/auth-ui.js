@@ -13,15 +13,17 @@
   function placeUserbar(bar) {
     const topbar = $(".topbar");
     if (!topbar) return;
-    // Selalu paling kanan di topbar (setelah theme jika ada, atau append)
     bar.classList.add("sh-userbar");
-    const themeBtn = document.getElementById("themeToggle");
-    if (themeBtn && themeBtn.parentNode === topbar) {
-      // urutan: … | theme | google  → google paling kanan
-      topbar.appendChild(bar);
-    } else {
-      topbar.appendChild(bar);
+    bar.id = bar.id || "shUserbar";
+    // Jika sudah di topbar, jangan dipindah (hindari FOUC header)
+    if (bar.parentNode === topbar) return;
+    const slot = $("#shUserbar");
+    if (slot && slot !== bar && slot.parentNode === topbar) {
+      // isi slot yang sudah ada di HTML
+      slot.replaceWith(bar);
+      return;
     }
+    topbar.appendChild(bar);
   }
 
   function hideAdminNavLinks(hide) {

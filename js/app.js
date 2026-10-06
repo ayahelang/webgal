@@ -339,7 +339,7 @@
   function card(s,index){
     const w=s.works[0], ai=s.aiTool?` • ${s.aiTool}`:"";
     const tags=[w.category,...(w.tags||[]),...(s.aiTool?["eksperimen AI"]:[])].filter(Boolean).slice(0,4);
-    return `<article class="card" data-card
+    return `<article class="card" data-card data-id="${escapeAttr(s.id)}" id="student-${escapeAttr(s.id)}"
         data-tip-title="${escapeAttr(w.title)}"
         data-tip-desc="${escapeAttr((s.name) + (w.description ? " — " + w.description : ""))}"
         data-tip-url="${escapeAttr(w.url)}">
@@ -507,6 +507,7 @@
       String(src).replace(/"/g, "&quot;") +
       '" decoding="async" referrerpolicy="no-referrer">' +
       "</div>";
+    layer.style.zIndex = "14000";
     document.body.appendChild(layer);
     requestAnimationFrame(() => layer.classList.add("is-open"));
     const close = () => {
@@ -619,18 +620,46 @@
       }
     } catch (e) {}
 
+    const nameQ = encodeURIComponent(s.name || "");
+    const webCls = webN > 0 ? "sp-stat is-link" : "sp-stat is-disabled";
+    const vidCls = vidN > 0 ? "sp-stat is-link" : "sp-stat is-disabled";
+    const desCls = desN > 0 ? "sp-stat is-link" : "sp-stat is-disabled";
     modal.querySelector("#spWorks").innerHTML =
       '<div class="sp-stats">' +
-      '<div class="sp-stat"><b>' +
+      '<div class="' + webCls + '" data-sp-go="web" data-sp-id="' + esc(s.id) + '" title="' + (webN > 0 ? "Lihat kartu website" : "Belum ada website") + '"><b>' +
       webN +
       "</b><span>Website</span></div>" +
-      '<div class="sp-stat"><b>' +
+      '<div class="' + vidCls + '" data-sp-go="video" data-sp-name="' + esc(s.name) + '" title="' + (vidN > 0 ? "Buka galeri video" : "Belum ada video") + '"><b>' +
       vidN +
       "</b><span>Video</span></div>" +
-      '<div class="sp-stat"><b>' +
+      '<div class="' + desCls + '" data-sp-go="design" data-sp-name="' + esc(s.name) + '" title="' + (desN > 0 ? "Buka galeri desain" : "Belum ada desain") + '"><b>' +
       desN +
       "</b><span>Desain Grafis</span></div>" +
       "</div>";
+    modal.querySelectorAll("[data-sp-go]").forEach((el) => {
+      el.onclick = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const kind = el.getAttribute("data-sp-go");
+        if (el.classList.contains("is-disabled")) return;
+        modal.hidden = true;
+        if (kind === "web") {
+          const id = el.getAttribute("data-sp-id");
+          const card = document.querySelector('.card[data-id="' + id + '"], .card[data-student-id="' + id + '"]');
+          if (card) {
+            card.scrollIntoView({ behavior: "smooth", block: "center" });
+            card.classList.add("card-flash");
+            setTimeout(() => card.classList.remove("card-flash"), 1600);
+          } else {
+            location.href = "index.html#student-" + encodeURIComponent(id || "");
+          }
+        } else if (kind === "video") {
+          location.href = "videos.html?student=" + encodeURIComponent(s.name || "");
+        } else if (kind === "design") {
+          location.href = "designs.html?student=" + encodeURIComponent(s.name || "");
+        }
+      };
+    });
 
     const qrisBox = modal.querySelector("#spQris");
     if (s.qrisImageUrl) {
@@ -655,15 +684,106 @@
   }
 
   function bindStudentProfile(root) {
+    let tip = document.getElementById("spHoverTip");
+    if (!tip) {
+      tip = document.createElement("div");
+      tip.id = "spHoverTip";
+      tip.className = "sp-hover-tip";
+      tip.hidden = true;
+      document.body.appendChild(tip);
+    }
+    let tipTimer = null;
+    let canHover = false;
+    async function refreshHoverRight() {
+      canHover = false;
+      try {
+        if (!window.GalleryDB || !GalleryDB.enabled()) return;
+        const sess = await GalleryDB.getSession();
+        if (!sess) return;
+        if (typeof GalleryDB.isCurrentUserAdmin === "function" && (await GalleryDB.isCurrentUserAdmin())) {
+          canHover = true;
+          return;
+        }
+        const prof = await GalleryDB.getMyProfile();
+        if (prof && (prof.is_admin || (prof.permissions && (prof.permissions.manage_attendance || prof.permissions.is_teacher)))) {
+          canHover = true;
+        }
+      } catch (e) {}
+    }
+    refreshHoverRight();
+
     root.querySelectorAll(".student-name-btn").forEach((btn) => {
+      if (btn.dataset.spBound) return;
+      btn.dataset.spBound = "1";
+      const getS = () => {
+        const id = btn.getAttribute("data-student-id");
+        return (state.data && state.data.students ? state.data.students : []).find(
+          (x) => String(x.id) === String(id)
+        );
+      };
       btn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const id = btn.getAttribute("data-student-id");
-        const s = (state.data && state.data.students ? state.data.students : []).find(
-          (x) => String(x.id) === String(id)
-        );
+        tip.classList.remove("is-on");
+        tip.hidden = true;
+        const s = getS();
         if (s) openStudentProfile(s);
+      });
+      btn.addEventListener("pointerenter", () => {
+        if (!canHover) return;
+        clearTimeout(tipTimer);
+        tipTimer = setTimeout(() => {
+          const s = getS();
+          if (!s) return;
+          const photo =
+            s.photoUrl ||
+            "";
+          tip.innerHTML =
+            '<div class="ht-row">' +
+            (photo
+              ? '<img src="' + photo.replace(/"/g, "") + '" alt="" referrerpolicy="no-referrer" decoding="async">'
+              : '<span style="font-size:28px">' + (s.avatar || "🎓") + "</span>") +
+            "<div><b>" +
+            String(s.name || "").replace(/</g, "") +
+            "</b><small>" +
+            String(s.classLabel || s.class || "").replace(/</g, "") +
+            "</small></div></div>";
+          tip.hidden = false;
+          const r = btn.getBoundingClientRect();
+          let left = r.left;
+          let top = r.bottom + 8;
+          if (left + 320 > window.innerWidth) left = window.innerWidth - 328;
+          if (top + 100 > window.innerHeight) top = r.top - 90;
+          tip.style.left = Math.max(8, left) + "px";
+          tip.style.top = Math.max(8, top) + "px";
+          requestAnimationFrame(() => tip.classList.add("is-on"));
+          // prefetch full photo if missing
+          if (!s.photoUrl && window.GalleryDB && GalleryDB.resolveStudentPhoto) {
+            GalleryDB.resolveStudentPhoto(s.name, s.angkatan).then((u) => {
+              if (u) {
+                s.photoUrl = u;
+                const img = tip.querySelector("img");
+                if (img) img.src = u;
+                else if (tip.classList.contains("is-on")) {
+                  tip.querySelector(".ht-row") &&
+                    (tip.querySelector(".ht-row").innerHTML =
+                      '<img src="' + u + '" alt="" referrerpolicy="no-referrer"><div><b>' +
+                      String(s.name || "") +
+                      "</b><small>" +
+                      String(s.classLabel || "") +
+                      "</small></div>");
+                }
+              }
+            });
+          }
+        }, 280);
+      });
+      btn.addEventListener("pointerleave", () => {
+        clearTimeout(tipTimer);
+        tip.classList.remove("is-on");
+        setTimeout(() => {
+          if (!tip.classList.contains("is-on")) tip.hidden = true;
+        }, 160);
       });
     });
   }

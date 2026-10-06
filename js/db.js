@@ -1138,9 +1138,9 @@
     if (!u || !/^https?:\/\//i.test(u)) return "";
     try {
       if (/googleusercontent\.com/i.test(u)) {
-        if (/=s\d+/i.test(u)) u = u.replace(/=s\d+(-[a-z])?/i, "=s128-c");
-        else if (/=w\d+/i.test(u)) u = u.replace(/=w\d+(-h\d+)?/i, "=s128-c");
-        else u = u.replace(/\/$/, "") + "=s128-c";
+        if (/=s\d+/i.test(u)) u = u.replace(/=s\d+(-[a-z])?/i, "=s96-c");
+        else if (/=w\d+/i.test(u)) u = u.replace(/=w\d+(-h\d+)?/i, "=s96-c");
+        else u = u.replace(/\/$/, "") + "=s96-c";
       }
     } catch (e) {}
     return u;

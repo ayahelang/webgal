@@ -2365,7 +2365,7 @@ span.att-late,
 
 /* Foto profil zoom klik — ~6/7 layar, 3 dtk */
 #spPhotoZoom{
-  position:fixed;inset:0;z-index:10060;
+  position:fixed;inset:0;z-index:14000;
   display:flex;align-items:center;justify-content:center;
   pointer-events:auto;
 }
@@ -2391,3 +2391,27 @@ span.att-late,
   transition:transform .2s ease,box-shadow .2s ease;
 }
 #spPhoto:hover{transform:scale(1.04);box-shadow:0 0 0 2px rgba(125,227,255,.35)}
+
+.sp-stat.is-link{cursor:pointer;transition:border-color .15s,background .15s}
+.sp-stat.is-link:hover{border-color:rgba(125,227,255,.55);background:rgba(125,227,255,.1)}
+.sp-stat.is-disabled{opacity:.45;cursor:default}
+/* hover preview profil (admin/guru) */
+.sp-hover-tip{
+  position:fixed;z-index:13500;pointer-events:none;
+  width:min(320px,92vw);padding:12px 14px;border-radius:14px;
+  background:linear-gradient(160deg,#0f1c28,#0a141c);
+  border:1px solid rgba(125,227,255,.35);
+  box-shadow:0 16px 48px rgba(0,0,0,.45);
+  opacity:0;transform:translateY(6px);
+  transition:opacity .15s ease,transform .15s ease;
+}
+.sp-hover-tip.is-on{opacity:1;transform:translateY(0);pointer-events:none}
+.sp-hover-tip .ht-row{display:flex;gap:10px;align-items:center}
+.sp-hover-tip img{
+  width:48px;height:48px;border-radius:50%;object-fit:cover;
+  border:2px solid rgba(125,227,255,.35);
+}
+.sp-hover-tip b{display:block;font-size:14px;color:#e8f7fc}
+.sp-hover-tip small{color:#8aa0ab;font-size:11px}
+
+.card.card-flash{outline:2px solid #6bdcf4;box-shadow:0 0 0 6px rgba(107,220,244,.25);transition:box-shadow .3s}

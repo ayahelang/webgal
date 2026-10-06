@@ -3,6 +3,11 @@
   let all = [];
   let cat = "all";
   let q = "";
+  try {
+    const sp = new URLSearchParams(location.search);
+    const st = (sp.get("student") || sp.get("q") || "").trim();
+    if (st) q = st.toLowerCase();
+  } catch (e) {}
 
   function esc(s) {
     return String(s || "")
@@ -87,6 +92,7 @@
     }
     const search = $("#designSearch");
     if (search) {
+      if (q) search.value = q;
       search.addEventListener("input", () => {
         q = (search.value || "").trim().toLowerCase();
         render();
