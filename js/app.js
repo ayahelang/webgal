@@ -490,6 +490,35 @@
     return modal;
   }
 
+
+  function openPhotoZoom(src, name) {
+    if (!src) return;
+    let layer = document.getElementById("spPhotoZoom");
+    if (layer) layer.remove();
+    layer = document.createElement("div");
+    layer.id = "spPhotoZoom";
+    layer.setAttribute("role", "dialog");
+    layer.innerHTML =
+      '<div class="sp-zoom-backdrop"></div>' +
+      '<div class="sp-zoom-circle">' +
+      '<img alt="' +
+      String(name || "").replace(/"/g, "") +
+      '" src="' +
+      String(src).replace(/"/g, "&quot;") +
+      '" decoding="async" referrerpolicy="no-referrer">' +
+      "</div>";
+    document.body.appendChild(layer);
+    requestAnimationFrame(() => layer.classList.add("is-open"));
+    const close = () => {
+      layer.classList.remove("is-open");
+      setTimeout(() => {
+        if (layer.parentNode) layer.parentNode.removeChild(layer);
+      }, 320);
+    };
+    layer.addEventListener("click", close);
+    setTimeout(close, 3000);
+  }
+
   async function openStudentProfile(s) {
     if (!s) return;
     const modal = ensureStudentModal();
@@ -506,21 +535,54 @@
 
     const photo = modal.querySelector("#spPhoto");
     const fallback = modal.querySelector("#spPhotoFallback");
-    if (s.photoUrl) {
-      photo.src = s.photoUrl;
-      photo.hidden = false;
-      photo.onerror = () => {
-        photo.hidden = true;
-        fallback.hidden = false;
-        fallback.textContent = (s.avatar || "🎓").toString().slice(0, 4);
-      };
-      fallback.hidden = true;
-    } else {
+    function showFallback() {
       photo.hidden = true;
       photo.removeAttribute("src");
       fallback.hidden = false;
       fallback.textContent = (s.avatar || "🎓").toString().slice(0, 4);
     }
+    function showPhoto(url) {
+      if (!url) {
+        showFallback();
+        return;
+      }
+      const opt =
+        window.GalleryDB && typeof GalleryDB.optimizePhotoUrl === "function"
+          ? GalleryDB.optimizePhotoUrl(url)
+          : url;
+      photo.decoding = "async";
+      photo.loading = "eager";
+      photo.referrerPolicy = "no-referrer";
+      photo.src = opt;
+      photo.hidden = false;
+      fallback.hidden = true;
+      photo.onerror = () => showFallback();
+    }
+    // hotlink / cache dulu; jika kosong ambil Google lewat resolve (ringan)
+    let url = s.photoUrl || "";
+    if (url) {
+      showPhoto(url);
+    } else {
+      showFallback();
+      try {
+        if (window.GalleryDB && typeof GalleryDB.resolveStudentPhoto === "function") {
+          GalleryDB.resolveStudentPhoto(s.name, s.angkatan).then((u) => {
+            if (u) {
+              s.photoUrl = u;
+              showPhoto(u);
+            }
+          });
+        }
+      } catch (e) {}
+    }
+    // klik foto → membesar ~6/7 layar, 3 detik, lalu normal
+    photo.style.cursor = url || s.photoUrl ? "zoom-in" : "";
+    photo.onclick = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (photo.hidden || !photo.src) return;
+      openPhotoZoom(photo.src, s.name);
+    };
 
     // kontak sosmed + WA
     const bar = contactBarHtml(s);

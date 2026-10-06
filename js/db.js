@@ -277,16 +277,32 @@
             thumb: "",
           });
         });
-        // prioritaskan match alumni_id, lalu nama+tahun
-        const c =
+        // prioritaskan match alumni_id, lalu nama+tahun, lalu nama saja
+        let c =
           contactByAlumni[a.id] ||
           contactByNameYear[nameKey(a.name, angkatanYear)] ||
           contactByNameYear[nameKey(a.name, "")] ||
           {};
-        // foto: hotlink kustom siswa HARUS menang atas avatar Google
-        const customPhoto = c.profile_photo_url && String(c.profile_photo_url).trim();
-        const googlePhoto = c.avatar_url && String(c.avatar_url).trim();
-        const photoUrl = customPhoto || googlePhoto || "";
+        if (!c || (!c.profile_photo_url && !c.avatar_url)) {
+          // cari profil dengan nama sama (abaikan tahun) yang punya foto
+          const want = String(a.name || "")
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, " ");
+          for (const k of Object.keys(contactByNameYear)) {
+            if (k.split("|")[0] === want) {
+              const cand = contactByNameYear[k];
+              if (cand && (cand.profile_photo_url || cand.avatar_url)) {
+                c = cand;
+                break;
+              }
+            }
+          }
+        }
+        // foto: hotlink kustom → avatar Google (jangan kosong hanya karena hotlink "")
+        const customPhoto = String(c.profile_photo_url || "").trim();
+        const googlePhoto = String(c.avatar_url || "").trim();
+        const photoUrl = optimizePhotoUrl(customPhoto || googlePhoto || "");
         return {
           id: a.legacy_id || a.id,
           name: a.name,
@@ -1115,6 +1131,57 @@
 
 
   // ----- Profiles & admin roles -----
+
+  /** Perkecil URL foto Google agar loading ringan */
+  function optimizePhotoUrl(url) {
+    let u = String(url || "").trim();
+    if (!u || !/^https?:\/\//i.test(u)) return "";
+    try {
+      if (/googleusercontent\.com/i.test(u)) {
+        if (/=s\d+/i.test(u)) u = u.replace(/=s\d+(-[a-z])?/i, "=s128-c");
+        else if (/=w\d+/i.test(u)) u = u.replace(/=w\d+(-h\d+)?/i, "=s128-c");
+        else u = u.replace(/\/$/, "") + "=s128-c";
+      }
+    } catch (e) {}
+    return u;
+  }
+
+  /** Ambil foto siswa by nama (hotlink → Google), untuk popup profil */
+  async function resolveStudentPhoto(studentName, angkatanYear) {
+    const sb = client();
+    if (!sb || !studentName) return "";
+    try {
+      let q = sb
+        .from("gallery_profiles")
+        .select("profile_photo_url,avatar_url,linked_student_name,linked_angkatan_year")
+        .ilike("linked_student_name", String(studentName).trim());
+      const { data, error } = await q.limit(8);
+      if (error) {
+        const r2 = await sb
+          .from("gallery_profiles")
+          .select("avatar_url,linked_student_name,linked_angkatan_year")
+          .ilike("linked_student_name", String(studentName).trim())
+          .limit(8);
+        const rows = r2.data || [];
+        const year = String(angkatanYear || "").trim();
+        let hit = rows.find((r) => year && String(r.linked_angkatan_year || "") === year) || rows[0];
+        return optimizePhotoUrl(hit && hit.avatar_url);
+      }
+      const rows = data || [];
+      const year = String(angkatanYear || "").trim();
+      let hit =
+        rows.find((r) => year && String(r.linked_angkatan_year || "") === year) ||
+        rows.find((r) => String(r.profile_photo_url || "").trim() || String(r.avatar_url || "").trim()) ||
+        rows[0];
+      if (!hit) return "";
+      const custom = String(hit.profile_photo_url || "").trim();
+      const google = String(hit.avatar_url || "").trim();
+      return optimizePhotoUrl(custom || google);
+    } catch (e) {
+      return "";
+    }
+  }
+
   async function upsertMyProfileFromSession() {
     const sb = client();
     if (!sb) return null;
@@ -3404,6 +3471,8 @@
     joinTypingChannel,
     normLabel,
     upsertMyProfileFromSession,
+    resolveStudentPhoto,
+    optimizePhotoUrl,
     getMyProfile,
     updateMyLink,
     adminListLinks,
