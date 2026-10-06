@@ -264,7 +264,18 @@ select:focus,input:focus,textarea:focus{
   width:18px;height:18px;display:inline-block;
   background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/%3E%3Cpath fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/%3E%3Cpath fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/%3E%3Cpath fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/%3E%3C/svg%3E") center/contain no-repeat
 }
-.sh-userbar{display:flex;align-items:center;gap:8px;margin-left:8px}
+.sh-userbar{
+  display:flex;align-items:center;gap:8px;
+  margin-left:auto; /* dorong ke kanan */
+  flex:0 0 auto;
+  order:99; /* paling kanan di topbar */
+}
+.sh-profile-chip.is-admin{
+  border-color:rgba(125,227,255,.45);
+  box-shadow:0 0 0 1px rgba(125,227,255,.15);
+}
+.sh-profile-chip.is-admin small{color:#7de3ff}
+
 .sh-profile-chip{display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);max-width:220px}
 .sh-profile-chip img{width:32px;height:32px;border-radius:50%;object-fit:cover}
 .sh-profile-meta{display:flex;flex-direction:column;line-height:1.2;min-width:0}
@@ -1819,17 +1830,33 @@ html{
 [data-theme="senior"] .topnav a{padding:8px 10px}
 [data-theme="senior"] .btn, [data-theme="senior"] button{font-size:15px}
 
-/* Theme toggle button */
+/* Theme toggle — floating (hemat ruang header) */
 .theme-toggle{
+  position:fixed !important;
+  left:14px;
+  bottom:72px;
+  z-index:9988;
   display:inline-flex;align-items:center;gap:6px;
-  margin-left:8px;padding:6px 12px;border-radius:999px;
-  border:1px solid var(--line);background:rgba(255,255,255,.05);
-  color:var(--text);font-size:12px;cursor:pointer;white-space:nowrap;
+  margin:0 !important;
+  padding:8px 12px;border-radius:999px;
+  border:1px solid rgba(157,235,255,.35);
+  background:rgba(8,16,24,.92);
+  color:#cfe8f0;font-size:12px;cursor:pointer;white-space:nowrap;
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+  order:unset !important;
 }
-.theme-toggle:hover{border-color:var(--accent);color:#fff}
+.theme-toggle:hover{border-color:#6bdcf4;color:#fff}
 .theme-toggle .theme-dot{
   width:10px;height:10px;border-radius:50%;
   background:var(--accent);box-shadow:0 0 8px var(--accent);
+}
+.theme-toggle .theme-label{max-width:90px;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:600px){
+  .theme-toggle{
+    left:10px;bottom:88px;
+    padding:8px 10px;font-size:11px;
+  }
+  .theme-toggle .theme-label{display:none} /* ikon saja di HP */
 }
 
 
@@ -2165,7 +2192,8 @@ a#btnStuTplSheet{
     overflow:visible !important;
   }
   .brand{order:1;flex:0 0 auto;max-width:55%}
-  .status,#shAuthSlot,.theme-toggle{order:2;margin-left:auto}
+  .status,#shAuthSlot{order:2;margin-left:auto}
+  .sh-userbar{order:2 !important;margin-left:auto !important}
   .topbar .topnav,
   nav.topnav,
   .topnav.topnav-scroll,
@@ -2308,18 +2336,18 @@ a#btnStuTplSheet{
   .topnav a.nav-profile{
     color:#9bb4c0 !important;
   }
-  /* Slot login/avatar di luar nav — cegah reflow menu */
+  /* Google login/avatar: selalu kanan atas */
   .sh-userbar{
-    order:unset;
-    flex:0 0 auto;
-    display:flex;
+    order:99 !important;
+    flex:0 0 auto !important;
+    display:flex !important;
     align-items:center;
     min-width:72px;
     min-height:36px;
-    margin-left:4px;
+    margin-left:auto !important;
+    margin-right:0 !important;
   }
-  .theme-toggle{
-    flex:0 0 auto;
-    margin-left:4px;
-  }
+  /* theme sudah floating — jangan di header */
+  .topbar > .theme-toggle{position:fixed !important}
 }
+

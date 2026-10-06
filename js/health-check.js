@@ -32,7 +32,8 @@
 
   function injectUI() {
     if (document.getElementById("shHealthBtn")) return;
-    const btn = el("button", "sh-health-btn", "Status server");
+    const btn = el("button", "sh-health-btn", "SIM");
+    btn.setAttribute("aria-label", "Status server & koneksi");
     btn.id = "shHealthBtn";
     btn.type = "button";
     btn.title = "Cek koneksi database & layanan";

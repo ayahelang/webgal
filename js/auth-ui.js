@@ -1,4 +1,4 @@
-/** Topbar: avatar Google + nama (tanpa tombol Karya — ada di Profil) */
+/** Topbar: Google login / avatar di KANAN; admin pakai ikon Google → panel admin */
 (function () {
   function $(s, r) {
     return (r || document).querySelector(s);
@@ -10,34 +10,54 @@
       .replace(/"/g, "&quot;");
   }
 
+  function placeUserbar(bar) {
+    const topbar = $(".topbar");
+    if (!topbar) return;
+    // Selalu paling kanan di topbar (setelah theme jika ada, atau append)
+    bar.classList.add("sh-userbar");
+    const themeBtn = document.getElementById("themeToggle");
+    if (themeBtn && themeBtn.parentNode === topbar) {
+      // urutan: … | theme | google  → google paling kanan
+      topbar.appendChild(bar);
+    } else {
+      topbar.appendChild(bar);
+    }
+  }
+
+  function hideAdminNavLinks(hide) {
+    document.querySelectorAll("a.nav-admin").forEach(function (a) {
+      if (hide) {
+        a.setAttribute("hidden", "");
+        a.style.display = "none";
+      } else {
+        a.removeAttribute("hidden");
+        a.style.display = "";
+      }
+    });
+  }
+
   async function ensureProfileBar() {
     if (!window.GalleryDB || !GalleryDB.enabled()) return;
     let bar = $(".sh-userbar");
     if (!bar) {
-      // Di luar .topnav agar item menu tidak reflow 2x (FOUC desktop)
-      const topbar = $(".topbar");
-      if (!topbar) return;
       bar = document.createElement("div");
       bar.className = "sh-userbar";
-      const nav = topbar.querySelector(".topnav");
-      const themeBtn = document.getElementById("themeToggle");
-      if (themeBtn && themeBtn.parentNode === topbar) {
-        topbar.insertBefore(bar, themeBtn);
-      } else if (nav && nav.parentNode === topbar) {
-        topbar.insertBefore(bar, nav.nextSibling);
-      } else {
-        topbar.appendChild(bar);
-      }
+      placeUserbar(bar);
+    } else if (bar.parentNode) {
+      // pastikan tetap di kanan
+      placeUserbar(bar);
     }
+
     try {
       const session = await GalleryDB.getSession();
       if (!session || !session.user) {
+        hideAdminNavLinks(false);
         bar.innerHTML = `<a class="btn-google-sm" href="profile.html?login=1" title="Login Google" id="shTopLogin">
           <span class="g-icon" aria-hidden="true"></span> Login
         </a>`;
         const btn = bar.querySelector("#shTopLogin");
         if (btn) {
-          btn.addEventListener("click", () => {
+          btn.addEventListener("click", function () {
             try {
               sessionStorage.setItem("sh_return", location.href);
             } catch (err) {}
@@ -63,15 +83,25 @@
       try {
         isAdm = await GalleryDB.isCurrentUserAdmin();
       } catch (e) {}
-      bar.innerHTML = `
-        <a class="sh-profile-chip" href="profile.html" title="${escapeHtml(name)} · ${escapeHtml(u.email || "")}">
-          ${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : `<span class="sh-av-fallback">👤</span>`}
-          <span class="sh-profile-meta">
-            <b>${escapeHtml(name)}</b>
-            <small>${escapeHtml(statusLabel)}</small>
-          </span>
-        </a>
-      `;
+
+      // Admin: sembunyikan link "Admin" di menu; ikon Google = masuk panel admin
+      hideAdminNavLinks(!!isAdm);
+
+      const href = isAdm ? "admin.html" : "profile.html";
+      const title = isAdm
+        ? "Panel Admin · " + name
+        : name + " · " + (u.email || "");
+      const sub = isAdm ? "Admin" : statusLabel;
+
+      bar.innerHTML =
+        `<a class="sh-profile-chip${isAdm ? " is-admin" : ""}" href="${href}" title="${escapeHtml(title)}">` +
+        (avatar
+          ? `<img src="${escapeHtml(avatar)}" alt="">`
+          : `<span class="sh-av-fallback">👤</span>`) +
+        `<span class="sh-profile-meta">` +
+        `<b>${escapeHtml(name)}</b>` +
+        `<small>${escapeHtml(sub)}</small>` +
+        `</span></a>`;
     } catch (e) {
       console.warn(e);
     }
