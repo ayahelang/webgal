@@ -1612,13 +1612,21 @@
           p.hidden = p.getAttribute("data-panel") !== btn.dataset.tab;
         });
         const tab = btn.dataset.tab;
-        if (tab === "videos") refreshVideos().catch(console.warn);
+        if (tab === "videos") {
+          fillMediaOwnerSelects().catch(console.warn);
+          refreshVideos().catch(console.warn);
+        }
         if (tab === "websites") refreshWebs().catch(console.warn);
         if (tab === "alumni") refreshAlumni().catch(console.warn);
         if (tab === "angkatan") refreshAngkatan().catch(console.warn);
         if (tab === "links") refreshLinks().catch(console.warn);
         if (tab === "users") refreshUsers().catch(console.warn);
-        if (tab === "designs") { bindDesignsAdmin(); refreshDesigns().catch(console.warn); }
+        if (tab === "designs") {
+          bindDesignsAdmin();
+          fillMediaOwnerSelects().catch(console.warn);
+          refreshDesignCategories().catch(console.warn);
+          refreshDesigns().catch(console.warn);
+        }
         if (tab === "announce") refreshAnnouncements().catch(console.warn);
         if (tab === "attendance") { refreshAttendance().catch(console.warn); buildStudentCheckTree("#attStudentTree"); }
       })
@@ -1696,7 +1704,8 @@
     } catch (e) {
       console.warn(e);
     }
-    // preload tab aktif (video) di background
+    // preload tab aktif (video) di background + isi datalist pemilik
+    fillMediaOwnerSelects().catch((e) => console.warn("owners", e));
     refreshVideos().catch((e) => console.warn("videos", e));
     // sisanya on-demand
   }
@@ -2074,23 +2083,7 @@
         f.querySelector("[name=description]").value = v.description || "";
         if (v.category_id) f.querySelector("[name=categoryId]").value = v.category_id;
         const own = f.querySelector("[name=ownerName]");
-        if (own && v.owner_name) {
-          // pastikan option ada
-          let found = false;
-          for (const o of own.options) {
-            if (o.value === v.owner_name) {
-              found = true;
-              break;
-            }
-          }
-          if (!found) {
-            const opt = document.createElement("option");
-            opt.value = v.owner_name;
-            opt.textContent = v.owner_name;
-            own.appendChild(opt);
-          }
-          own.value = v.owner_name;
-        }
+        if (own) own.value = v.owner_name || "";
         $("#vidStatus").textContent = "Mode edit: " + (v.title || "");
         scrollToForm("#videoForm");
       })
@@ -2100,20 +2093,21 @@
 
   async function fillMediaOwnerSelects() {
     try {
-      if (!window.__adminAlumniLite) {
-        const al = await GalleryDB.adminListAlumni();
-        window.__adminAlumniLite = (al || []).map((x) => {
-          const ang = x.gallery_angkatan || {};
-          const m = String(ang.label || "").match(/20\d{2}/);
-          return {
-            name: x.name,
-            class: x.class_code,
-            angkatan: m ? m[0] : "",
-            role: x.role || "Santriwati",
-          };
-        });
-      }
-    } catch (e) {}
+      // selalu refresh daftar agar dropdown/datalist terisi
+      const al = await GalleryDB.adminListAlumni();
+      window.__adminAlumniLite = (al || []).map((x) => {
+        const ang = x.gallery_angkatan || {};
+        const m = String(ang.label || "").match(/20\d{2}/);
+        return {
+          name: x.name,
+          class: x.class_code,
+          angkatan: m ? m[0] : "",
+          role: x.role || "Santriwati",
+        };
+      });
+    } catch (e) {
+      console.warn("fillMediaOwnerSelects", e);
+    }
     const list = window.__adminAlumniLite || [];
     const sorted = list.slice().sort((a, b) => {
       const ra = /pengajar/i.test(a.role || "") ? 0 : 1;
@@ -2121,32 +2115,41 @@
       if (ra !== rb) return ra - rb;
       return String(a.name || "").localeCompare(String(b.name || ""), "id");
     });
-    function fillSel(sel, emptyLabel) {
-      if (!sel) return;
-      const cur = sel.value;
-      sel.innerHTML =
-        '<option value="">' +
-        (emptyLabel || "— pilih —") +
-        "</option>" +
-        sorted
-          .map((s) => {
-            const tag = /pengajar/i.test(s.role || "")
-              ? "Pengajar"
-              : (s.angkatan || "") + (s.class ? " · K" + s.class : "");
-            return (
-              '<option value="' +
-              esc(s.name) +
-              '">' +
-              esc(s.name) +
-              (tag ? " (" + esc(tag) + ")" : "") +
-              "</option>"
-            );
-          })
-          .join("");
-      if (cur) sel.value = cur;
+    function fillDatalist(listId, inputId) {
+      const dl = document.getElementById(listId);
+      const inp = document.getElementById(inputId);
+      if (!dl) return;
+      dl.innerHTML = sorted
+        .map((s) => {
+          const tag = /pengajar/i.test(s.role || "")
+            ? "Pengajar"
+            : ((s.angkatan || "") + (s.class ? " · K" + s.class : "")).trim();
+          const label = s.name + (tag ? " (" + tag + ")" : "");
+          return '<option value="' + esc(s.name) + '" label="' + esc(label) + '">';
+        })
+        .join("");
+      if (inp && !inp.placeholder) inp.placeholder = "Ketik nama…";
     }
-    fillSel($("#vidOwnerName"), "— opsional / dari akun —");
-    fillSel($("#desOwnerName"), "— pilih nama —");
+    fillDatalist("vidOwnerList", "vidOwnerName");
+    fillDatalist("desOwnerList", "desOwnerName");
+  }
+
+  async function refreshDesignCategories(extra) {
+    const sel = $("#desCat");
+    if (!sel) return;
+    const defaults = ["Umum", "Poster", "Logo", "Feed", "Banner", "Ilustrasi"];
+    let fromDb = [];
+    try {
+      const rows = await GalleryDB.adminListDesigns();
+      fromDb = [...new Set((rows || []).map((r) => String(r.category || "").trim()).filter(Boolean))];
+    } catch (e) {}
+    const cur = sel.value;
+    const all = [...new Set(defaults.concat(fromDb).concat(extra || []).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b, "id")
+    );
+    sel.innerHTML = all.map((c) => '<option value="' + esc(c) + '">' + esc(c) + "</option>").join("");
+    if (cur && all.indexOf(cur) >= 0) sel.value = cur;
+    else if (extra && extra[0]) sel.value = extra[0];
   }
 
   async function fillAlumniSelects() {
@@ -3031,23 +3034,20 @@
         f.querySelector("[name=image_url]").value = r.image_url || "";
         f.querySelector("[name=category]").value = r.category || "Umum";
         const own = f.querySelector("[name=author_name]");
-        if (own) {
-          if (r.author_name) {
-            let found = false;
-            for (const o of own.options) {
-              if (o.value === r.author_name) {
-                found = true;
-                break;
-              }
-            }
-            if (!found) {
-              const opt = document.createElement("option");
-              opt.value = r.author_name;
-              opt.textContent = r.author_name;
-              own.appendChild(opt);
-            }
-            own.value = r.author_name;
+        if (own) own.value = r.author_name || "";
+        const cat = f.querySelector("[name=category]");
+        if (cat && r.category) {
+          let ok = false;
+          for (const o of cat.options || []) {
+            if (o.value === r.category) ok = true;
           }
+          if (!ok && cat.tagName === "SELECT") {
+            const opt = document.createElement("option");
+            opt.value = r.category;
+            opt.textContent = r.category;
+            cat.appendChild(opt);
+          }
+          cat.value = r.category;
         }
         f.querySelector("[name=description]").value = r.description || "";
         $("#designMsg").textContent = "Mode edit: " + (r.title || "");
@@ -3075,6 +3075,7 @@
         if (msg) msg.textContent = "Karya disimpan.";
         f.reset();
         f.querySelector("[name=id]").value = "";
+        await refreshDesignCategories();
         await refreshDesigns();
       } catch (e) {
         if (msg) msg.textContent = e.message || String(e);
@@ -3086,6 +3087,19 @@
         $("#designForm [name=id]").value = "";
         $("#designMsg").textContent = "";
       });
+    const addCat = $("#btnAddDesCat");
+    if (addCat && !addCat.dataset.bound) {
+      addCat.dataset.bound = "1";
+      addCat.onclick = async () => {
+        const name = prompt("Nama kategori desain baru:");
+        if (!name || !name.trim()) return;
+        await refreshDesignCategories([name.trim()]);
+        const sel = $("#desCat");
+        if (sel) sel.value = name.trim();
+        const msg = $("#designMsg");
+        if (msg) msg.textContent = "Kategori ditambah: " + name.trim();
+      };
+    }
   }
 
 

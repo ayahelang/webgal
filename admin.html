@@ -78,10 +78,9 @@
           <label class="field"><span>Judul</span><input name="title" required></label>
           <label class="field"><span>URL</span><input name="url" required placeholder="https://youtube.com/... "></label>
           <label class="field"><span>Kategori</span><select name="categoryId" id="vidCat"></select></label>
-          <label class="field"><span>Pemilik (siswa / pengajar)</span>
-            <select name="ownerName" id="vidOwnerName">
-              <option value="">— opsional / dari akun —</option>
-            </select>
+          <label class="field"><span>Pemilik (siswa / pengajar) — ketik untuk cari</span>
+            <input name="ownerName" id="vidOwnerName" list="vidOwnerList" placeholder="Ketik nama siswa atau pengajar…" autocomplete="off">
+            <datalist id="vidOwnerList"></datalist>
           </label>
           <label class="field"><span>Deskripsi</span><input name="description"></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -382,16 +381,23 @@
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul</span><input name="title" required placeholder="Judul karya"></label>
           <label class="field"><span>URL gambar</span><input name="image_url" type="url" required placeholder="https://…"></label>
-          <label class="field"><span>Kategori</span><input name="category" placeholder="Poster / Logo / Feed" value="Umum"></label>
-          <label class="field"><span>Pemilik (siswa / pengajar)</span>
-            <select name="author_name" id="desOwnerName">
-              <option value="">— pilih nama —</option>
+          <label class="field"><span>Kategori</span>
+            <select name="category" id="desCat">
+              <option value="Umum">Umum</option>
+              <option value="Poster">Poster</option>
+              <option value="Logo">Logo</option>
+              <option value="Feed">Feed</option>
             </select>
+          </label>
+          <label class="field"><span>Pemilik (siswa / pengajar) — ketik untuk cari</span>
+            <input name="author_name" id="desOwnerName" list="desOwnerList" placeholder="Ketik nama siswa atau pengajar…" autocomplete="off">
+            <datalist id="desOwnerList"></datalist>
           </label>
           <label class="field"><span>Deskripsi</span><input name="description" placeholder="Ringkas"></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button type="button" class="btn btn-primary" id="designSave">Simpan karya</button>
             <button type="button" class="btn btn-ghost" id="designReset">Batal edit</button>
+            <button type="button" class="btn btn-ghost" id="btnAddDesCat">+ Kategori</button>
           </div>
         </form>
         <p id="designMsg" class="muted" style="font-size:13px"></p>
