@@ -1499,18 +1499,23 @@
     const tpl = $("#btnStuTplCsv");
     if (tpl) {
       tpl.onclick = () => {
-        const csv = "angkatan,kelas,nama\n2025,51,Contoh Nama Satu\n2025,52,Contoh Nama Dua\n";
+        const csv =
+          "nama,role,angkatan,kelas\n" +
+          "Contoh Siswa Satu,siswa,2025,51\n" +
+          "Contoh Siswa Dua,siswa,2025,52\n" +
+          "Contoh Alumni,alumni,2023,51\n" +
+          "Contoh Pengajar,pengajar,,\n";
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "template-data-siswa.csv";
+        a.download = "template-data-users.csv";
         a.click();
       };
     }
     const btn = $("#btnBulkStuImport");
     if (!btn) return;
     btn.onclick = async () => {
-      if (msg()) msg().textContent = "Mengimpor…";
+      if (msg()) msg().textContent = "Mengimpor Users…";
       try {
         let result;
         const fileInput = $("#bulkStuFile");
@@ -1527,9 +1532,14 @@
         const errN = (result.errors || []).length;
         if (msg())
           msg().textContent =
-            "Selesai: +" + result.added + " baru, " + result.skipped + " dilewati (sudah ada/kosong)" +
+            "Selesai: +" +
+            result.added +
+            " Users baru, " +
+            result.skipped +
+            " dilewati (sudah ada/data kurang)" +
             (errN ? ", " + errN + " error" : "") +
-            " · total baris " + result.total;
+            " · total baris " +
+            result.total;
         if (errN && result.errors[0]) console.warn(result.errors);
         window.__adminTabLoaded && (window.__adminTabLoaded.alumni = false);
         if (typeof refreshAlumni === "function") await refreshAlumni();

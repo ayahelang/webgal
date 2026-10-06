@@ -130,21 +130,7 @@
     </section>
     </div>
   
-    <section class="summary-card" id="teacherBulkStu" hidden style="margin-top:16px">
-      <h3 style="margin-top:0">Bulk upload data siswa (Pengajar)</h3>
-      <p class="muted" style="font-size:13px">Kolom: <b>angkatan</b>, <b>kelas</b>, <b>nama</b>. Sheet harus share “Anyone with the link”.</p>
-      <p class="muted" style="font-size:12px">Template Google Sheet otomatis dari web ini membutuhkan OAuth Google (akun Google Cloud). Untuk cepat: unduh CSV → buka di Google Sheets.</p>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-        <button type="button" class="btn btn-ghost" id="btnStuTplCsvMw">Unduh template CSV</button>
-      </div>
-      <label class="field"><span>URL / ID Google Sheet</span><input type="text" id="bulkStuSheetMw" placeholder="URL atau ID Sheet"></label>
-      <label class="field"><span>gid tab</span><input type="text" id="bulkStuGidMw" value="0"></label>
-      <label class="field"><span>Atau file CSV</span><input type="file" id="bulkStuFileMw" accept=".csv,text/csv"></label>
-      <button type="button" class="btn btn-primary" id="btnBulkStuImportMw" style="margin-top:8px">Impor siswa</button>
-      <p id="bulkStuMsgMw" class="muted" style="font-size:13px"></p>
-    </section>
-
-  </main>
+    </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="data/supabase-config.js"></script>
   <script src="js/db.js"></script>

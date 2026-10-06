@@ -1723,8 +1723,9 @@
     };
     const iYear = idx(["angkatan_year", "angkatan", "tahun", "year"]);
     const iClass = idx(["class_code", "kelas", "class"]);
-    const iName = idx(["nama_siswa", "nama", "name", "student_name"]);
-    if (iName < 0) throw new Error("Kolom nama siswa wajib (nama / name / nama_siswa)");
+    const iName = idx(["nama_siswa", "nama", "name", "student_name", "display_name"]);
+    const iRole = idx(["role", "peran", "status", "tipe"]);
+    if (iName < 0) throw new Error("Kolom nama wajib (nama / name / nama_siswa)");
     const rows = [];
     for (let li = 1; li < lines.length; li++) {
       const cols = splitCsvLine(lines[li]);
@@ -1735,7 +1736,12 @@
       year = year.replace(/[^\d]/g, "").slice(0, 4);
       let kelas = iClass >= 0 ? String(cols[iClass] || "").trim() : "";
       kelas = kelas.replace(/[^\d]/g, "").slice(0, 2);
-      rows.push({ name, angkatan_year: year, class_code: kelas });
+      let roleRaw = iRole >= 0 ? String(cols[iRole] || "").trim().toLowerCase() : "";
+      let role = "Santriwati";
+      if (/pengajar|teacher|guru/.test(roleRaw)) role = "Pengajar";
+      else if (/alumni/.test(roleRaw)) role = "Alumni";
+      else if (/siswa|santri|student/.test(roleRaw) || !roleRaw) role = "Santriwati";
+      rows.push({ name, angkatan_year: year, class_code: kelas, role });
     }
     return rows;
   }
@@ -1756,7 +1762,7 @@
     if (!(await isCurrentUserAdmin())) {
       const p = await getMyProfile();
       const ok = p && (p.is_admin || p.role === "teacher" || (p.permissions && (p.permissions.alumni || p.permissions.manage_attendance)));
-      if (!ok) throw new Error("Tidak berhak mengimpor data siswa");
+      if (!ok) throw new Error("Tidak berhak mengimpor data Users");
     }
     const list = rows || [];
     if (!list.length) throw new Error("Tidak ada baris data");
@@ -1770,14 +1776,17 @@
       angs = await adminListAngkatanAll();
       return hit;
     };
-    let added = 0, skipped = 0, errors = [];
+    let added = 0,
+      skipped = 0,
+      errors = [];
     const existing = await adminListAlumni();
-    const keyOf = (n, y, c) => (n || "").toLowerCase().trim() + "|" + y + "|" + c;
+    const keyOf = (n, y, c, role) =>
+      (n || "").toLowerCase().trim() + "|" + (y || "") + "|" + (c || "") + "|" + (role || "");
     const have = new Set(
       (existing || []).map((al) => {
         const ang = al.gallery_angkatan || {};
         const m = String(ang.label || "").match(/20\d{2}/);
-        return keyOf(al.name, m ? m[0] : "", al.class_code || "");
+        return keyOf(al.name, m ? m[0] : "", al.class_code || "", al.role || "Santriwati");
       })
     );
     for (const r of list) {
@@ -1785,17 +1794,50 @@
         const name = String(r.name || "").trim();
         const year = String(r.angkatan_year || "").trim();
         const kelas = String(r.class_code || "").trim();
-        if (!name || !year || !kelas) {
+        const role = String(r.role || "Santriwati").trim() || "Santriwati";
+        if (!name) {
           skipped++;
           continue;
         }
-        const k = keyOf(name, year, kelas);
+        // Pengajar: nama wajib; angkatan/kelas opsional
+        if (role === "Pengajar") {
+          const k = keyOf(name, year || "", kelas || "", "Pengajar");
+          if (have.has(k) || [...have].some((h) => h.startsWith(name.toLowerCase().trim() + "|") && h.endsWith("|Pengajar"))) {
+            skipped++;
+            continue;
+          }
+          let angId = null;
+          if (year && /^\d{4}$/.test(year)) {
+            const ang = await ensureAng(year);
+            angId = ang && ang.id;
+          }
+          await adminUpsertAlumni({
+            name,
+            classCode: kelas || "",
+            angkatanId: angId,
+            role: "Pengajar",
+          });
+          have.add(k);
+          added++;
+          continue;
+        }
+        // Siswa / Alumni: butuh angkatan + kelas
+        if (!year || !kelas) {
+          skipped++;
+          continue;
+        }
+        const k = keyOf(name, year, kelas, role);
         if (have.has(k)) {
           skipped++;
           continue;
         }
         const ang = await ensureAng(year);
-        await adminUpsertAlumni({ name, classCode: kelas, angkatanId: ang.id, role: "Santriwati" });
+        await adminUpsertAlumni({
+          name,
+          classCode: kelas,
+          angkatanId: ang.id,
+          role: role === "Alumni" ? "Alumni" : "Santriwati",
+        });
         have.add(k);
         added++;
       } catch (e) {

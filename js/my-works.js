@@ -350,43 +350,4 @@
 })();
 
 
-  // Bulk siswa untuk pengajar
-  (async function teacherBulk() {
-    try {
-      if (!window.GalleryDB) return;
-      const sess = await GalleryDB.getSession();
-      if (!sess) return;
-      const prof = await GalleryDB.getMyProfile();
-      const ok = prof && (prof.is_admin || prof.role === "teacher" || (prof.permissions && prof.permissions.alumni));
-      const box = document.getElementById("teacherBulkStu");
-      if (box) box.hidden = !ok;
-      if (!ok) return;
-      const $ = (s) => document.querySelector(s);
-      const msg = () => $("#bulkStuMsgMw");
-      $("#btnStuTplCsvMw") && ($("#btnStuTplCsvMw").onclick = () => {
-        const csv = "angkatan,kelas,nama\n2025,51,Contoh Nama\n";
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "template-data-siswa.csv";
-        a.click();
-      });
-      $("#btnBulkStuImportMw") && ($("#btnBulkStuImportMw").onclick = async () => {
-        if (msg()) msg().textContent = "Mengimpor…";
-        try {
-          let result;
-          const f = $("#bulkStuFileMw");
-          if (f && f.files && f.files[0]) {
-            result = await GalleryDB.importStudentsBulkFromCsvText(await f.files[0].text());
-          } else {
-            const sheet = ($("#bulkStuSheetMw") && $("#bulkStuSheetMw").value) || "";
-            if (!sheet.trim()) throw new Error("Isi Sheet atau pilih CSV");
-            result = await GalleryDB.importStudentsBulkFromSheet(sheet.trim(), ($("#bulkStuGidMw") || {}).value || "0");
-          }
-          if (msg()) msg().textContent = "+" + result.added + " baru, " + result.skipped + " dilewati";
-        } catch (e) {
-          if (msg()) msg().textContent = e.message || String(e);
-        }
-      });
-    } catch (e) {}
-  })();
+  
