@@ -236,6 +236,31 @@
     if (ac) ac.textContent = new Set(ss.map(studentYear)).size;
     $("#classCount").textContent=new Set(ss.map(cohortKey)).size;
     $("#categoryCount").textContent=new Set(ww.map(w=>w.category)).size;
+    // Video & Desain (async)
+    const vc = document.getElementById("videoCount");
+    const dc = document.getElementById("designCount");
+    if (window.GalleryDB && typeof GalleryDB.enabled === "function" && GalleryDB.enabled()) {
+      if (vc && typeof GalleryDB.listVideos === "function") {
+        GalleryDB.listVideos({})
+          .then(function (rows) { vc.textContent = (rows || []).length; })
+          .catch(function () { if (vc.textContent === "—") vc.textContent = "0"; });
+      }
+      if (dc) {
+        var listDes = typeof GalleryDB.listDesignsPublic === "function"
+          ? GalleryDB.listDesignsPublic
+          : typeof GalleryDB.listDesigns === "function"
+            ? GalleryDB.listDesigns
+            : null;
+        if (listDes) {
+          listDes.call(GalleryDB)
+            .then(function (rows) { dc.textContent = (rows || []).length; })
+            .catch(function () { if (dc.textContent === "—") dc.textContent = "0"; });
+        }
+      }
+    } else {
+      if (vc) vc.textContent = "0";
+      if (dc) dc.textContent = "0";
+    }
   }
   function matches(s){
     const f = state.classFilter;
