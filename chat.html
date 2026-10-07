@@ -23,7 +23,7 @@
   <title>Chat Angkatan — Silverhawk Gallery</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="page-skills" data-shlock-mode="normal" data-shlock-domain="webgal.silverhawk.web.id" data-shlock-brand="Silverhawk Gallery" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
+<body class="page-skills page-chat" data-shlock-mode="normal" data-shlock-domain="webgal.silverhawk.web.id" data-shlock-brand="Silverhawk Gallery" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
   <div class="bg-grid"></div>
   <div class="orb orb-a"></div><div class="orb orb-b"></div>
   <header class="topbar">
@@ -50,8 +50,8 @@
       <h1>Obrolan kenang-kenangan</h1>
       <p class="skills-lead">Per angkatan atau lintas angkatan. Ada indikator <b>sedang mengetik</b> dan avatar emoji.</p>
     </section>
-    <div class="summary-card" style="display:grid;gap:12px">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+    <div class="summary-card chat-panel" style="display:grid;gap:12px;max-width:100%;overflow-x:hidden;box-sizing:border-box">
+      <div class="chat-fields" style="display:grid;gap:10px">
         <label class="field"><span>Nama tampilan</span>
           <input id="chatName" type="text" maxlength="40" placeholder="Nama kamu">
         </label>
@@ -68,8 +68,8 @@
       </div>
       <div id="chatLog" class="chat-log"></div>
       <div id="typingLine" class="typing-line" aria-live="polite"></div>
-      <form id="chatForm" style="display:flex;gap:8px">
-        <input id="chatInput" type="text" maxlength="1000" placeholder="Tulis pesan..." style="flex:1" autocomplete="off">
+      <form id="chatForm" style="display:flex;flex-wrap:wrap;gap:8px;max-width:100%">
+        <input id="chatInput" type="text" maxlength="1000" placeholder="Tulis pesan..." style="flex:1 1 140px;min-width:0;max-width:100%" autocomplete="off">
         <button class="btn btn-primary" type="submit">Kirim</button>
       </form>
       <p id="chatStatus" class="muted" style="margin:0;font-size:12px"></p>

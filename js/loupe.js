@@ -33,12 +33,117 @@
         '<span class="sh-loupe-handle-shaft"></span>' +
         '<span class="sh-loupe-handle-tip"></span>' +
       "</div>" +
-      '<div class="sh-loupe-tip" id="shLoupeTip"></div>' +
       '<div class="sh-loupe-badge">2×</div>';
     document.body.appendChild(el);
     stage = el.querySelector(".sh-loupe-stage");
     badge = el.querySelector(".sh-loupe-badge");
     el.style.display = "none";
+  }
+
+
+  var liveTip = null;
+
+  function removeLiveTip() {
+    if (liveTip && liveTip.parentNode) liveTip.parentNode.removeChild(liveTip);
+    liveTip = null;
+  }
+
+  /** Tooltip DOM asli (.sh-tooltip) di halaman → ikut ter-clone & ter-zoom di lensa */
+  function ensureLiveTooltip(x, y) {
+    var prevVis = el ? el.style.visibility : "";
+    if (el) el.style.visibility = "hidden";
+    var node = document.elementFromPoint(x, y);
+    if (el) el.style.visibility = prevVis || "visible";
+
+    // jika sudah ada tooltip kustom app yang visible, biarkan (akan ikut clone)
+    var existing = document.querySelector(".sh-tooltip.visible");
+    if (existing && existing !== liveTip) {
+      removeLiveTip();
+      return;
+    }
+
+    var text = "";
+    var title = "";
+    var desc = "";
+    var cur = node;
+    for (var i = 0; i < 8 && cur; i++) {
+      if (cur.getAttribute) {
+        var t =
+          cur.getAttribute("data-tooltip") ||
+          cur.getAttribute("data-title") ||
+          cur.getAttribute("aria-label") ||
+          cur.getAttribute("title") ||
+          "";
+        t = String(t || "").trim();
+        if (t) {
+          text = t;
+          // jangan biarkan tooltip native browser ikut muncul
+          if (cur.getAttribute("title")) {
+            cur.setAttribute("data-sh-title-bak", cur.getAttribute("title"));
+            cur.removeAttribute("title");
+          }
+          break;
+        }
+      }
+      cur = cur.parentElement;
+    }
+
+    if (!text) {
+      removeLiveTip();
+      return;
+    }
+
+    // pecah title | desc jika ada pola "judul — deskripsi"
+    if (text.indexOf(" — ") >= 0) {
+      var parts = text.split(" — ");
+      title = parts[0];
+      desc = parts.slice(1).join(" — ");
+    } else if (text.indexOf("\n") >= 0) {
+      var lines = text.split("\n");
+      title = lines[0];
+      desc = lines.slice(1).join("\n");
+    } else {
+      title = text;
+    }
+
+    if (!liveTip) {
+      liveTip = document.createElement("div");
+      liveTip.className = "sh-tooltip sh-loupe-live-tip";
+      document.body.appendChild(liveTip);
+    }
+    liveTip.innerHTML =
+      '<div class="tip-title"></div>' +
+      (desc ? '<div class="tip-desc"></div>' : "");
+    liveTip.querySelector(".tip-title").textContent = title;
+    if (desc) liveTip.querySelector(".tip-desc").textContent = desc;
+
+    // posisi seperti tooltip normal di dekat kursor/elemen
+    var tw = 280;
+    var left = x + 14;
+    var top = y + 18;
+    if (left + tw > window.innerWidth - 8) left = x - tw - 12;
+    if (top > window.innerHeight - 80) top = y - 70;
+    liveTip.style.left = Math.max(8, left) + "px";
+    liveTip.style.top = Math.max(8, top) + "px";
+    liveTip.classList.add("visible");
+  }
+
+  function fixCloneFixedTooltips(root) {
+    if (!root) return;
+    var tips = root.querySelectorAll(".sh-tooltip, [role='tooltip']");
+    for (var i = 0; i < tips.length; i++) {
+      var tip = tips[i];
+      // di clone, fixed → absolute relatif viewport clone
+      var l = tip.style.left;
+      var t = tip.style.top;
+      tip.style.position = "absolute";
+      if (l) tip.style.left = l;
+      if (t) tip.style.top = t;
+      tip.classList.add("visible");
+      tip.style.opacity = "1";
+      tip.style.transform = "none";
+      tip.style.zIndex = "99999";
+    }
   }
 
   function buildClone() {
@@ -66,6 +171,7 @@
       cloneRoot.style.color = cs.color;
       cloneRoot.style.fontFamily = cs.fontFamily;
     } catch (e) {}
+    fixCloneFixedTooltips(cloned);
     stage.innerHTML = "";
     stage.appendChild(cloneRoot);
   }
@@ -102,66 +208,13 @@
     // lepas clone biar hemat memori
     if (stage) stage.innerHTML = "";
     cloneRoot = null;
-  }
-
-  function readTooltipAt(x, y) {
-    // sembunyikan loupe sebentar agar elementFromPoint kena halaman asli
-    var prev = el.style.visibility;
-    el.style.visibility = "hidden";
-    var node = document.elementFromPoint(x, y);
-    el.style.visibility = prev || "visible";
-    if (!node) return "";
-    var cur = node;
-    for (var i = 0; i < 8 && cur; i++) {
-      if (cur.getAttribute) {
-        var t =
-          cur.getAttribute("data-tooltip") ||
-          cur.getAttribute("data-title") ||
-          cur.getAttribute("aria-label") ||
-          cur.getAttribute("title") ||
-          "";
-        t = String(t || "").trim();
-        if (t) return t;
-        // tooltip kustom umum
-        if (cur.classList && (cur.classList.contains("tooltip") || cur.classList.contains("tip"))) {
-          var tx = (cur.textContent || "").trim();
-          if (tx && tx.length < 200) return tx;
-        }
-      }
-      cur = cur.parentElement;
-    }
-    // cari sibling/child tooltip yang visible di dekat kursor
+    removeLiveTip();
     try {
-      var tips = document.querySelectorAll(
-        "[role='tooltip'], .tooltip:not(#shLoupeTip), .tip-content, .sh-tooltip, [data-tooltip-open]"
-      );
-      for (var j = 0; j < tips.length; j++) {
-        var tip = tips[j];
-        var st = getComputedStyle(tip);
-        if (st.display === "none" || st.visibility === "hidden" || st.opacity === "0") continue;
-        var r = tip.getBoundingClientRect();
-        if (r.width < 2 || r.height < 2) continue;
-        // dekat kursor atau terlihat
-        if (Math.abs(r.left + r.width / 2 - x) < 220 && Math.abs(r.top + r.height / 2 - y) < 220) {
-          var tt = (tip.textContent || "").trim();
-          if (tt) return tt.slice(0, 240);
-        }
-      }
+      document.querySelectorAll("[data-sh-title-bak]").forEach(function (n) {
+        n.setAttribute("title", n.getAttribute("data-sh-title-bak"));
+        n.removeAttribute("data-sh-title-bak");
+      });
     } catch (e) {}
-    return "";
-  }
-
-  function updateInLensTip() {
-    var tipEl = el && el.querySelector(".sh-loupe-tip");
-    if (!tipEl) return;
-    var text = readTooltipAt(mx, my);
-    if (text) {
-      tipEl.textContent = text;
-      tipEl.classList.add("is-on");
-    } else {
-      tipEl.textContent = "";
-      tipEl.classList.remove("is-on");
-    }
   }
 
   function layout() {
@@ -196,7 +249,6 @@
       // kompensasi scroll: geser clone ke atas sesuai scrollY
       cloneRoot.style.transform = "translate(" + -window.scrollX + "px," + -window.scrollY + "px)";
     }
-    updateInLensTip();
   }
 
   function schedule() {
