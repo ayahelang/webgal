@@ -2696,13 +2696,6 @@ main.skills-main {
   }
 }
 
-#shLoupe .sh-loupe-clone-tip,
-#shLoupe .sh-tooltip.sh-loupe-clone-tip {
-  z-index: 2147483646 !important;
-  opacity: 1 !important;
-  transform: none !important;
-  pointer-events: none !important;
-}
 
 
 /* PDF flip-page di card desain */
@@ -2806,4 +2799,22 @@ main.skills-main {
   font-size: 11px;
   color: #7de3ff;
   margin-left: 6px;
+}
+
+
+/* Saat loupe aktif: tooltip asli disembunyikan di layar (tetap di DOM untuk disalin),
+   yang tampil di lensa adalah salinan di dalam clone (ter-zoom). */
+html.sh-loupe-on .sh-tooltip:not(.sh-loupe-clone-tip) {
+  opacity: 0 !important;
+  /* tetap "visible" di layout supaya getBoundingClientRect valid */
+  pointer-events: none !important;
+}
+#shLoupe .sh-loupe-clone-tip,
+#shLoupe .sh-tooltip.sh-loupe-clone-tip {
+  opacity: 1 !important;
+  visibility: visible !important;
+  z-index: 2147483646 !important;
+  transform: none !important;
+  transition: none !important;
+  pointer-events: none !important;
 }
