@@ -2477,15 +2477,9 @@ span.att-late,
 
 
 
-/* ===== Loupe (Ctrl + hover) ===== */
+/* ===== Loupe metode 2: CSS scale + clip (Ctrl + hover) ===== */
 html.sh-loupe-on,
-html.sh-loupe-on body {
-  cursor: none !important;
-}
-html.sh-loupe-on a,
-html.sh-loupe-on button,
-html.sh-loupe-on input,
-html.sh-loupe-on [role="button"] {
+html.sh-loupe-on * {
   cursor: none !important;
 }
 #shLoupe {
@@ -2495,104 +2489,110 @@ html.sh-loupe-on [role="button"] {
   z-index: 99999;
   pointer-events: none;
   will-change: transform;
+  /* lebar/tinggi di-set JS = diameter lensa */
 }
-#shLoupe .sh-loupe-body {
-  position: relative;
-  width: 168px;
-  height: 168px;
-}
-#shLoupe .sh-loupe-glass {
-  position: relative;
-  width: 168px;
-  height: 168px;
+#shLoupe .sh-loupe-lens {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   overflow: hidden;
   box-shadow:
-    0 10px 28px rgba(0,0,0,.55),
+    0 12px 32px rgba(0,0,0,.55),
     0 2px 8px rgba(0,0,0,.35),
-    inset 0 1px 0 rgba(255,255,255,.25),
-    inset 0 -8px 18px rgba(0,0,0,.35);
+    inset 0 1px 0 rgba(255,255,255,.28),
+    inset 0 -10px 20px rgba(0,0,0,.3);
   background: #0a1218;
 }
-#shLoupe .sh-loupe-canvas {
-  display: block;
-  width: 168px;
-  height: 168px;
-  border-radius: 50%;
+#shLoupe .sh-loupe-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+  pointer-events: none;
 }
+#shLoupe .sh-loupe-clone {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+#shLoupe .sh-loupe-clone #shLoupe { display: none !important; }
 #shLoupe .sh-loupe-rim {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 5px solid transparent;
-  background:
-    linear-gradient(145deg, #e8f4ff 0%, #8ab4c8 35%, #3a5a6a 55%, #c5dff0 75%, #6a8a9a 100%) border-box;
-  -webkit-mask:
-    linear-gradient(#fff 0 0) padding-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#fff 0 0) padding-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
+  border: 6px solid #b8d4e4;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.5),
+    inset 0 0 0 3px rgba(60,90,110,.5),
+    0 0 0 1px rgba(0,0,0,.25);
+  background: linear-gradient(145deg, rgba(255,255,255,.2), transparent 40%, rgba(0,0,0,.15));
   pointer-events: none;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
 }
 #shLoupe .sh-loupe-glare {
   position: absolute;
-  top: 12%;
-  left: 16%;
-  width: 42%;
-  height: 28%;
+  top: 10%;
+  left: 14%;
+  width: 40%;
+  height: 26%;
   border-radius: 50%;
-  background: linear-gradient(180deg, rgba(255,255,255,.45), rgba(255,255,255,0));
-  transform: rotate(-18deg);
+  background: linear-gradient(180deg, rgba(255,255,255,.4), rgba(255,255,255,0));
+  transform: rotate(-20deg);
   pointer-events: none;
 }
-#shLoupe .sh-loupe-inner-shadow {
-  position: absolute;
-  inset: 4px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 16px rgba(0,0,0,.35);
-  pointer-events: none;
-}
-/* gagang 3D */
+/* Gagang LURUS 3D — menempel tepi kanan-bawah lensa, miring utuh (tidak patah) */
 #shLoupe .sh-loupe-handle {
   position: absolute;
-  right: -8px;
-  bottom: -52px;
-  width: 22px;
-  height: 78px;
-  transform: rotate(-38deg);
-  transform-origin: top center;
+  /* pangkal di tepi lingkaran (~135° dari atas, kanan-bawah) */
+  left: 50%;
+  top: 50%;
+  width: 16px;
+  height: 88px;
+  margin-left: -8px;
+  transform: rotate(42deg) translate(0, 78px);
+  transform-origin: 50% 0;
+  pointer-events: none;
 }
 #shLoupe .sh-loupe-handle-shaft {
   display: block;
   width: 14px;
-  height: 58px;
+  height: 70px;
   margin: 0 auto;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #5a4030 0%, #c4a574 28%, #8b6914 52%, #e8d5a3 78%, #4a3420 100%);
+  border-radius: 7px;
+  background: linear-gradient(
+    90deg,
+    #3e2a18 0%,
+    #c4a574 30%,
+    #8b6914 55%,
+    #e8d5a3 78%,
+    #4a3420 100%
+  );
   box-shadow:
-    2px 3px 6px rgba(0,0,0,.4),
-    inset 1px 0 2px rgba(255,255,255,.35),
+    2px 4px 8px rgba(0,0,0,.4),
+    inset 1px 0 2px rgba(255,255,255,.4),
     inset -2px 0 3px rgba(0,0,0,.35);
 }
-#shLoupe .sh-loupe-handle-end {
+#shLoupe .sh-loupe-handle-tip {
   display: block;
-  width: 20px;
-  height: 16px;
-  margin: -2px auto 0;
-  border-radius: 6px 6px 8px 8px;
-  background: linear-gradient(90deg, #3d2a1a, #a67c4a 40%, #6b4a28 70%, #2a1c10);
+  width: 18px;
+  height: 14px;
+  margin: -1px auto 0;
+  border-radius: 5px 5px 7px 7px;
+  background: linear-gradient(90deg, #2a1c10, #a67c4a 45%, #5a3c20 100%);
   box-shadow: 1px 3px 5px rgba(0,0,0,.45);
 }
 #shLoupe .sh-loupe-badge {
   position: absolute;
-  top: -6px;
-  right: -4px;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
   min-width: 28px;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
@@ -2603,5 +2603,5 @@ html.sh-loupe-on [role="button"] {
 }
 @media (max-width: 640px) {
   #shLoupe { display: none !important; }
-  html.sh-loupe-on, html.sh-loupe-on body { cursor: auto !important; }
+  html.sh-loupe-on, html.sh-loupe-on * { cursor: auto !important; }
 }
