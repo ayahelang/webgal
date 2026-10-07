@@ -2417,27 +2417,31 @@ span.att-late,
 .card.card-flash{outline:2px solid #6bdcf4;box-shadow:0 0 0 6px rgba(107,220,244,.25);transition:box-shadow .3s}
 
 
-/* Desain grafis — magnifier hover + lightbox */
+/* Desain grafis — kotak = kaca pembesar (pan zoom) + lightbox */
 .des-thumb{
   position:relative;
   display:block;width:100%;padding:0;border:0;cursor:zoom-in;
   overflow:hidden;background:#0a1218;border-radius:12px 12px 0 0;
+  aspect-ratio:1;
+  isolation:isolate;
 }
 .des-thumb img{
-  width:100%;aspect-ratio:1;object-fit:cover;display:block;
-  transition:transform .25s ease;
+  width:100%;height:100%;object-fit:cover;display:block;
+  transform:scale(1);
+  transform-origin:center center;
+  transition:transform .12s ease-out;
+  will-change:transform;
+  pointer-events:none;
+  user-select:none;
 }
-.des-thumb:hover img{transform:scale(1.03)}
-.des-mag-lens{
-  position:absolute;pointer-events:none;z-index:3;
-  border-radius:50%;
-  border:2px solid rgba(125,227,255,.75);
-  box-shadow:0 8px 28px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.15);
-  opacity:0;visibility:hidden;
-  background-repeat:no-repeat;
-  background-color:rgba(10,18,24,.35);
+.des-thumb.is-zooming img{
+  transition:none; /* pan harus responsif saat gerak mouse */
 }
-.des-mag-lens.is-on{opacity:1;visibility:visible}
+.des-thumb:hover{
+  box-shadow:inset 0 0 0 2px rgba(125,227,255,.35);
+}
+.des-mag-lens{display:none!important} /* lens lama tidak dipakai */
+
 .design-lightbox{
   position:fixed;inset:0;z-index:15000;
   display:flex;align-items:center;justify-content:center;
@@ -2469,3 +2473,5 @@ span.att-late,
   font-size:18px;cursor:pointer;line-height:1;
 }
 .design-lightbox .dlb-close:hover{border-color:#7de3ff}
+
+

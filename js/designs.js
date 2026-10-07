@@ -95,49 +95,46 @@
     lb.classList.add("is-open");
   }
 
-  /** Efek kaca pembesar pada hover */
+  /**
+   * Kotak thumbnail = jendela kaca pembesar.
+   * Hover: gambar full proporsional di-zoom 2–3× di dalam kotak,
+   * posisi pan mengikuti mouse (seperti panning fullscreen).
+   */
   function bindMagnifier(wrap) {
     const img = wrap.querySelector("img");
     if (!img || wrap.dataset.magBound) return;
     wrap.dataset.magBound = "1";
-    let lens = wrap.querySelector(".des-mag-lens");
-    if (!lens) {
-      lens = document.createElement("div");
-      lens.className = "des-mag-lens";
-      wrap.appendChild(lens);
-    }
-    const size = 120;
-    lens.style.width = size + "px";
-    lens.style.height = size + "px";
 
-    function move(e) {
+    const ZOOM = 2.5; // 2×–3×, seimbang kualitas & kejelasan
+
+    function setPan(e) {
       const r = wrap.getBoundingClientRect();
-      const x = e.clientX - r.left;
-      const y = e.clientY - r.top;
-      if (x < 0 || y < 0 || x > r.width || y > r.height) {
-        lens.classList.remove("is-on");
-        return;
-      }
-      lens.classList.add("is-on");
-      const half = size / 2;
-      let lx = x - half;
-      let ly = y - half;
-      if (lx < 0) lx = 0;
-      if (ly < 0) ly = 0;
-      if (lx > r.width - size) lx = r.width - size;
-      if (ly > r.height - size) ly = r.height - size;
-      lens.style.left = lx + "px";
-      lens.style.top = ly + "px";
-      // zoom ~2.2x, background position follows cursor
-      const zx = ((x / r.width) * 100).toFixed(2);
-      const zy = ((y / r.height) * 100).toFixed(2);
-      lens.style.backgroundImage = 'url("' + img.currentSrc + '")';
-      lens.style.backgroundSize = r.width * 2.2 + "px " + r.height * 2.2 + "px";
-      lens.style.backgroundPosition = zx + "% " + zy + "%";
+      if (r.width < 8 || r.height < 8) return;
+      let px = (e.clientX - r.left) / r.width;
+      let py = (e.clientY - r.top) / r.height;
+      px = Math.max(0, Math.min(1, px));
+      py = Math.max(0, Math.min(1, py));
+      // transform-origin di titik kursor; scale di dalam overflow:hidden
+      const ox = (px * 100).toFixed(2) + "%";
+      const oy = (py * 100).toFixed(2) + "%";
+      img.style.transformOrigin = ox + " " + oy;
+      img.style.transform = "scale(" + ZOOM + ")";
     }
-    wrap.addEventListener("pointerenter", move);
-    wrap.addEventListener("pointermove", move);
-    wrap.addEventListener("pointerleave", () => lens.classList.remove("is-on"));
+
+    function reset() {
+      img.style.transform = "scale(1)";
+      img.style.transformOrigin = "center center";
+    }
+
+    wrap.addEventListener("pointerenter", (e) => {
+      wrap.classList.add("is-zooming");
+      setPan(e);
+    });
+    wrap.addEventListener("pointermove", setPan);
+    wrap.addEventListener("pointerleave", () => {
+      wrap.classList.remove("is-zooming");
+      reset();
+    });
   }
 
   function render() {
