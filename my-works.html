@@ -55,7 +55,7 @@
         <form id="webForm" style="display:grid;gap:10px;margin-top:10px">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul</span><input name="title" placeholder="Judul karya"></label>
-          <label class="field"><span>URL</span><input name="url" type="url" required placeholder="https://..."></label>
+          <label class="field"><span>URL</span><div style="display:flex;gap:6px;align-items:center"><input name="url" type="url" required placeholder="https://..." style="flex:1;min-width:0"><button type="button" class="btn btn-ghost" id="btnPasteWeb" style="padding:8px 10px;font-size:12px">Tempel</button></div></label>
           <label class="field"><span>Kategori</span>
             <input name="category" placeholder="Web Kreatif">
           </label>
@@ -74,7 +74,7 @@
         <p class="muted" style="font-size:13px">YouTube, Dailymotion, TikTok, Instagram, Facebook. Judul/deskripsi kosong → diisi otomatis dari info video bila tersedia.</p>
         <form id="vidForm" style="display:grid;gap:10px;margin-top:10px">
           <input type="hidden" name="id" value="">
-          <label class="field"><span>URL video</span><input name="url" type="url" required placeholder="https://youtube.com/... atau tiktok/ig/fb"></label>
+          <label class="field"><span>URL video</span><div style="display:flex;gap:6px;align-items:center"><input name="url" type="url" required placeholder="https://youtube.com/... atau tiktok/ig/fb" style="flex:1;min-width:0"><button type="button" class="btn btn-ghost" id="btnPasteVid" style="padding:8px 10px;font-size:12px">Tempel</button></div></label>
           <label class="field"><span>Judul (opsional)</span><input name="title" placeholder="Kosongkan = ambil dari platform"></label>
           <label class="field"><span>Deskripsi (opsional)</span><input name="description" placeholder="Kosongkan = otomatis"></label>
           <div style="display:flex;gap:8px">
@@ -145,5 +145,23 @@
   <script src="js/announce.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/loupe.js"></script>
+
+  <script>
+  /* Izinkan copas di field isian; blokir hanya di luar form */
+  (function(){
+    function isField(t){
+      if(!t||!t.tagName) return false;
+      var tag=t.tagName.toUpperCase();
+      if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT") return true;
+      if(t.isContentEditable) return true;
+      return !!(t.closest&&(t.closest("input,textarea,select,[contenteditable='true']")));
+    }
+    document.addEventListener("copy", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
+    document.addEventListener("cut", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
+    document.addEventListener("paste", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
+    document.addEventListener("selectstart", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
+  })();
+  </script>
+
 </body>
 </html>

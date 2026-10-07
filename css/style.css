@@ -2695,3 +2695,11 @@ main.skills-main {
     flex: 1 1 auto;
   }
 }
+
+#shLoupe .sh-loupe-clone-tip,
+#shLoupe .sh-tooltip.sh-loupe-clone-tip {
+  z-index: 2147483646 !important;
+  opacity: 1 !important;
+  transform: none !important;
+  pointer-events: none !important;
+}

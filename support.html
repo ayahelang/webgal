@@ -154,5 +154,23 @@
   </script>
   <script src="js/theme.js"></script>
   <script src="js/loupe.js"></script>
+
+  <script>
+  /* Izinkan copas di field isian; blokir hanya di luar form */
+  (function(){
+    function isField(t){
+      if(!t||!t.tagName) return false;
+      var tag=t.tagName.toUpperCase();
+      if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT") return true;
+      if(t.isContentEditable) return true;
+      return !!(t.closest&&(t.closest("input,textarea,select,[contenteditable='true']")));
+    }
+    document.addEventListener("copy", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
+    document.addEventListener("cut", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
+    document.addEventListener("paste", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
+    document.addEventListener("selectstart", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
+  })();
+  </script>
+
 </body>
 </html>

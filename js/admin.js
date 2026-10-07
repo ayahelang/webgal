@@ -299,12 +299,13 @@
   }
 
   function scrollToForm(sel) {
+    // Auto-scroll dimatikan agar tidak mengganggu pengisian data
     const f = $(sel);
     if (!f) return;
-    // naik sedikit supaya judul form putih terlihat
-    const y = f.getBoundingClientRect().top + window.scrollY - 88;
-    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
-    try { f.querySelector("input,select,textarea") && f.querySelector("input,select,textarea").focus({ preventScroll: true }); } catch (e) {}
+    try {
+      const el = f.querySelector("input,select,textarea,[contenteditable='true']");
+      if (el) el.focus({ preventScroll: true });
+    } catch (e) {}
   }
   function collapseTreeParents(root, depthKeepOpen) {
     if (!root) return;
@@ -639,7 +640,7 @@
             });
             let h = "<p class='muted' style='margin:0 0 8px'>Pembaca tercatat: <b>" + reads.length + "</b></p>";
             Object.keys(byClass).sort().forEach((k) => {
-              h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + "</span><ul>";
+              h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + " <b>(" + g[k].length + ")</b></span><ul>";
               byClass[k].forEach((x) => {
                 h +=
                   "<li>" +
@@ -1059,7 +1060,7 @@
       let h = "<div class='att-stat-block'><strong>Sudah absen (" + arr.length + ")</strong>";
       h += "<p class='muted' style='font-size:12px;margin:4px 0 8px'>Klik nama untuk melihat pesan check-in / check-out</p>";
       Object.keys(g).sort().forEach((k) => {
-        h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + "</span><ul class='att-name-list'>";
+        h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + " <b>(" + g[k].length + ")</b></span><ul class='att-name-list'>";
         g[k].forEach((item, idx) => {
           const t0 = item.t || item;
           const r = item.r;
@@ -1103,7 +1104,7 @@
       const g = group(arr.map((t) => ({ t })));
       let h = "<div class='att-stat-block'><strong>Belum absen (" + arr.length + ")</strong>";
       Object.keys(g).sort().forEach((k) => {
-        h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + "</span><ul>";
+        h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + " <b>(" + g[k].length + ")</b></span><ul>";
         g[k].forEach((item) => {
           h += "<li>" + esc((item.t || item).name || "") + "</li>";
         });

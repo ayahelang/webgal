@@ -164,6 +164,20 @@
         }
       });
 
+    async function pasteInto(sel) {
+      try {
+        const text = await navigator.clipboard.readText();
+        const inp = document.querySelector(sel);
+        if (inp && text) { inp.value = text.trim(); inp.dispatchEvent(new Event("input", { bubbles: true })); }
+      } catch (e) {
+        alert("Tidak bisa baca clipboard. Izinkan akses clipboard atau tempel manual (Ctrl+V).");
+      }
+    }
+    const pw = document.getElementById("btnPasteWeb");
+    if (pw) pw.onclick = () => pasteInto("#webForm [name=url]");
+    const pv = document.getElementById("btnPasteVid");
+    if (pv) pv.onclick = () => pasteInto("#vidForm [name=url]");
+
     await loadWeb();
     await loadVid();
     await loadDes();
@@ -234,7 +248,7 @@
           const d = JSON.parse(b.getAttribute("data-edit-des"));
           const form = $("#desForm");
           if (!form) return;
-          form.scrollIntoView({ behavior: "smooth", block: "start" });
+          try { form.querySelector("input,select,textarea")&&form.querySelector("input,select,textarea").focus({preventScroll:true}); } catch(e) {}
           form.querySelector("[name=id]").value = d.id;
           form.querySelector("[name=title]").value = d.title || "";
           form.querySelector("[name=category]").value = d.category || "Umum";
@@ -271,9 +285,9 @@
     $$("#webList [data-edit-web]").forEach((b) =>
       b.addEventListener("click", () => {
         const w = JSON.parse(b.getAttribute("data-edit-web"));
-        try { (document.querySelector("#webForm")||document.querySelector("form")).scrollIntoView({behavior:"smooth",block:"start"}); } catch(e) {}
+        try { var __f=document.querySelector("#webForm")||document.querySelector("#vidForm")||document.querySelector("form"); if(__f){var __i=__f.querySelector("input,select,textarea"); if(__i)__i.focus({preventScroll:true});} } catch(e) {}
         const form = document.getElementById("webForm") || document.querySelector("#myWebForm, form");
-        if (form) form.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (form) try { form.querySelector("input,select,textarea")&&form.querySelector("input,select,textarea").focus({preventScroll:true}); } catch(e) {}
         $("#webForm [name=id]").value = w.id;
         $("#webForm [name=title]").value = w.title || "";
         $("#webForm [name=url]").value = w.url || "";
@@ -308,7 +322,7 @@
     $$("#vidList [data-edit-vid]").forEach((b) =>
       b.addEventListener("click", () => {
         const v = JSON.parse(b.getAttribute("data-edit-vid"));
-        try { (document.querySelector("#vidForm")||document.querySelector("#videoForm")||document.querySelector("form")).scrollIntoView({behavior:"smooth",block:"start"}); } catch(e) {}
+        try { var __f=document.querySelector("#webForm")||document.querySelector("#vidForm")||document.querySelector("form"); if(__f){var __i=__f.querySelector("input,select,textarea"); if(__i)__i.focus({preventScroll:true});} } catch(e) {}
         $("#vidForm [name=id]").value = v.id;
         $("#vidForm [name=title]").value = v.title || "";
         $("#vidForm [name=url]").value = v.url || "";
