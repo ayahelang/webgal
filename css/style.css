@@ -2548,22 +2548,25 @@ html.sh-loupe-on * {
 /* Gagang LURUS 3D — menempel tepi kanan-bawah lensa, miring utuh (tidak patah) */
 #shLoupe .sh-loupe-handle {
   position: absolute;
-  /* pangkal di luar rim; lensa radius 180 → geser lebih jauh */
   left: 50%;
   top: 50%;
-  width: 36px;
-  height: 210px;
-  margin-left: -18px;
-  transform: rotate(42deg) translate(0, 198px);
+  width: 32px;
+  height: 200px;
+  margin-left: -16px;
+  /* radius 180 + rim ~6 → pangkal menempel bingkai (bukan menjauh) */
+  transform: rotate(42deg) translate(0, 186px);
   transform-origin: 50% 0;
   pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 #shLoupe .sh-loupe-handle-shaft {
   display: block;
-  width: 32px;
-  height: 170px;
-  margin: 0 auto;
-  border-radius: 16px;
+  width: 28px;
+  height: 160px;
+  margin: 0;
+  border-radius: 14px;
   background: linear-gradient(
     90deg,
     #3e2a18 0%,
@@ -2577,15 +2580,54 @@ html.sh-loupe-on * {
     inset 2px 0 3px rgba(255,255,255,.4),
     inset -3px 0 4px rgba(0,0,0,.35);
 }
+/* "sekrup" ujung — satu poros dengan batang (align center) */
 #shLoupe .sh-loupe-handle-tip {
   display: block;
-  width: 40px;
-  height: 32px;
-  margin: -2px auto 0;
-  border-radius: 10px 10px 14px 14px;
-  background: linear-gradient(90deg, #2a1c10, #a67c4a 45%, #5a3c20 100%);
-  box-shadow: 2px 4px 8px rgba(0,0,0,.5);
+  width: 28px;
+  height: 28px;
+  margin: -6px 0 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255,255,255,.35), transparent 45%),
+    linear-gradient(145deg, #d4b896 0%, #8b6914 40%, #4a3420 100%);
+  box-shadow:
+    1px 3px 6px rgba(0,0,0,.5),
+    inset 0 0 0 2px rgba(60,40,20,.5),
+    inset 0 1px 0 rgba(255,255,255,.35);
+  position: relative;
 }
+#shLoupe .sh-loupe-handle-tip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #e8d5a3, #5a4030 70%);
+  box-shadow: inset 0 0 2px rgba(0,0,0,.5);
+}
+#shLoupe .sh-loupe-tip {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  transform: translateX(-50%);
+  z-index: 3;
+  max-width: 78%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #071016;
+  background: linear-gradient(180deg, #f0fafc, #c5e8f5);
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  text-align: center;
+  pointer-events: none;
+  display: none;
+}
+#shLoupe .sh-loupe-tip.is-on { display: block; }
 #shLoupe .sh-loupe-badge {
   position: absolute;
   top: 4px;

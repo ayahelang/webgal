@@ -33,6 +33,7 @@
         '<span class="sh-loupe-handle-shaft"></span>' +
         '<span class="sh-loupe-handle-tip"></span>' +
       "</div>" +
+      '<div class="sh-loupe-tip" id="shLoupeTip"></div>' +
       '<div class="sh-loupe-badge">2×</div>';
     document.body.appendChild(el);
     stage = el.querySelector(".sh-loupe-stage");
@@ -103,8 +104,69 @@
     cloneRoot = null;
   }
 
+  function readTooltipAt(x, y) {
+    // sembunyikan loupe sebentar agar elementFromPoint kena halaman asli
+    var prev = el.style.visibility;
+    el.style.visibility = "hidden";
+    var node = document.elementFromPoint(x, y);
+    el.style.visibility = prev || "visible";
+    if (!node) return "";
+    var cur = node;
+    for (var i = 0; i < 8 && cur; i++) {
+      if (cur.getAttribute) {
+        var t =
+          cur.getAttribute("data-tooltip") ||
+          cur.getAttribute("data-title") ||
+          cur.getAttribute("aria-label") ||
+          cur.getAttribute("title") ||
+          "";
+        t = String(t || "").trim();
+        if (t) return t;
+        // tooltip kustom umum
+        if (cur.classList && (cur.classList.contains("tooltip") || cur.classList.contains("tip"))) {
+          var tx = (cur.textContent || "").trim();
+          if (tx && tx.length < 200) return tx;
+        }
+      }
+      cur = cur.parentElement;
+    }
+    // cari sibling/child tooltip yang visible di dekat kursor
+    try {
+      var tips = document.querySelectorAll(
+        "[role='tooltip'], .tooltip:not(#shLoupeTip), .tip-content, .sh-tooltip, [data-tooltip-open]"
+      );
+      for (var j = 0; j < tips.length; j++) {
+        var tip = tips[j];
+        var st = getComputedStyle(tip);
+        if (st.display === "none" || st.visibility === "hidden" || st.opacity === "0") continue;
+        var r = tip.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) continue;
+        // dekat kursor atau terlihat
+        if (Math.abs(r.left + r.width / 2 - x) < 220 && Math.abs(r.top + r.height / 2 - y) < 220) {
+          var tt = (tip.textContent || "").trim();
+          if (tt) return tt.slice(0, 240);
+        }
+      }
+    } catch (e) {}
+    return "";
+  }
+
+  function updateInLensTip() {
+    var tipEl = el && el.querySelector(".sh-loupe-tip");
+    if (!tipEl) return;
+    var text = readTooltipAt(mx, my);
+    if (text) {
+      tipEl.textContent = text;
+      tipEl.classList.add("is-on");
+    } else {
+      tipEl.textContent = "";
+      tipEl.classList.remove("is-on");
+    }
+  }
+
   function layout() {
     if (!active || !el || !stage) return;
+
     var z = mag();
     var d = radius * 2;
 
@@ -134,6 +196,7 @@
       // kompensasi scroll: geser clone ke atas sesuai scrollY
       cloneRoot.style.transform = "translate(" + -window.scrollX + "px," + -window.scrollY + "px)";
     }
+    updateInLensTip();
   }
 
   function schedule() {
