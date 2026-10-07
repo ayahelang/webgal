@@ -2548,22 +2548,23 @@ html.sh-loupe-on * {
 /* Gagang LURUS 3D — menempel tepi kanan-bawah lensa, miring utuh (tidak patah) */
 #shLoupe .sh-loupe-handle {
   position: absolute;
-  /* pangkal di tepi lingkaran (~135° dari atas, kanan-bawah) */
+  /* pangkal mulai di LUAR rim lensa, lalu memanjang keluar */
   left: 50%;
   top: 50%;
-  width: 16px;
-  height: 88px;
-  margin-left: -8px;
-  transform: rotate(42deg) translate(0, 78px);
+  width: 28px;
+  height: 160px;
+  margin-left: -14px;
+  /* radius lensa ~90px + gap agar tidak menumpuk rim */
+  transform: rotate(42deg) translate(0, 102px);
   transform-origin: 50% 0;
   pointer-events: none;
 }
 #shLoupe .sh-loupe-handle-shaft {
   display: block;
-  width: 14px;
-  height: 70px;
+  width: 26px;
+  height: 130px;
   margin: 0 auto;
-  border-radius: 7px;
+  border-radius: 13px;
   background: linear-gradient(
     90deg,
     #3e2a18 0%,
@@ -2573,18 +2574,18 @@ html.sh-loupe-on * {
     #4a3420 100%
   );
   box-shadow:
-    2px 4px 8px rgba(0,0,0,.4),
-    inset 1px 0 2px rgba(255,255,255,.4),
-    inset -2px 0 3px rgba(0,0,0,.35);
+    3px 6px 12px rgba(0,0,0,.45),
+    inset 2px 0 3px rgba(255,255,255,.4),
+    inset -3px 0 4px rgba(0,0,0,.35);
 }
 #shLoupe .sh-loupe-handle-tip {
   display: block;
-  width: 18px;
-  height: 14px;
-  margin: -1px auto 0;
-  border-radius: 5px 5px 7px 7px;
+  width: 32px;
+  height: 26px;
+  margin: -2px auto 0;
+  border-radius: 8px 8px 12px 12px;
   background: linear-gradient(90deg, #2a1c10, #a67c4a 45%, #5a3c20 100%);
-  box-shadow: 1px 3px 5px rgba(0,0,0,.45);
+  box-shadow: 2px 4px 8px rgba(0,0,0,.5);
 }
 #shLoupe .sh-loupe-badge {
   position: absolute;
