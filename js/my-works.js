@@ -140,44 +140,22 @@
         const msg = $("#desMsg");
         if (msg) msg.textContent = "Menyimpan...";
         try {
-          const files = (ev.target.querySelector('[name="files"]') || {}).files;
           const id = fd.get("id");
           const title = fd.get("title");
           const category = fd.get("category") || "Umum";
           const description = fd.get("description") || "";
-          let imageUrl = (fd.get("image_url") || "").toString().trim();
-
-          if (files && files.length > 1 && !id) {
-            // bulk upload file
-            if (msg) msg.textContent = "Upload " + files.length + " file...";
-            const rows = await GalleryDB.bulkUploadDesignFiles(files, {
-              category,
-              titlePrefix: title || "Desain",
-            });
-            if (msg) msg.textContent = "Tersimpan " + rows.length + " karya.";
-          } else if (files && files.length === 1) {
-            if (msg) msg.textContent = "Upload gambar...";
-            imageUrl = await GalleryDB.uploadDesignFile(files[0]);
-            await GalleryDB.upsertDesign({
-              id: id || undefined,
-              title,
-              category,
-              description,
-              image_url: imageUrl,
-            });
-            if (msg) msg.textContent = "Tersimpan.";
-          } else if (imageUrl) {
-            await GalleryDB.upsertDesign({
-              id: id || undefined,
-              title,
-              category,
-              description,
-              image_url: imageUrl,
-            });
-            if (msg) msg.textContent = "Tersimpan.";
-          } else {
-            throw new Error("Isi URL gambar atau pilih file upload");
+          const imageUrl = (fd.get("image_url") || "").toString().trim();
+          if (!imageUrl || !/^https?:\/\//i.test(imageUrl)) {
+            throw new Error("Isi URL gambar yang valid (https://…)");
           }
+          await GalleryDB.upsertDesign({
+            id: id || undefined,
+            title,
+            category,
+            description,
+            image_url: imageUrl,
+          });
+          if (msg) msg.textContent = "Tersimpan.";
           ev.target.reset();
           $("#desForm [name=id]").value = "";
           await loadDes();
@@ -249,7 +227,7 @@
           <button type="button" data-del-des="${d.id}">Hapus</button>
         </div></div>`
           )
-          .join("") || "<p class='muted'>Belum ada desain. Upload atau hotlink URL gambar.</p>";
+          .join("") || "<p class='muted'>Belum ada desain. Tambah lewat hotlink URL gambar.</p>";
 
       $$("#desList [data-edit-des]").forEach((b) =>
         b.addEventListener("click", () => {
