@@ -10,8 +10,9 @@
   var raf = 0;
   var mx = 0;
   var my = 0;
-  var radius = 90; // jari-jari lensa
+  var radius = 180; // jari-jari lensa (2× lebih besar)
   var el, stage, badge, cloneRoot;
+  var refreshTimer = 0;
 
   function mag() {
     return LEVELS[levelIdx];
@@ -76,6 +77,13 @@
     badge.textContent = mag() + "×";
     document.documentElement.classList.add("sh-loupe-on");
     layout();
+    // refresh clone berkala agar tooltip/popover dinamis ikut ke zoom
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(function () {
+      if (!active) return;
+      buildClone();
+      layout();
+    }, 450);
   }
 
   function hide() {
@@ -85,6 +93,10 @@
     if (raf) {
       cancelAnimationFrame(raf);
       raf = 0;
+    }
+    if (refreshTimer) {
+      clearInterval(refreshTimer);
+      refreshTimer = 0;
     }
     // lepas clone biar hemat memori
     if (stage) stage.innerHTML = "";
