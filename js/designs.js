@@ -96,44 +96,95 @@
   }
 
   /**
-   * Kotak thumbnail = jendela kaca pembesar.
-   * Hover: gambar full proporsional di-zoom 2–3× di dalam kotak,
-   * posisi pan mengikuti mouse (seperti panning fullscreen).
+   * Kotak = jendela zoom. Gambar ditata proporsional (bukan crop),
+   * zoom 2×–4× (menyesuaikan resolusi), pan mengikuti mouse:
+   * sudut kotak ↔ sudut gambar asli.
    */
   function bindMagnifier(wrap) {
     const img = wrap.querySelector("img");
     if (!img || wrap.dataset.magBound) return;
     wrap.dataset.magBound = "1";
 
-    const ZOOM = 2.5; // 2×–3×, seimbang kualitas & kejelasan
+    function layoutBase() {
+      const nw = img.naturalWidth || 1;
+      const nh = img.naturalHeight || 1;
+      const boxW = wrap.clientWidth || 1;
+      const boxH = wrap.clientHeight || 1;
+      // tampilan awal: contain (penuh proporsional di dalam kotak)
+      const fit = Math.min(boxW / nw, boxH / nh);
+      const baseW = nw * fit;
+      const baseH = nh * fit;
+      img.style.position = "absolute";
+      img.style.maxWidth = "none";
+      img.style.width = baseW + "px";
+      img.style.height = baseH + "px";
+      img.style.left = (boxW - baseW) / 2 + "px";
+      img.style.top = (boxH - baseH) / 2 + "px";
+      img.style.objectFit = "fill";
+      img.style.transform = "none";
+      return { nw, nh, boxW, boxH, baseW, baseH, fit };
+    }
+
+    function pickZoom(nw, nh, boxW, boxH) {
+      // seberapa besar resolusi asli dibanding kotak
+      const res = Math.min(nw / boxW, nh / boxH);
+      // 2× minimum, sampai 4× jika gambar cukup tajam
+      let z = 2 + Math.min(2, Math.max(0, (res - 1) * 0.75));
+      if (z < 2) z = 2;
+      if (z > 4) z = 4;
+      return z;
+    }
 
     function setPan(e) {
+      const nw = img.naturalWidth || 1;
+      const nh = img.naturalHeight || 1;
+      const boxW = wrap.clientWidth || 1;
+      const boxH = wrap.clientHeight || 1;
+      const zoom = pickZoom(nw, nh, boxW, boxH);
+
+      // ukuran gambar di-zoom, tetap proporsional terhadap aspek asli
+      const fit = Math.min(boxW / nw, boxH / nh);
+      const zW = nw * fit * zoom;
+      const zH = nh * fit * zoom;
+
       const r = wrap.getBoundingClientRect();
-      if (r.width < 8 || r.height < 8) return;
-      let px = (e.clientX - r.left) / r.width;
-      let py = (e.clientY - r.top) / r.height;
-      px = Math.max(0, Math.min(1, px));
-      py = Math.max(0, Math.min(1, py));
-      // transform-origin di titik kursor; scale di dalam overflow:hidden
-      const ox = (px * 100).toFixed(2) + "%";
-      const oy = (py * 100).toFixed(2) + "%";
-      img.style.transformOrigin = ox + " " + oy;
-      img.style.transform = "scale(" + ZOOM + ")";
+      let px = (e.clientX - r.left) / boxW;
+      let py = (e.clientY - r.top) / boxH;
+      if (px < 0) px = 0;
+      if (px > 1) px = 1;
+      if (py < 0) py = 0;
+      if (py > 1) py = 1;
+
+      // sudut kiri-atas kotak → sudut kiri-atas gambar; kanan-bawah → kanan-bawah
+      const left = px * (boxW - zW);
+      const top = py * (boxH - zH);
+
+      img.style.width = zW + "px";
+      img.style.height = zH + "px";
+      img.style.left = left + "px";
+      img.style.top = top + "px";
+      img.style.transform = "none";
     }
 
-    function reset() {
-      img.style.transform = "scale(1)";
-      img.style.transformOrigin = "center center";
+    function onReady() {
+      layoutBase();
     }
+    if (img.complete && img.naturalWidth) onReady();
+    else img.addEventListener("load", onReady);
 
     wrap.addEventListener("pointerenter", (e) => {
       wrap.classList.add("is-zooming");
+      if (!img.naturalWidth) return;
       setPan(e);
     });
-    wrap.addEventListener("pointermove", setPan);
+    wrap.addEventListener("pointermove", (e) => {
+      if (!wrap.classList.contains("is-zooming")) return;
+      if (!img.naturalWidth) return;
+      setPan(e);
+    });
     wrap.addEventListener("pointerleave", () => {
       wrap.classList.remove("is-zooming");
-      reset();
+      if (img.naturalWidth) layoutBase();
     });
   }
 
