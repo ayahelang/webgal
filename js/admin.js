@@ -1543,18 +1543,22 @@
     const lines = String(text || "")
       .split(/\r?\n/)
       .map((l) => l.trim())
-      .filter(Boolean);
+      .filter((l) => l && !l.startsWith("#"));
     if (!lines.length) return [];
     const dayMap = {
-      sen: 1, senin: 1, mon: 1, "1": 1,
-      sel: 2, selasa: 2, tue: 2, "2": 2,
-      rab: 3, rabu: 3, wed: 3, "3": 3,
-      kam: 4, kamis: 4, thu: 4, "4": 4,
-      jum: 5, jumat: 5, fri: 5, "5": 5,
-      sab: 6, sabtu: 6, sat: 6, "6": 6,
-      min: 7, minggu: 7, ahad: 7, sun: 7, "7": 7,
+      sen: 1, senin: 1, mon: 1, monday: 1, "1": 1,
+      sel: 2, selasa: 2, tue: 2, tuesday: 2, "2": 2,
+      rab: 3, rabu: 3, wed: 3, wednesday: 3, "3": 3,
+      kam: 4, kamis: 4, thu: 4, thursday: 4, "4": 4,
+      jum: 5, jumat: 5, "jumat": 5, fri: 5, friday: 5, "5": 5,
+      sab: 6, sabtu: 6, sat: 6, saturday: 6, "6": 6,
+      min: 7, minggu: 7, ahad: 7, sun: 7, sunday: 7, "7": 7,
     };
     function splitLine(line) {
+      // dukung pemisah | , ; tab  (dengan spasi di sekitar)
+      if (line.indexOf("|") >= 0) {
+        return line.split("|").map((x) => x.trim().replace(/^["']|["']$/g, ""));
+      }
       const out = [];
       let cur = "", q = false;
       for (let i = 0; i < line.length; i++) {
@@ -1565,39 +1569,50 @@
             i++;
           } else q = !q;
         } else if ((ch === "," || ch === "\t" || ch === ";") && !q) {
-          out.push(cur.trim());
+          out.push(cur.trim().replace(/^["']|["']$/g, ""));
           cur = "";
         } else cur += ch;
       }
-      out.push(cur.trim());
+      out.push(cur.trim().replace(/^["']|["']$/g, ""));
       return out;
     }
     function toMin(t) {
-      const m = String(t || "").match(/(\d{1,2}):(\d{2})/);
+      // 11:10 | 11.10 | 9:30 | 09.30 | 1110 (4 digit)
+      let s = String(t || "").trim().replace(/\s/g, "");
+      let m = s.match(/^(\d{1,2})[:.](\d{2})$/);
+      if (!m && /^\d{3,4}$/.test(s)) {
+        if (s.length === 3) s = "0" + s;
+        m = [null, s.slice(0, 2), s.slice(2)];
+      }
       if (!m) return null;
-      return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+      const h = parseInt(m[1], 10);
+      const mm = parseInt(m[2], 10);
+      if (!Number.isFinite(h) || !Number.isFinite(mm) || h > 23 || mm > 59) return null;
+      return h * 60 + mm;
     }
-    function fromMin(m) {
+    function fromMin(mins) {
+      let m = ((mins % (24 * 60)) + 24 * 60) % (24 * 60);
       const h = Math.floor(m / 60);
       const mm = m % 60;
       return String(h).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
     }
     let start = 0;
     const h0 = splitLine(lines[0]).map((x) => x.toLowerCase());
-    if (h0.some((x) => /mapel|subject|hari|jam/.test(x))) start = 1;
+    if (h0.some((x) => /mapel|subject|hari|jam_mulai|jam mulai/.test(x))) start = 1;
     const rows = [];
     for (let i = start; i < lines.length; i++) {
       const c = splitLine(lines[i]);
       if (c.length < 4) continue;
-      const mapel = c[0] || "";
-      const kelas = (c[1] || "").replace(/[^\d]/g, "").slice(0, 2);
-      const hariRaw = (c[2] || "").toLowerCase().trim();
-      const day = dayMap[hariRaw] || dayMap[hariRaw.slice(0, 3)];
+      const mapel = (c[0] || "").trim();
+      if (!mapel || /^format:/i.test(mapel)) continue;
+      const kelas = String(c[1] || "").replace(/[^\d]/g, "").slice(0, 2);
+      const hariRaw = String(c[2] || "").toLowerCase().trim();
+      const day = dayMap[hariRaw] || dayMap[hariRaw.replace(/\s/g, "")] || dayMap[hariRaw.slice(0, 3)];
       const jamMulai = c[3] || "";
       const jamSelesai = c[4] || "";
       const ciM = parseInt(c[5], 10);
       const coM = parseInt(c[6], 10);
-      const guru = c[7] || "";
+      const guru = (c[7] || "").trim();
       const startM = toMin(jamMulai);
       const endM = toMin(jamSelesai);
       if (!mapel || !day || startM == null || endM == null) continue;
@@ -1631,14 +1646,16 @@
     const tpl = $("#attBulkSchedTpl");
     if (tpl) {
       tpl.onclick = () => {
-        const csv =
-          "mapel,kelas,hari,jam_mulai,jam_selesai,batas_checkin_mnt,batas_checkout_mnt,guru\n" +
-          "SMM,51,Sen,07:00,08:20,10,10,Teddy Mulyana\n" +
-          "Desain Grafis,52,Sel,09:00,10:20,10,10,Teddy Mulyana\n";
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const txt =
+          "# Jadwal → sesi absensi\n" +
+          "# Format: mapel | kelas | hari | jam_mulai | jam_selesai | batas_checkin_mnt | batas_checkout_mnt | guru\n" +
+          "# Jam: 11:10 (titik dua)\n" +
+          "SMM | 51 | Sen | 11:10 | 14:20 | 10 | 10 | Teddy Mulyana\n" +
+          "SMM | 52 | Sen | 11:10 | 14:20 | 10 | 10 | Teddy Mulyana\n";
+        const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "template-jadwal-absensi.csv";
+        a.download = "template-jadwal-absensi.txt";
         a.click();
       };
     }

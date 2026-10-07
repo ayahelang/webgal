@@ -188,7 +188,7 @@
             <input type="text" id="bulkStuGid" placeholder="0">
           </label>
           <label class="field"><span>Atau unggah file CSV</span>
-            <input type="file" id="bulkStuFile" accept=".csv,text/csv">
+            <input type="file" id="bulkStuFile" accept=".txt,.csv,text/plain,text/csv">
           </label>
           <div class="admin-form-actions" style="margin-top:8px">
             <button type="button" class="btn btn-primary" id="btnBulkStuImport">Impor Users</button>
@@ -242,10 +242,10 @@
             Judul sesi: «Mapel · Kelas · Hari · Guru».
           </p>
           <label class="field"><span>Tempel CSV / baris (header opsional)</span>
-            <textarea id="attBulkSchedText" rows="5" placeholder="mapel,kelas,hari,jam_mulai,jam_selesai,batas_checkin_mnt,batas_checkout_mnt,guru&#10;SMM,51,Sen,07:00,08:20,10,10,Teddy&#10;Desain Grafis,52,Sel,09:00,10:20,10,10,Teddy"></textarea>
+            <textarea id="attBulkSchedText" rows="5" placeholder="# baris diawali # diabaikan&#10;SMM | 51 | Sen | 11:10 | 14:20 | 10 | 10 | Teddy Mulyana&#10;SMM | 52 | Sel | 13:00 | 15:00 | 10 | 10 | Teddy Mulyana"></textarea>
           </label>
           <label class="field"><span>Atau unggah CSV</span>
-            <input type="file" id="attBulkSchedFile" accept=".csv,text/csv">
+            <input type="file" id="attBulkSchedFile" accept=".txt,.csv,text/plain,text/csv">
           </label>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
             <button type="button" class="btn btn-ghost" id="attBulkSchedTpl">Unduh template</button>
