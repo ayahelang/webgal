@@ -146,7 +146,7 @@
           const description = fd.get("description") || "";
           const imageUrl = (fd.get("image_url") || "").toString().trim();
           if (!imageUrl || !/^https?:\/\//i.test(imageUrl)) {
-            throw new Error("Isi URL gambar yang valid (https://…)");
+            throw new Error("Isi URL gambar/PDF yang valid (https://…)");
           }
           await GalleryDB.upsertDesign({
             id: id || undefined,

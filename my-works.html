@@ -89,13 +89,13 @@
 
       <section data-pane="des" class="summary-card" hidden>
         <h3>Desain Grafis saya</h3>
-        <p class="muted" style="font-size:13px">Tambah karya lewat <b>hotlink URL gambar</b> (JPG/PNG/WebP/GIF). Tampil di halaman <a href="designs.html">Desain</a> &amp; kartu hero #2.</p>
+        <p class="muted" style="font-size:13px">Tambah karya lewat <b>hotlink URL gambar atau PDF multi-halaman</b> (JPG/PNG/WebP/GIF/PDF). PDF tampil dengan <b>flip halaman</b> di galeri Desain.</p>
         <form id="desForm" style="display:grid;gap:10px;margin-top:10px">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul</span><input name="title" required placeholder="Judul karya desain"></label>
           <label class="field"><span>Kategori</span><input name="category" placeholder="Poster / Logo / Ilustrasi / Umum" value="Umum"></label>
           <label class="field"><span>Deskripsi (opsional)</span><input name="description" placeholder="Singkat tentang karya"></label>
-          <label class="field"><span>URL gambar (hotlink)</span><input name="image_url" type="url" required placeholder="https://…jpg / png / webp"></label>
+          <label class="field"><span>URL gambar / PDF (hotlink)</span><input name="image_url" type="url" required placeholder="https://…jpg / png / webp / pdf"></label>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-primary" type="submit">Simpan desain</button>
             <button class="btn btn-ghost" type="button" id="desReset">Batal edit</button>

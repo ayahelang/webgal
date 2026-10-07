@@ -235,14 +235,21 @@
           window.SHSocial && d.id
             ? SHSocial.miniBarHtml("design", d.id)
             : "";
-        return (
-          `<article class="video-card design-card" data-design-id="${esc(d.id)}">
-        <button type="button" class="video-thumb-wrap des-thumb" data-full="${esc(d.image_url)}" data-title="${esc(d.title)}" data-meta="${esc(metaLine)}" aria-label="Perbesar ${esc(d.title)}">
+        const isPdf =
+          window.SHPdfFlip && SHPdfFlip.isPdfUrl
+            ? SHPdfFlip.isPdfUrl(d.image_url)
+            : /\.pdf(\?|#|$)/i.test(String(d.image_url || ""));
+        const media = isPdf
+          ? `<div class="des-pdf-host" data-pdf-url="${esc(d.image_url)}" data-pdf-title="${esc(d.title)}"></div>`
+          : `<button type="button" class="video-thumb-wrap des-thumb" data-full="${esc(d.image_url)}" data-title="${esc(d.title)}" data-meta="${esc(metaLine)}" aria-label="Perbesar ${esc(d.title)}">
           <img src="${esc(d.image_url)}" alt="${esc(d.title)}" loading="lazy" decoding="async">
-        </button>
+        </button>`;
+        return (
+          `<article class="video-card design-card${isPdf ? " is-pdf" : ""}" data-design-id="${esc(d.id)}">
+        ${media}
         <div class="video-body" style="padding:12px">
           <h3 class="des-title" style="margin:0 0 4px;font-size:15px;cursor:pointer" title="Klik judul: tampilkan love & komentar">${esc(d.title)}</h3>
-          <p class="muted" style="margin:0;font-size:12px">${esc(metaLine)}</p>
+          <p class="muted" style="margin:0;font-size:12px">${esc(metaLine)}${isPdf ? " · PDF" : ""}</p>
           <p class="muted" style="margin:4px 0 0;font-size:11px">Submit: ${esc(fmtDate(d.created_at))}</p>
           <p style="margin:8px 0 0;font-size:13px;color:#c5d8e0">${esc(d.description || "")}</p>
           <div class="des-social-wrap" style="margin-top:10px">${social}</div>
@@ -262,6 +269,19 @@
           wrap.getAttribute("data-meta")
         );
       });
+    });
+
+    // PDF flip-page
+    grid.querySelectorAll(".des-pdf-host").forEach((host) => {
+      const url = host.getAttribute("data-pdf-url");
+      if (url && window.SHPdfFlip) {
+        SHPdfFlip.mount(host, url, { title: host.getAttribute("data-pdf-title") || "" });
+      } else if (url) {
+        host.innerHTML =
+          '<p class="muted" style="padding:12px;font-size:12px">PDF: <a href="' +
+          esc(url) +
+          '" target="_blank" rel="noopener">buka file</a></p>';
+      }
     });
 
     // Toggle love/komentar via judul (mirip website)
