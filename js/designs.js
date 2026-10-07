@@ -16,6 +16,29 @@
       .replace(/"/g, "&quot;");
   }
 
+
+  let alumniIndex = {};
+
+  function fmtDate(iso) {
+    if (!iso) return "—";
+    try {
+      return new Date(iso).toLocaleDateString("id-ID", {
+        timeZone: "Asia/Jakarta",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    } catch (e) {
+      return String(iso).slice(0, 10);
+    }
+  }
+
+  function metaForAuthor(name) {
+    const hit = alumniIndex[String(name || "").toLowerCase().trim()];
+    if (!hit) return { year: "", kelas: "", role: "" };
+    return hit;
+  }
+
   function filtered() {
     return all.filter((d) => {
       if (cat !== "all" && String(d.category || "") !== cat) return false;
@@ -201,19 +224,32 @@
     }
     if (empty) empty.hidden = true;
     grid.innerHTML = list
-      .map(
-        (d) =>
-          `<article class="video-card design-card">
-        <button type="button" class="video-thumb-wrap des-thumb" data-full="${esc(d.image_url)}" data-title="${esc(d.title)}" data-meta="${esc((d.category || "") + " · " + (d.author_name || "—"))}" aria-label="Perbesar ${esc(d.title)}">
+      .map((d) => {
+        const m = metaForAuthor(d.author_name);
+        const ang = m.year ? "Angkatan " + m.year : "";
+        const kls = m.kelas ? "Kls " + m.kelas : (m.role && /pengajar/i.test(m.role) ? "Pengajar" : "");
+        const metaLine = [d.category || "Umum", d.author_name || "—", ang, kls]
+          .filter(Boolean)
+          .join(" · ");
+        const social =
+          window.SHSocial && d.id
+            ? SHSocial.miniBarHtml("design", d.id)
+            : "";
+        return (
+          `<article class="video-card design-card" data-design-id="${esc(d.id)}">
+        <button type="button" class="video-thumb-wrap des-thumb" data-full="${esc(d.image_url)}" data-title="${esc(d.title)}" data-meta="${esc(metaLine)}" aria-label="Perbesar ${esc(d.title)}">
           <img src="${esc(d.image_url)}" alt="${esc(d.title)}" loading="lazy" decoding="async">
         </button>
         <div class="video-body" style="padding:12px">
-          <h3 style="margin:0 0 4px;font-size:15px">${esc(d.title)}</h3>
-          <p class="muted" style="margin:0;font-size:12px">${esc(d.category)} · ${esc(d.author_name || "—")}</p>
+          <h3 class="des-title" style="margin:0 0 4px;font-size:15px;cursor:pointer" title="Klik judul: tampilkan love & komentar">${esc(d.title)}</h3>
+          <p class="muted" style="margin:0;font-size:12px">${esc(metaLine)}</p>
+          <p class="muted" style="margin:4px 0 0;font-size:11px">Submit: ${esc(fmtDate(d.created_at))}</p>
           <p style="margin:8px 0 0;font-size:13px;color:#c5d8e0">${esc(d.description || "")}</p>
+          <div class="des-social-wrap" style="margin-top:10px">${social}</div>
         </div>
       </article>`
-      )
+        );
+      })
       .join("");
 
     grid.querySelectorAll(".des-thumb").forEach((wrap) => {
@@ -227,6 +263,33 @@
         );
       });
     });
+
+    // Toggle love/komentar via judul (mirip website)
+    grid.querySelectorAll(".des-title").forEach((h) => {
+      h.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const card = h.closest(".design-card");
+        if (!card) return;
+        const bar = card.querySelector(".react-mini");
+        const panel = card.querySelector(".cmt-panel");
+        if (!bar) return;
+        const open = bar.hasAttribute("hidden");
+        if (open) {
+          bar.removeAttribute("hidden");
+          bar.classList.remove("is-collapsed");
+        } else {
+          bar.setAttribute("hidden", "");
+          bar.classList.add("is-collapsed");
+          if (panel) panel.setAttribute("hidden", "");
+        }
+      });
+    });
+
+    if (window.SHSocial) {
+      SHSocial.bind(grid);
+      SHSocial.hydrate(grid);
+    }
   }
 
   async function init() {
@@ -239,6 +302,20 @@
       all = [];
       console.warn(e);
     }
+    // indeks nama → angkatan/kelas untuk meta card
+    try {
+      if (window.GalleryDB && typeof GalleryDB.fetchGalleryFromDb === "function") {
+        const g = await GalleryDB.fetchGalleryFromDb();
+        (g && g.students ? g.students : []).forEach((s) => {
+          if (s.name)
+            alumniIndex[String(s.name).toLowerCase().trim()] = {
+              year: s.angkatan || "",
+              kelas: s.class || "",
+              role: s.role || "",
+            };
+        });
+      }
+    } catch (e) {}
     const search = $("#designSearch");
     if (search) {
       if (q) search.value = q;

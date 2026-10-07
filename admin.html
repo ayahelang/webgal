@@ -231,6 +231,29 @@
       <section data-panel="attendance" class="summary-card admin-pane" hidden>
         <h3>Absensi Online</h3>
         <p class="muted one-line-desktop" style="font-size:13px">Buat sesi check-in/out, rekap, dan unduh CSV. Guru tambahan: centang hak manage_attendance di Atur user.</p>
+
+        <details class="att-bulk-sched summary-card" style="margin:12px 0;padding:12px 14px;border:1px solid rgba(125,227,255,.15)">
+          <summary style="cursor:pointer;font-weight:600;font-size:14px">Jadwal otomatis → banyak sesi absensi</summary>
+          <p class="muted" style="font-size:12px;margin:8px 0 10px;line-height:1.45">
+            Satu baris = satu slot mapel. Kolom (CSV atau isi tabel):
+            <b>mapel</b>, <b>kelas</b> (51/52), <b>hari</b> (Sen–Min atau 1–7),
+            <b>jam_mulai</b>, <b>jam_selesai</b>, <b>batas_checkin_mnt</b> (default 10),
+            <b>batas_checkout_mnt</b> (default 10), <b>guru</b>.
+            Judul sesi: «Mapel · Kelas · Hari · Guru».
+          </p>
+          <label class="field"><span>Tempel CSV / baris (header opsional)</span>
+            <textarea id="attBulkSchedText" rows="5" placeholder="mapel,kelas,hari,jam_mulai,jam_selesai,batas_checkin_mnt,batas_checkout_mnt,guru&#10;SMM,51,Sen,07:00,08:20,10,10,Teddy&#10;Desain Grafis,52,Sel,09:00,10:20,10,10,Teddy"></textarea>
+          </label>
+          <label class="field"><span>Atau unggah CSV</span>
+            <input type="file" id="attBulkSchedFile" accept=".csv,text/csv">
+          </label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+            <button type="button" class="btn btn-ghost" id="attBulkSchedTpl">Unduh template</button>
+            <button type="button" class="btn btn-primary" id="attBulkSchedRun">Buat sesi dari jadwal</button>
+          </div>
+          <p id="attBulkSchedMsg" class="muted" style="font-size:13px;margin-top:8px"></p>
+        </details>
+
         <form id="attSessForm" class="ann-form">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul sesi</span><input name="title" required placeholder="SMM Minggu 7 — Domain"></label>

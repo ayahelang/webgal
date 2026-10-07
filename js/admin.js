@@ -1152,6 +1152,54 @@
     if (cur) nameSel.value = cur;
   }
 
+
+  function fillAttendanceForm(r, opts) {
+    opts = opts || {};
+    const f = $("#attSessForm");
+    if (!f || !r) return;
+    const asDup = !!opts.asDuplicate;
+    f.querySelector("[name=id]").value = asDup ? "" : r.id || "";
+    f.querySelector("[name=title]").value = asDup
+      ? (r.title || "") + " (salinan)"
+      : r.title || "";
+    const sc = f.querySelector("[name=subject_code]");
+    if (sc) sc.value = r.subject_code || "SMM";
+    const sl = f.querySelector("[name=subject_label]");
+    if (sl) sl.value = r.subject_label || "";
+    const sd = f.querySelector("[name=session_date]");
+    if (sd) sd.value = r.session_date ? String(r.session_date).slice(0, 10) : "";
+    f.querySelector("[name=checkin_start]").value = String(r.checkin_start || "").slice(0, 5);
+    f.querySelector("[name=checkin_end]").value = String(r.checkin_end || "").slice(0, 5);
+    f.querySelector("[name=checkout_start]").value = String(r.checkout_start || "").slice(0, 5);
+    f.querySelector("[name=checkout_end]").value = String(r.checkout_end || "").slice(0, 5);
+    const rc = f.querySelector("[name=require_checkout]");
+    if (rc) rc.checked = r.require_checkout !== false;
+    const al = f.querySelector("[name=allow_late]");
+    if (al) al.checked = !!r.allow_late;
+    const ac = f.querySelector("[name=active]");
+    if (ac) ac.checked = r.active !== false;
+    const m1 = f.querySelector("[name=msg_checkin_ontime]");
+    if (m1) m1.value = r.msg_checkin_ontime || "";
+    const m2 = f.querySelector("[name=msg_checkin_late]");
+    if (m2) m2.value = r.msg_checkin_late || "";
+    const m3 = f.querySelector("[name=msg_checkout]");
+    if (m3) m3.value = r.msg_checkout || "";
+    $$("#attSessForm [name=wd]").forEach((cb) => {
+      const days = (r.weekdays || []).map(Number);
+      cb.checked = days.indexOf(Number(cb.value)) >= 0;
+    });
+    const msg = $("#attSessMsg");
+    if (msg) {
+      msg.style.color = asDup ? "#ffd666" : "";
+      msg.textContent = asDup
+        ? "Mode duplikat: ubah judul lalu Simpan sesi (judul tidak boleh sama dengan sesi yang sudah ada)."
+        : "Mode edit: " + (r.title || "");
+    }
+    Promise.resolve(buildStudentCheckTree("#attStudentTree", { selected: r.target_students || [] }))
+      .then(() => scrollToForm("#attSessForm"))
+      .catch(() => scrollToForm("#attSessForm"));
+  }
+
   async function refreshAttendance() {
     const host = $("#attSessList");
     if (!host) return;
@@ -1189,6 +1237,7 @@
                   <button type="button" class="btn btn-ghost btn-xs" data-att-info="${r.id}">Info</button>
                   <button type="button" class="btn btn-ghost btn-xs" data-att-dl="${r.id}">Unduh CSV</button>
                   <button type="button" data-edit-att="${r.id}">Ubah</button>
+                  <button type="button" data-dup-att="${r.id}">Duplikat</button>
                   <button type="button" data-del-att="${r.id}">Hapus</button>
                 </div>
               </div>
@@ -1209,33 +1258,14 @@
         b.addEventListener("click", () => {
           const r = rows.find((x) => String(x.id) === String(b.dataset.editAtt));
           if (!r) return;
-          const f = $("#attSessForm");
-          f.querySelector("[name=id]").value = r.id;
-          f.querySelector("[name=title]").value = r.title || "";
-          f.querySelector("[name=subject_code]").value = r.subject_code || "SMM";
-          f.querySelector("[name=subject_label]").value = r.subject_label || "";
-          f.querySelector("[name=session_date]").value = r.session_date ? String(r.session_date).slice(0, 10) : "";
-          f.querySelector("[name=checkin_start]").value = String(r.checkin_start || "").slice(0, 5);
-          f.querySelector("[name=checkin_end]").value = String(r.checkin_end || "").slice(0, 5);
-          f.querySelector("[name=checkout_start]").value = String(r.checkout_start || "").slice(0, 5);
-          f.querySelector("[name=checkout_end]").value = String(r.checkout_end || "").slice(0, 5);
-          f.querySelector("[name=require_checkout]").checked = r.require_checkout !== false;
-          const al = f.querySelector("[name=allow_late]");
-          if (al) al.checked = !!r.allow_late;
-          const m1 = f.querySelector("[name=msg_checkin_ontime]");
-          if (m1) m1.value = r.msg_checkin_ontime || "";
-          const m2 = f.querySelector("[name=msg_checkin_late]");
-          if (m2) m2.value = r.msg_checkin_late || "";
-          const m3 = f.querySelector("[name=msg_checkout]");
-          if (m3) m3.value = r.msg_checkout || "";
-          f.querySelector("[name=active]").checked = r.active !== false;
-          $$("#attSessForm [name=wd]").forEach((cb) => {
-            cb.checked = (r.weekdays || []).map(Number).indexOf(Number(cb.value)) >= 0;
-          });
-          buildStudentCheckTree("#attStudentTree", { selected: r.target_students || [] }).then(() => {
-            $("#attSessMsg").textContent = "Mode edit: " + (r.title || "");
-            scrollToForm("#attSessForm");
-          });
+          fillAttendanceForm(r, { asDuplicate: false });
+        })
+      );
+      $$("#attSessList [data-dup-att]").forEach((b) =>
+        b.addEventListener("click", () => {
+          const r = rows.find((x) => String(x.id) === String(b.dataset.dupAtt));
+          if (!r) return;
+          fillAttendanceForm(r, { asDuplicate: true });
         })
       );
       $$("#attSessList [data-att-stats]").forEach((b) =>
@@ -1418,6 +1448,20 @@
         msg.textContent = "Menyimpan sesi… (" + (targets.length ? targets.length + " siswa" : "semua yang sudah taut nama") + ")";
       }
       try {
+        // Duplikat / sesi baru: tolak judul yang sudah dipakai
+        if (!payload.id) {
+          try {
+            const allS = await GalleryDB.listAttendanceSessionsAdmin();
+            const clash = (allS || []).some(
+              (s) => String(s.title || "").trim().toLowerCase() === title.toLowerCase()
+            );
+            if (clash) {
+              throw new Error("Judul sesi sudah dipakai. Ganti judul sebelum menyimpan (mode duplikat).");
+            }
+          } catch (e) {
+            if (String(e.message || "").includes("Judul sesi")) throw e;
+          }
+        }
         const saved = await GalleryDB.upsertAttendanceSession(payload);
         if (msg) {
           msg.style.color = "#7dffb3";
@@ -1493,6 +1537,179 @@
       });
   }
 
+
+
+  function parseAttScheduleRows(text) {
+    const lines = String(text || "")
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (!lines.length) return [];
+    const dayMap = {
+      sen: 1, senin: 1, mon: 1, "1": 1,
+      sel: 2, selasa: 2, tue: 2, "2": 2,
+      rab: 3, rabu: 3, wed: 3, "3": 3,
+      kam: 4, kamis: 4, thu: 4, "4": 4,
+      jum: 5, jumat: 5, fri: 5, "5": 5,
+      sab: 6, sabtu: 6, sat: 6, "6": 6,
+      min: 7, minggu: 7, ahad: 7, sun: 7, "7": 7,
+    };
+    function splitLine(line) {
+      const out = [];
+      let cur = "", q = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (q && line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else q = !q;
+        } else if ((ch === "," || ch === "\t" || ch === ";") && !q) {
+          out.push(cur.trim());
+          cur = "";
+        } else cur += ch;
+      }
+      out.push(cur.trim());
+      return out;
+    }
+    function toMin(t) {
+      const m = String(t || "").match(/(\d{1,2}):(\d{2})/);
+      if (!m) return null;
+      return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    }
+    function fromMin(m) {
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      return String(h).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
+    }
+    let start = 0;
+    const h0 = splitLine(lines[0]).map((x) => x.toLowerCase());
+    if (h0.some((x) => /mapel|subject|hari|jam/.test(x))) start = 1;
+    const rows = [];
+    for (let i = start; i < lines.length; i++) {
+      const c = splitLine(lines[i]);
+      if (c.length < 4) continue;
+      const mapel = c[0] || "";
+      const kelas = (c[1] || "").replace(/[^\d]/g, "").slice(0, 2);
+      const hariRaw = (c[2] || "").toLowerCase().trim();
+      const day = dayMap[hariRaw] || dayMap[hariRaw.slice(0, 3)];
+      const jamMulai = c[3] || "";
+      const jamSelesai = c[4] || "";
+      const ciM = parseInt(c[5], 10);
+      const coM = parseInt(c[6], 10);
+      const guru = c[7] || "";
+      const startM = toMin(jamMulai);
+      const endM = toMin(jamSelesai);
+      if (!mapel || !day || startM == null || endM == null) continue;
+      const winIn = Number.isFinite(ciM) && ciM > 0 ? ciM : 10;
+      const winOut = Number.isFinite(coM) && coM > 0 ? coM : 10;
+      const dayNames = { 1: "Sen", 2: "Sel", 3: "Rab", 4: "Kam", 5: "Jum", 6: "Sab", 7: "Min" };
+      const titleParts = [mapel, kelas ? "K" + kelas : "", dayNames[day] || "", guru].filter(Boolean);
+      rows.push({
+        title: titleParts.join(" · "),
+        subject_label: mapel,
+        subject_code: /desain|dg|grafis/i.test(mapel) ? "DG" : /smm|sosial|media/i.test(mapel) ? "SMM" : "OTHER",
+        weekdays: [day],
+        checkin_start: fromMin(startM),
+        checkin_end: fromMin(startM + winIn),
+        checkout_start: fromMin(Math.max(startM + winIn, endM - winOut)),
+        checkout_end: fromMin(endM),
+        class_code: kelas,
+        teacher: guru,
+        require_checkout: true,
+        allow_late: true,
+        active: true,
+      });
+    }
+    return rows;
+  }
+
+  function bindAttBulkSchedule() {
+    const run = $("#attBulkSchedRun");
+    if (!run || run.dataset.bound) return;
+    run.dataset.bound = "1";
+    const tpl = $("#attBulkSchedTpl");
+    if (tpl) {
+      tpl.onclick = () => {
+        const csv =
+          "mapel,kelas,hari,jam_mulai,jam_selesai,batas_checkin_mnt,batas_checkout_mnt,guru\n" +
+          "SMM,51,Sen,07:00,08:20,10,10,Teddy Mulyana\n" +
+          "Desain Grafis,52,Sel,09:00,10:20,10,10,Teddy Mulyana\n";
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "template-jadwal-absensi.csv";
+        a.click();
+      };
+    }
+    run.onclick = async () => {
+      const msg = $("#attBulkSchedMsg");
+      if (msg) msg.textContent = "Memproses…";
+      try {
+        let text = (($("#attBulkSchedText") && $("#attBulkSchedText").value) || "").trim();
+        const file = $("#attBulkSchedFile") && $("#attBulkSchedFile").files && $("#attBulkSchedFile").files[0];
+        if (file) text = await file.text();
+        const rows = parseAttScheduleRows(text);
+        if (!rows.length) throw new Error("Tidak ada baris jadwal valid");
+        let existingTitles = new Set();
+        try {
+          const allS = await GalleryDB.listAttendanceSessionsAdmin();
+          (allS || []).forEach((s) => existingTitles.add(String(s.title || "").trim().toLowerCase()));
+        } catch (e) {}
+        let ok = 0,
+          skip = 0,
+          errors = [];
+        for (const r of rows) {
+          let title = r.title;
+          let n = 2;
+          while (existingTitles.has(title.toLowerCase())) {
+            title = r.title + " #" + n;
+            n++;
+            if (n > 20) break;
+          }
+          if (existingTitles.has(title.toLowerCase())) {
+            skip++;
+            continue;
+          }
+          try {
+            // target class if known
+            const targets = [];
+            // optional: leave audience all_linked
+            await GalleryDB.upsertAttendanceSession({
+              title,
+              subject_code: r.subject_code,
+              subject_label: r.subject_label,
+              weekdays: r.weekdays,
+              session_date: null,
+              checkin_start: r.checkin_start,
+              checkin_end: r.checkin_end,
+              checkout_start: r.checkout_start,
+              checkout_end: r.checkout_end,
+              require_checkout: true,
+              allow_late: true,
+              active: true,
+              target_students: targets,
+              audience: "all_linked",
+              msg_checkin_ontime: "",
+              msg_checkin_late: "",
+              msg_checkout: "",
+            });
+            existingTitles.add(title.toLowerCase());
+            ok++;
+          } catch (e) {
+            errors.push(title + ": " + (e.message || e));
+          }
+        }
+        if (msg)
+          msg.textContent =
+            "Selesai: +" + ok + " sesi, " + skip + " dilewati" + (errors.length ? ", " + errors.length + " error" : "");
+        if (errors[0]) console.warn(errors);
+        await refreshAttendance();
+      } catch (e) {
+        if (msg) msg.textContent = e.message || String(e);
+      }
+    };
+  }
 
   function bindBulkStudentImport() {
     const msg = () => $("#bulkStuMsg");
@@ -1644,6 +1861,7 @@
       }
     } catch (e) {}
     bindBulkStudentImport();
+    bindAttBulkSchedule();
     const attCls = $("#attRecClass");
     if (attCls) attCls.addEventListener("change", () => fillAttRecNameOptions());
     fillAttRecNameOptions();
