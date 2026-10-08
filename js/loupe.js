@@ -1,10 +1,10 @@
 /**
- * Loupe metode 2 — CSS transform: scale + clip lingkaran
- * Tahan Ctrl → pointer jadi loupe di posisi yang sama (live).
- * Ctrl+↑ / Ctrl+↓ → 2× · 3× · 4×
+ * Loupe metode 1 — snapshot multi-layer (html2canvas)
+ * Menangkap apa yang benar-benar tergambar di layar:
+ * konten + tooltip + floating status + overlay, lalu di-zoom di lensa.
  *
- * Layer tooltip (.sh-tooltip) disalin ke dalam clone lensa setiap frame
- * supaya ikut ter-zoom di dalam lensa.
+ * Tahan Ctrl → loupe di posisi kursor (layer teratas)
+ * Ctrl+↑ / Ctrl+↓ → 2× · 3× · 4×
  */
 (function () {
   var LEVELS = [2, 3, 4];
@@ -14,11 +14,39 @@
   var mx = 0;
   var my = 0;
   var radius = 180;
-  var el, stage, badge, cloneRoot;
-  var refreshTimer = 0;
+  var el, canvas, ctx, badge;
+  var snapCanvas = null; // bitmap viewport terakhir
+  var snapScale = 1; // devicePixelRatio saat capture
+  var capturing = false;
+  var captureTimer = 0;
+  var html2canvasLib = null;
+  var libLoading = null;
 
   function mag() {
     return LEVELS[levelIdx];
+  }
+
+  function loadHtml2Canvas() {
+    if (html2canvasLib) return Promise.resolve(html2canvasLib);
+    if (window.html2canvas) {
+      html2canvasLib = window.html2canvas;
+      return Promise.resolve(html2canvasLib);
+    }
+    if (libLoading) return libLoading;
+    libLoading = new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+      s.onload = function () {
+        html2canvasLib = window.html2canvas;
+        if (!html2canvasLib) reject(new Error("html2canvas gagal"));
+        else resolve(html2canvasLib);
+      };
+      s.onerror = function () {
+        reject(new Error("Tidak bisa memuat html2canvas"));
+      };
+      document.head.appendChild(s);
+    });
+    return libLoading;
   }
 
   function ensureDom() {
@@ -27,8 +55,8 @@
     el.id = "shLoupe";
     el.setAttribute("aria-hidden", "true");
     el.innerHTML =
-      '<div class="sh-loupe-lens">' +
-        '<div class="sh-loupe-stage"></div>' +
+      '<div class="sh-loupe-lens sh-loupe-lens-canvas">' +
+        '<canvas class="sh-loupe-canvas" width="360" height="360"></canvas>' +
         '<div class="sh-loupe-rim"></div>' +
         '<div class="sh-loupe-glare"></div>' +
       "</div>" +
@@ -38,106 +66,155 @@
       "</div>" +
       '<div class="sh-loupe-badge">2×</div>';
     document.body.appendChild(el);
-    stage = el.querySelector(".sh-loupe-stage");
+    canvas = el.querySelector(".sh-loupe-canvas");
+    ctx = canvas.getContext("2d");
     badge = el.querySelector(".sh-loupe-badge");
     el.style.display = "none";
   }
 
-  function buildClone() {
-    if (cloneRoot && cloneRoot.parentNode) {
-      cloneRoot.parentNode.removeChild(cloneRoot);
+  function paintFromSnap() {
+    if (!active || !ctx || !snapCanvas) return;
+    var z = mag();
+    var d = radius * 2;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    if (canvas.width !== d * dpr) {
+      canvas.width = d * dpr;
+      canvas.height = d * dpr;
+      canvas.style.width = d + "px";
+      canvas.style.height = d + "px";
     }
-    cloneRoot = document.createElement("div");
-    cloneRoot.className = "sh-loupe-clone";
-    var cloned = document.body.cloneNode(true);
-    var kill = cloned.querySelectorAll("#shLoupe, script, .sh-loupe-clone");
-    for (var i = 0; i < kill.length; i++) {
-      if (kill[i].parentNode) kill[i].parentNode.removeChild(kill[i]);
-    }
-    // hapus tooltip asli dari clone — akan diganti layer tip sinkron
-    var tips = cloned.querySelectorAll(".sh-tooltip");
-    for (var j = 0; j < tips.length; j++) {
-      if (tips[j].parentNode) tips[j].parentNode.removeChild(tips[j]);
-    }
-    cloneRoot.appendChild(cloned);
-    cloneRoot.style.width = window.innerWidth + "px";
-    cloneRoot.style.height = window.innerHeight + "px";
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // lingkaran clip
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc((d * dpr) / 2, (d * dpr) / 2, (d * dpr) / 2 - 1, 0, Math.PI * 2);
+    ctx.clip();
+
+    // sumber di snap: titik kursor di viewport → koordinat dokumen
+    var srcSize = (d / z) * snapScale;
+    var sx = (window.scrollX + mx) * snapScale - srcSize / 2;
+    var sy = (window.scrollY + my) * snapScale - srcSize / 2;
+
+    // clamp ke bitmap
+    if (sx < 0) sx = 0;
+    if (sy < 0) sy = 0;
+    if (sx + srcSize > snapCanvas.width) sx = Math.max(0, snapCanvas.width - srcSize);
+    if (sy + srcSize > snapCanvas.height) sy = Math.max(0, snapCanvas.height - srcSize);
+
     try {
-      var cs = getComputedStyle(document.body);
-      cloneRoot.style.background = cs.background;
-      cloneRoot.style.color = cs.color;
-      cloneRoot.style.fontFamily = cs.fontFamily;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(
+        snapCanvas,
+        sx,
+        sy,
+        srcSize,
+        srcSize,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
     } catch (e) {}
-    stage.innerHTML = "";
-    stage.appendChild(cloneRoot);
+
+    ctx.restore();
+
+    // posisi loupe = pusat di kursor, layer teratas
+    el.style.width = d + "px";
+    el.style.height = d + "px";
+    el.style.transform =
+      "translate3d(" + Math.round(mx - radius) + "px," + Math.round(my - radius) + "px,0)";
   }
 
-  /**
-   * Salin layer tooltip yang tampil di layar ke dalam clone (koordinat viewport).
-   * Ini yang membuat tooltip di bawah lensa ikut ter-zoom.
-   */
-  function syncTooltipLayer() {
-    if (!cloneRoot) return;
-    var host = cloneRoot.firstElementChild || cloneRoot;
+  function captureViewport() {
+    if (!active || capturing) return Promise.resolve();
+    capturing = true;
 
-    // bersihkan tip lama di clone
-    var old = host.querySelectorAll(".sh-loupe-clone-tip");
-    for (var i = 0; i < old.length; i++) {
-      if (old[i].parentNode) old[i].parentNode.removeChild(old[i]);
-    }
+    // sembunyikan loupe saat capture agar tidak ikut terbaca
+    var prevDisplay = el.style.display;
+    el.style.visibility = "hidden";
 
-    // semua tooltip visible di halaman nyata (di luar loupe)
-    var live = document.querySelectorAll(".sh-tooltip");
-    for (var k = 0; k < live.length; k++) {
-      var tip = live[k];
-      if (tip.closest && tip.closest("#shLoupe")) continue;
-      if (tip.classList.contains("sh-loupe-clone-tip")) continue;
-
-      var st = window.getComputedStyle(tip);
-      var isVis =
-        tip.classList.contains("visible") ||
-        (st.opacity !== "0" && st.visibility !== "hidden" && st.display !== "none");
-      if (!isVis) continue;
-
-      var r = tip.getBoundingClientRect();
-      if (r.width < 4 || r.height < 4) continue;
-
-      // salin node + style posisi absolut di koordinat viewport
-      var copy = tip.cloneNode(true);
-      copy.classList.add("sh-loupe-clone-tip", "visible");
-      copy.classList.remove("sh-loupe-live-tip");
-      copy.style.position = "absolute";
-      copy.style.left = r.left + "px";
-      copy.style.top = r.top + "px";
-      copy.style.width = r.width + "px";
-      copy.style.minWidth = r.width + "px";
-      copy.style.maxWidth = "none";
-      copy.style.opacity = "1";
-      copy.style.visibility = "visible";
-      copy.style.transform = "none";
-      copy.style.transition = "none";
-      copy.style.zIndex = "2147483646";
-      copy.style.pointerEvents = "none";
-      copy.style.margin = "0";
-      host.appendChild(copy);
-    }
+    return loadHtml2Canvas()
+      .then(function (h2c) {
+        var bg = "#0a1218";
+        try {
+          bg = getComputedStyle(document.body).backgroundColor || bg;
+        } catch (e) {}
+        return h2c(document.body, {
+          backgroundColor: bg,
+          useCORS: true,
+          allowTaint: true,
+          scale: Math.min(window.devicePixelRatio || 1, 2),
+          logging: false,
+          imageTimeout: 4000,
+          ignoreElements: function (node) {
+            if (!node) return false;
+            if (node.id === "shLoupe") return true;
+            if (node.closest && node.closest("#shLoupe")) return true;
+            return false;
+          },
+          onclone: function (doc) {
+            try {
+              // Paksa semua layer floating + tooltip tampak di dokumen hasil clone
+              var tips = doc.querySelectorAll(".sh-tooltip, [role='tooltip']");
+              for (var i = 0; i < tips.length; i++) {
+                var tip = tips[i];
+                if (tip.classList.contains("visible") || tip.getAttribute("aria-hidden") === "false") {
+                  tip.style.setProperty("opacity", "1", "important");
+                  tip.style.setProperty("visibility", "visible", "important");
+                  tip.style.setProperty("transform", "none", "important");
+                  tip.style.setProperty("display", "block", "important");
+                  tip.style.setProperty("z-index", "2147483000", "important");
+                }
+              }
+              var floats = doc.querySelectorAll(
+                ".sh-online, .online-float, .stats-float, [data-floating], .sh-float, .presence-chip, .typing-line, .sh-userbar, .announce-splash, .sh-modal"
+              );
+              for (var j = 0; j < floats.length; j++) {
+                floats[j].style.setProperty("opacity", "1", "important");
+                floats[j].style.setProperty("visibility", "visible", "important");
+              }
+            } catch (e) {}
+          },
+        });
+      })
+      .then(function (c) {
+        snapCanvas = c;
+        // skala bitmap ↔ CSS px (lebar elemen yang di-capture)
+        var cssW = Math.max(document.body.scrollWidth, document.documentElement.scrollWidth, window.innerWidth);
+        snapScale = c.width / cssW;
+        if (!isFinite(snapScale) || snapScale <= 0) {
+          snapScale = c.width / window.innerWidth;
+        }
+        el.style.visibility = "visible";
+        el.style.display = prevDisplay || "block";
+        capturing = false;
+        paintFromSnap();
+      })
+      .catch(function (err) {
+        console.warn("loupe capture", err);
+        el.style.visibility = "visible";
+        el.style.display = prevDisplay || "block";
+        capturing = false;
+      });
   }
 
   function show() {
     ensureDom();
-    buildClone();
     active = true;
     el.style.display = "block";
     badge.textContent = mag() + "×";
     document.documentElement.classList.add("sh-loupe-on");
-    layout();
-    if (refreshTimer) clearInterval(refreshTimer);
-    // refresh clone + tooltip layer (meta async ikut terbawa)
-    refreshTimer = setInterval(function () {
-      if (!active) return;
-      buildClone();
-      layout();
-    }, 280);
+    // capture pertama segera, lalu periodik (tooltip/floating ikut)
+    captureViewport();
+    if (captureTimer) clearInterval(captureTimer);
+    captureTimer = setInterval(function () {
+      if (active) captureViewport();
+    }, 320);
   }
 
   function hide() {
@@ -148,47 +225,19 @@
       cancelAnimationFrame(raf);
       raf = 0;
     }
-    if (refreshTimer) {
-      clearInterval(refreshTimer);
-      refreshTimer = 0;
+    if (captureTimer) {
+      clearInterval(captureTimer);
+      captureTimer = 0;
     }
-    if (stage) stage.innerHTML = "";
-    cloneRoot = null;
+    snapCanvas = null;
   }
 
-  function layout() {
-    if (!active || !el || !stage) return;
-    var z = mag();
-    var d = radius * 2;
-
-    el.style.width = d + "px";
-    el.style.height = d + "px";
-    el.style.transform =
-      "translate3d(" + Math.round(mx - radius) + "px," + Math.round(my - radius) + "px,0)";
-
-    stage.style.width = window.innerWidth + "px";
-    stage.style.height = window.innerHeight + "px";
-    stage.style.transformOrigin = "0 0";
-    stage.style.transform =
-      "translate(" + (radius - mx * z) + "px," + (radius - my * z) + "px) scale(" + z + ")";
-
-    if (cloneRoot) {
-      cloneRoot.style.width = window.innerWidth + "px";
-      cloneRoot.style.height =
-        Math.max(window.innerHeight, document.documentElement.scrollHeight) + "px";
-      cloneRoot.style.transform =
-        "translate(" + -window.scrollX + "px," + -window.scrollY + "px)";
-      // layer tooltip → masuk clone → ikut scale di lensa
-      syncTooltipLayer();
-    }
-  }
-
-  function schedule() {
+  function schedulePaint() {
     if (!active) return;
     if (!raf) {
       raf = requestAnimationFrame(function () {
         raf = 0;
-        layout();
+        paintFromSnap();
       });
     }
   }
@@ -196,7 +245,7 @@
   function onKeyDown(e) {
     if (e.key === "Control") {
       if (!active) show();
-      else schedule();
+      else schedulePaint();
       return;
     }
     if (!e.ctrlKey) return;
@@ -204,12 +253,15 @@
       e.preventDefault();
       levelIdx = Math.min(LEVELS.length - 1, levelIdx + 1);
       if (badge) badge.textContent = mag() + "×";
-      schedule();
+      schedulePaint();
+      // capture ulang agar tajam di zoom baru
+      captureViewport();
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
       levelIdx = Math.max(0, levelIdx - 1);
       if (badge) badge.textContent = mag() + "×";
-      schedule();
+      schedulePaint();
+      captureViewport();
     }
   }
 
@@ -220,11 +272,11 @@
   function onMove(e) {
     mx = e.clientX;
     my = e.clientY;
-    if (active) schedule();
+    if (active) schedulePaint();
   }
 
   function onScroll() {
-    if (active) schedule();
+    if (active) captureViewport();
   }
 
   document.addEventListener("keydown", onKeyDown, true);
@@ -232,10 +284,7 @@
   document.addEventListener("mousemove", onMove, { passive: true });
   window.addEventListener("scroll", onScroll, { passive: true });
   window.addEventListener("resize", function () {
-    if (active) {
-      buildClone();
-      schedule();
-    }
+    if (active) captureViewport();
   });
   window.addEventListener("blur", hide);
   document.addEventListener("visibilitychange", function () {

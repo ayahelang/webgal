@@ -2802,13 +2802,6 @@ main.skills-main {
 }
 
 
-/* Saat loupe aktif: tooltip asli disembunyikan di layar (tetap di DOM untuk disalin),
-   yang tampil di lensa adalah salinan di dalam clone (ter-zoom). */
-html.sh-loupe-on .sh-tooltip:not(.sh-loupe-clone-tip) {
-  opacity: 0 !important;
-  /* tetap "visible" di layout supaya getBoundingClientRect valid */
-  pointer-events: none !important;
-}
 #shLoupe .sh-loupe-clone-tip,
 #shLoupe .sh-tooltip.sh-loupe-clone-tip {
   opacity: 1 !important;
@@ -2817,4 +2810,30 @@ html.sh-loupe-on .sh-tooltip:not(.sh-loupe-clone-tip) {
   transform: none !important;
   transition: none !important;
   pointer-events: none !important;
+}
+
+
+/* Loupe metode 1 — canvas snapshot, layer teratas */
+#shLoupe {
+  z-index: 2147483647 !important;
+}
+#shLoupe .sh-loupe-lens-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #0a1218;
+  box-shadow:
+    0 12px 32px rgba(0,0,0,.55),
+    0 2px 8px rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.28);
+}
+#shLoupe .sh-loupe-lens-canvas .sh-loupe-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
