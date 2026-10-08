@@ -2440,7 +2440,7 @@ alter table gallery_chat add column if not exists is_registered boolean default 
 
 create table if not exists gallery_reactions (
   id uuid primary key default gen_random_uuid(),
-  target_type text not null check (target_type in ('website','video')),
+  target_type text not null check (target_type in ('website','video','design')),
   target_id text not null, -- id website/video (uuid as text) atau hash url
   reaction_type text not null check (reaction_type in ('love','comment')),
   is_registered boolean not null default false,

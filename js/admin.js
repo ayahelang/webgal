@@ -640,7 +640,7 @@
             });
             let h = "<p class='muted' style='margin:0 0 8px'>Pembaca tercatat: <b>" + reads.length + "</b></p>";
             Object.keys(byClass).sort().forEach((k) => {
-              h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + " <b>(" + g[k].length + ")</b></span><ul>";
+              h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + " <b>(" + byClass[k].length + ")</b></span><ul>";
               byClass[k].forEach((x) => {
                 h +=
                   "<li>" +

@@ -281,7 +281,66 @@
     return c || DEFAULT_MSG.checkout;
   }
 
+  function snapshotNoteFields() {
+    const notes = {};
+    $$("[data-ci-note], [data-co-note]").forEach((el) => {
+      const ci = el.getAttribute("data-ci-note");
+      const co = el.getAttribute("data-co-note");
+      const key = ci != null ? "ci:" + ci : "co:" + co;
+      notes[key] = el.value;
+    });
+    const ae = document.activeElement;
+    let focusKey = null;
+    let selStart = null;
+    let selEnd = null;
+    if (ae && ae.getAttribute) {
+      if (ae.hasAttribute("data-ci-note")) focusKey = "ci:" + ae.getAttribute("data-ci-note");
+      else if (ae.hasAttribute("data-co-note")) focusKey = "co:" + ae.getAttribute("data-co-note");
+      if (focusKey != null && typeof ae.selectionStart === "number") {
+        selStart = ae.selectionStart;
+        selEnd = ae.selectionEnd;
+      }
+    }
+    return { notes: notes, focusKey: focusKey, selStart: selStart, selEnd: selEnd };
+  }
+
+  function restoreNoteFields(snap) {
+    if (!snap) return;
+    Object.keys(snap.notes || {}).forEach((key) => {
+      const parts = key.split(":");
+      const sel =
+        parts[0] === "ci"
+          ? '[data-ci-note="' + parts.slice(1).join(":") + '"]'
+          : '[data-co-note="' + parts.slice(1).join(":") + '"]';
+      const el = $(sel);
+      if (el) el.value = snap.notes[key];
+    });
+    if (snap.focusKey) {
+      const parts = snap.focusKey.split(":");
+      const sel =
+        parts[0] === "ci"
+          ? '[data-ci-note="' + parts.slice(1).join(":") + '"]'
+          : '[data-co-note="' + parts.slice(1).join(":") + '"]';
+      const el = $(sel);
+      if (el) {
+        try {
+          el.focus({ preventScroll: true });
+          if (snap.selStart != null && typeof el.setSelectionRange === "function") {
+            el.setSelectionRange(snap.selStart, snap.selEnd != null ? snap.selEnd : snap.selStart);
+          }
+        } catch (e) {}
+      }
+    }
+  }
+
+  function isTypingNote() {
+    const ae = document.activeElement;
+    return !!(ae && ae.getAttribute && (ae.hasAttribute("data-ci-note") || ae.hasAttribute("data-co-note")));
+  }
+
   function render() {
+    const snap = snapshotNoteFields();
+
     const host = $("#attList");
     if (!host) return;
     const nowP = inJakartaParts(new Date());
@@ -382,6 +441,7 @@
         }
       })
     );
+    restoreNoteFields(snap);
   }
 
   function esc(t) {
@@ -439,11 +499,12 @@
     );
     await reload();
     // refresh status (terlambat / jendela check-in) tiap 20 dtk
-    setInterval(() => render(), 20000);
+    setInterval(function () { if (!isTypingNote()) render(); }, 20000);
     // Realtime: perubahan sesi/record dari guru langsung ke layar siswa
     try {
       if (window.GalleryDB && typeof GalleryDB.subscribeAttendanceLive === "function") {
         GalleryDB.subscribeAttendanceLive(function () {
+          if (isTypingNote()) return; // jangan ganggu pengetikan pesan
           reload().catch(function () {});
         });
       }
@@ -451,9 +512,7 @@
       console.warn("[att] realtime", e);
     }
     // fallback poll data
-    setInterval(function () {
-      reload().catch(function () {});
-    }, 40000);
+    setInterval(function () { if (!isTypingNote()) reload().catch(function () {}); }, 60000);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
