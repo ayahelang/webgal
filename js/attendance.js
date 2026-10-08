@@ -92,13 +92,30 @@
     };
   }
 
+  function normName(n) {
+    return String(n || "")
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " ");
+  }
+
   function matchesAudience(s, prof) {
     if (!prof || !prof.linked_student_name) return false;
     const y = String(prof.linked_angkatan_year || "");
     const c = String(prof.linked_class_code || "");
-    const n = String(prof.linked_student_name || "").toLowerCase().trim();
+    const n = normName(prof.linked_student_name);
     const aud = s.audience || "all_linked";
     if (aud === "all_linked") {
+      // Jika ada daftar target_students eksplisit, prioritaskan itu
+      const targets = s.target_students || [];
+      if (targets.length) {
+        return targets.some((t) => {
+          const tn = normName(t.name);
+          const ty = String(t.year || t.angkatan_year || "");
+          const tc = String(t.class || t.class_code || "");
+          return tn === n && (!ty || ty === y) && (!tc || tc === c);
+        });
+      }
       if ((s.target_years || []).length && s.target_years.indexOf(y) < 0) return false;
       if ((s.target_classes || []).length && s.target_classes.indexOf(c) < 0) return false;
       return true;
@@ -109,7 +126,7 @@
     if (aud === "students") {
       const targets = s.target_students || [];
       return targets.some((t) => {
-        const tn = String(t.name || "").toLowerCase().trim();
+        const tn = normName(t.name);
         const ty = String(t.year || t.angkatan_year || "");
         const tc = String(t.class || t.class_code || "");
         return tn === n && (!ty || ty === y) && (!tc || tc === c);
@@ -122,28 +139,63 @@
     return records.find((r) => String(r.session_id) === String(sessionId));
   }
 
+  /** Apakah kesempatan absensi sesi ini sudah lewat (hari/tanggal + jam checkout_end)? */
+  function sessionOpportunityEnded(s, nowP) {
+    const endMin = timeToMin(s.checkout_end);
+    if (s.session_date) {
+      const sd = String(s.session_date).slice(0, 10);
+      if (sd < nowP.date) return true;
+      if (sd > nowP.date) return false;
+      return nowP.minutes > endMin;
+    }
+    const days = (s.weekdays || []).map(Number).filter((d) => d >= 1 && d <= 7);
+    if (!days.length) {
+      // template selalu-on: anggap berakhir hanya jika lewat checkout_end hari ini
+      return nowP.minutes > endMin;
+    }
+    // Cari hari sesi terakhir dalam minggu ini yang sudah lewat / sedang hari ini
+    // ISO weekday: 1=Mon .. 7=Sun (sama dengan nowP.weekday)
+    const today = nowP.weekday;
+    // Hari dalam minggu yang ≤ hari ini
+    const pastOrToday = days.filter((d) => d <= today);
+    if (!pastOrToday.length) {
+      // Semua hari sesi masih di depan minggu ini → belum berakhir
+      return false;
+    }
+    const last = Math.max.apply(null, pastOrToday);
+    if (last < today) return true; // hari sesi sudah lewat di minggu ini
+    // last === today: cek jam
+    return nowP.minutes > endMin;
+  }
+
   function classify(s, nowP) {
     if (!matchesAudience(s, profile)) return null;
-    if (!sessionAppliesToday(s, nowP) && !(recFor(s.id) && recFor(s.id).checkin_at)) {
-      // still show if has record historically? only today's focus
-      if (!s.session_date && !(s.weekdays || []).length) {
-        /* always-on template */
-      } else if (!sessionAppliesToday(s, nowP)) {
-        return "idle";
-      }
-    }
+    const applies = sessionAppliesToday(s, nowP);
     const rec = recFor(s.id);
+    const hasRec = !!(rec && rec.checkin_at);
+    const ended = sessionOpportunityEnded(s, nowP);
     const w = windowStatus(s, nowP);
     const needOut = s.require_checkout !== false;
+
+    // Sudah isi lengkap
     if (rec && rec.checkin_at && (!needOut || rec.checkout_at)) return "done";
+
+    // Sudah check-in, belum check-out
     if (rec && rec.checkin_at && needOut && !rec.checkout_at) {
       if (w.canCheckout || w.checkoutOpen) return "open";
-      if (nowP.minutes > timeToMin(s.checkout_end)) return "missed"; // missed checkout
+      if (ended || nowP.minutes > timeToMin(s.checkout_end)) return "missed";
       return "open";
     }
-    if (!rec || !rec.checkin_at) {
-      if (w.canCheckin) return "open";
-      if (w.checkinLateClosed && sessionAppliesToday(s, nowP)) return "missed";
+
+    // Belum check-in sama sekali
+    if (!hasRec) {
+      if (applies && w.canCheckin) return "open";
+      if (applies && w.isLateWindow) return "open";
+      // Kesempatan sudah lewat (hari ini atau sesi tanggal/hari sebelumnya) → Terlewat
+      if (ended) return "missed";
+      // Sesi masa depan / belum dibuka hari ini
+      if (applies) return "idle";
+      // Bukan hari sesi & belum pernah ada kesempatan minggu ini yang lewat
       return "idle";
     }
     return "idle";
@@ -346,11 +398,18 @@
     const nowP = inJakartaParts(new Date());
     const items = sessions
       .map((s) => ({ s, status: classify(s, nowP) }))
-      .filter((x) => x.status && x.status !== "idle")
-      .filter((x) => filter === "all" || x.status === filter);
+      .filter((x) => {
+        if (!x.status) return false;
+        // Tab Semua: tampilkan open / done / missed / idle (sesi hari ini yang relevan)
+        if (filter === "all") return x.status !== null;
+        // Tab lain: sembunyikan idle
+        if (x.status === "idle") return false;
+        return x.status === filter;
+      });
 
     if (!items.length) {
       host.innerHTML = '<div class="summary-card muted">Tidak ada sesi absensi untuk filter ini.</div>';
+      restoreNoteFields(snap);
       return;
     }
     host.innerHTML = items
@@ -362,16 +421,35 @@
             ? "✓ Selesai"
             : status === "missed"
               ? "Terlewat"
-              : w.isLateWindow
-                ? "Check-in (terlambat)"
-                : w.canCheckin
-                  ? "Check-in buka"
-                  : w.canCheckout
-                    ? "Check-out buka"
-                    : "Aktif";
+              : status === "idle"
+                ? "Belum dibuka"
+                : w.isLateWindow
+                  ? "Check-in (terlambat)"
+                  : w.canCheckin
+                    ? "Check-in buka"
+                    : w.canCheckout
+                      ? "Check-out buka"
+                      : "Aktif";
         const badgeLate = w.isLateWindow && status !== "done" && status !== "missed";
+        const dateHint = s.session_date
+          ? String(s.session_date).slice(0, 10)
+          : sessionAppliesToday(s, nowP)
+            ? nowP.date
+            : "";
         let body = "";
-        if (!rec || !rec.checkin_at) {
+        if (status === "missed" && (!rec || !rec.checkin_at)) {
+          body =
+            `<p class="att-missed-msg" style="margin:8px 0 0;font-size:13px;color:#f5b0b0">` +
+            `Anda <b>tidak mengisi absen</b> untuk sesi ini` +
+            (dateHint ? ` (${esc(dateHint)})` : "") +
+            `.</p>`;
+        } else if (status === "missed" && rec && rec.checkin_at && !rec.checkout_at) {
+          const stR0 = recomputeRecStatus(s, rec);
+          const stIn0 = stR0.in === "late" ? " · <b style=\"color:#f5d000\">Terlambat</b>" : stR0.in === "on_time" ? " · Tepat waktu" : "";
+          body =
+            `<p class="muted" style="font-size:12px">Check-in: ${esc(rec.checkin_note || "—")}${stIn0}</p>` +
+            `<p class="att-missed-msg" style="margin:6px 0 0;font-size:13px;color:#f5b0b0">Check-out <b>tidak diisi</b> (sesi sudah berakhir).</p>`;
+        } else if (!rec || !rec.checkin_at) {
           body = `<label class="field"><span>Rencana belajar (singkat)</span>
             <input type="text" maxlength="120" data-ci-note="${s.id}" placeholder="Contoh: praktek domain & hosting"></label>
             <button type="button" class="btn btn-primary" data-ci="${s.id}" ${w.canCheckin ? "" : "disabled"}>Check-in hadir</button>`;
@@ -391,9 +469,9 @@
         return `<div class="summary-card att-card" data-status="${status}">
           <div class="att-card-head">
             <div><strong>${esc(s.title)}</strong>
-              <div class="muted" style="font-size:12px">${esc(s.subject_label || s.subject_code)} · ${esc(s.checkin_start)}–${esc(s.checkin_end)} → ${esc(s.checkout_start)}–${esc(s.checkout_end)}</div>
+              <div class="muted" style="font-size:12px">${esc(s.subject_label || s.subject_code)} · ${esc(String(s.checkin_start || "").slice(0, 5))}–${esc(String(s.checkin_end || "").slice(0, 5))} → ${esc(String(s.checkout_start || "").slice(0, 5))}–${esc(String(s.checkout_end || "").slice(0, 5))}${dateHint ? " · " + esc(dateHint) : ""}</div>
             </div>
-            <span class="att-badge${badgeLate ? " late" : ""}">${badge}</span>
+            <span class="att-badge${badgeLate ? " late" : ""}${status === "missed" ? " missed" : ""}">${badge}</span>
           </div>
           ${body}
         </div>`;
@@ -503,26 +581,36 @@
       b.addEventListener("click", () => {
         $$("#attFilters .filter").forEach((x) => x.classList.remove("active"));
         b.classList.add("active");
-        filter = b.dataset.attFilter;
+        filter = b.dataset.attFilter || "open";
         render();
       })
     );
     await reload();
-    // refresh status (terlambat / jendela check-in) tiap 20 dtk
-    setInterval(function () { if (!isTypingNote()) render(); }, 20000);
+    // refresh status (terlambat / jendela check-in) tiap 15 dtk
+    setInterval(function () {
+      if (!isTypingNote()) render();
+    }, 15000);
     // Realtime: perubahan sesi/record dari guru langsung ke layar siswa
     try {
       if (window.GalleryDB && typeof GalleryDB.subscribeAttendanceLive === "function") {
         GalleryDB.subscribeAttendanceLive(function () {
-          if (isTypingNote()) return; // jangan ganggu pengetikan pesan
+          if (isTypingNote()) {
+            // tunda sebentar agar tidak ganggu ketik
+            setTimeout(function () {
+              if (!isTypingNote()) reload().catch(function () {});
+            }, 2500);
+            return;
+          }
           reload().catch(function () {});
         });
       }
     } catch (e) {
       console.warn("[att] realtime", e);
     }
-    // fallback poll data
-    setInterval(function () { if (!isTypingNote()) reload().catch(function () {}); }, 60000);
+    // fallback poll data (lebih sering agar tab Sudah diisi / Terlewat / Semua selalu fresh)
+    setInterval(function () {
+      if (!isTypingNote()) reload().catch(function () {});
+    }, 30000);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

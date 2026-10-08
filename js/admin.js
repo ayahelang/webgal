@@ -627,33 +627,9 @@
           b.textContent = "Statistik ▴";
           panel.innerHTML = "<p class='muted'>Memuat statistik baca…</p>";
           try {
+            const ann = rows.find((x) => String(x.id) === String(id)) || {};
             const reads = await GalleryDB.listAnnouncementReads(id);
-            if (!reads.length) {
-              panel.innerHTML = "<p class='muted'>Belum ada catatan baca (siswa login saat tampil / klik pengumuman).</p>";
-              return;
-            }
-            const byClass = {};
-            reads.forEach((x) => {
-              const k = (x.angkatan_year || "?") + " · K" + (x.class_code || "?");
-              if (!byClass[k]) byClass[k] = [];
-              byClass[k].push(x);
-            });
-            let h = "<p class='muted' style='margin:0 0 8px'>Pembaca tercatat: <b>" + reads.length + "</b></p>";
-            Object.keys(byClass).sort().forEach((k) => {
-              h += "<div class='att-stat-class'><span class='muted'>" + esc(k) + " <b>(" + byClass[k].length + ")</b></span><ul>";
-              byClass[k].forEach((x) => {
-                h +=
-                  "<li>" +
-                  esc(x.student_name || x.email || "—") +
-                  " <small class='muted'>· " +
-                  esc(x.via || "view") +
-                  " · " +
-                  esc(String(x.read_at || "").replace("T", " ").slice(0, 16)) +
-                  "</small></li>";
-              });
-              h += "</ul></div>";
-            });
-            panel.innerHTML = h;
+            panel.innerHTML = buildAnnStatsHtml(ann, reads || []);
           } catch (e) {
             panel.innerHTML = "<p class='muted'>" + esc(e.message || e) + "</p>";
           }
@@ -992,6 +968,166 @@
     const s = String(label || "");
     if (s === "terlambat") return '<span class="att-late">terlambat</span>';
     return esc(s);
+  }
+
+  function buildAnnStatsHtml(ann, reads) {
+    const targets = Array.isArray(ann.target_students) ? ann.target_students : [];
+    const byKey = {};
+    (reads || []).forEach((r) => {
+      const k =
+        (r.angkatan_year || "") +
+        "|" +
+        (r.class_code || "") +
+        "|" +
+        String(r.student_name || r.email || "")
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, " ");
+      byKey[k] = r;
+    });
+
+    const group = (arr, getT) => {
+      const g = {};
+      arr.forEach((item) => {
+        const t0 = getT ? getT(item) : item;
+        const key = (t0.year || t0.angkatan_year || "?") + " · K" + (t0.class || t0.class_code || "?");
+        if (!g[key]) g[key] = [];
+        g[key].push(item);
+      });
+      return g;
+    };
+
+    const fmtTime = (iso) => {
+      if (!iso) return "—";
+      try {
+        return String(iso).replace("T", " ").slice(0, 16);
+      } catch (e) {
+        return "—";
+      }
+    };
+
+    // Pembaca
+    let h =
+      "<div class='att-stats-panel'>" +
+      "<p class='att-stat-summary'>" +
+      "Pembaca tercatat <b>" +
+      (reads || []).length +
+      "</b>";
+    if (ann.audience === "students" && targets.length) {
+      const readKeys = new Set(Object.keys(byKey));
+      let nMiss = 0;
+      targets.forEach((t) => {
+        const k =
+          (t.year || t.angkatan_year || "") +
+          "|" +
+          (t.class || t.class_code || "") +
+          "|" +
+          String(t.name || "")
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, " ");
+        if (!readKeys.has(k)) nMiss++;
+      });
+      h +=
+        " · target siswa <b>" +
+        targets.length +
+        "</b> · belum baca (dari target) <b>" +
+        nMiss +
+        "</b>";
+    }
+    h += "</p>";
+
+    if (!(reads || []).length) {
+      h +=
+        "<p class='muted' style='margin:4px 0'>Belum ada catatan baca (siswa login saat tampil / klik pengumuman).</p>";
+    } else {
+      const gRead = group(reads, (x) => ({
+        year: x.angkatan_year,
+        class: x.class_code,
+        name: x.student_name || x.email,
+      }));
+      h += "<div class='att-stat-block'><strong>Sudah baca (" + reads.length + ")</strong>";
+      h +=
+        "<p class='muted' style='font-size:12px;margin:4px 0 8px'>Dikelompokkan per angkatan · kelas</p>";
+      Object.keys(gRead)
+        .sort()
+        .forEach((k) => {
+          h +=
+            "<div class='att-stat-class'><span class='muted'>" +
+            esc(k) +
+            " <b>(" +
+            gRead[k].length +
+            ")</b></span><ul class='att-name-list'>";
+          gRead[k]
+            .slice()
+            .sort((a, b) =>
+              String(a.student_name || a.email || "").localeCompare(
+                String(b.student_name || b.email || ""),
+                "id"
+              )
+            )
+            .forEach((x) => {
+              h +=
+                "<li class='att-name-item'>" +
+                esc(x.student_name || x.email || "—") +
+                " <small class='muted'>· " +
+                esc(x.via || "view") +
+                " · " +
+                esc(fmtTime(x.read_at)) +
+                "</small></li>";
+            });
+          h += "</ul></div>";
+        });
+      h += "</div>";
+    }
+
+    // Belum baca (hanya jika audience = students + ada target)
+    if (ann.audience === "students" && targets.length) {
+      const missing = [];
+      const seen = new Set();
+      targets.forEach((t) => {
+        const name = String(t.name || "")
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, " ");
+        const k =
+          (t.year || t.angkatan_year || "") +
+          "|" +
+          (t.class || t.class_code || "") +
+          "|" +
+          name;
+        if (seen.has(k)) return;
+        seen.add(k);
+        if (!byKey[k]) missing.push(t);
+      });
+      h += "<div class='att-stat-block'><strong>Belum baca (" + missing.length + ")</strong>";
+      if (!missing.length) {
+        h += "<p class='muted' style='margin:4px 0'>—</p>";
+      } else {
+        const gMiss = group(missing, (t) => t);
+        Object.keys(gMiss)
+          .sort()
+          .forEach((k) => {
+            h +=
+              "<div class='att-stat-class'><span class='muted'>" +
+              esc(k) +
+              " <b>(" +
+              gMiss[k].length +
+              ")</b></span><ul>";
+            gMiss[k]
+              .slice()
+              .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "id"))
+              .forEach((t) => {
+                h += "<li>" + esc(t.name || "") + "</li>";
+              });
+            h += "</ul></div>";
+          });
+      }
+      h += "</div>";
+    }
+
+    h += "</div>";
+    return h;
   }
 
   async function buildSessionStatsHtml(session) {

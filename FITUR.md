@@ -1,5 +1,14 @@
 # Riwayat versi (ringkas)
 
+## v2026.10.09b
+- Absensi siswa: sesi yang **sudah lewat** (tanggal lampau / hari weekday minggu ini sudah lewat) dan siswa **tidak mengisi** → muncul di tab **Terlewat** & **Semua**, dengan pesan “Anda tidak mengisi absen”.
+- Pencocokan nama target sesi lebih robust (normalisasi spasi/case).
+- Admin → tab Pengumuman: **Statistik baca** dirapikan gaya sama seperti statistik Absensi (ringkasan, grup kelas, sudah baca / belum baca dari target).
+
+## v2026.10.09
+- **Lonceng & peringatan jam pelajaran (global)**: 5 menit sebelum `checkout_end` → TTS suara manusia “Lima menit lagi jam pelajaran [mapel/sesi] Selesai”; saat jam habis → lonceng sekolah + popup notifikasi. Tampil di **semua** pengunjung (login/belum, taut/belum).
+- Absensi siswa: tab **Sudah diisi / Terlewat / Semua** diperbaiki — realtime dari DB, status Terlewat lebih akurat, tab Semua menampilkan sesi idle hari ini.
+
 ## v2026.10.05b
 - Hero card 3D: face depan+belakang + tebal ~5px
 - Menu Desain di semua halaman
