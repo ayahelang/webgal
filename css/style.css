@@ -2816,6 +2816,8 @@ main.skills-main {
 /* Loupe metode 1 — canvas snapshot, layer teratas */
 #shLoupe {
   z-index: 2147483647 !important;
+  position: fixed !important;
+  pointer-events: none !important;
 }
 #shLoupe .sh-loupe-lens-canvas {
   position: absolute;
