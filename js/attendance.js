@@ -470,6 +470,16 @@
     }
     if (gate) gate.hidden = true;
     if (app) app.hidden = false;
+    // Matikan auto-scroll tour + pastikan label floating OFF
+    try {
+      if (window.SHTour && typeof SHTour.stop === "function") SHTour.stop();
+      else sessionStorage.setItem("sh_tour_enabled", "0");
+      var tbtn = document.getElementById("shTourToggle");
+      if (tbtn) {
+        tbtn.textContent = "Auto-scroll: OFF";
+        tbtn.classList.remove("is-on");
+      }
+    } catch (e) {}
     profile = await GalleryDB.getMyProfile();
     const bar = $("#attProfileBar");
     if (bar) {

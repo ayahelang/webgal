@@ -215,12 +215,37 @@
   window.addEventListener("touchstart", () => onUserActivity("touch"), opts);
   window.addEventListener("keydown", () => onUserActivity("key"), opts);
 
+  function forceOffOnFormPages() {
+    var p = currentPage();
+    // Halaman isian data: auto-scroll wajib OFF agar tidak mengganggu pengetikan
+    if (p === "absensi.html" || p === "admin.html" || p === "profile.html" || p === "my-works.html") {
+      enabled = false;
+      try { sessionStorage.setItem(STORAGE_ENABLED, "0"); } catch (e) {}
+      stopTourHard();
+      return true;
+    }
+    return false;
+  }
+
   function boot() {
     injectToggle();
+    forceOffOnFormPages();
+    // pastikan label floating sesuai status
+    var btn = document.getElementById("shTourToggle");
+    if (btn) {
+      btn.textContent = enabled ? "Auto-scroll: ON" : "Auto-scroll: OFF";
+      btn.classList.toggle("is-on", enabled);
+    }
     markVisited(currentPage());
     readyAt = Date.now() + 1000;
     if (enabled) scheduleIdle();
-    window.SHTour = { start: runTour, stop: () => setEnabled(false), enable: () => setEnabled(true), status: () => ({ enabled, idleMs, tourActive }) };
+    window.SHTour = {
+      start: runTour,
+      stop: function () { setEnabled(false); },
+      enable: function () { setEnabled(true); },
+      status: function () { return { enabled: enabled, idleMs: idleMs, tourActive: tourActive }; },
+      setEnabled: setEnabled,
+    };
   }
   if (document.readyState === "complete") boot();
   else window.addEventListener("load", boot);
