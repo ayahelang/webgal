@@ -2475,8 +2475,6 @@ span.att-late,
 }
 .design-lightbox .dlb-close:hover{border-color:#7de3ff}
 
-
-
 /* ===== Loupe metode 2: CSS scale + clip (Ctrl + hover) ===== */
 html.sh-loupe-on,
 html.sh-loupe-on * {
@@ -2608,6 +2606,26 @@ html.sh-loupe-on * {
   background: radial-gradient(circle at 40% 35%, #e8d5a3, #5a4030 70%);
   box-shadow: inset 0 0 2px rgba(0,0,0,.5);
 }
+#shLoupe .sh-loupe-tip {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  transform: translateX(-50%);
+  z-index: 3;
+  max-width: 78%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #071016;
+  background: linear-gradient(180deg, #f0fafc, #c5e8f5);
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  text-align: center;
+  pointer-events: none;
+  display: none;
+}
+#shLoupe .sh-loupe-tip.is-on { display: block; }
 #shLoupe .sh-loupe-badge {
   position: absolute;
   top: 4px;
@@ -2626,195 +2644,4 @@ html.sh-loupe-on * {
 @media (max-width: 640px) {
   #shLoupe { display: none !important; }
   html.sh-loupe-on, html.sh-loupe-on * { cursor: auto !important; }
-}
-
-
-/* Chat mobile fluid */
-.page-chat main,
-main.skills-main {
-  max-width: 100%;
-  overflow-x: hidden;
-  box-sizing: border-box;
-}
-#chatForm {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  max-width: 100%;
-}
-#chatInput {
-  min-width: 0;
-  flex: 1 1 140px;
-  max-width: 100%;
-}
-.chat-log {
-  max-width: 100%;
-  overflow-x: hidden;
-  box-sizing: border-box;
-}
-.chat-bubble {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-.chat-body {
-  min-width: 0;
-  flex: 1;
-  overflow-wrap: anywhere;
-}
-.chat-controls,
-.chat-fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 10px;
-  max-width: 100%;
-}
-@media (max-width: 720px) {
-  .chat-controls,
-  .chat-fields {
-    grid-template-columns: 1fr !important;
-  }
-  .topbar {
-    flex-wrap: wrap;
-    height: auto;
-    min-height: 76px;
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
-  .topnav {
-    flex-wrap: wrap;
-    max-width: 100%;
-    overflow-x: auto;
-  }
-  .summary-card {
-    max-width: 100%;
-    overflow-x: hidden;
-    box-sizing: border-box;
-  }
-  #chatForm .btn {
-    flex: 1 1 auto;
-  }
-}
-
-
-
-/* PDF flip-page di card desain */
-.design-card.is-pdf .des-pdf-host,
-.pdf-flip {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  background: rgba(0,0,0,.25);
-  border-bottom: 1px solid var(--line);
-}
-.pdf-flip-stage {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 3 / 4;
-  min-height: 220px;
-  max-height: 420px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  perspective: 1200px;
-  background: radial-gradient(circle at 50% 30%, rgba(40,60,80,.4), rgba(0,0,0,.35));
-}
-.pdf-flip-sheet {
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform .4s ease;
-}
-.pdf-flip-sheet.flip-left {
-  animation: pdfFlipNext .4s ease;
-}
-.pdf-flip-sheet.flip-right {
-  animation: pdfFlipPrev .4s ease;
-}
-@keyframes pdfFlipNext {
-  0% { transform: rotateY(0); }
-  45% { transform: rotateY(-28deg); }
-  100% { transform: rotateY(0); }
-}
-@keyframes pdfFlipPrev {
-  0% { transform: rotateY(0); }
-  45% { transform: rotateY(28deg); }
-  100% { transform: rotateY(0); }
-}
-.pdf-flip-canvas {
-  display: block;
-  max-width: 100%;
-  max-height: 100%;
-  box-shadow: 0 8px 28px rgba(0,0,0,.45);
-  border-radius: 4px;
-  background: #fff;
-}
-.pdf-flip-loading {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 16px;
-  font-size: 12px;
-  color: #9db5c0;
-  background: rgba(8,16,24,.55);
-}
-.pdf-flip-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 8px 10px 10px;
-  flex-wrap: wrap;
-}
-.pdf-flip-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: rgba(255,255,255,.06);
-  color: #e8f4f8;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-}
-.pdf-flip-btn:disabled {
-  opacity: .35;
-  cursor: default;
-}
-.pdf-flip-btn:not(:disabled):hover {
-  border-color: var(--accent, #5ec8ff);
-  color: #fff;
-}
-.pdf-flip-page {
-  min-width: 64px;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: #c5d8e0;
-}
-.pdf-flip-open {
-  font-size: 11px;
-  color: #7de3ff;
-  margin-left: 6px;
-}
-
-
-/* Saat loupe aktif: tooltip asli disembunyikan di layar (tetap di DOM untuk disalin),
-   yang tampil di lensa adalah salinan di dalam clone (ter-zoom). */
-html.sh-loupe-on .sh-tooltip:not(.sh-loupe-clone-tip) {
-  opacity: 0 !important;
-  /* tetap "visible" di layout supaya getBoundingClientRect valid */
-  pointer-events: none !important;
-}
-#shLoupe .sh-loupe-clone-tip,
-#shLoupe .sh-tooltip.sh-loupe-clone-tip {
-  opacity: 1 !important;
-  visibility: visible !important;
-  z-index: 2147483646 !important;
-  transform: none !important;
-  transition: none !important;
-  pointer-events: none !important;
 }
