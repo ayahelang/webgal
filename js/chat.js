@@ -17,12 +17,33 @@
   function esc(t) {
     return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
+  /** Turn URLs / domains in already-escaped text into clickable links (new tab). */
+  function linkify(escapedText) {
+    const re =
+      /(https?:\/\/[^\s<&]+|www\.[^\s<&]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<&]*)?)/gi;
+    return String(escapedText || "").replace(re, (match) => {
+      let href = match;
+      if (!/^https?:\/\//i.test(href)) href = "https://" + href;
+      // Reject obvious non-http schemes that might slip through
+      if (/^(javascript|data|vbscript):/i.test(href)) return match;
+      return (
+        '<a class="chat-link" href="' +
+        href.replace(/"/g, "&quot;") +
+        '" target="_blank" rel="noopener noreferrer">' +
+        match +
+        "</a>"
+      );
+    });
+  }
   function addMsg(m) {
     const div = document.createElement("div");
     div.className = "chat-bubble";
     const t = m.created_at ? new Date(m.created_at).toLocaleString("id-ID") : "";
     const av = m.avatar_emoji || "💬";
-    div.innerHTML = `<div class="chat-av">${esc(av)}</div><div class="chat-body"><strong>${esc(m.author_name)}</strong> <small>${esc(t)}</small><div>${esc(m.body)}</div></div>`;
+    div.innerHTML =
+      `<div class="chat-av">${esc(av)}</div>` +
+      `<div class="chat-body"><strong>${esc(m.author_name)}</strong> <small>${esc(t)}</small>` +
+      `<div>${linkify(esc(m.body))}</div></div>`;
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
   }
