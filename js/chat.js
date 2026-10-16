@@ -7,6 +7,9 @@
   const searchInput = $("#chatSearch");
   const avatarPicker = $("#chatAvatarPicker");
   const nameInput = $("#chatName");
+  const chatInput = $("#chatInput");
+  const chatForm = $("#chatForm");
+  const fileInput = $("#chatFile");
   let unsub = null;
   let typingCtl = null;
   let typingTimer = null;
@@ -15,26 +18,78 @@
   let loginDisplayName = "";
   let myUserId = null;
   let iAmStaff = false;
+  let uploading = false;
 
   const AVATARS = ["🎓", "💬", "🌟", "🦋", "🌸", "🚀", "💜", "🌙", "🔥", "✨", "🦊", "🍀"];
   const LS_NAME = "sh_chat_name";
   const LS_AV = "sh_chat_avatar";
   const staffByUser = Object.create(null);
+  /** max long-edge px after compress */
+  const IMG_MAX_EDGE = 960;
+  const IMG_JPEG_Q = 0.72;
 
   function esc(t) {
     return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
-  function linkify(escapedText) {
+  function isImageUrl(u) {
+    const s = String(u || "");
+    if (/\/chat-images\//i.test(s)) return true;
+    if (/\/storage\/v1\/object\/public\/[^/]+\/.+\.(jpe?g|png|webp|gif)(\?|$)/i.test(s)) return true;
+    if (/\.(jpe?g|png|webp|gif)(\?|$)/i.test(s)) return true;
+    return false;
+  }
+
+  function isVideoPlatformUrl(u) {
+    const s = String(u || "");
+    return /(youtube\.com|youtu\.be|dailymotion\.com|dai\.ly|tiktok\.com|instagram\.com|facebook\.com|fb\.watch|twitter\.com|x\.com)\//i.test(s);
+  }
+
+  function linkifyAndMedia(escapedText, q) {
+    // Work on escaped text: find URL-like tokens and replace with rich media or links
     const re =
       /(https?:\/\/[^\s<&]+|www\.[^\s<&]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<&]*)?)/gi;
     return String(escapedText || "").replace(re, (match) => {
       let href = match;
       if (!/^https?:\/\//i.test(href)) href = "https://" + href;
       if (/^(javascript|data|vbscript):/i.test(href)) return match;
+      const safeHref = href.replace(/"/g, "&quot;");
+      if (isImageUrl(href)) {
+        return (
+          '<a class="chat-img-wrap" href="' +
+          safeHref +
+          '" target="_blank" rel="noopener noreferrer">' +
+          '<img class="chat-img" src="' +
+          safeHref +
+          '" alt="gambar chat" loading="lazy" />' +
+          "</a>"
+        );
+      }
+      if (isVideoPlatformUrl(href)) {
+        let thumb = "";
+        try {
+          if (window.GalleryDB && GalleryDB.videoThumbnailHint) thumb = GalleryDB.videoThumbnailHint(href) || "";
+        } catch (e) {}
+        const thumbAttr = thumb ? ' data-thumb="' + thumb.replace(/"/g, "&quot;") + '"' : "";
+        return (
+          '<a class="chat-vid-card" href="' +
+          safeHref +
+          '" target="_blank" rel="noopener noreferrer" data-vid-url="' +
+          safeHref +
+          '"' +
+          thumbAttr +
+          ">" +
+          (thumb
+            ? '<img class="chat-vid-thumb" src="' + thumb.replace(/"/g, "&quot;") + '" alt="" loading="lazy" />'
+            : '<span class="chat-vid-ph">▶</span>') +
+          '<span class="chat-vid-meta"><span class="chat-vid-title">Video</span><span class="chat-vid-url">' +
+          match +
+          "</span></span></a>"
+        );
+      }
       return (
         '<a class="chat-link" href="' +
-        href.replace(/"/g, "&quot;") +
+        safeHref +
         '" target="_blank" rel="noopener noreferrer">' +
         match +
         "</a>"
@@ -73,6 +128,34 @@
     return true;
   }
 
+  function enrichVideoCards(root) {
+    if (!root || !window.GalleryDB || !GalleryDB.fetchVideoMeta) return;
+    root.querySelectorAll("a.chat-vid-card[data-vid-url]").forEach(async (a) => {
+      if (a.dataset.enriched) return;
+      a.dataset.enriched = "1";
+      const url = a.getAttribute("data-vid-url");
+      try {
+        const meta = await GalleryDB.fetchVideoMeta(url);
+        if (!meta) return;
+        const titleEl = a.querySelector(".chat-vid-title");
+        if (titleEl && meta.title) titleEl.textContent = meta.title;
+        if (meta.thumbnail) {
+          let img = a.querySelector(".chat-vid-thumb");
+          if (!img) {
+            const ph = a.querySelector(".chat-vid-ph");
+            img = document.createElement("img");
+            img.className = "chat-vid-thumb";
+            img.loading = "lazy";
+            img.alt = "";
+            if (ph) ph.replaceWith(img);
+            else a.insertBefore(img, a.firstChild);
+          }
+          img.src = meta.thumbnail;
+        }
+      } catch (e) {}
+    });
+  }
+
   function renderMessages() {
     if (!log) return;
     const q = getSearchQ();
@@ -80,6 +163,7 @@
     const filtered = q ? allMessages.filter((m) => msgMatches(m, q)) : allMessages;
     filtered.forEach((m) => appendBubble(m, q));
     log.scrollTop = log.scrollHeight;
+    enrichVideoCards(log);
     if (status && window.GalleryDB && GalleryDB.enabled()) {
       if (q) {
         status.textContent =
@@ -99,7 +183,7 @@
         : "";
     const av = m.avatar_emoji || "💬";
     const bodyEsc = esc(m.body);
-    const bodyHtml = linkify(highlight(bodyEsc, q || ""));
+    const bodyHtml = linkifyAndMedia(highlight(bodyEsc, q || ""), q);
     let actions = "";
     if (canShowActions(m)) {
       actions =
@@ -146,12 +230,17 @@
       else {
         appendBubble(m, q);
         log.scrollTop = log.scrollHeight;
+        enrichVideoCards(divLast());
       }
     }
     if (q && status) {
       const n = allMessages.filter((x) => msgMatches(x, q)).length;
       status.textContent = n + " dari " + allMessages.length + ' pesan cocok · "' + q + '"';
     }
+  }
+
+  function divLast() {
+    return log ? log.lastElementChild : null;
   }
 
   function onUpdateMsg(m) {
@@ -201,6 +290,76 @@
       btn.addEventListener("click", () => setAvatar(em));
       avatarPicker.appendChild(btn);
     });
+  }
+
+  /** Compress image via canvas → JPEG Blob */
+  function compressImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+        if (!w || !h) {
+          reject(new Error("Gambar tidak valid"));
+          return;
+        }
+        const scale = Math.min(1, IMG_MAX_EDGE / Math.max(w, h));
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) reject(new Error("Gagal kompres gambar"));
+            else resolve(blob);
+          },
+          "image/jpeg",
+          IMG_JPEG_Q
+        );
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Gagal memuat gambar"));
+      };
+      img.src = url;
+    });
+  }
+
+  async function sendImageFile(file) {
+    if (!file || !String(file.type || "").startsWith("image/")) return;
+    if (!GalleryDB.enabled()) {
+      status.textContent = "Database belum dikonfigurasi.";
+      return;
+    }
+    if (uploading) return;
+    uploading = true;
+    status.textContent = "Mengompres & mengunggah gambar…";
+    try {
+      const blob = await compressImage(file);
+      const publicUrl = await GalleryDB.uploadChatImage(blob);
+      if (!publicUrl) throw new Error("Upload gagal");
+      const caption = (chatInput && chatInput.value.trim()) || "";
+      const body = caption ? caption + "\n" + publicUrl : publicUrl;
+      const row = await GalleryDB.sendChat({
+        angkatanId: room.value || null,
+        authorName: resolveAuthorName(),
+        body,
+        avatarEmoji: selectedAvatar,
+      });
+      if (chatInput) chatInput.value = "";
+      if (typingCtl) typingCtl.setTyping(false);
+      if (row && row.id && !allMessages.some((m) => m.id === row.id)) addMsg(row);
+      status.textContent = "Gambar terkirim (otomatis hapus ~24 jam)";
+    } catch (e) {
+      status.textContent = e.message || String(e);
+    } finally {
+      uploading = false;
+    }
   }
 
   async function resolveSessionContext() {
@@ -382,33 +541,58 @@
     });
   }
 
-  $("#chatInput").addEventListener("input", () => {
-    saveProfile();
-    if (!typingCtl) return;
-    typingCtl.setTyping(true);
-    clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => typingCtl && typingCtl.setTyping(false), 1200);
-  });
+  if (chatInput) {
+    chatInput.addEventListener("input", () => {
+      saveProfile();
+      if (!typingCtl) return;
+      typingCtl.setTyping(true);
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => typingCtl && typingCtl.setTyping(false), 1200);
+    });
+    chatInput.addEventListener("paste", (ev) => {
+      const items = ev.clipboardData && ev.clipboardData.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (it.type && it.type.startsWith("image/")) {
+          ev.preventDefault();
+          const file = it.getAsFile();
+          if (file) sendImageFile(file);
+          return;
+        }
+      }
+    });
+  }
 
-  $("#chatForm").addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    saveProfile();
-    const body = $("#chatInput").value;
-    if (!String(body || "").trim()) return;
-    try {
-      const row = await GalleryDB.sendChat({
-        angkatanId: room.value || null,
-        authorName: resolveAuthorName(),
-        body,
-        avatarEmoji: selectedAvatar,
-      });
-      $("#chatInput").value = "";
-      if (typingCtl) typingCtl.setTyping(false);
-      if (row && row.id && !allMessages.some((m) => m.id === row.id)) addMsg(row);
-    } catch (e) {
-      status.textContent = e.message || String(e);
-    }
-  });
+  if (fileInput) {
+    fileInput.addEventListener("change", () => {
+      const f = fileInput.files && fileInput.files[0];
+      if (f) sendImageFile(f);
+      fileInput.value = "";
+    });
+  }
+
+  if (chatForm) {
+    chatForm.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      saveProfile();
+      const body = chatInput ? chatInput.value : "";
+      if (!String(body || "").trim()) return;
+      try {
+        const row = await GalleryDB.sendChat({
+          angkatanId: room.value || null,
+          authorName: resolveAuthorName(),
+          body,
+          avatarEmoji: selectedAvatar,
+        });
+        if (chatInput) chatInput.value = "";
+        if (typingCtl) typingCtl.setTyping(false);
+        if (row && row.id && !allMessages.some((m) => m.id === row.id)) addMsg(row);
+      } catch (e) {
+        status.textContent = e.message || String(e);
+      }
+    });
+  }
 
   room.addEventListener("change", joinRoom);
 

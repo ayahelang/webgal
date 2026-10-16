@@ -705,7 +705,23 @@
       platform = "facebook";
       return { platform, embed_url: u, id: null };
     }
+    if (/(?:twitter\.com|x\.com)\//i.test(u)) {
+      platform = "twitter";
+      return { platform, embed_url: u, id: null };
+    }
     return { platform, embed_url: embed, id };
+  }
+
+  /** Best-effort static thumbnail without network (YouTube / Dailymotion). */
+  function videoThumbnailHint(url) {
+    const p = parseVideoUrl(url);
+    if (p.platform === "youtube" && p.id) {
+      return "https://img.youtube.com/vi/" + p.id + "/hqdefault.jpg";
+    }
+    if (p.platform === "dailymotion" && p.id) {
+      return "https://www.dailymotion.com/thumbnail/video/" + p.id;
+    }
+    return "";
   }
 
   async function fetchVideoMeta(url) {
@@ -3127,6 +3143,39 @@
     return data && data.publicUrl ? data.publicUrl : null;
   }
 
+  /**
+   * Upload gambar chat (sudah dikompres di klien) ke bucket chat-images.
+   * Path: {userId|anon}/{timestamp}-{rand}.jpg — dihapus cron setelah 24 jam.
+   */
+  async function uploadChatImage(blobOrFile) {
+    const sb = client();
+    if (!sb) throw new Error("Database belum dikonfigurasi");
+    if (!blobOrFile) throw new Error("Tidak ada file gambar");
+    const type = blobOrFile.type || "image/jpeg";
+    if (!String(type).startsWith("image/")) throw new Error("File harus gambar");
+    if (blobOrFile.size > 1.5 * 1024 * 1024) throw new Error("Gambar terlalu besar (maks ~1.5 MB setelah kompres)");
+    let folder = "anon";
+    try {
+      const sess = await getSession();
+      if (sess && sess.user) folder = sess.user.id;
+    } catch (e) {}
+    const path =
+      folder +
+      "/" +
+      Date.now() +
+      "-" +
+      Math.random().toString(36).slice(2, 8) +
+      ".jpg";
+    const { error } = await sb.storage.from("chat-images").upload(path, blobOrFile, {
+      cacheControl: "86400",
+      upsert: false,
+      contentType: "image/jpeg",
+    });
+    if (error) throw error;
+    const { data } = sb.storage.from("chat-images").getPublicUrl(path);
+    return data && data.publicUrl ? data.publicUrl : null;
+  }
+
   async function upsertDesign(payload) {
     const sb = client();
     const session = await getSession();
@@ -3625,6 +3674,8 @@
     isCurrentUserStaff,
     subscribeChat,
     joinTypingChannel,
+    uploadChatImage,
+    videoThumbnailHint,
     normLabel,
     upsertMyProfileFromSession,
     resolveStudentPhoto,

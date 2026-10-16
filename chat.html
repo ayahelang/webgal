@@ -69,10 +69,15 @@
       </div>
       <div id="chatLog" class="chat-log"></div>
       <div id="typingLine" class="typing-line" aria-live="polite"></div>
-      <form id="chatForm" style="display:flex;flex-wrap:wrap;gap:8px;max-width:100%">
-        <input id="chatInput" type="text" maxlength="1000" placeholder="Tulis pesan..." style="flex:1 1 140px;min-width:0;max-width:100%" autocomplete="off">
+      <form id="chatForm" style="display:flex;flex-wrap:wrap;gap:8px;max-width:100%;align-items:center">
+        <input id="chatInput" type="text" maxlength="1000" placeholder="Tulis pesan… (tempel SS / link video OK)" style="flex:1 1 140px;min-width:0;max-width:100%" autocomplete="off">
+        <label class="btn btn-ghost chat-attach" title="Lampirkan gambar dari HP/laptop">
+          🖼
+          <input id="chatFile" type="file" accept="image/*" hidden>
+        </label>
         <button class="btn btn-primary" type="submit">Kirim</button>
       </form>
+      <p class="muted" style="margin:0;font-size:11px">Gambar dari clipboard/file dikompres otomatis · dihapus ~24 jam. Link YT/TikTok/IG/FB/X/Dailymotion tampil thumbnail.</p>
       <p id="chatStatus" class="muted" style="margin:0;font-size:12px"></p>
     </div>
   </main>
