@@ -1104,34 +1104,65 @@
     return { ok: true, as: "staff" };
   }
 
+  /** Depth of reply chain: 0 = root, max allowed depth = 2 (3 levels total). */
+  async function getChatReplyDepth(msgId, cacheMap) {
+    if (!msgId) return 0;
+    let depth = 0;
+    let cur = String(msgId);
+    const seen = Object.create(null);
+    while (cur && depth < 10) {
+      if (seen[cur]) break;
+      seen[cur] = true;
+      let row = cacheMap && cacheMap[cur];
+      if (!row) {
+        const sb = client();
+        if (!sb) break;
+        const { data } = await sb.from("gallery_chat").select("id,reply_to").eq("id", cur).maybeSingle();
+        row = data;
+        if (cacheMap && row) cacheMap[cur] = row;
+      }
+      if (!row || !row.reply_to) break;
+      depth += 1;
+      cur = String(row.reply_to);
+    }
+    return depth;
+  }
+
   async function listChat({ angkatanId, limit }) {
     const sb = client();
     if (!sb) return [];
-    let q = sb
-      .from("gallery_chat")
-      .select("id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered,updated_at")
-      .order("created_at", { ascending: true })
-      .limit(limit || 100);
-    if (angkatanId) q = q.eq("angkatan_id", angkatanId);
-    else q = q.is("angkatan_id", null);
-    let { data, error } = await q;
-    // Fallback if updated_at column not yet migrated
-    if (error && /updated_at/i.test(String(error.message || ""))) {
-      let q2 = sb
+    const colsFull =
+      "id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered,updated_at,reply_to";
+    const colsNoUpdated =
+      "id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered,reply_to";
+    const colsMinimal =
+      "id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered";
+    async function run(cols) {
+      let q = sb
         .from("gallery_chat")
-        .select("id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered")
+        .select(cols)
         .order("created_at", { ascending: true })
         .limit(limit || 100);
-      if (angkatanId) q2 = q2.eq("angkatan_id", angkatanId);
-      else q2 = q2.is("angkatan_id", null);
-      const r2 = await q2;
-      data = r2.data;
-      error = r2.error;
+      if (angkatanId) q = q.eq("angkatan_id", angkatanId);
+      else q = q.is("angkatan_id", null);
+      return q;
+    }
+    let { data, error } = await run(colsFull);
+    if (error && /reply_to|updated_at/i.test(String(error.message || ""))) {
+      const r2 = await run(colsNoUpdated);
+      if (r2.error && /reply_to/i.test(String(r2.error.message || ""))) {
+        const r3 = await run(colsMinimal);
+        data = r3.data;
+        error = r3.error;
+      } else {
+        data = r2.data;
+        error = r2.error;
+      }
     }
     if (error) throw error;
     return data || [];
   }
-  async function sendChat({ angkatanId, authorName, body, avatarEmoji }) {
+  async function sendChat({ angkatanId, authorName, body, avatarEmoji, replyTo }) {
     const sb = client();
     let userId = null;
     let isReg = false;
@@ -1143,18 +1174,31 @@
         await upsertMyProfileFromSession();
       }
     } catch (e) {}
-    const { data, error } = await sb
-      .from("gallery_chat")
-      .insert({
-        author_name: String(authorName || "Anonim").slice(0, 60),
-        body: String(body || "").trim().slice(0, 1000),
-        angkatan_id: angkatanId || null,
-        avatar_emoji: (avatarEmoji || "💬").slice(0, 8),
-        user_id: userId,
-        is_registered: isReg,
-      })
-      .select("*")
-      .single();
+    let replyId = replyTo ? String(replyTo).trim() : null;
+    if (replyId) {
+      const depth = await getChatReplyDepth(replyId, null);
+      // Parent already at depth 2 → would become depth 3 (4th level) → block
+      if (depth >= 2) throw new Error("Balasan maksimal 3 level kedalaman");
+    }
+    const payload = {
+      author_name: String(authorName || "Anonim").slice(0, 60),
+      body: String(body || "").trim().slice(0, 1000),
+      angkatan_id: angkatanId || null,
+      avatar_emoji: (avatarEmoji || "💬").slice(0, 8),
+      user_id: userId,
+      is_registered: isReg,
+    };
+    if (replyId) payload.reply_to = replyId;
+    let { data, error } = await sb.from("gallery_chat").insert(payload).select("*").single();
+    if (error && replyId && /reply_to/i.test(String(error.message || ""))) {
+      delete payload.reply_to;
+      const r2 = await sb.from("gallery_chat").insert(payload).select("*").single();
+      data = r2.data;
+      error = r2.error;
+      if (!error) {
+        // column missing — still ok, message sent without thread
+      }
+    }
     if (error) throw error;
     return data;
   }

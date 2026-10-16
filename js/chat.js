@@ -19,6 +19,9 @@
   let myUserId = null;
   let iAmStaff = false;
   let uploading = false;
+  let replyToId = null;
+  let replyToMeta = null; // { author_name, body, depth }
+
 
   const AVATARS = ["🎓", "💬", "🌟", "🦋", "🌸", "🚀", "💜", "🌙", "🔥", "✨", "🦊", "🍀"];
   const LS_NAME = "sh_chat_name";
@@ -156,12 +159,74 @@
     });
   }
 
+
+  function msgById(id) {
+    return allMessages.find((m) => m.id === id) || null;
+  }
+
+  function depthOf(m, map) {
+    let d = 0;
+    let cur = m && m.reply_to ? String(m.reply_to) : "";
+    const seen = Object.create(null);
+    while (cur && d < 5) {
+      if (seen[cur]) break;
+      seen[cur] = true;
+      d += 1;
+      const p = map[cur] || msgById(cur);
+      cur = p && p.reply_to ? String(p.reply_to) : "";
+    }
+    return d;
+  }
+
+  function canReplyTo(m) {
+    if (!m || !m.id) return false;
+    const map = Object.create(null);
+    allMessages.forEach((x) => { if (x.id) map[x.id] = x; });
+    return depthOf(m, map) < 2; // levels 0,1,2 only
+  }
+
+  function setReplyTarget(m) {
+    if (!m || !canReplyTo(m)) {
+      if (m && !canReplyTo(m)) status.textContent = "Balasan maksimal 3 level";
+      return;
+    }
+    replyToId = m.id;
+    replyToMeta = { author_name: m.author_name, body: m.body };
+    const bar = $("#chatReplyBar");
+    const lab = $("#chatReplyLabel");
+    if (bar) bar.hidden = false;
+    if (lab) {
+      const snip = String(m.body || "").replace(/\s+/g, " ").slice(0, 60);
+      lab.textContent = "Membalas " + (m.author_name || "Anonim") + ": " + snip;
+    }
+    if (chatInput) chatInput.focus();
+  }
+
+  function clearReplyTarget() {
+    replyToId = null;
+    replyToMeta = null;
+    const bar = $("#chatReplyBar");
+    if (bar) bar.hidden = true;
+  }
+
+  function orderedForDisplay(list) {
+    // Keep chronological; indent by depth. Flat list is fine for UX.
+    return list.slice().sort((a, b) => {
+      const ta = a.created_at ? Date.parse(a.created_at) : 0;
+      const tb = b.created_at ? Date.parse(b.created_at) : 0;
+      return ta - tb;
+    });
+  }
+
   function renderMessages() {
     if (!log) return;
     const q = getSearchQ();
     log.innerHTML = "";
-    const filtered = q ? allMessages.filter((m) => msgMatches(m, q)) : allMessages;
-    filtered.forEach((m) => appendBubble(m, q));
+    const base = q ? allMessages.filter((m) => msgMatches(m, q)) : allMessages;
+    const filtered = orderedForDisplay(base);
+    const map = Object.create(null);
+    allMessages.forEach((x) => { if (x.id) map[x.id] = x; });
+    filtered.forEach((m) => appendBubble(m, q, depthOf(m, map)));
     log.scrollTop = log.scrollHeight;
     enrichVideoCards(log);
     if (status && window.GalleryDB && GalleryDB.enabled()) {
@@ -172,10 +237,11 @@
     }
   }
 
-  function appendBubble(m, q) {
+  function appendBubble(m, q, depth) {
     const div = document.createElement("div");
-    div.className = "chat-bubble";
+    div.className = "chat-bubble" + (depth ? " chat-depth-" + Math.min(depth, 2) : "");
     div.dataset.id = m.id || "";
+    if (m.reply_to) div.dataset.replyTo = m.reply_to;
     const t = m.created_at ? new Date(m.created_at).toLocaleString("id-ID") : "";
     const edited =
       m.updated_at && m.created_at && String(m.updated_at) !== String(m.created_at)
@@ -184,14 +250,33 @@
     const av = m.avatar_emoji || "💬";
     const bodyEsc = esc(m.body);
     const bodyHtml = linkifyAndMedia(highlight(bodyEsc, q || ""), q);
-    let actions = "";
-    if (canShowActions(m)) {
-      actions =
-        '<div class="chat-actions">' +
-        '<button type="button" class="chat-act chat-act-edit" data-act="edit" title="Ubah">Ubah</button>' +
-        '<button type="button" class="chat-act chat-act-del" data-act="del" title="Hapus">Hapus</button>' +
-        "</div>";
+    let parentHtml = "";
+    if (m.reply_to) {
+      const parent = msgById(m.reply_to);
+      if (parent) {
+        const snip = esc(String(parent.body || "").replace(/\s+/g, " ").slice(0, 80));
+        parentHtml =
+          '<div class="chat-reply-ref">↩ ' +
+          esc(parent.author_name || "Anonim") +
+          ": " +
+          snip +
+          "</div>";
+      } else {
+        parentHtml = '<div class="chat-reply-ref">↩ balasan</div>';
+      }
     }
+    let actions = '<div class="chat-actions">';
+    if (canReplyTo(m)) {
+      actions +=
+        '<button type="button" class="chat-act chat-act-reply" data-act="reply" title="Balas">Balas</button>';
+    }
+    if (canShowActions(m)) {
+      actions +=
+        '<button type="button" class="chat-act chat-act-edit" data-act="edit" title="Ubah">Ubah</button>' +
+        '<button type="button" class="chat-act chat-act-del" data-act="del" title="Hapus">Hapus</button>';
+    }
+    actions += "</div>";
+    if (!canReplyTo(m) && !canShowActions(m)) actions = "";
     div.innerHTML =
       '<div class="chat-av">' +
       esc(av) +
@@ -202,6 +287,7 @@
       esc(t) +
       "</small>" +
       edited +
+      parentHtml +
       '<div class="chat-text">' +
       bodyHtml +
       "</div>" +
@@ -350,8 +436,10 @@
         authorName: resolveAuthorName(),
         body,
         avatarEmoji: selectedAvatar,
+        replyTo: replyToId,
       });
       if (chatInput) chatInput.value = "";
+      clearReplyTarget();
       if (typingCtl) typingCtl.setTyping(false);
       if (row && row.id && !allMessages.some((m) => m.id === row.id)) addMsg(row);
       status.textContent = "Gambar terkirim (otomatis hapus ~24 jam)";
@@ -515,6 +603,7 @@
       if (!msg) return;
       if (btn.dataset.act === "edit") handleEdit(msg);
       else if (btn.dataset.act === "del") handleDelete(msg);
+      else if (btn.dataset.act === "reply") setReplyTarget(msg);
     });
   }
 
@@ -584,8 +673,10 @@
           authorName: resolveAuthorName(),
           body,
           avatarEmoji: selectedAvatar,
+          replyTo: replyToId,
         });
         if (chatInput) chatInput.value = "";
+        clearReplyTarget();
         if (typingCtl) typingCtl.setTyping(false);
         if (row && row.id && !allMessages.some((m) => m.id === row.id)) addMsg(row);
       } catch (e) {
@@ -599,4 +690,85 @@
   resolveSessionContext().then(() => {
     loadRooms().then(joinRoom);
   });
+
+
+  // --- Floating window: dock / float / max / min ---
+  (function initChatWindow() {
+    const win = $("#chatWin");
+    const bar = $("#chatWinBar");
+    const restore = $("#chatWinRestore");
+    if (!win || !bar) return;
+    const LS_MODE = "sh_chat_win_mode";
+    const LS_POS = "sh_chat_win_pos";
+    let mode = localStorage.getItem(LS_MODE) || "dock";
+    let dragging = false;
+    let ox = 0, oy = 0;
+
+    function applyMode(m) {
+      mode = m;
+      win.classList.remove("mode-dock", "mode-float", "mode-max", "mode-min");
+      win.classList.add("mode-" + m);
+      win.dataset.mode = m;
+      localStorage.setItem(LS_MODE, m);
+      if (restore) restore.hidden = m !== "min";
+      if (m === "float") {
+        try {
+          const pos = JSON.parse(localStorage.getItem(LS_POS) || "null");
+          if (pos && typeof pos.left === "number") {
+            win.style.left = pos.left + "px";
+            win.style.top = pos.top + "px";
+          }
+        } catch (e) {}
+      }
+      if (m === "dock" || m === "max") {
+        win.style.left = "";
+        win.style.top = "";
+      }
+    }
+
+    bar.querySelectorAll("[data-win]").forEach((btn) => {
+      btn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        applyMode(btn.getAttribute("data-win"));
+      });
+    });
+    if (restore) {
+      restore.addEventListener("click", () => applyMode("float"));
+    }
+
+    bar.addEventListener("pointerdown", (ev) => {
+      if (mode !== "float") return;
+      if (ev.target.closest("[data-win]")) return;
+      dragging = true;
+      const rect = win.getBoundingClientRect();
+      ox = ev.clientX - rect.left;
+      oy = ev.clientY - rect.top;
+      try { bar.setPointerCapture(ev.pointerId); } catch (e) {}
+    });
+    bar.addEventListener("pointermove", (ev) => {
+      if (!dragging) return;
+      const left = Math.max(0, Math.min(window.innerWidth - 80, ev.clientX - ox));
+      const top = Math.max(0, Math.min(window.innerHeight - 40, ev.clientY - oy));
+      win.style.left = left + "px";
+      win.style.top = top + "px";
+    });
+    function endDrag(ev) {
+      if (!dragging) return;
+      dragging = false;
+      try {
+        localStorage.setItem(
+          LS_POS,
+          JSON.stringify({ left: parseInt(win.style.left, 10) || 0, top: parseInt(win.style.top, 10) || 0 })
+        );
+      } catch (e) {}
+    }
+    bar.addEventListener("pointerup", endDrag);
+    bar.addEventListener("pointercancel", endDrag);
+
+    const cancelBtn = $("#chatReplyCancel");
+    if (cancelBtn) cancelBtn.addEventListener("click", clearReplyTarget);
+
+    applyMode(mode);
+  })();
+
 })();
