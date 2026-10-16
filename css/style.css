@@ -2648,3 +2648,45 @@ html.sh-loupe-on * {
   #shLoupe { display: none !important; }
   html.sh-loupe-on, html.sh-loupe-on * { cursor: auto !important; }
 }
+
+
+/* Chat avatar picker + search highlight */
+.chat-avatar-picker{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+  max-width:100%;
+}
+.chat-av-btn{
+  appearance:none;
+  border:1px solid var(--line, rgba(255,255,255,.12));
+  background:rgba(255,255,255,.04);
+  border-radius:10px;
+  width:40px;
+  height:40px;
+  font-size:20px;
+  line-height:1;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+  transition:border-color .15s, background .15s, transform .1s;
+}
+.chat-av-btn:hover{background:rgba(125,227,255,.12);border-color:rgba(125,227,255,.35)}
+.chat-av-btn.is-selected{
+  border-color:#7de3ff;
+  background:rgba(125,227,255,.18);
+  box-shadow:0 0 0 1px rgba(125,227,255,.25);
+  transform:scale(1.06);
+}
+.chat-bubble mark.chat-hit{
+  background:rgba(255,220,100,.35);
+  color:inherit;
+  border-radius:3px;
+  padding:0 2px;
+}
+@media (max-width:480px){
+  .chat-av-btn{width:36px;height:36px;font-size:18px}
+}

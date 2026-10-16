@@ -54,17 +54,17 @@
     <div class="summary-card chat-panel" style="display:grid;gap:12px;max-width:100%;overflow-x:hidden;box-sizing:border-box">
       <div class="chat-fields" style="display:grid;gap:10px">
         <label class="field"><span>Nama tampilan</span>
-          <input id="chatName" type="text" maxlength="40" placeholder="Nama kamu">
+          <input id="chatName" type="text" maxlength="40" placeholder="Kosong = nama akun login / Anonim">
         </label>
-        <label class="field"><span>Avatar emoji</span>
-          <select id="chatAvatar">
-            <option>🎓</option><option>💬</option><option>🌟</option><option>🦋</option>
-            <option>🌸</option><option>🚀</option><option>💜</option><option>🌙</option>
-            <option>🔥</option><option>✨</option><option>🦊</option><option>🍀</option>
-          </select>
-        </label>
+        <div class="field">
+          <span>Avatar emoji</span>
+          <div id="chatAvatarPicker" class="chat-avatar-picker" role="group" aria-label="Pilih avatar emoji"></div>
+        </div>
         <label class="field"><span>Ruang chat</span>
           <select id="chatRoom"></select>
+        </label>
+        <label class="field"><span>Cari di chat</span>
+          <input id="chatSearch" type="search" placeholder="Cari teks atau nama…" autocomplete="off">
         </label>
       </div>
       <div id="chatLog" class="chat-log"></div>
