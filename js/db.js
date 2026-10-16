@@ -1040,18 +1040,78 @@
     if (error) throw error;
   }
 
-  // Chat (unchanged API)
+  // Chat
+  function isStaffProfile(prof) {
+    if (!prof) return false;
+    if (prof.is_admin) return true;
+    const r = String(prof.role || "").toLowerCase().trim();
+    return r === "teacher" || r === "pengajar" || r === "guru";
+  }
+
+  async function isCurrentUserStaff() {
+    const session = await getSession();
+    if (!session || !session.user) return false;
+    if (isAdminEmail(session.user.email)) return true;
+    const prof = await getMyProfile();
+    return isStaffProfile(prof);
+  }
+
+  async function getProfileById(userId) {
+    if (!userId) return null;
+    const sb = client();
+    if (!sb) return null;
+    const { data, error } = await sb
+      .from("gallery_profiles")
+      .select("id,email,is_admin,role,display_name")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) return null;
+    return data;
+  }
+
+  /** Owner may edit/delete own; staff may moderate non-staff messages only. */
+  async function canModerateChatMessage(msg) {
+    const session = await getSession();
+    if (!session || !session.user) return { ok: false, reason: "not_logged_in" };
+    const myId = session.user.id;
+    const ownerId = msg && msg.user_id ? String(msg.user_id) : "";
+    if (ownerId && ownerId === myId) return { ok: true, as: "owner" };
+    const staff = await isCurrentUserStaff();
+    if (!staff) return { ok: false, reason: "not_allowed" };
+    // Staff cannot moderate other staff / admin messages
+    if (ownerId) {
+      const target = await getProfileById(ownerId);
+      if (isStaffProfile(target) || (target && isAdminEmail(target.email))) {
+        return { ok: false, reason: "peer_staff" };
+      }
+    }
+    return { ok: true, as: "staff" };
+  }
+
   async function listChat({ angkatanId, limit }) {
     const sb = client();
     if (!sb) return [];
     let q = sb
       .from("gallery_chat")
-      .select("id,angkatan_id,author_name,avatar_emoji,body,created_at")
+      .select("id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered,updated_at")
       .order("created_at", { ascending: true })
       .limit(limit || 100);
     if (angkatanId) q = q.eq("angkatan_id", angkatanId);
     else q = q.is("angkatan_id", null);
-    const { data, error } = await q;
+    let { data, error } = await q;
+    // Fallback if updated_at column not yet migrated
+    if (error && /updated_at/i.test(String(error.message || ""))) {
+      let q2 = sb
+        .from("gallery_chat")
+        .select("id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered")
+        .order("created_at", { ascending: true })
+        .limit(limit || 100);
+      if (angkatanId) q2 = q2.eq("angkatan_id", angkatanId);
+      else q2 = q2.is("angkatan_id", null);
+      const r2 = await q2;
+      data = r2.data;
+      error = r2.error;
+    }
     if (error) throw error;
     return data || [];
   }
@@ -1082,13 +1142,64 @@
     if (error) throw error;
     return data;
   }
-  function subscribeChat({ angkatanId, onInsert }) {
+
+  async function updateChat({ id, body }) {
+    const sb = client();
+    if (!sb) throw new Error("Database belum dikonfigurasi");
+    const msgId = String(id || "").trim();
+    if (!msgId) throw new Error("ID pesan wajib");
+    const text = String(body || "").trim().slice(0, 1000);
+    if (!text) throw new Error("Pesan tidak boleh kosong");
+    const { data: existing, error: e0 } = await sb.from("gallery_chat").select("*").eq("id", msgId).maybeSingle();
+    if (e0) throw e0;
+    if (!existing) throw new Error("Pesan tidak ditemukan");
+    const gate = await canModerateChatMessage(existing);
+    if (!gate.ok) {
+      if (gate.reason === "not_logged_in") throw new Error("Login dulu untuk mengubah pesan");
+      if (gate.reason === "peer_staff") throw new Error("Tidak dapat mengubah pesan admin/guru lain");
+      throw new Error("Tidak berhak mengubah pesan ini");
+    }
+    const payload = { body: text };
+    // updated_at optional column
+    payload.updated_at = new Date().toISOString();
+    let { data, error } = await sb.from("gallery_chat").update(payload).eq("id", msgId).select("*").single();
+    if (error && /updated_at/i.test(String(error.message || ""))) {
+      const r2 = await sb.from("gallery_chat").update({ body: text }).eq("id", msgId).select("*").single();
+      data = r2.data;
+      error = r2.error;
+    }
+    if (error) throw error;
+    return data;
+  }
+
+  async function deleteChat({ id }) {
+    const sb = client();
+    if (!sb) throw new Error("Database belum dikonfigurasi");
+    const msgId = String(id || "").trim();
+    if (!msgId) throw new Error("ID pesan wajib");
+    const { data: existing, error: e0 } = await sb.from("gallery_chat").select("*").eq("id", msgId).maybeSingle();
+    if (e0) throw e0;
+    if (!existing) throw new Error("Pesan tidak ditemukan");
+    const gate = await canModerateChatMessage(existing);
+    if (!gate.ok) {
+      if (gate.reason === "not_logged_in") throw new Error("Login dulu untuk menghapus pesan");
+      if (gate.reason === "peer_staff") throw new Error("Tidak dapat menghapus pesan admin/guru lain");
+      throw new Error("Tidak berhak menghapus pesan ini");
+    }
+    const { error } = await sb.from("gallery_chat").delete().eq("id", msgId);
+    if (error) throw error;
+    return { ok: true, id: msgId };
+  }
+
+  function subscribeChat({ angkatanId, onInsert, onUpdate, onDelete }) {
     const sb = client();
     if (!sb) return () => {};
     const filter = angkatanId ? `angkatan_id=eq.${angkatanId}` : "angkatan_id=is.null";
     const channel = sb
       .channel("gallery-chat-" + (angkatanId || "global"))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "gallery_chat", filter }, (payload) => onInsert && onInsert(payload.new))
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "gallery_chat", filter }, (payload) => onUpdate && onUpdate(payload.new))
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "gallery_chat", filter }, (payload) => onDelete && onDelete(payload.old))
       .subscribe();
     return () => {
       try {
@@ -3508,6 +3619,10 @@
     deleteMyVideo,
     listChat,
     sendChat,
+    updateChat,
+    deleteChat,
+    canModerateChatMessage,
+    isCurrentUserStaff,
     subscribeChat,
     joinTypingChannel,
     normLabel,
