@@ -2751,8 +2751,9 @@ html.sh-loupe-on * {
 }
 .chat-win.mode-max .chat-log{height:min(70vh,560px)}
 .chat-win.mode-min{display:none}
+/* base styles; visibility/z-index finalized in the later chat-win-restore block */
 .chat-win-restore{
-  position:fixed;right:16px;bottom:16px;z-index:1201;
+  position:fixed;right:16px;bottom:16px;z-index:2147483000;
   appearance:none;border:1px solid rgba(125,227,255,.35);
   background:linear-gradient(180deg,#1a3a48,#0d222c);color:#dffbff;
   padding:10px 14px;border-radius:999px;cursor:pointer;font-weight:600;
@@ -2846,19 +2847,43 @@ html.sh-loupe-on * {
   color:#b8f0ff;
 }
 
-/* Restore button: more reliable on mobile */
+/* Restore FAB — above almost all site floats (stats, lock, etc.) */
 .chat-win-restore{
-  z-index:1300;
-  min-width:48px;
-  min-height:48px;
+  position:fixed !important;
+  right:16px !important;
+  bottom:20px !important;
+  left:auto !important;
+  top:auto !important;
+  z-index:2147483000 !important;
+  min-width:52px;
+  min-height:52px;
+  padding:12px 16px !important;
+  border-radius:999px !important;
+  border:1px solid rgba(125,227,255,.5) !important;
+  background:linear-gradient(180deg,#1f4a5c,#0d222c) !important;
+  color:#dffbff !important;
+  font-weight:700 !important;
+  font-size:14px !important;
+  box-shadow:0 10px 28px rgba(0,0,0,.55), 0 0 0 1px rgba(125,227,255,.15) !important;
+  cursor:pointer !important;
   touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+  display:none;
 }
-.chat-win-restore[hidden]{
+.chat-win-restore.is-visible,
+body.chat-is-min .chat-win-restore{
+  display:inline-flex !important;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+}
+.chat-win-restore[hidden]:not(.is-visible){
   display:none !important;
 }
-/* When minimized, ensure nothing covers the restore FAB */
-body.chat-is-min .chat-win-restore{
-  display:block !important;
+.chat-win-restore:hover,
+.chat-win-restore:focus{
+  border-color:#7de3ff !important;
+  outline:none;
 }
 
 /* Inline reply / in-place edit composers */
@@ -2871,6 +2896,8 @@ body.chat-is-min .chat-win-restore{
   border-radius:10px;
   background:rgba(125,227,255,.07);
   border:1px solid rgba(125,227,255,.22);
+  width:100%;
+  box-sizing:border-box;
 }
 .chat-inline-ta{
   width:100%;
@@ -2910,4 +2937,24 @@ body.chat-is-min .chat-win-restore{
 .chat-bubble.is-editing .chat-actions{
   opacity:.5;
   pointer-events:none;
+}
+
+/* Desktop: composer & main input stretch wider */
+@media (min-width:900px){
+  .chat-inline-composer{
+    min-width:min(520px, 100%);
+    width:min(560px, calc(100% + 40px));
+    max-width:min(640px, 92vw);
+  }
+  .chat-form{
+    align-items:stretch;
+  }
+  .chat-input{
+    min-width:min(420px, 100%);
+    flex:1 1 280px;
+  }
+  .chat-body{
+    min-width:0;
+    flex:1;
+  }
 }

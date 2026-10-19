@@ -984,15 +984,46 @@
   (function initChatWindow() {
     const win = $("#chatWin");
     const bar = $("#chatWinBar");
-    const restore = $("#chatWinRestore");
     if (!win || !bar) return;
     const LS_MODE = "sh_chat_win_mode";
     const LS_POS = "sh_chat_win_pos";
     let mode = localStorage.getItem(LS_MODE) || "dock";
-    // Guard against stuck min with no restore path
-    if (mode === "min" && !restore) mode = "dock";
     let dragging = false;
     let ox = 0, oy = 0;
+
+    // Ensure restore FAB exists and is attached to <body> (not trapped in main stacking)
+    let restore = $("#chatWinRestore");
+    if (!restore) {
+      restore = document.createElement("button");
+      restore.type = "button";
+      restore.id = "chatWinRestore";
+      restore.className = "chat-win-restore";
+      restore.title = "Buka kembali chat";
+      restore.textContent = "💬 Chat";
+      restore.setAttribute("hidden", "");
+    }
+    if (restore.parentElement !== document.body) {
+      document.body.appendChild(restore);
+    }
+
+    function restoreTarget() {
+      return window.innerWidth < 720 ? "dock" : "float";
+    }
+
+    function setRestoreVisible(on) {
+      if (!restore) return;
+      if (on) {
+        restore.classList.add("is-visible");
+        restore.removeAttribute("hidden");
+        restore.setAttribute("aria-hidden", "false");
+        restore.style.display = "inline-flex";
+      } else {
+        restore.classList.remove("is-visible");
+        restore.setAttribute("hidden", "");
+        restore.setAttribute("aria-hidden", "true");
+        restore.style.display = "none";
+      }
+    }
 
     function applyMode(m) {
       if (!m || !["dock", "float", "max", "min"].includes(m)) m = "dock";
@@ -1002,18 +1033,7 @@
       win.dataset.mode = m;
       try { localStorage.setItem(LS_MODE, m); } catch (e) {}
       document.body.classList.toggle("chat-is-min", m === "min");
-      if (restore) {
-        restore.hidden = m !== "min";
-        // Force visibility for mobile / stubborn browsers
-        if (m === "min") {
-          restore.removeAttribute("hidden");
-          restore.style.display = "";
-          restore.setAttribute("aria-hidden", "false");
-        } else {
-          restore.setAttribute("hidden", "");
-          restore.setAttribute("aria-hidden", "true");
-        }
-      }
+      setRestoreVisible(m === "min");
       if (m === "float") {
         try {
           const pos = JSON.parse(localStorage.getItem(LS_POS) || "null");
@@ -1021,7 +1041,6 @@
             win.style.left = pos.left + "px";
             win.style.top = pos.top + "px";
           } else {
-            // sensible default on small screens
             win.style.left = "12px";
             win.style.top = "64px";
           }
@@ -1040,22 +1059,17 @@
         applyMode(btn.getAttribute("data-win"));
       });
     });
-    if (restore) {
-      // Prefer dock on narrow screens (more reliable), float on desktop
-      const restoreTarget = () => (window.innerWidth < 720 ? "dock" : "float");
-      restore.addEventListener("click", (ev) => {
+
+    function doRestore(ev) {
+      if (ev) {
         ev.preventDefault();
         ev.stopPropagation();
-        applyMode(restoreTarget());
-      });
-      // Extra touch-friendly fallback
-      restore.addEventListener("pointerup", (ev) => {
-        if (mode === "min") {
-          ev.preventDefault();
-          applyMode(restoreTarget());
-        }
-      });
+      }
+      if (mode !== "min") return;
+      applyMode(restoreTarget());
     }
+    restore.addEventListener("click", doRestore);
+    restore.addEventListener("touchend", doRestore, { passive: false });
 
     bar.addEventListener("pointerdown", (ev) => {
       if (mode !== "float") return;
@@ -1073,7 +1087,7 @@
       win.style.left = left + "px";
       win.style.top = top + "px";
     });
-    function endDrag(ev) {
+    function endDrag() {
       if (!dragging) return;
       dragging = false;
       try {
@@ -1089,12 +1103,21 @@
     const cancelBtn = $("#chatReplyCancel");
     if (cancelBtn) cancelBtn.addEventListener("click", clearReplyTarget);
 
-    // If user lands in min with broken restore, allow double-tap title or Esc
     document.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape" && mode === "min") applyMode("dock");
     });
 
+    // Safety: if stuck in min with no visible restore, force dock after load
     applyMode(mode);
+    if (mode === "min") {
+      requestAnimationFrame(() => {
+        const r = restore.getBoundingClientRect();
+        if (!r.width || !r.height || restore.offsetParent === null) {
+          // still not painted — force visible again
+          setRestoreVisible(true);
+        }
+      });
+    }
   })();
 
 })();

@@ -1,33 +1,19 @@
-# Webgal Chat Update v2
+# Webgal Chat Update v3
 
-## File diubah
-- `chat.html` — maxlength input 8000
-- `js/chat.js` — in-place edit, inline reply di bawah tombol Balas, clamp teks
-- `js/db.js` — batas body chat 1000 → **8000** karakter (~7x tinggi layar HP)
-- `css/style.css` — style composer inline + input multi-baris
+## Perbaikan
+1. **Minimize / restore**
+   - Tombol floating **💬 Chat** dipindah ke `document.body` agar tidak tertelan stacking context.
+   - Z-index sangat tinggi (di atas stats-float, lock, dll).
+   - Class `.is-visible` + `body.chat-is-min` untuk memaksa tampil.
+   - Di HP restore → mode dock; desktop → float.
+   - Escape juga mengembalikan dari minimize.
 
-## Perubahan baru (v2)
+2. **Composer Balas / Ubah di desktop**
+   - Lebar otomatis lebih besar di layar ≥900px (hingga ~560–640px).
+   - Input utama chat juga lebih lega di desktop.
 
-1. **Batas teks panjang**
-   - Client + DB layer: 1000 → **8000** karakter.
-   - Cukup untuk teks ~7x scroll layar HP (tergantung ukuran font).
-
-2. **Ubah (edit) di tempat**
-   - Tidak lagi memakai `prompt()` browser.
-   - Klik **Ubah** → textarea muncul di dalam bubble pesan itu sendiri.
-   - Tombol Simpan / Batal.
-
-3. **Balas di bawah tombol Balas**
-   - Klik **Balas** → div composer collapse muncul **tepat di bawah** baris aksi (Balas/Ubah/Hapus) pada pesan tersebut.
-   - Tinggi 1–4 baris, auto-grow, bisa scroll vertikal.
-   - Enter = kirim, Shift+Enter = baris baru.
-   - Klik Balas lagi / Batal menutup composer.
-   - Reply bar di bawah form tetap sinkron (label “Membalas …”).
-
-## Cara pasang
-Timpa ke-4 file di atas, hard-refresh (Ctrl+F5).
-
-Tidak perlu migrasi SQL jika kolom `body` sudah tipe `text` (default). Jika kolom masih `varchar(1000)`, jalankan di Supabase SQL:
-```sql
-ALTER TABLE gallery_chat ALTER COLUMN body TYPE text;
-```
+## File
+- chat.html
+- js/chat.js
+- js/db.js (batas 8000, dari v2)
+- css/style.css
