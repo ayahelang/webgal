@@ -2641,14 +2641,36 @@ html.sh-loupe-on * {
 }
 
 
-/* Chat avatar picker + search highlight */
+/* Chat avatar picker (collapsible) + search highlight */
+.chat-avatar-field{display:flex;flex-direction:column;gap:6px}
+.chat-avatar-toggle{
+  appearance:none;display:inline-flex;align-items:center;gap:8px;
+  width:fit-content;max-width:100%;
+  padding:6px 10px;border-radius:999px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.05);color:#cfe8f0;
+  font:inherit;font-size:12px;font-weight:600;
+  transition:border-color .15s, background .15s;
+}
+.chat-avatar-toggle:hover{border-color:rgba(125,227,255,.4);background:rgba(125,227,255,.1)}
+.chat-avatar-toggle[aria-expanded="true"]{border-color:rgba(125,227,255,.45)}
+.chat-avatar-toggle-label{opacity:.75}
+.chat-avatar-current{font-size:18px;line-height:1}
+.chat-avatar-chevron{
+  font-size:11px;opacity:.7;transition:transform .18s ease;
+  margin-left:2px;
+}
+.chat-avatar-toggle[aria-expanded="true"] .chat-avatar-chevron{transform:rotate(90deg)}
 .chat-avatar-picker{
   display:flex;
   flex-wrap:wrap;
   gap:6px;
   align-items:center;
   max-width:100%;
+  padding:6px 0 2px;
 }
+.chat-avatar-picker[hidden],
+.chat-avatar-picker.is-collapsed{display:none!important}
 .chat-av-btn{
   appearance:none;
   border:1px solid var(--line, rgba(255,255,255,.12));

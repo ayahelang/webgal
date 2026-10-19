@@ -66,9 +66,13 @@
         <label class="field"><span>Nama tampilan</span>
           <input id="chatName" type="text" maxlength="40" placeholder="Kosong = nama akun login / Anonim">
         </label>
-        <div class="field">
-          <span>Avatar emoji</span>
-          <div id="chatAvatarPicker" class="chat-avatar-picker" role="group" aria-label="Pilih avatar emoji"></div>
+        <div class="field chat-avatar-field">
+          <button type="button" id="chatAvatarToggle" class="chat-avatar-toggle" aria-expanded="false" title="Pilih avatar emoji">
+            <span class="chat-avatar-toggle-label">Avatar</span>
+            <span id="chatAvatarCurrent" class="chat-avatar-current">💬</span>
+            <span class="chat-avatar-chevron" aria-hidden="true">▸</span>
+          </button>
+          <div id="chatAvatarPicker" class="chat-avatar-picker is-collapsed" role="group" aria-label="Pilih avatar emoji" hidden></div>
         </div>
         <label class="field"><span>Ruang chat</span>
           <select id="chatRoom"></select>

@@ -473,15 +473,33 @@
     localStorage.setItem(LS_AV, selectedAvatar);
   }
 
-  function setAvatar(emoji) {
+  function setAvatar(emoji, opts) {
     selectedAvatar = emoji || "💬";
     if (avatarPicker) {
       avatarPicker.querySelectorAll(".chat-av-btn").forEach((btn) => {
         btn.classList.toggle("is-selected", btn.dataset.emoji === selectedAvatar);
       });
     }
+    const cur = $("#chatAvatarCurrent");
+    if (cur) cur.textContent = selectedAvatar;
     saveProfile();
     if (typingCtl) bindTyping();
+    // auto-collapse after pick (unless silent)
+    if (!opts || !opts.keepOpen) setAvatarExpanded(false);
+  }
+
+  function setAvatarExpanded(open) {
+    const toggle = $("#chatAvatarToggle");
+    if (!avatarPicker) return;
+    if (open) {
+      avatarPicker.hidden = false;
+      avatarPicker.classList.remove("is-collapsed");
+      if (toggle) toggle.setAttribute("aria-expanded", "true");
+    } else {
+      avatarPicker.hidden = true;
+      avatarPicker.classList.add("is-collapsed");
+      if (toggle) toggle.setAttribute("aria-expanded", "false");
+    }
   }
 
   function buildAvatarPicker() {
@@ -497,6 +515,18 @@
       btn.addEventListener("click", () => setAvatar(em));
       avatarPicker.appendChild(btn);
     });
+    const cur = $("#chatAvatarCurrent");
+    if (cur) cur.textContent = selectedAvatar;
+    // default: folded
+    setAvatarExpanded(false);
+    const toggle = $("#chatAvatarToggle");
+    if (toggle && !toggle.dataset.bound) {
+      toggle.dataset.bound = "1";
+      toggle.addEventListener("click", () => {
+        const open = toggle.getAttribute("aria-expanded") === "true";
+        setAvatarExpanded(!open);
+      });
+    }
   }
 
   /** Compress image via canvas → JPEG Blob */
