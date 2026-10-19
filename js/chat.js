@@ -1017,6 +1017,14 @@
     if (!win || !bar) return;
     const LS_MODE = "sh_chat_win_mode";
     const LS_POS = "sh_chat_win_pos";
+    const inEmbed =
+      (typeof URLSearchParams !== "undefined" &&
+        new URLSearchParams(location.search).get("embed") === "1") ||
+      window.self !== window.top;
+    if (inEmbed) {
+      document.documentElement.classList.add("chat-embed");
+      document.body.classList.add("chat-embed");
+    }
     // Jika datang dari halaman lain dengan niat restore, jangan tetap di min
     try {
       if (sessionStorage.getItem("sh_chat_restore") === "1") {
@@ -1025,6 +1033,8 @@
       }
     } catch (e) {}
     let mode = localStorage.getItem(LS_MODE) || "dock";
+    // Di dalam iframe embed, paksa tampilan float (parent yang pegang chrome)
+    if (inEmbed && (mode === "dock" || mode === "min")) mode = "float";
     let dragging = false;
     let ox = 0, oy = 0;
 
@@ -1093,7 +1103,28 @@
       btn.addEventListener("click", (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        applyMode(btn.getAttribute("data-win"));
+        const next = btn.getAttribute("data-win");
+        // Di embed iframe: dock/max → buka halaman penuh; min → parent minimize
+        if (inEmbed) {
+          try {
+            localStorage.setItem(LS_MODE, next === "min" ? "min" : next === "dock" || next === "max" ? next : "float");
+          } catch (e) {}
+          if (next === "min") {
+            try {
+              window.parent.postMessage({ type: "sh-chat-mode", mode: "min" }, "*");
+            } catch (e) {}
+            return;
+          }
+          if (next === "dock" || next === "max") {
+            try {
+              window.top.location.href = "chat.html";
+            } catch (e) {
+              location.href = "chat.html";
+            }
+            return;
+          }
+        }
+        applyMode(next);
       });
     });
 
