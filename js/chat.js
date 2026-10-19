@@ -30,6 +30,72 @@
   /** max long-edge px after compress */
   const IMG_MAX_EDGE = 960;
   const IMG_JPEG_Q = 0.72;
+  let audioCtx = null;
+
+  function getAudioCtx() {
+    if (!audioCtx) {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (e) {
+        return null;
+      }
+    }
+    return audioCtx;
+  }
+
+  /** Soft chime for new incoming message */
+  function playNotifSound() {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    try {
+      if (ctx.state === "suspended") ctx.resume();
+      const t0 = ctx.currentTime;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(880, t0);
+      o.frequency.exponentialRampToValueAtTime(660, t0 + 0.12);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start(t0);
+      o.stop(t0 + 0.3);
+    } catch (e) {}
+  }
+
+  /** Distinct higher/double beep when someone replies to your message */
+  function playReplyToMeSound() {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    try {
+      if (ctx.state === "suspended") ctx.resume();
+      const t0 = ctx.currentTime;
+      [0, 0.12].forEach((off, i) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "triangle";
+        o.frequency.setValueAtTime(i === 0 ? 1046 : 1318, t0 + off);
+        g.gain.setValueAtTime(0.0001, t0 + off);
+        g.gain.exponentialRampToValueAtTime(0.14, t0 + off + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + off + 0.18);
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start(t0 + off);
+        o.stop(t0 + off + 0.2);
+      });
+    } catch (e) {}
+  }
+
+  function autoResizeInput() {
+    if (!chatInput || chatInput.tagName !== "TEXTAREA") return;
+    chatInput.style.height = "auto";
+    const maxH = (parseFloat(getComputedStyle(chatInput).lineHeight) || 20) * 4 + 16;
+    const h = Math.min(chatInput.scrollHeight, maxH);
+    chatInput.style.height = h + "px";
+    chatInput.style.overflowY = chatInput.scrollHeight > maxH ? "auto" : "hidden";
+  }
 
   function esc(t) {
     return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -237,6 +303,38 @@
     }
   }
 
+  function applyTextClamp(textEl) {
+    if (!textEl) return;
+    textEl.classList.remove("is-clamped", "is-expanded");
+    const prevMore = textEl.parentElement && textEl.parentElement.querySelector(".chat-text-more");
+    if (prevMore) prevMore.remove();
+    requestAnimationFrame(() => {
+      const lineH = parseFloat(getComputedStyle(textEl).lineHeight) || 18;
+      const max4 = lineH * 4 + 2;
+      if (textEl.scrollHeight > max4 + 4) {
+        textEl.classList.add("is-clamped");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "chat-text-more";
+        btn.textContent = "Baca selengkapnya";
+        btn.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          if (textEl.classList.contains("is-expanded")) {
+            textEl.classList.remove("is-expanded");
+            textEl.classList.add("is-clamped");
+            btn.textContent = "Baca selengkapnya";
+          } else {
+            textEl.classList.remove("is-clamped");
+            textEl.classList.add("is-expanded");
+            btn.textContent = "Tutup";
+          }
+        });
+        textEl.insertAdjacentElement("afterend", btn);
+      }
+    });
+  }
+
   function appendBubble(m, q, depth) {
     const div = document.createElement("div");
     div.className = "chat-bubble" + (depth ? " chat-depth-" + Math.min(depth, 2) : "");
@@ -294,6 +392,7 @@
       actions +
       "</div>";
     log.appendChild(div);
+    applyTextClamp(div.querySelector(".chat-text"));
   }
 
   function upsertLocal(m) {
@@ -307,6 +406,7 @@
   }
 
   function addMsg(m) {
+    const isNew = !allMessages.some((x) => x.id === m.id);
     upsertLocal(m);
     const q = getSearchQ();
     if (msgMatches(m, q)) {
@@ -322,6 +422,27 @@
     if (q && status) {
       const n = allMessages.filter((x) => msgMatches(x, q)).length;
       status.textContent = n + " dari " + allMessages.length + ' pesan cocok · "' + q + '"';
+    }
+    // Notification sound for incoming messages (not own)
+    if (isNew && m && m.id) {
+      const ownerId = m.user_id ? String(m.user_id) : "";
+      const isMine = myUserId && ownerId && ownerId === myUserId;
+      if (!isMine) {
+        let isReplyToMe = false;
+        if (m.reply_to) {
+          const parent = msgById(m.reply_to);
+          if (parent) {
+            const pOwner = parent.user_id ? String(parent.user_id) : "";
+            if (myUserId && pOwner && pOwner === myUserId) isReplyToMe = true;
+            else if (!pOwner && parent.author_name && resolveAuthorName() &&
+              String(parent.author_name).toLowerCase() === resolveAuthorName().toLowerCase()) {
+              isReplyToMe = true;
+            }
+          }
+        }
+        if (isReplyToMe) playReplyToMeSound();
+        else playNotifSound();
+      }
     }
   }
 
@@ -438,7 +559,10 @@
         avatarEmoji: selectedAvatar,
         replyTo: replyToId,
       });
-      if (chatInput) chatInput.value = "";
+      if (chatInput) {
+        chatInput.value = "";
+        autoResizeInput();
+      }
       clearReplyTarget();
       if (typingCtl) typingCtl.setTyping(false);
       if (row && row.id && !allMessages.some((m) => m.id === row.id)) addMsg(row);
@@ -632,11 +756,19 @@
 
   if (chatInput) {
     chatInput.addEventListener("input", () => {
+      autoResizeInput();
       saveProfile();
       if (!typingCtl) return;
       typingCtl.setTyping(true);
       clearTimeout(typingTimer);
       typingTimer = setTimeout(() => typingCtl && typingCtl.setTyping(false), 1200);
+    });
+    // Enter kirim, Shift+Enter baris baru
+    chatInput.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" && !ev.shiftKey) {
+        ev.preventDefault();
+        if (chatForm) chatForm.requestSubmit();
+      }
     });
     chatInput.addEventListener("paste", (ev) => {
       const items = ev.clipboardData && ev.clipboardData.items;
@@ -650,7 +782,11 @@
           return;
         }
       }
+      // after text paste, resize
+      setTimeout(autoResizeInput, 0);
     });
+    // initial size
+    autoResizeInput();
   }
 
   if (fileInput) {
@@ -675,7 +811,10 @@
           avatarEmoji: selectedAvatar,
           replyTo: replyToId,
         });
-        if (chatInput) chatInput.value = "";
+        if (chatInput) {
+          chatInput.value = "";
+          autoResizeInput();
+        }
         clearReplyTarget();
         if (typingCtl) typingCtl.setTyping(false);
         if (row && row.id && !allMessages.some((m) => m.id === row.id)) addMsg(row);
@@ -701,22 +840,41 @@
     const LS_MODE = "sh_chat_win_mode";
     const LS_POS = "sh_chat_win_pos";
     let mode = localStorage.getItem(LS_MODE) || "dock";
+    // Guard against stuck min with no restore path
+    if (mode === "min" && !restore) mode = "dock";
     let dragging = false;
     let ox = 0, oy = 0;
 
     function applyMode(m) {
+      if (!m || !["dock", "float", "max", "min"].includes(m)) m = "dock";
       mode = m;
       win.classList.remove("mode-dock", "mode-float", "mode-max", "mode-min");
       win.classList.add("mode-" + m);
       win.dataset.mode = m;
-      localStorage.setItem(LS_MODE, m);
-      if (restore) restore.hidden = m !== "min";
+      try { localStorage.setItem(LS_MODE, m); } catch (e) {}
+      document.body.classList.toggle("chat-is-min", m === "min");
+      if (restore) {
+        restore.hidden = m !== "min";
+        // Force visibility for mobile / stubborn browsers
+        if (m === "min") {
+          restore.removeAttribute("hidden");
+          restore.style.display = "";
+          restore.setAttribute("aria-hidden", "false");
+        } else {
+          restore.setAttribute("hidden", "");
+          restore.setAttribute("aria-hidden", "true");
+        }
+      }
       if (m === "float") {
         try {
           const pos = JSON.parse(localStorage.getItem(LS_POS) || "null");
           if (pos && typeof pos.left === "number") {
             win.style.left = pos.left + "px";
             win.style.top = pos.top + "px";
+          } else {
+            // sensible default on small screens
+            win.style.left = "12px";
+            win.style.top = "64px";
           }
         } catch (e) {}
       }
@@ -729,11 +887,25 @@
     bar.querySelectorAll("[data-win]").forEach((btn) => {
       btn.addEventListener("click", (ev) => {
         ev.preventDefault();
+        ev.stopPropagation();
         applyMode(btn.getAttribute("data-win"));
       });
     });
     if (restore) {
-      restore.addEventListener("click", () => applyMode("float"));
+      // Prefer dock on narrow screens (more reliable), float on desktop
+      const restoreTarget = () => (window.innerWidth < 720 ? "dock" : "float");
+      restore.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        applyMode(restoreTarget());
+      });
+      // Extra touch-friendly fallback
+      restore.addEventListener("pointerup", (ev) => {
+        if (mode === "min") {
+          ev.preventDefault();
+          applyMode(restoreTarget());
+        }
+      });
     }
 
     bar.addEventListener("pointerdown", (ev) => {
@@ -767,6 +939,11 @@
 
     const cancelBtn = $("#chatReplyCancel");
     if (cancelBtn) cancelBtn.addEventListener("click", clearReplyTarget);
+
+    // If user lands in min with broken restore, allow double-tap title or Esc
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && mode === "min") applyMode("dock");
+    });
 
     applyMode(mode);
   })();

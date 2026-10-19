@@ -79,23 +79,25 @@
       </div>
       <div id="chatLog" class="chat-log"></div>
       <div id="typingLine" class="typing-line" aria-live="polite"></div>
-      <form id="chatForm" style="display:flex;flex-wrap:wrap;gap:8px;max-width:100%;align-items:center">
-        <input id="chatInput" type="text" maxlength="1000" placeholder="Tulis pesan… (tempel SS / link video OK)" style="flex:1 1 140px;min-width:0;max-width:100%" autocomplete="off">
-        <label class="btn btn-ghost chat-attach" title="Lampirkan gambar dari HP/laptop">
-          🖼
-          <input id="chatFile" type="file" accept="image/*" hidden>
-        </label>
-        <button class="btn btn-primary" type="submit">Kirim</button>
-      </form>
-      <p class="muted" style="margin:0;font-size:11px">Gambar dari clipboard/file dikompres otomatis · dihapus ~24 jam. Link YT/TikTok/IG/FB/X/Dailymotion tampil thumbnail.</p>
       <div id="chatReplyBar" class="chat-reply-bar" hidden>
         <span id="chatReplyLabel" class="chat-reply-label"></span>
         <button type="button" id="chatReplyCancel" class="chat-act" title="Batal balas">✕</button>
       </div>
+      <form id="chatForm" class="chat-form">
+        <textarea id="chatInput" class="chat-input" maxlength="1000" rows="1" placeholder="Tulis pesan… (tempel SS / link video OK)" autocomplete="off"></textarea>
+        <div class="chat-form-actions">
+          <label class="btn btn-ghost chat-attach" title="Lampirkan gambar dari HP/laptop">
+            🖼
+            <input id="chatFile" type="file" accept="image/*" hidden>
+          </label>
+          <button class="btn btn-primary" type="submit">Kirim</button>
+        </div>
+      </form>
+      <p class="muted" style="margin:0;font-size:11px">Gambar dari clipboard/file dikompres otomatis · dihapus ~24 jam. Link YT/TikTok/IG/FB/X/Dailymotion tampil thumbnail.</p>
       <p id="chatStatus" class="muted" style="margin:0;font-size:12px"></p>
     </div>
     </div>
-    <button type="button" id="chatWinRestore" class="chat-win-restore" hidden title="Buka chat">💬 Chat</button>
+    <button type="button" id="chatWinRestore" class="chat-win-restore" hidden title="Buka kembali chat">💬 Chat</button>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="data/supabase-config.js"></script>

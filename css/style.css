@@ -2771,3 +2771,92 @@ html.sh-loupe-on * {
 }
 .chat-reply-bar[hidden]{display:none!important}
 .chat-reply-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ===== Chat input (auto-grow up to 4 lines) & form ===== */
+.chat-form{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  max-width:100%;
+  align-items:flex-end;
+}
+.chat-input{
+  flex:1 1 140px;
+  min-width:0;
+  max-width:100%;
+  resize:none;
+  overflow-y:auto;
+  min-height:2.4em;
+  max-height:calc(1.45em * 4 + 16px); /* ~4 lines */
+  line-height:1.45;
+  padding:8px 12px;
+  border-radius:12px;
+  border:1px solid var(--line, rgba(255,255,255,.14));
+  background:rgba(0,0,0,.25);
+  color:#e8f6fa;
+  font:inherit;
+  font-size:14px;
+  box-sizing:border-box;
+  field-sizing:content; /* progressive enhancement */
+}
+.chat-input:focus{
+  outline:none;
+  border-color:rgba(125,227,255,.45);
+  box-shadow:0 0 0 2px rgba(125,227,255,.12);
+}
+.chat-form-actions{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-shrink:0;
+}
+.chat-reply-bar + .chat-form{
+  margin-top:0;
+}
+
+/* Message body: clamp to 4 lines, expand to 13 + scroll */
+.chat-text{
+  position:relative;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+}
+.chat-text.is-clamped{
+  max-height:calc(1.45em * 4);
+  overflow:hidden;
+}
+.chat-text.is-expanded{
+  max-height:calc(1.45em * 13);
+  overflow-y:auto;
+}
+.chat-text-more{
+  display:inline-block;
+  margin-top:4px;
+  padding:2px 8px;
+  font-size:11px;
+  font-weight:600;
+  color:#7de3ff;
+  background:rgba(125,227,255,.08);
+  border:1px solid rgba(125,227,255,.25);
+  border-radius:999px;
+  cursor:pointer;
+  appearance:none;
+}
+.chat-text-more:hover{
+  background:rgba(125,227,255,.16);
+  color:#b8f0ff;
+}
+
+/* Restore button: more reliable on mobile */
+.chat-win-restore{
+  z-index:1300;
+  min-width:48px;
+  min-height:48px;
+  touch-action:manipulation;
+}
+.chat-win-restore[hidden]{
+  display:none !important;
+}
+/* When minimized, ensure nothing covers the restore FAB */
+body.chat-is-min .chat-win-restore{
+  display:block !important;
+}
