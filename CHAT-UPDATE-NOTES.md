@@ -1,19 +1,23 @@
-# Webgal Chat Update v3
+# Webgal Chat + Stats Float Update v4
 
-## Perbaikan
-1. **Minimize / restore**
-   - Tombol floating **💬 Chat** dipindah ke `document.body` agar tidak tertelan stacking context.
-   - Z-index sangat tinggi (di atas stats-float, lock, dll).
-   - Class `.is-visible` + `body.chat-is-min` untuk memaksa tampil.
-   - Di HP restore → mode dock; desktop → float.
-   - Escape juga mengembalikan dari minimize.
+## Fitur baru / perbaikan
 
-2. **Composer Balas / Ubah di desktop**
-   - Lebar otomatis lebih besar di layar ≥900px (hingga ~560–640px).
-   - Input utama chat juga lebih lega di desktop.
+### 1. Tombol floating chat lintas halaman
+- Saat chat di-minimize, tombol **💬 Chat** (kanan bawah) tetap muncul di **semua halaman**.
+- Klik dari halaman lain → membuka `chat.html` dan mengembalikan tampilan chat (dock di HP, float di desktop).
+- Script baru: `js/chat-float.js` (sudah disisipkan di semua HTML).
 
-## File
-- chat.html
-- js/chat.js
-- js/db.js (batas 8000, dari v2)
-- css/style.css
+### 2. Statistik floating bisa digeser
+- Penyebab bug: CSS memakai `left`/`bottom` dengan `!important`, sehingga mengalahkan posisi dari JavaScript.
+- Sekarang drag memakai **Pointer Events** (mouse + touch), posisi disimpan di localStorage, dan CSS tidak mengunci posisi lagi.
+- Bisa digeser bebas di layar; posisi diingat setelah refresh.
+
+## File yang perlu di-upload
+- `js/chat.js`
+- `js/chat-float.js` **(baru)**
+- `js/stats-float.js`
+- `js/db.js` (batas teks 8000, dari v2)
+- `css/style.css`
+- Semua `*.html` (script tag `chat-float.js` + `stats-float.js`)
+
+Atau timpa seluruh isi folder zip ini ke root repo/hosting.

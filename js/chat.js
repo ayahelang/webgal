@@ -987,6 +987,13 @@
     if (!win || !bar) return;
     const LS_MODE = "sh_chat_win_mode";
     const LS_POS = "sh_chat_win_pos";
+    // Jika datang dari halaman lain dengan niat restore, jangan tetap di min
+    try {
+      if (sessionStorage.getItem("sh_chat_restore") === "1") {
+        sessionStorage.removeItem("sh_chat_restore");
+        localStorage.setItem(LS_MODE, window.innerWidth < 720 ? "dock" : "float");
+      }
+    } catch (e) {}
     let mode = localStorage.getItem(LS_MODE) || "dock";
     let dragging = false;
     let ox = 0, oy = 0;
