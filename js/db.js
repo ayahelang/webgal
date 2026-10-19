@@ -1182,7 +1182,7 @@
     }
     const payload = {
       author_name: String(authorName || "Anonim").slice(0, 60),
-      body: String(body || "").trim().slice(0, 1000),
+      body: String(body || "").trim().slice(0, 8000),
       angkatan_id: angkatanId || null,
       avatar_emoji: (avatarEmoji || "💬").slice(0, 8),
       user_id: userId,
@@ -1208,7 +1208,7 @@
     if (!sb) throw new Error("Database belum dikonfigurasi");
     const msgId = String(id || "").trim();
     if (!msgId) throw new Error("ID pesan wajib");
-    const text = String(body || "").trim().slice(0, 1000);
+    const text = String(body || "").trim().slice(0, 8000);
     if (!text) throw new Error("Pesan tidak boleh kosong");
     const { data: existing, error: e0 } = await sb.from("gallery_chat").select("*").eq("id", msgId).maybeSingle();
     if (e0) throw e0;

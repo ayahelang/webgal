@@ -682,25 +682,94 @@
     }
   }
 
-  async function handleEdit(msg) {
-    const current = String(msg.body || "");
-    const next = window.prompt("Ubah pesan:", current);
-    if (next === null) return;
-    const text = String(next).trim();
-    if (!text) {
-      status.textContent = "Pesan tidak boleh kosong";
-      return;
-    }
-    if (text === current) return;
-    status.textContent = "Menyimpan…";
-    try {
-      const updated = await GalleryDB.updateChat({ id: msg.id, body: text });
-      upsertLocal(updated);
-      renderMessages();
-      status.textContent = "Pesan diperbarui";
-    } catch (e) {
-      status.textContent = e.message || String(e);
-    }
+  const CHAT_BODY_MAX = 8000;
+
+  function closeAllInlineComposers(exceptBubble) {
+    if (!log) return;
+    log.querySelectorAll(".chat-inline-composer").forEach((el) => {
+      if (exceptBubble && exceptBubble.contains(el)) return;
+      el.remove();
+    });
+    log.querySelectorAll(".chat-bubble.is-editing").forEach((b) => {
+      if (exceptBubble && b === exceptBubble) return;
+      b.classList.remove("is-editing");
+      const te = b.querySelector(".chat-text");
+      if (te) te.hidden = false;
+      const more = b.querySelector(".chat-text-more");
+      if (more) more.hidden = false;
+    });
+  }
+
+  function autoResizeEl(ta, maxLines) {
+    if (!ta) return;
+    ta.style.height = "auto";
+    const lineH = parseFloat(getComputedStyle(ta).lineHeight) || 20;
+    const maxH = lineH * (maxLines || 4) + 12;
+    const h = Math.min(ta.scrollHeight, maxH);
+    ta.style.height = h + "px";
+    ta.style.overflowY = ta.scrollHeight > maxH ? "auto" : "hidden";
+  }
+
+  async function handleEdit(msg, bubble) {
+    if (!bubble) bubble = log && log.querySelector('.chat-bubble[data-id="' + String(msg.id).replace(/"/g, "") + '"]');
+    if (!bubble) return;
+    closeAllInlineComposers(bubble);
+    if (bubble.classList.contains("is-editing")) return;
+    bubble.classList.add("is-editing");
+    const textEl = bubble.querySelector(".chat-text");
+    const moreBtn = bubble.querySelector(".chat-text-more");
+    const actions = bubble.querySelector(".chat-actions");
+    if (textEl) textEl.hidden = true;
+    if (moreBtn) moreBtn.hidden = true;
+
+    const wrap = document.createElement("div");
+    wrap.className = "chat-inline-composer chat-inline-edit";
+    wrap.innerHTML =
+      '<textarea class="chat-inline-ta" maxlength="' +
+      CHAT_BODY_MAX +
+      '" rows="1"></textarea>' +
+      '<div class="chat-inline-actions">' +
+      '<button type="button" class="btn btn-primary chat-inline-save">Simpan</button>' +
+      '<button type="button" class="chat-act chat-inline-cancel">Batal</button>' +
+      "</div>";
+    const ta = wrap.querySelector(".chat-inline-ta");
+    ta.value = String(msg.body || "");
+    if (actions) actions.insertAdjacentElement("beforebegin", wrap);
+    else bubble.querySelector(".chat-body").appendChild(wrap);
+    autoResizeEl(ta, 8);
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+
+    ta.addEventListener("input", () => autoResizeEl(ta, 8));
+    wrap.querySelector(".chat-inline-cancel").addEventListener("click", () => {
+      wrap.remove();
+      bubble.classList.remove("is-editing");
+      if (textEl) textEl.hidden = false;
+      if (moreBtn) moreBtn.hidden = false;
+    });
+    wrap.querySelector(".chat-inline-save").addEventListener("click", async () => {
+      const text = String(ta.value || "").trim();
+      if (!text) {
+        status.textContent = "Pesan tidak boleh kosong";
+        return;
+      }
+      if (text === String(msg.body || "")) {
+        wrap.remove();
+        bubble.classList.remove("is-editing");
+        if (textEl) textEl.hidden = false;
+        if (moreBtn) moreBtn.hidden = false;
+        return;
+      }
+      status.textContent = "Menyimpan…";
+      try {
+        const updated = await GalleryDB.updateChat({ id: msg.id, body: text.slice(0, CHAT_BODY_MAX) });
+        upsertLocal(updated);
+        renderMessages();
+        status.textContent = "Pesan diperbarui";
+      } catch (e) {
+        status.textContent = e.message || String(e);
+      }
+    });
   }
 
   async function handleDelete(msg) {
@@ -716,6 +785,86 @@
     }
   }
 
+  function openInlineReply(msg, bubble) {
+    if (!bubble) return;
+    if (!canReplyTo(msg)) {
+      status.textContent = "Balasan maksimal 3 level";
+      return;
+    }
+    closeAllInlineComposers(bubble);
+    // remove existing reply composer on this bubble
+    const existing = bubble.querySelector(".chat-inline-reply");
+    if (existing) {
+      existing.remove();
+      return; // toggle off
+    }
+    replyToId = msg.id;
+    replyToMeta = { author_name: msg.author_name, body: msg.body };
+    const bar = $("#chatReplyBar");
+    const lab = $("#chatReplyLabel");
+    if (bar) bar.hidden = false;
+    if (lab) {
+      const snip = String(msg.body || "").replace(/\s+/g, " ").slice(0, 60);
+      lab.textContent = "Membalas " + (msg.author_name || "Anonim") + ": " + snip;
+    }
+
+    const wrap = document.createElement("div");
+    wrap.className = "chat-inline-composer chat-inline-reply";
+    wrap.innerHTML =
+      '<textarea class="chat-inline-ta" maxlength="' +
+      CHAT_BODY_MAX +
+      '" rows="1" placeholder="Tulis balasan…"></textarea>' +
+      '<div class="chat-inline-actions">' +
+      '<button type="button" class="btn btn-primary chat-inline-send">Kirim</button>' +
+      '<button type="button" class="chat-act chat-inline-cancel">Batal</button>' +
+      "</div>";
+    const actions = bubble.querySelector(".chat-actions");
+    if (actions) actions.insertAdjacentElement("afterend", wrap);
+    else bubble.querySelector(".chat-body").appendChild(wrap);
+    const ta = wrap.querySelector(".chat-inline-ta");
+    autoResizeEl(ta, 4);
+    ta.focus();
+
+    ta.addEventListener("input", () => {
+      autoResizeEl(ta, 4);
+      if (typingCtl) {
+        typingCtl.setTyping(true);
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => typingCtl && typingCtl.setTyping(false), 1200);
+      }
+    });
+    ta.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" && !ev.shiftKey) {
+        ev.preventDefault();
+        wrap.querySelector(".chat-inline-send").click();
+      }
+    });
+    wrap.querySelector(".chat-inline-cancel").addEventListener("click", () => {
+      wrap.remove();
+      clearReplyTarget();
+    });
+    wrap.querySelector(".chat-inline-send").addEventListener("click", async () => {
+      const body = String(ta.value || "").trim();
+      if (!body) return;
+      try {
+        const row = await GalleryDB.sendChat({
+          angkatanId: room.value || null,
+          authorName: resolveAuthorName(),
+          body: body.slice(0, CHAT_BODY_MAX),
+          avatarEmoji: selectedAvatar,
+          replyTo: msg.id,
+        });
+        wrap.remove();
+        clearReplyTarget();
+        if (typingCtl) typingCtl.setTyping(false);
+        if (row && row.id && !allMessages.some((m) => m.id === row.id)) addMsg(row);
+        status.textContent = "Balasan terkirim";
+      } catch (e) {
+        status.textContent = e.message || String(e);
+      }
+    });
+  }
+
   if (log) {
     log.addEventListener("click", (ev) => {
       const btn = ev.target.closest("[data-act]");
@@ -725,9 +874,9 @@
       const id = bubble.dataset.id;
       const msg = allMessages.find((m) => m.id === id);
       if (!msg) return;
-      if (btn.dataset.act === "edit") handleEdit(msg);
+      if (btn.dataset.act === "edit") handleEdit(msg, bubble);
       else if (btn.dataset.act === "del") handleDelete(msg);
-      else if (btn.dataset.act === "reply") setReplyTarget(msg);
+      else if (btn.dataset.act === "reply") openInlineReply(msg, bubble);
     });
   }
 

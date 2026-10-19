@@ -1,36 +1,33 @@
-# Webgal Chat UI Update (revisi)
+# Webgal Chat Update v2
 
-Perubahan hanya pada fitur chat. Fitur lain tidak diganggu.
+## File diubah
+- `chat.html` — maxlength input 8000
+- `js/chat.js` — in-place edit, inline reply di bawah tombol Balas, clamp teks
+- `js/db.js` — batas body chat 1000 → **8000** karakter (~7x tinggi layar HP)
+- `css/style.css` — style composer inline + input multi-baris
 
-## File yang diubah
-- `chat.html` — textarea input, posisi reply bar di atas form
-- `js/chat.js` — auto-resize, clamp teks + Baca selengkapnya, notifikasi suara, perbaikan minimize/restore
-- `css/style.css` — style untuk input multi-baris, clamp pesan, restore button lebih andal di mobile
+## Perubahan baru (v2)
 
-## Fitur baru / perbaikan
+1. **Batas teks panjang**
+   - Client + DB layer: 1000 → **8000** karakter.
+   - Cukup untuk teks ~7x scroll layar HP (tergantung ukuran font).
 
-1. **Kotak pengetikan (utama & saat balas)**
-   - Sekarang `<textarea>` yang collapse (1 baris) dan bisa melar otomatis hingga **maksimal 4 baris**.
-   - Saat membalas, reply bar tampil di atas kotak pengetikan.
+2. **Ubah (edit) di tempat**
+   - Tidak lagi memakai `prompt()` browser.
+   - Klik **Ubah** → textarea muncul di dalam bubble pesan itu sendiri.
+   - Tombol Simpan / Batal.
+
+3. **Balas di bawah tombol Balas**
+   - Klik **Balas** → div composer collapse muncul **tepat di bawah** baris aksi (Balas/Ubah/Hapus) pada pesan tersebut.
+   - Tinggi 1–4 baris, auto-grow, bisa scroll vertikal.
    - Enter = kirim, Shift+Enter = baris baru.
+   - Klik Balas lagi / Batal menutup composer.
+   - Reply bar di bawah form tetap sinkron (label “Membalas …”).
 
-2. **Teks pesan yang sudah terkirim**
-   - Maksimal terlihat **4 baris**.
-   - Tombol **Baca selengkapnya** → expand hingga **13 baris** + scroll vertikal jika masih belum muat.
-   - Tombol berubah jadi **Tutup** untuk collapse lagi.
+## Cara pasang
+Timpa ke-4 file di atas, hard-refresh (Ctrl+F5).
 
-3. **Tombol Minimize**
-   - Perbaikan bug mobile: setelah minimize, tombol **💬 Chat** (restore) selalu muncul dan bisa diklik.
-   - Di layar sempit (<720px) restore kembali ke mode **dock**; di desktop ke **float**.
-   - Escape juga bisa keluar dari mode minimize.
-   - Class body `chat-is-min` + z-index lebih tinggi agar tidak tertutup elemen lain.
-
-4. **Suara notifikasi**
-   - Suara lembut (chime) setiap ada pesan masuk yang **bukan milik sendiri**.
-   - Suara berbeda (double beep lebih tinggi) jika pesan tersebut adalah **balasan ke pesan milik user**.
-   - Memakai Web Audio API (tanpa file eksternal). Browser mungkin meminta interaksi dulu sebelum audio diizinkan.
-
-## Cara pakai
-Ganti 3 file di atas di repo / hosting GitHub Pages Anda, lalu hard-refresh (Ctrl+F5) atau clear cache.
-
-Tidak ada perubahan database / Supabase.
+Tidak perlu migrasi SQL jika kolom `body` sudah tipe `text` (default). Jika kolom masih `varchar(1000)`, jalankan di Supabase SQL:
+```sql
+ALTER TABLE gallery_chat ALTER COLUMN body TYPE text;
+```

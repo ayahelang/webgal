@@ -2860,3 +2860,54 @@ html.sh-loupe-on * {
 body.chat-is-min .chat-win-restore{
   display:block !important;
 }
+
+/* Inline reply / in-place edit composers */
+.chat-inline-composer{
+  margin-top:8px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:8px;
+  border-radius:10px;
+  background:rgba(125,227,255,.07);
+  border:1px solid rgba(125,227,255,.22);
+}
+.chat-inline-ta{
+  width:100%;
+  min-width:0;
+  resize:none;
+  overflow-y:auto;
+  min-height:2.2em;
+  max-height:calc(1.45em * 4 + 12px);
+  line-height:1.45;
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(0,0,0,.28);
+  color:#e8f6fa;
+  font:inherit;
+  font-size:13px;
+  box-sizing:border-box;
+}
+.chat-inline-edit .chat-inline-ta{
+  max-height:calc(1.45em * 8 + 12px);
+}
+.chat-inline-ta:focus{
+  outline:none;
+  border-color:rgba(125,227,255,.45);
+  box-shadow:0 0 0 2px rgba(125,227,255,.12);
+}
+.chat-inline-actions{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.chat-inline-actions .btn{
+  font-size:12px;
+  padding:6px 12px;
+}
+.chat-bubble.is-editing .chat-actions{
+  opacity:.5;
+  pointer-events:none;
+}
