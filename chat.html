@@ -88,16 +88,25 @@
         <button type="button" id="chatReplyCancel" class="chat-act" title="Batal balas">✕</button>
       </div>
       <form id="chatForm" class="chat-form">
-        <textarea id="chatInput" class="chat-input" maxlength="8000" rows="1" placeholder="Tulis pesan… (tempel SS / link video OK)" autocomplete="off"></textarea>
-        <div class="chat-form-actions">
-          <label class="btn btn-ghost chat-attach" title="Lampirkan gambar dari HP/laptop">
-            🖼
-            <input id="chatFile" type="file" accept="image/*" hidden>
-          </label>
-          <button class="btn btn-primary" type="submit">Kirim</button>
+        <div class="chat-input-wrap">
+          <textarea id="chatInput" class="chat-input" maxlength="8000" rows="1" placeholder="Tulis pesan… (tempel SS / link video OK)" autocomplete="off"></textarea>
+          <div class="chat-input-overlays">
+            <label class="chat-icon-btn chat-attach" title="Lampirkan gambar">
+              <span aria-hidden="true">🖼</span>
+              <input id="chatFile" type="file" accept="image/*" hidden>
+            </label>
+            <button type="button" id="chatVoiceBtn" class="chat-icon-btn chat-voice-btn" title="Rekam pesan suara">🎤</button>
+            <button type="submit" class="chat-icon-btn chat-send-btn" title="Kirim">➤</button>
+          </div>
+        </div>
+        <div id="chatVoiceBar" class="chat-voice-bar" hidden>
+          <span class="chat-voice-dot" aria-hidden="true"></span>
+          <span id="chatVoiceTimer" class="chat-voice-timer">0:00</span>
+          <button type="button" id="chatVoiceStop" class="chat-act" title="Kirim rekaman">Kirim suara</button>
+          <button type="button" id="chatVoiceCancel" class="chat-act" title="Batal rekam">Batal</button>
         </div>
       </form>
-      <p class="muted" style="margin:0;font-size:11px">Gambar dari clipboard/file dikompres otomatis · dihapus ~24 jam. Link YT/TikTok/IG/FB/X/Dailymotion tampil thumbnail.</p>
+      <p class="muted" style="margin:0;font-size:11px">Gambar &amp; pesan suara dikompres/otomatis dihapus (suara: 3 jam · guru 24 jam · admin permanen). Link video tampil thumbnail.</p>
       <p id="chatStatus" class="muted" style="margin:0;font-size:12px"></p>
     </div>
     </div>

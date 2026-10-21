@@ -1,17 +1,35 @@
-# Webgal Chat Update v6 — Floating chat lintas halaman
+# Webgal Chat Update v7 — Pesan suara + copy + kirim icon
 
-## Fitur
-Jika chat dalam **mode floating**, saat pindah halaman lewat menu header panel chat tetap muncul mengambang (iframe `chat.html?embed=1`).
+Hanya menyentuh fitur chat. Fitur lain tidak diubah.
 
-- Mode **float / max** di halaman lain → panel chat floating
-- Mode **min** → tombol FAB 💬 Chat (seperti sebelumnya)
-- Mode **dock** → hanya di halaman chat.html (penuh)
-- Panel bisa digeser (drag bar), minimize, atau buka halaman chat penuh (↗)
-- Di layar sempit (<720px), tombol FAB mengarah ke halaman chat penuh
+## Fitur baru
+
+### 1. Pesan suara (seperti WA)
+- Tombol 🎤 di dalam kotak pengetikan.
+- Rekam → bar timer → **Kirim suara** / **Batal**.
+- Maks ~2 menit / ~3 MB.
+- Format body: `__voice__|ttl=...|URL`
+
+### 2. Retensi otomatis pesan suara
+| Pengirim | Bertahan |
+|----------|----------|
+| Siswa / umum | **3 jam** |
+| Guru / pengajar | **24 jam** |
+| Admin | **Selamanya** (sampai hapus manual) |
+
+Klien menyembunyikan suara kedaluwarsa dan mencoba menghapus baris DB yang diizinkan. Ada catatan SQL opsional di `sql/chat-voice-notes.sql`.
+
+### 3. Tombol salin (copy)
+- Icon ⧉ transparan di pojok kanan tiap bubble (muncul saat hover / selalu tipis di HP).
+
+### 4. Tombol kirim & lampiran
+- Icon overlay transparan di dalam kotak pengetikan (hemat tempat).
 
 ## File
-- `js/chat-float.js`
+- `chat.html`
 - `js/chat.js`
+- `js/db.js` (+ `uploadChatAudio`)
 - `css/style.css`
+- `sql/chat-voice-notes.sql` (opsional)
 
-Script `chat-float.js` sudah ada di semua HTML dari v4; cukup timpa 3 file ini.
+Pastikan bucket Supabase `chat-images` mengizinkan upload `audio/webm` (dan path `voice/`).

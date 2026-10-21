@@ -3220,6 +3220,47 @@
     return data && data.publicUrl ? data.publicUrl : null;
   }
 
+  /**
+   * Upload pesan suara (webm/ogg/mp4) ke bucket chat-images/voice/.
+   * Retensi diurus klien + cron opsional (3j / 24j / selamanya).
+   */
+  async function uploadChatAudio(blobOrFile) {
+    const sb = client();
+    if (!sb) throw new Error("Database belum dikonfigurasi");
+    if (!blobOrFile) throw new Error("Tidak ada file audio");
+    const type = String(blobOrFile.type || "audio/webm");
+    if (!type.startsWith("audio/") && type !== "video/webm") {
+      throw new Error("File harus audio");
+    }
+    if (blobOrFile.size > 3 * 1024 * 1024) throw new Error("Pesan suara terlalu besar (maks ~3 MB)");
+    let folder = "anon";
+    try {
+      const sess = await getSession();
+      if (sess && sess.user) folder = sess.user.id;
+    } catch (e) {}
+    let ext = "webm";
+    if (/ogg/i.test(type)) ext = "ogg";
+    else if (/mp4|m4a|aac/i.test(type)) ext = "m4a";
+    else if (/mpeg|mp3/i.test(type)) ext = "mp3";
+    const path =
+      "voice/" +
+      folder +
+      "/" +
+      Date.now() +
+      "-" +
+      Math.random().toString(36).slice(2, 8) +
+      "." +
+      ext;
+    const { error } = await sb.storage.from("chat-images").upload(path, blobOrFile, {
+      cacheControl: "86400",
+      upsert: false,
+      contentType: type.indexOf("audio/") === 0 ? type : "audio/webm",
+    });
+    if (error) throw error;
+    const { data } = sb.storage.from("chat-images").getPublicUrl(path);
+    return data && data.publicUrl ? data.publicUrl : null;
+  }
+
   async function upsertDesign(payload) {
     const sb = client();
     const session = await getSession();
@@ -3719,6 +3760,7 @@
     subscribeChat,
     joinTypingChannel,
     uploadChatImage,
+    uploadChatAudio,
     videoThumbnailHint,
     normLabel,
     upsertMyProfileFromSession,

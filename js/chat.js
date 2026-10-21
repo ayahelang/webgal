@@ -18,7 +18,13 @@
   let loginDisplayName = "";
   let myUserId = null;
   let iAmStaff = false;
+  let iAmAdmin = false;
   let uploading = false;
+  let mediaRecorder = null;
+  let mediaChunks = [];
+  let mediaStream = null;
+  let voiceTimer = null;
+  let voiceStartedAt = 0;
   let replyToId = null;
   let replyToMeta = null; // { author_name, body, depth }
 
@@ -99,6 +105,58 @@
 
   function esc(t) {
     return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+
+  const VOICE_PREFIX = "__voice__";
+  const VOICE_RE = /^__voice__\|ttl=(3h|24h|forever)\|(\S+)/i;
+
+  function parseVoiceBody(body) {
+    const s = String(body || "").trim();
+    const m = s.match(VOICE_RE);
+    if (!m) return null;
+    return { ttl: m[1].toLowerCase(), url: m[2] };
+  }
+
+  function isVoiceMessage(m) {
+    return !!(m && parseVoiceBody(m.body));
+  }
+
+  function voiceTtlMs(ttl) {
+    if (ttl === "forever") return Infinity;
+    if (ttl === "24h") return 24 * 3600 * 1000;
+    return 3 * 3600 * 1000; // 3h default
+  }
+
+  function isVoiceExpired(m) {
+    const v = parseVoiceBody(m && m.body);
+    if (!v) return false;
+    if (v.ttl === "forever") return false;
+    const t = m.created_at ? Date.parse(m.created_at) : 0;
+    if (!t) return false;
+    return Date.now() - t > voiceTtlMs(v.ttl);
+  }
+
+  function voiceRetentionLabel(ttl) {
+    if (ttl === "forever") return "permanen (admin)";
+    if (ttl === "24h") return "24 jam (guru)";
+    return "3 jam";
+  }
+
+  function myVoiceTtl() {
+    if (iAmAdmin) return "forever";
+    if (iAmStaff) return "24h";
+    return "3h";
+  }
+
+  function encodeVoiceBody(url, ttl) {
+    return VOICE_PREFIX + "|ttl=" + (ttl || "3h") + "|" + String(url || "").trim();
+  }
+
+  function plainTextFromMessage(m) {
+    const v = parseVoiceBody(m && m.body);
+    if (v) return v.url;
+    return String((m && m.body) || "");
   }
 
   function isImageUrl(u) {
@@ -284,11 +342,25 @@
     });
   }
 
+  function purgeExpiredVoiceLocal() {
+    const expired = allMessages.filter((m) => isVoiceExpired(m));
+    if (!expired.length) return;
+    allMessages = allMessages.filter((m) => !isVoiceExpired(m));
+    // best-effort hapus di server (hanya yang boleh)
+    expired.forEach((m) => {
+      if (!m || !m.id || !window.GalleryDB || !GalleryDB.deleteChat) return;
+      GalleryDB.deleteChat({ id: m.id }).catch(function () {});
+    });
+  }
+
   function renderMessages() {
     if (!log) return;
+    purgeExpiredVoiceLocal();
     const q = getSearchQ();
     log.innerHTML = "";
-    const base = q ? allMessages.filter((m) => msgMatches(m, q)) : allMessages;
+    const base = (q ? allMessages.filter((m) => msgMatches(m, q)) : allMessages).filter(
+      (m) => !isVoiceExpired(m)
+    );
     const filtered = orderedForDisplay(base);
     const map = Object.create(null);
     allMessages.forEach((x) => { if (x.id) map[x.id] = x; });
@@ -346,8 +418,21 @@
         ? ' <small class="chat-edited">(diedit)</small>'
         : "";
     const av = m.avatar_emoji || "💬";
-    const bodyEsc = esc(m.body);
-    const bodyHtml = linkifyAndMedia(highlight(bodyEsc, q || ""), q);
+    const voice = parseVoiceBody(m.body);
+    let bodyHtml = "";
+    if (voice) {
+      bodyHtml =
+        '<div class="chat-voice-msg">' +
+        '<audio class="chat-voice-audio" controls preload="metadata" src="' +
+        esc(voice.url).replace(/"/g, "&quot;") +
+        '"></audio>' +
+        '<small class="chat-voice-ttl">Pesan suara · hapus otomatis: ' +
+        esc(voiceRetentionLabel(voice.ttl)) +
+        "</small></div>";
+    } else {
+      const bodyEsc = esc(m.body);
+      bodyHtml = linkifyAndMedia(highlight(bodyEsc, q || ""), q);
+    }
     let parentHtml = "";
     if (m.reply_to) {
       const parent = msgById(m.reply_to);
@@ -369,8 +454,11 @@
         '<button type="button" class="chat-act chat-act-reply" data-act="reply" title="Balas">Balas</button>';
     }
     if (canShowActions(m)) {
+      if (!voice) {
+        actions +=
+          '<button type="button" class="chat-act chat-act-edit" data-act="edit" title="Ubah">Ubah</button>';
+      }
       actions +=
-        '<button type="button" class="chat-act chat-act-edit" data-act="edit" title="Ubah">Ubah</button>' +
         '<button type="button" class="chat-act chat-act-del" data-act="del" title="Hapus">Hapus</button>';
     }
     actions += "</div>";
@@ -386,13 +474,14 @@
       "</small>" +
       edited +
       parentHtml +
-      '<div class="chat-text">' +
+      '<div class="chat-text' + (voice ? " chat-text-voice" : "") + '">' +
       bodyHtml +
       "</div>" +
       actions +
+      '<button type="button" class="chat-copy-btn" data-act="copy" title="Salin pesan" aria-label="Salin pesan">⧉</button>' +
       "</div>";
     log.appendChild(div);
-    applyTextClamp(div.querySelector(".chat-text"));
+    if (!voice) applyTextClamp(div.querySelector(".chat-text"));
   }
 
   function upsertLocal(m) {
@@ -623,6 +712,7 @@
             (prof.linked_student_name && String(prof.linked_student_name).trim()) ||
             (prof.display_name && String(prof.display_name).trim()) ||
             "";
+          iAmAdmin = !!prof.is_admin;
           iAmStaff = !!(
             prof.is_admin ||
             /^(teacher|pengajar|guru)$/i.test(String(prof.role || ""))
@@ -632,6 +722,12 @@
       try {
         if (!iAmStaff && typeof GalleryDB.isCurrentUserStaff === "function") {
           iAmStaff = await GalleryDB.isCurrentUserStaff();
+        }
+      } catch (e) {}
+      try {
+        if (!iAmAdmin && typeof GalleryDB.isCurrentUserAdmin === "function") {
+          iAmAdmin = await GalleryDB.isCurrentUserAdmin();
+          if (iAmAdmin) iAmStaff = true;
         }
       } catch (e) {}
       if (!name) name = meta.full_name || meta.name || "";
@@ -904,8 +1000,42 @@
       const id = bubble.dataset.id;
       const msg = allMessages.find((m) => m.id === id);
       if (!msg) return;
-      if (btn.dataset.act === "edit") handleEdit(msg, bubble);
-      else if (btn.dataset.act === "del") handleDelete(msg);
+      if (btn.dataset.act === "copy") {
+        const text = plainTextFromMessage(msg);
+        const done = function () {
+          btn.classList.add("is-copied");
+          btn.title = "Tersalin";
+          setTimeout(function () {
+            btn.classList.remove("is-copied");
+            btn.title = "Salin pesan";
+          }, 1200);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () {
+            try {
+              const ta = document.createElement("textarea");
+              ta.value = text;
+              document.body.appendChild(ta);
+              ta.select();
+              document.execCommand("copy");
+              ta.remove();
+              done();
+            } catch (e) {
+              status.textContent = "Gagal menyalin";
+            }
+          });
+        } else {
+          status.textContent = "Salin tidak didukung browser ini";
+        }
+        return;
+      }
+      if (btn.dataset.act === "edit") {
+        if (isVoiceMessage(msg)) {
+          status.textContent = "Pesan suara tidak bisa diubah";
+          return;
+        }
+        handleEdit(msg, bubble);
+      } else if (btn.dataset.act === "del") handleDelete(msg);
       else if (btn.dataset.act === "reply") openInlineReply(msg, bubble);
     });
   }
@@ -975,6 +1105,207 @@
       fileInput.value = "";
     });
   }
+
+  // --- Voice messages ---
+  function formatVoiceTime(ms) {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return m + ":" + String(r).padStart(2, "0");
+  }
+
+  function setVoiceBar(on) {
+    const bar = $("#chatVoiceBar");
+    if (!bar) return;
+    bar.hidden = !on;
+  }
+
+  function stopVoiceTracks() {
+    if (mediaStream) {
+      try {
+        mediaStream.getTracks().forEach(function (t) {
+          t.stop();
+        });
+      } catch (e) {}
+      mediaStream = null;
+    }
+  }
+
+  function cancelVoiceRecord() {
+    try {
+      if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+    } catch (e) {}
+    mediaRecorder = null;
+    mediaChunks = [];
+    stopVoiceTracks();
+    if (voiceTimer) {
+      clearInterval(voiceTimer);
+      voiceTimer = null;
+    }
+    setVoiceBar(false);
+    const vb = $("#chatVoiceBtn");
+    if (vb) vb.classList.remove("is-recording");
+  }
+
+  async function startVoiceRecord() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      status.textContent = "Browser tidak mendukung rekaman suara";
+      return;
+    }
+    if (typeof MediaRecorder === "undefined") {
+      status.textContent = "MediaRecorder tidak tersedia";
+      return;
+    }
+    if (uploading) return;
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      status.textContent = "Izin mikrofon ditolak / tidak tersedia";
+      return;
+    }
+    mediaChunks = [];
+    let mime = "";
+    const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
+    for (let i = 0; i < candidates.length; i++) {
+      if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(candidates[i])) {
+        mime = candidates[i];
+        break;
+      }
+    }
+    try {
+      mediaRecorder = mime
+        ? new MediaRecorder(mediaStream, { mimeType: mime })
+        : new MediaRecorder(mediaStream);
+    } catch (e) {
+      stopVoiceTracks();
+      status.textContent = "Gagal memulai rekaman";
+      return;
+    }
+    mediaRecorder.ondataavailable = function (ev) {
+      if (ev.data && ev.data.size) mediaChunks.push(ev.data);
+    };
+    mediaRecorder.onstop = function () {
+      // handled by stopVoiceRecord send path
+    };
+    mediaRecorder.start(200);
+    voiceStartedAt = Date.now();
+    setVoiceBar(true);
+    const timerEl = $("#chatVoiceTimer");
+    if (timerEl) timerEl.textContent = "0:00";
+    if (voiceTimer) clearInterval(voiceTimer);
+    voiceTimer = setInterval(function () {
+      if (timerEl) timerEl.textContent = formatVoiceTime(Date.now() - voiceStartedAt);
+      // hard limit ~2 menit
+      if (Date.now() - voiceStartedAt > 120000) {
+        stopVoiceRecord(true);
+      }
+    }, 250);
+    const vb = $("#chatVoiceBtn");
+    if (vb) vb.classList.add("is-recording");
+    status.textContent = "Merekam… ketuk Kirim suara atau Batal";
+  }
+
+  async function stopVoiceRecord(shouldSend) {
+    if (!mediaRecorder) {
+      cancelVoiceRecord();
+      return;
+    }
+    const rec = mediaRecorder;
+    const type = rec.mimeType || "audio/webm";
+    await new Promise(function (resolve) {
+      rec.onstop = function () {
+        resolve();
+      };
+      try {
+        if (rec.state !== "inactive") rec.stop();
+        else resolve();
+      } catch (e) {
+        resolve();
+      }
+    });
+    stopVoiceTracks();
+    if (voiceTimer) {
+      clearInterval(voiceTimer);
+      voiceTimer = null;
+    }
+    setVoiceBar(false);
+    const vb = $("#chatVoiceBtn");
+    if (vb) vb.classList.remove("is-recording");
+    mediaRecorder = null;
+    if (!shouldSend) {
+      mediaChunks = [];
+      status.textContent = "Rekaman dibatalkan";
+      return;
+    }
+    if (!mediaChunks.length) {
+      status.textContent = "Rekaman kosong";
+      return;
+    }
+    const blob = new Blob(mediaChunks, { type: type });
+    mediaChunks = [];
+    if (blob.size < 800) {
+      status.textContent = "Rekaman terlalu pendek";
+      return;
+    }
+    if (!GalleryDB.enabled() || !GalleryDB.uploadChatAudio) {
+      status.textContent = "Upload suara belum tersedia";
+      return;
+    }
+    if (uploading) return;
+    uploading = true;
+    status.textContent = "Mengunggah pesan suara…";
+    try {
+      const url = await GalleryDB.uploadChatAudio(blob);
+      if (!url) throw new Error("Upload gagal");
+      const body = encodeVoiceBody(url, myVoiceTtl());
+      const row = await GalleryDB.sendChat({
+        angkatanId: room.value || null,
+        authorName: resolveAuthorName(),
+        body,
+        avatarEmoji: selectedAvatar,
+        replyTo: replyToId,
+      });
+      clearReplyTarget();
+      if (typingCtl) typingCtl.setTyping(false);
+      if (row && row.id && !allMessages.some((m) => m.id === row.id)) addMsg(row);
+      status.textContent =
+        "Pesan suara terkirim · hapus otomatis: " + voiceRetentionLabel(myVoiceTtl());
+    } catch (e) {
+      status.textContent = e.message || String(e);
+    } finally {
+      uploading = false;
+    }
+  }
+
+  const voiceBtn = $("#chatVoiceBtn");
+  if (voiceBtn) {
+    voiceBtn.addEventListener("click", function () {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        stopVoiceRecord(true);
+      } else {
+        startVoiceRecord();
+      }
+    });
+  }
+  const voiceStop = $("#chatVoiceStop");
+  if (voiceStop) {
+    voiceStop.addEventListener("click", function () {
+      stopVoiceRecord(true);
+    });
+  }
+  const voiceCancel = $("#chatVoiceCancel");
+  if (voiceCancel) {
+    voiceCancel.addEventListener("click", function () {
+      cancelVoiceRecord();
+    });
+  }
+
+  // purge suara kedaluwarsa tiap 2 menit
+  setInterval(function () {
+    const before = allMessages.length;
+    purgeExpiredVoiceLocal();
+    if (allMessages.length !== before) renderMessages();
+  }, 120000);
 
   if (chatForm) {
     chatForm.addEventListener("submit", async (ev) => {
