@@ -3178,3 +3178,18 @@ body.chat-embed .chat-fields{
   .chat-copy-btn{opacity:.85} /* always slightly visible on touch */
   .chat-input-wrap .chat-input{padding-right:108px}
 }
+
+/* Voice live meter */
+.chat-voice-meter{
+  flex:1 1 120px;
+  min-width:80px;
+  max-width:200px;
+  height:28px;
+  border-radius:8px;
+  background:rgba(0,0,0,.25);
+  border:1px solid rgba(125,227,255,.15);
+  display:block;
+}
+.chat-voice-bar{
+  flex-wrap:wrap;
+}

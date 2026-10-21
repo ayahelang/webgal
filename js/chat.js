@@ -25,6 +25,10 @@
   let mediaStream = null;
   let voiceTimer = null;
   let voiceStartedAt = 0;
+  let voiceAudioCtx = null;
+  let voiceAnalyser = null;
+  let voiceMeterRaf = 0;
+  let voiceSourceNode = null;
   let replyToId = null;
   let replyToMeta = null; // { author_name, body, depth }
 
@@ -1106,7 +1110,7 @@
     });
   }
 
-  // --- Voice messages ---
+  // --- Voice messages (quality + live meter) ---
   function formatVoiceTime(ms) {
     const s = Math.floor(ms / 1000);
     const m = Math.floor(s / 60);
@@ -1120,7 +1124,80 @@
     bar.hidden = !on;
   }
 
+  function stopVoiceMeter() {
+    if (voiceMeterRaf) {
+      cancelAnimationFrame(voiceMeterRaf);
+      voiceMeterRaf = 0;
+    }
+    try {
+      if (voiceSourceNode) voiceSourceNode.disconnect();
+    } catch (e) {}
+    voiceSourceNode = null;
+    voiceAnalyser = null;
+    if (voiceAudioCtx) {
+      try {
+        voiceAudioCtx.close();
+      } catch (e) {}
+      voiceAudioCtx = null;
+    }
+    const canvas = $("#chatVoiceMeter");
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+  }
+
+  function startVoiceMeter(stream) {
+    stopVoiceMeter();
+    const canvas = $("#chatVoiceMeter");
+    if (!canvas || !stream) return;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      voiceAudioCtx = new AC();
+      if (voiceAudioCtx.state === "suspended") voiceAudioCtx.resume();
+      voiceSourceNode = voiceAudioCtx.createMediaStreamSource(stream);
+      voiceAnalyser = voiceAudioCtx.createAnalyser();
+      voiceAnalyser.fftSize = 256;
+      voiceAnalyser.smoothingTimeConstant = 0.75;
+      voiceSourceNode.connect(voiceAnalyser);
+      const data = new Uint8Array(voiceAnalyser.frequencyBinCount);
+      const ctx = canvas.getContext("2d");
+      const bars = 24;
+
+      function draw() {
+        voiceMeterRaf = requestAnimationFrame(draw);
+        if (!voiceAnalyser || !ctx) return;
+        voiceAnalyser.getByteFrequencyData(data);
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        const gap = 2;
+        const bw = (w - gap * (bars - 1)) / bars;
+        for (let i = 0; i < bars; i++) {
+          // fokus ke frekuensi suara bicara (skip bin paling bawah yang noisy)
+          const idx = Math.min(data.length - 1, 4 + Math.floor(i * (data.length * 0.45) / bars));
+          const v = data[idx] / 255;
+          const bh = Math.max(2, v * (h - 2));
+          const x = i * (bw + gap);
+          const y = (h - bh) / 2;
+          const g = ctx.createLinearGradient(0, y + bh, 0, y);
+          g.addColorStop(0, "rgba(125,227,255,0.35)");
+          g.addColorStop(1, "rgba(125,227,255,0.95)");
+          ctx.fillStyle = g;
+          ctx.fillRect(x, y, bw, bh);
+        }
+      }
+      draw();
+    } catch (e) {
+      // meter opsional — rekaman tetap jalan
+    }
+  }
+
   function stopVoiceTracks() {
+    stopVoiceMeter();
     if (mediaStream) {
       try {
         mediaStream.getTracks().forEach(function (t) {
@@ -1158,51 +1235,75 @@
     }
     if (uploading) return;
     try {
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (e) {
-      status.textContent = "Izin mikrofon ditolak / tidak tersedia";
-      return;
+      // Kualitas lebih jernih: echo/noise off default browser sering membuat "geresek"
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+          sampleRate: 48000,
+        },
+      });
+    } catch (e1) {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (e) {
+        status.textContent = "Izin mikrofon ditolak / tidak tersedia";
+        return;
+      }
     }
     mediaChunks = [];
     let mime = "";
-    const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/ogg;codecs=opus",
+      "audio/mp4",
+    ];
     for (let i = 0; i < candidates.length; i++) {
       if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(candidates[i])) {
         mime = candidates[i];
         break;
       }
     }
+    // bitrate lebih tinggi = lebih jernih (masih jauh di bawah limit 3MB untuk 2 menit)
+    const recOpts = { audioBitsPerSecond: 128000 };
+    if (mime) recOpts.mimeType = mime;
     try {
-      mediaRecorder = mime
-        ? new MediaRecorder(mediaStream, { mimeType: mime })
-        : new MediaRecorder(mediaStream);
+      mediaRecorder = new MediaRecorder(mediaStream, recOpts);
     } catch (e) {
-      stopVoiceTracks();
-      status.textContent = "Gagal memulai rekaman";
-      return;
+      try {
+        mediaRecorder = mime
+          ? new MediaRecorder(mediaStream, { mimeType: mime })
+          : new MediaRecorder(mediaStream);
+      } catch (e2) {
+        stopVoiceTracks();
+        status.textContent = "Gagal memulai rekaman";
+        return;
+      }
     }
     mediaRecorder.ondataavailable = function (ev) {
       if (ev.data && ev.data.size) mediaChunks.push(ev.data);
     };
-    mediaRecorder.onstop = function () {
-      // handled by stopVoiceRecord send path
-    };
-    mediaRecorder.start(200);
+    mediaRecorder.onstop = function () {};
+    // timeslice lebih kecil agar data tidak "putus-putus" di beberapa browser
+    mediaRecorder.start(250);
     voiceStartedAt = Date.now();
     setVoiceBar(true);
+    startVoiceMeter(mediaStream);
     const timerEl = $("#chatVoiceTimer");
     if (timerEl) timerEl.textContent = "0:00";
     if (voiceTimer) clearInterval(voiceTimer);
     voiceTimer = setInterval(function () {
       if (timerEl) timerEl.textContent = formatVoiceTime(Date.now() - voiceStartedAt);
-      // hard limit ~2 menit
       if (Date.now() - voiceStartedAt > 120000) {
         stopVoiceRecord(true);
       }
     }, 250);
     const vb = $("#chatVoiceBtn");
     if (vb) vb.classList.add("is-recording");
-    status.textContent = "Merekam… ketuk Kirim suara atau Batal";
+    status.textContent = "Merekam… lihat gelombang · Kirim suara / Batal";
   }
 
   async function stopVoiceRecord(shouldSend) {
