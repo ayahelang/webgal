@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/favicon.svg">
+
+  <link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#081018">
+    <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Silverhawk Gallery">
+  <meta property="og:title" content="Web Kreasi Santriwati — Silverhawk Gallery">
+  <meta property="og:description" content="Galeri Web Kreasi Santriwati SMA PMA — kumpulan karya Web Design santriwati kelas 51 dan 52.">
+  <meta property="og:url" content="https://webgal.silverhawk.web.id/">
+  <meta property="og:image" content="https://webgal.silverhawk.web.id/assets/og-cover.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Web Kreasi Santriwati — Silverhawk Gallery">
+  <meta name="twitter:description" content="Galeri Web Kreasi Santriwati SMA PMA — kumpulan karya website & video.">
+  <meta name="twitter:image" content="https://webgal.silverhawk.web.id/assets/og-cover.png">
+  <title>Kisi-Kisi STS — Silverhawk SMM</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="page-skills" data-shlock-mode="normal" data-shlock-domain="webgal.silverhawk.web.id" data-shlock-brand="Silverhawk Gallery" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
+  <div class="bg-grid"></div>
+  <div class="orb orb-a"></div><div class="orb orb-b"></div>
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Student Web Gallery</small></span></a>
+    <nav class="topnav">
+      <a href="index.html">Gallery</a>
+      <a href="videos.html">Video</a>
+      
+      <a href="designs.html">Desain</a><a href="skills.html">Skills</a>
+      <a href="refleksi.html">Nilai Proses</a>
+      <a href="stats.html">Statistik</a>
+      <a href="absensi.html">Absensi</a>
+      <a href="chat.html">Chat</a>
+      <a href="panduan.html">Panduan</a>
+      <a href="about.html">About</a>
+      <a href="support.html">Support Us</a>
+      <a href="profile.html">Profil</a>
+      <a href="admin.html" class="nav-admin" title="Admin">Admin</a>
+    </nav>
+    <div class="sh-userbar" id="shUserbar" aria-live="polite"></div>
+  </header>
+  <main class="skills-main" id="app">
+    <section class="skills-hero">
+      <div class="eyebrow">SUMATIF TENGAH SEMESTER 1 · 2026/2027</div>
+      <h1>Kisi-Kisi Ujian Teori SMM</h1>
+      <p class="skills-lead">25 PG + 5 Essay · Platform CBT Silverhawk · Mapel Sosial Media Marketing (kode 11)</p>
+      <div class="skills-actions" id="examLinks"></div>
+    </section>
+    <section id="metaBox"></section>
+    <section class="skills-domains">
+      <div class="section-head"><div><div class="eyebrow">PILIHAN GANDA</div><h2>25 soal — sebaran kompetensi</h2></div></div>
+      <div id="pgBox"></div>
+    </section>
+    <section class="skills-domains">
+      <div class="section-head"><div><div class="eyebrow">ESSAY</div><h2>5 soal uraian</h2></div></div>
+      <div id="essayBox"></div>
+    </section>
+    <section class="skills-summary" id="tipsBox"></section>
+  </main>
+  <footer>
+    <div><span class="brand-mark small">SH</span><b>Silverhawk</b></div>
+    <span>© 2026 · SMA PMA · SMM</span>
+  </footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data/supabase-config.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/auth-ui.js"></script>
+  <script src="js/kisi-kisi.js"></script>
+  <script src="https://silverhawk.web.id/lock/lock.js"></script>
+  <script src="js/share.js"></script>
+  <script src="js/health-check.js"></script>
+  <script src="js/idle-tour.js"></script>
+  <script src="js/announce.js"></script>
+  <script src="js/class-bell.js"></script>
+  <script src="js/stats-float.js"></script>
+  <script src="js/chat-float.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/loupe.js"></script>
+
+  <script>
+  /* Izinkan copas di field isian; blokir hanya di luar form */
+  (function(){
+    function isField(t){
+      if(!t||!t.tagName) return false;
+      var tag=t.tagName.toUpperCase();
+      if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT") return true;
+      if(t.isContentEditable) return true;
+      return !!(t.closest&&(t.closest("input,textarea,select,[contenteditable='true']")));
+    }
+    document.addEventListener("copy", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
+    document.addEventListener("cut", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
+    document.addEventListener("paste", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
+    document.addEventListener("selectstart", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
+  })();
+  </script>
+
+</body>
+</html>
