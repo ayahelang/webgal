@@ -11,6 +11,8 @@
     kelas: "",
   };
   let iAmAdmin = false;
+  let myUserId = "";
+  let myLinkedName = "";
   let videoCats = [];
   try {
     const sp = new URLSearchParams(location.search);
@@ -100,6 +102,24 @@
     return "Video";
   }
 
+  function normName(n) {
+    return String(n || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function isOwnerVideo(v) {
+    if (!v) return false;
+    if (myUserId && v.owner_user_id && String(v.owner_user_id) === String(myUserId)) return true;
+    if (myLinkedName && v.owner_name && normName(v.owner_name) === normName(myLinkedName)) return true;
+    return false;
+  }
+
+  function canManageVideo(v) {
+    return !!(iAmAdmin || isOwnerVideo(v));
+  }
+
   function enrich(v) {
     const on = v.owner_name || "";
     if (!on) return Object.assign({}, v, { _class: "", _year: "" });
@@ -156,22 +176,29 @@
           <span class="video-play">▶</span>
         </button>`;
     }
-    const adminBtns = iAmAdmin
-      ? `<div class="video-admin-acts">
-          <button type="button" class="video-admin-btn" data-video-act="edit" title="Ubah">✎ Ubah</button>
-          <button type="button" class="video-admin-btn is-danger" data-video-act="del" title="Hapus">🗑 Hapus</button>
+    const manage = canManageVideo(v);
+    const manageBtns = manage
+      ? `<div class="video-card-foot">
+          <a class="video-src-link" href="${esc(v.url)}" target="_blank" rel="noopener">Buka sumber ↗</a>
+          <div class="video-admin-acts">
+            <button type="button" class="video-admin-btn" data-video-act="edit" title="Ubah">✎ Ubah</button>
+            <button type="button" class="video-admin-btn is-danger" data-video-act="del" title="Hapus">🗑 Hapus</button>
+          </div>
         </div>`
-      : "";
+      : `<div class="video-card-foot">
+          <a class="video-src-link" href="${esc(v.url)}" target="_blank" rel="noopener">Buka sumber ↗</a>
+        </div>`;
     return `<article class="video-card" data-video-id="${esc(v.id || "")}" data-video-url="${esc(v.url || "")}">
       <div class="video-frame" data-video-frame>${frame}</div>
       <div class="video-meta">
-        <span class="pill">${esc(catName)}</span>
-        <h3>${esc(v.title)}</h3>
-        ${meta ? `<p class="muted">${esc(meta)}</p>` : ""}
-        ${v.description ? `<p>${esc(v.description)}</p>` : ""}
-        ${window.SHSocial ? SHSocial.barHtml("video", v.id, {}) : ""}
-        <a href="${esc(v.url)}" target="_blank" rel="noopener">Buka sumber ↗</a>
-        ${adminBtns}
+        <div class="video-meta-main">
+          <span class="pill">${esc(catName)}</span>
+          <h3>${esc(v.title)}</h3>
+          ${meta ? `<p class="muted">${esc(meta)}</p>` : ""}
+          ${v.description ? `<p>${esc(v.description)}</p>` : ""}
+          ${window.SHSocial ? SHSocial.barHtml("video", v.id, {}) : ""}
+        </div>
+        ${manageBtns}
       </div>
     </article>`;
   }
@@ -296,7 +323,18 @@
       };
       status.textContent = "Menyimpan…";
       try {
-        await GalleryDB.adminUpdateVideo(id, payload);
+        const mode = form.dataset.mode || "admin";
+        if (mode === "admin" && GalleryDB.adminUpdateVideo) {
+          await GalleryDB.adminUpdateVideo(id, payload);
+        } else if (GalleryDB.updateMyVideo) {
+          await GalleryDB.updateMyVideo(id, {
+            title: payload.title,
+            url: payload.url,
+            description: payload.description,
+          });
+        } else {
+          throw new Error("Simpan tidak tersedia");
+        }
         status.textContent = "Tersimpan.";
         const raw = await GalleryDB.listVideos();
         all = (raw || []).map(enrich);
@@ -317,7 +355,9 @@
   function openAdminEdit(v) {
     const m = ensureAdminModal();
     const form = m.querySelector("#videoAdminForm");
+    const asAdmin = iAmAdmin;
     form.dataset.id = v.id;
+    form.dataset.mode = asAdmin ? "admin" : "owner";
     form.title.value = v.title || "";
     form.url.value = v.url || "";
     form.ownerName.value = v.owner_name || "";
@@ -326,12 +366,18 @@
     sel.innerHTML = `<option value="">—</option>` + (videoCats || [])
       .map((c) => `<option value="${esc(c.id)}" ${c.id === v.category_id ? "selected" : ""}>${esc(c.name)}</option>`)
       .join("");
+    // Siswa pemilik: sembunyikan kategori & pemilik (hanya admin yang ubah itu)
+    const labCat = sel.closest("label");
+    const labOwn = form.ownerName.closest("label");
+    if (labCat) labCat.hidden = !asAdmin;
+    if (labOwn) labOwn.hidden = !asAdmin;
+    const head = m.querySelector(".video-admin-head strong");
+    if (head) head.textContent = asAdmin ? "Ubah video (admin)" : "Ubah video saya";
     m.querySelector("#videoAdminStatus").textContent = "";
     m.hidden = false;
   }
 
   function bindAdmin(root) {
-    if (!iAmAdmin) return;
     (root || document).querySelectorAll("[data-video-act]").forEach((btn) => {
       btn.addEventListener("click", async (ev) => {
         ev.preventDefault();
@@ -340,7 +386,7 @@
         if (!card) return;
         const id = card.getAttribute("data-video-id");
         const v = all.find((x) => String(x.id) === String(id));
-        if (!v) return;
+        if (!v || !canManageVideo(v)) return;
         const act = btn.getAttribute("data-video-act");
         if (act === "edit") {
           openAdminEdit(v);
@@ -349,7 +395,13 @@
         if (act === "del") {
           if (!confirm("Hapus video \"" + (v.title || id) + "\"?")) return;
           try {
-            await GalleryDB.deleteVideo(id);
+            if (iAmAdmin) {
+              await GalleryDB.deleteVideo(id);
+            } else if (GalleryDB.deleteMyVideo) {
+              await GalleryDB.deleteMyVideo(id);
+            } else {
+              throw new Error("Hapus tidak tersedia");
+            }
             all = all.filter((x) => String(x.id) !== String(id));
             render();
           } catch (e) {
@@ -443,26 +495,33 @@
       await loadStudents();
       async function refreshAdminFlag() {
         let admin = false;
+        let uid = "";
+        let linked = "";
         try {
           if (GalleryDB.isCurrentUserAdmin) admin = !!(await GalleryDB.isCurrentUserAdmin());
         } catch (e) {}
-        if (!admin) {
-          try {
-            const prof = GalleryDB.getMyProfile ? await GalleryDB.getMyProfile() : null;
-            if (prof && prof.is_admin) admin = true;
-          } catch (e) {}
-        }
-        if (!admin) {
-          try {
-            const sess = GalleryDB.getSession ? await GalleryDB.getSession() : null;
-            const email = sess && sess.user && sess.user.email;
-            if (email && window.SUPABASE_CONFIG && Array.isArray(SUPABASE_CONFIG.adminEmails)) {
-              admin = SUPABASE_CONFIG.adminEmails.map(String).map((x) => x.toLowerCase()).includes(String(email).toLowerCase());
-            }
-          } catch (e) {}
-        }
-        const changed = admin !== iAmAdmin;
+        try {
+          const sess = GalleryDB.getSession ? await GalleryDB.getSession() : null;
+          if (sess && sess.user) uid = sess.user.id || "";
+          const email = sess && sess.user && sess.user.email;
+          if (!admin && email && window.SUPABASE_CONFIG && Array.isArray(SUPABASE_CONFIG.adminEmails)) {
+            admin = SUPABASE_CONFIG.adminEmails.map(String).map((x) => x.toLowerCase()).includes(String(email).toLowerCase());
+          }
+        } catch (e) {}
+        try {
+          const prof = GalleryDB.getMyProfile ? await GalleryDB.getMyProfile() : null;
+          if (prof) {
+            if (prof.is_admin) admin = true;
+            linked = String(prof.linked_student_name || "").trim();
+          }
+        } catch (e) {}
+        const changed =
+          admin !== iAmAdmin ||
+          String(uid) !== String(myUserId) ||
+          String(linked) !== String(myLinkedName);
         iAmAdmin = admin;
+        myUserId = uid;
+        myLinkedName = linked;
         return changed;
       }
       await refreshAdminFlag();
