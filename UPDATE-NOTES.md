@@ -1,24 +1,14 @@
-# Edit balasan + gambar/suara di balas + histori (maks 3×)
+# Suara di balas/edit + histori publik
 
-## Fitur
-1. Bisa **Ubah balasan sendiri** (owner by user_id atau nama login)
-2. Kotak balas: 🖼 gambar / tempel screenshot, 🎤 pesan suara
-3. Kotak edit: 🖼 gambar / tempel screenshot
-4. Maksimal **3× edit** per pesan; tombol **Histori** menampilkan versi lama
-5. Label `(diedit N×)` pada pesan
+## Balas & edit
+- Tombol **🎤 Suara** dan **🖼 Gambar** lebih jelas (berlabel teks)
+- Bisa rekam suara saat membalas
+- Bisa ganti jadi suara saat mengedit
 
-## Database (ringan)
-Jalankan sekali di Supabase SQL:
-```sql
-ALTER TABLE gallery_chat
-  ADD COLUMN IF NOT EXISTS edit_count integer DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS edit_history jsonb DEFAULT '[]'::jsonb;
-```
-Tanpa kolom ini, edit tetap jalan; histori penuh butuh kolom di atas.
-Histori hanya menyimpan teks lama (dipotong 2000 char), max 3 entri — tidak memberatkan.
+## Histori
+- Label **(diedit N×)** bisa diklik SEMUA orang (termasuk penerima)
+- Tombol Histori juga di menu aksi
+- Pastikan SQL kolom edit_history sudah dijalankan
 
 ## File
-- js/chat.js
-- js/db.js
-- css/style.css
-- chat-edit-history.sql
+js/chat.js, js/db.js, css/style.css, chat-edit-history.sql

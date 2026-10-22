@@ -505,7 +505,9 @@
     const ec = editCountOf(m);
     const edited =
       ec > 0 || (m.updated_at && m.created_at && String(m.updated_at) !== String(m.created_at))
-        ? ' <small class="chat-edited">(diedit' + (ec ? " " + ec + "×" : "") + ")</small>"
+        ? ' <button type="button" class="chat-edited-btn" data-act="hist" title="Lihat histori edit">(diedit' +
+          (ec ? " " + ec + "×" : "") +
+          ")</button>"
         : "";
     const av = m.avatar_emoji || "💬";
     const voice = parseVoiceBody(m.body);
@@ -559,17 +561,20 @@
         actions +=
           '<button type="button" class="chat-act chat-act-edit" data-act="edit" title="Ubah">Ubah</button>';
       }
-      if (editCountOf(m) > 0 || (m.edit_history && m.edit_history.length)) {
-        actions +=
-          '<button type="button" class="chat-act chat-act-hist" data-act="hist" title="Histori edit">Histori (' +
-          editCountOf(m) +
-          ")</button>";
-      }
       actions +=
         '<button type="button" class="chat-act chat-act-del" data-act="del" title="Hapus">Hapus</button>';
     }
+    // Histori bisa dilihat SEMUA orang (termasuk penerima balasan)
+    if (editCountOf(m) > 0 || (m.edit_history && m.edit_history.length)) {
+      actions +=
+        '<button type="button" class="chat-act chat-act-hist" data-act="hist" title="Lihat versi sebelumnya">Histori (' +
+        editCountOf(m) +
+        ")</button>";
+    }
     actions += "</div>";
-    if (!canReplyTo(m) && !canShowActions(m)) actions = "";
+    if (!canReplyTo(m) && !canShowActions(m) && !(editCountOf(m) > 0 || (m.edit_history && m.edit_history.length))) {
+      actions = "";
+    }
     div.innerHTML =
       '<div class="chat-av">' +
       esc(av) +
@@ -1047,11 +1052,17 @@
     wrap.innerHTML =
       '<textarea class="chat-inline-ta" maxlength="' + CHAT_BODY_MAX + '" rows="1"></textarea>' +
       '<div class="chat-inline-tools">' +
-      '<label class="chat-inline-tool" title="Gambar / screenshot"><input type="file" accept="image/*" class="chat-inline-file" hidden>🖼</label>' +
-      '<span class="muted chat-inline-hint">Sisa edit: ' + left + "× · tempel screenshot (Ctrl+V)</span>" +
+      '<label class="chat-inline-tool chat-inline-tool-btn" title="Gambar / screenshot"><input type="file" accept="image/*" class="chat-inline-file" hidden>🖼 Gambar</label>' +
+      '<button type="button" class="chat-inline-tool chat-inline-tool-btn chat-inline-voice" title="Ganti dengan pesan suara">🎤 Suara</button>' +
+      '<span class="muted chat-inline-hint">Sisa edit: ' + left + "× · tempel (Ctrl+V)</span>" +
+      "</div>" +
+      '<div class="chat-voice-bar chat-inline-voice-bar" hidden>' +
+      '<span class="chat-voice-dot"></span><span class="chat-inline-voice-timer">00:00</span>' +
+      '<button type="button" class="chat-act chat-inline-voice-send">Simpan sebagai suara</button>' +
+      '<button type="button" class="chat-act chat-inline-voice-cancel">Batal rekam</button>' +
       "</div>" +
       '<div class="chat-inline-actions">' +
-      '<button type="button" class="btn btn-primary chat-inline-save">Simpan</button>' +
+      '<button type="button" class="btn btn-primary chat-inline-save">Simpan teks</button>' +
       '<button type="button" class="chat-act chat-inline-cancel">Batal</button>' +
       "</div>";
     const ta = wrap.querySelector(".chat-inline-ta");
@@ -1100,6 +1111,83 @@
       }
     });
     ta.addEventListener("input", function () { autoResizeEl(ta, 8); });
+    // Rekam suara saat edit (mengganti isi pesan)
+    (function bindEditVoice() {
+      let localRec = null, localChunks = [], localStream = null, localTimer = null, localStarted = 0;
+      const voiceBar = wrap.querySelector(".chat-inline-voice-bar");
+      const voiceTimerEl = wrap.querySelector(".chat-inline-voice-timer");
+      const voiceBtn = wrap.querySelector(".chat-inline-voice");
+      if (!voiceBtn) return;
+      function stopRec(send) {
+        return new Promise(function (resolve) {
+          if (!localRec) { resolve(null); return; }
+          const rec = localRec;
+          const type = rec.mimeType || "audio/webm";
+          rec.onstop = function () {
+            const blob = localChunks.length ? new Blob(localChunks, { type: type }) : null;
+            localChunks = []; localRec = null;
+            if (localStream) { try { localStream.getTracks().forEach(function (tr) { tr.stop(); }); } catch (e) {} localStream = null; }
+            if (localTimer) clearInterval(localTimer); localTimer = null;
+            if (voiceBar) voiceBar.hidden = true;
+            resolve(send ? blob : null);
+          };
+          try { if (rec.state !== "inactive") rec.stop(); else rec.onstop(); } catch (e) { resolve(null); }
+        });
+      }
+      async function startRec() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          status.textContent = "Browser tidak mendukung rekaman"; return;
+        }
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } });
+        } catch (e) { status.textContent = "Izin mikrofon ditolak"; return; }
+        localChunks = [];
+        let mime = "";
+        ["audio/webm;codecs=opus", "audio/webm"].forEach(function (c) {
+          if (!mime && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) mime = c;
+        });
+        try { localRec = mime ? new MediaRecorder(localStream, { mimeType: mime }) : new MediaRecorder(localStream); }
+        catch (e) { status.textContent = "Gagal mulai rekaman"; return; }
+        localRec.ondataavailable = function (ev) { if (ev.data && ev.data.size) localChunks.push(ev.data); };
+        localRec.start(250);
+        localStarted = Date.now();
+        if (voiceBar) voiceBar.hidden = false;
+        if (voiceTimerEl) voiceTimerEl.textContent = "00:00";
+        if (localTimer) clearInterval(localTimer);
+        localTimer = setInterval(function () {
+          const s = Math.floor((Date.now() - localStarted) / 1000);
+          if (voiceTimerEl) voiceTimerEl.textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+          if (s >= 180) wrap.querySelector(".chat-inline-voice-send").click();
+        }, 250);
+        status.textContent = "Merekam… (akan mengganti isi pesan)";
+      }
+      voiceBtn.addEventListener("click", function () {
+        if (localRec && localRec.state === "recording") stopRec(false); else startRec();
+      });
+      wrap.querySelector(".chat-inline-voice-cancel").addEventListener("click", function () {
+        stopRec(false); status.textContent = "Rekaman dibatalkan";
+      });
+      wrap.querySelector(".chat-inline-voice-send").addEventListener("click", async function () {
+        const elapsed = localStarted ? Date.now() - localStarted : 0;
+        const blob = await stopRec(true);
+        if (!blob || blob.size < 800) { status.textContent = "Rekaman terlalu pendek"; return; }
+        if (!GalleryDB.uploadChatAudio) { status.textContent = "Upload suara belum tersedia"; return; }
+        status.textContent = "Mengunggah suara…";
+        try {
+          const url = await GalleryDB.uploadChatAudio(blob);
+          const body = encodeVoiceBody(url, myVoiceTtl(), elapsed > 300 ? elapsed / 1000 : null);
+          const updated = await GalleryDB.updateChat({ id: msg.id, body: body });
+          upsertLocal(updated);
+          renderMessages();
+          status.textContent = "Diganti pesan suara (" + editCountOf(updated) + "/3 edit)";
+        } catch (e) { status.textContent = e.message || String(e); }
+      });
+      const cancelBtn = wrap.querySelector(".chat-inline-cancel");
+      if (cancelBtn) {
+        cancelBtn.addEventListener("click", function () { stopRec(false); }, true);
+      }
+    })();
+
     wrap.querySelector(".chat-inline-cancel").addEventListener("click", () => {
       wrap.remove();
       bubble.classList.remove("is-editing");
@@ -1163,17 +1251,17 @@
     wrap.innerHTML =
       '<textarea class="chat-inline-ta" maxlength="' + CHAT_BODY_MAX + '" rows="1" placeholder="Tulis balasan… (bisa tempel screenshot)"></textarea>' +
       '<div class="chat-inline-tools">' +
-      '<label class="chat-inline-tool" title="Gambar / screenshot"><input type="file" accept="image/*" class="chat-inline-file" hidden>🖼</label>' +
-      '<button type="button" class="chat-inline-tool chat-inline-voice" title="Pesan suara">🎤</button>' +
-      '<span class="muted chat-inline-hint">Gambar · suara · tempel (Ctrl+V)</span>' +
+      '<label class="chat-inline-tool chat-inline-tool-btn" title="Gambar / screenshot"><input type="file" accept="image/*" class="chat-inline-file" hidden>🖼 Gambar</label>' +
+      '<button type="button" class="chat-inline-tool chat-inline-tool-btn chat-inline-voice" title="Pesan suara">🎤 Suara</button>' +
+      '<span class="muted chat-inline-hint">atau tempel screenshot (Ctrl+V)</span>' +
       "</div>" +
-      '<div id="chatInlineVoiceBar" class="chat-voice-bar chat-inline-voice-bar" hidden>' +
+      '<div class="chat-voice-bar chat-inline-voice-bar" hidden>' +
       '<span class="chat-voice-dot"></span><span class="chat-inline-voice-timer">00:00</span>' +
       '<button type="button" class="chat-act chat-inline-voice-send">Kirim suara</button>' +
       '<button type="button" class="chat-act chat-inline-voice-cancel">Batal rekam</button>' +
       "</div>" +
       '<div class="chat-inline-actions">' +
-      '<button type="button" class="btn btn-primary chat-inline-send">Kirim</button>' +
+      '<button type="button" class="btn btn-primary chat-inline-send">Kirim teks</button>' +
       '<button type="button" class="chat-act chat-inline-cancel">Batal</button>' +
       "</div>";
     const actions = bubble.querySelector(".chat-actions");

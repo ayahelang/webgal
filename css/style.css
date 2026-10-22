@@ -3305,14 +3305,21 @@ body.chat-embed .chat-fields{
 /* Inline reply/edit tools */
 .chat-inline-tools{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap}
 .chat-inline-tool{
-  appearance:none;border:1px solid rgba(125,227,255,.3);background:rgba(125,227,255,.1);
-  color:#e8fbff;border-radius:8px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
-  cursor:pointer;font-size:14px;line-height:1;padding:0;
+  appearance:none;border:1px solid rgba(125,227,255,.3);background:rgba(125,227,255,.12);
+  color:#e8fbff;border-radius:8px;min-height:32px;display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:13px;line-height:1;padding:6px 10px;gap:4px;font-weight:600;
 }
-.chat-inline-tool:hover{background:rgba(125,227,255,.2)}
+.chat-inline-tool-btn{width:auto}
+.chat-inline-tool:hover{background:rgba(125,227,255,.22);border-color:rgba(125,227,255,.5)}
 .chat-inline-hint{font-size:11px}
-.chat-inline-voice-bar{margin-top:6px}
-.chat-act-hist{opacity:.9}
+.chat-inline-voice-bar{margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chat-act-hist{opacity:.95}
+.chat-edited-btn{
+  appearance:none;border:0;background:transparent;color:#7de3ff;cursor:pointer;
+  font-size:11px;padding:0 2px;text-decoration:underline;font-family:inherit;
+}
+.chat-edited-btn:hover{color:#b8f0ff}
+.chat-inline-composer .chat-inline-tools{margin:8px 0 4px}
 
 /* Histori edit modal */
 .chat-hist-modal{position:fixed;inset:0;z-index:30000;display:flex;align-items:center;justify-content:center;padding:16px}
