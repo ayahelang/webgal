@@ -1,14 +1,6 @@
-# Suara di balas/edit + histori publik
+# Teks + gambar + suara bisa bersamaan
 
-## Balas & edit
-- Tombol **🎤 Suara** dan **🖼 Gambar** lebih jelas (berlabel teks)
-- Bisa rekam suara saat membalas
-- Bisa ganti jadi suara saat mengedit
-
-## Histori
-- Label **(diedit N×)** bisa diklik SEMUA orang (termasuk penerima)
-- Tombol Histori juga di menu aksi
-- Pastikan SQL kolom edit_history sudah dijalankan
-
-## File
-js/chat.js, js/db.js, css/style.css, chat-edit-history.sql
+Pesan campuran (`__mix__`) menyimpan teks, gambar, dan suara tanpa saling menghapus.
+- Balas/edit: lampiran tampil sebagai chip; bisa buang satu per satu
+- Kirim: semua digabung
+- Format lama (teks saja / suara murni) tetap terbaca

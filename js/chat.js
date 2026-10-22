@@ -510,31 +510,25 @@
           ")</button>"
         : "";
     const av = m.avatar_emoji || "💬";
-    const voice = parseVoiceBody(m.body);
+    const parts = parseMessageParts(m.body);
     let bodyHtml = "";
-    if (voice) {
-      const knownDur = voice.duration != null ? voice.duration : null;
-      const durLabel = knownDur != null ? fmtVoiceClock(knownDur) : "--:--";
-      bodyHtml =
-        '<div class="chat-voice-msg">' +
-        '<div class="chat-voice-player"' +
-        (knownDur != null ? ' data-duration="' + knownDur + '"' : "") +
-        ">" +
-        '<button type="button" class="chat-voice-play" data-voice-play title="Putar/jeda">▶</button>' +
-        '<span class="chat-voice-time" data-voice-time>00:00 / ' +
-        durLabel +
-        "</span>" +
-        '<audio class="chat-voice-audio" preload="metadata" src="' +
-        esc(voice.url).replace(/"/g, "&quot;") +
-        '"></audio>' +
-        "</div>" +
-        '<small class="chat-voice-ttl">Pesan suara · hapus otomatis: ' +
-        esc(voiceRetentionLabel(voice.ttl)) +
-        "</small></div>";
-    } else {
+    if (parts.text) {
+      bodyHtml +=
+        '<div class="chat-text-main">' +
+        linkifyAndMedia(highlight(esc(parts.text), q || ""), q) +
+        "</div>";
+    }
+    if (parts.images && parts.images.length) {
+      bodyHtml += imagesHtmlBlock(parts.images);
+    }
+    if (parts.voice) {
+      bodyHtml += voiceHtmlBlock(parts.voice);
+    }
+    if (!bodyHtml) {
       const bodyEsc = esc(m.body);
       bodyHtml = linkifyAndMedia(highlight(bodyEsc, q || ""), q);
     }
+    const hasVoice = !!parts.voice;
     let parentHtml = "";
     if (m.reply_to) {
       const parent = msgById(m.reply_to);
@@ -586,15 +580,15 @@
       "</small>" +
       edited +
       parentHtml +
-      '<div class="chat-text' + (voice ? " chat-text-voice" : "") + '">' +
+      '<div class="chat-text' + (hasVoice ? " chat-text-voice" : "") + (parts.images && parts.images.length ? " chat-text-has-img" : "") + '">' +
       bodyHtml +
       "</div>" +
       actions +
       '<button type="button" class="chat-copy-btn" data-act="copy" title="Salin pesan" aria-label="Salin pesan">⧉</button>' +
       "</div>";
     log.appendChild(div);
-    if (!voice) applyTextClamp(div.querySelector(".chat-text"));
-    else wireVoicePlayer(div);
+    if (parts.text) applyTextClamp(div.querySelector(".chat-text-main") || div.querySelector(".chat-text"));
+    if (hasVoice) wireVoicePlayer(div);
   }
 
     function wireVoicePlayer(root) {
@@ -864,7 +858,11 @@
       const publicUrl = await GalleryDB.uploadChatImage(blob);
       if (!publicUrl) throw new Error("Upload gagal");
       const caption = (chatInput && chatInput.value.trim()) || "";
-      const body = caption ? caption + "\n" + publicUrl : publicUrl;
+      const body = encodeMessageParts({
+        text: caption.slice(0, CHAT_BODY_MAX),
+        images: [publicUrl],
+        voice: null,
+      });
       const row = await GalleryDB.sendChat({
         angkatanId: room.value || null,
         authorName: resolveAuthorName(),
@@ -1066,9 +1064,50 @@
       '<button type="button" class="chat-act chat-inline-cancel">Batal</button>' +
       "</div>";
     const ta = wrap.querySelector(".chat-inline-ta");
-    ta.value = String(msg.body || "");
+    ta.value = ""; // diisi dari parts setelah attach init
     if (actions) actions.insertAdjacentElement("beforebegin", wrap);
     else bubble.querySelector(".chat-body").appendChild(wrap);
+    autoResizeEl(ta, 8);
+    ta.focus();
+    const parts0 = parseMessageParts(msg.body);
+    const attach = {
+      images: (parts0.images || []).slice(),
+      voice: parts0.voice ? Object.assign({}, parts0.voice) : null,
+    };
+    // textarea hanya teks; gambar/suara di chip
+    ta.value = parts0.text || "";
+    function renderAttachChips() {
+      let host = wrap.querySelector(".chat-inline-attach");
+      if (!host) {
+        host = document.createElement("div");
+        host.className = "chat-inline-attach";
+        const tools = wrap.querySelector(".chat-inline-tools");
+        if (tools) tools.insertAdjacentElement("afterend", host);
+        else {
+          const acts = wrap.querySelector(".chat-inline-actions");
+          if (acts) wrap.insertBefore(host, acts);
+          else wrap.appendChild(host);
+        }
+      }
+      let html = "";
+      attach.images.forEach(function (u, i) {
+        html += '<span class="chat-attach-chip">🖼 ' + (i + 1) +
+          ' <button type="button" data-rm-img="' + i + '">✕</button></span>';
+      });
+      if (attach.voice) {
+        html += '<span class="chat-attach-chip">🎤 suara <button type="button" data-rm-voice="1">✕</button></span>';
+      }
+      host.innerHTML = html;
+      host.querySelectorAll("[data-rm-img]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          attach.images.splice(Number(btn.getAttribute("data-rm-img")), 1);
+          renderAttachChips();
+        });
+      });
+      const rv = host.querySelector("[data-rm-voice]");
+      if (rv) rv.addEventListener("click", function () { attach.voice = null; renderAttachChips(); });
+    }
+    renderAttachChips();
     autoResizeEl(ta, 8);
     ta.focus();
     ta.setSelectionRange(ta.value.length, ta.value.length);
@@ -1083,10 +1122,9 @@
       try {
         const url = await GalleryDB.uploadChatImage(file);
         if (!url) throw new Error("Upload gagal");
-        const cur = String(ta.value || "").trim();
-        ta.value = cur ? cur + "\n" + url : url;
-        autoResizeEl(ta, 8);
-        status.textContent = "Gambar ditambahkan";
+        attach.images.push(url);
+        renderAttachChips();
+        status.textContent = "Gambar ditambahkan (teks tetap)";
       } catch (e) {
         status.textContent = e.message || String(e);
       }
@@ -1175,11 +1213,13 @@
         status.textContent = "Mengunggah suara…";
         try {
           const url = await GalleryDB.uploadChatAudio(blob);
-          const body = encodeVoiceBody(url, myVoiceTtl(), elapsed > 300 ? elapsed / 1000 : null);
-          const updated = await GalleryDB.updateChat({ id: msg.id, body: body });
-          upsertLocal(updated);
-          renderMessages();
-          status.textContent = "Diganti pesan suara (" + editCountOf(updated) + "/3 edit)";
+          attach.voice = {
+            url: url,
+            ttl: myVoiceTtl(),
+            duration: elapsed > 300 ? elapsed / 1000 : null,
+          };
+          renderAttachChips();
+          status.textContent = "Suara siap (teks & gambar tetap). Klik Simpan teks.";
         } catch (e) { status.textContent = e.message || String(e); }
       });
       const cancelBtn = wrap.querySelector(".chat-inline-cancel");
@@ -1196,11 +1236,16 @@
     });
     wrap.querySelector(".chat-inline-save").addEventListener("click", async () => {
       const text = String(ta.value || "").trim();
-      if (!text) {
+      if (!text && !attach.images.length && !attach.voice) {
         status.textContent = "Pesan tidak boleh kosong";
         return;
       }
-      if (text === String(msg.body || "")) {
+      const body = encodeMessageParts({
+        text: text.slice(0, CHAT_BODY_MAX),
+        images: attach.images.slice(),
+        voice: attach.voice,
+      });
+      if (body === String(msg.body || "")) {
         wrap.remove();
         bubble.classList.remove("is-editing");
         if (textEl) textEl.hidden = false;
@@ -1209,7 +1254,7 @@
       }
       status.textContent = "Menyimpan…";
       try {
-        const updated = await GalleryDB.updateChat({ id: msg.id, body: text.slice(0, CHAT_BODY_MAX) });
+        const updated = await GalleryDB.updateChat({ id: msg.id, body: body });
         upsertLocal(updated);
         renderMessages();
         status.textContent = "Pesan diperbarui (" + editCountOf(updated) + "/3 edit)";
@@ -1270,6 +1315,39 @@
     const ta = wrap.querySelector(".chat-inline-ta");
     autoResizeEl(ta, 4);
     ta.focus();
+    const attach = { images: [], voice: null };
+    function renderAttachChips() {
+      let host = wrap.querySelector(".chat-inline-attach");
+      if (!host) {
+        host = document.createElement("div");
+        host.className = "chat-inline-attach";
+        const tools = wrap.querySelector(".chat-inline-tools");
+        if (tools) tools.insertAdjacentElement("afterend", host);
+        else {
+          const acts = wrap.querySelector(".chat-inline-actions");
+          if (acts) wrap.insertBefore(host, acts);
+          else wrap.appendChild(host);
+        }
+      }
+      let html = "";
+      attach.images.forEach(function (u, i) {
+        html += '<span class="chat-attach-chip">🖼 ' + (i + 1) +
+          ' <button type="button" data-rm-img="' + i + '">✕</button></span>';
+      });
+      if (attach.voice) {
+        html += '<span class="chat-attach-chip">🎤 suara <button type="button" data-rm-voice="1">✕</button></span>';
+      }
+      host.innerHTML = html;
+      host.querySelectorAll("[data-rm-img]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          attach.images.splice(Number(btn.getAttribute("data-rm-img")), 1);
+          renderAttachChips();
+        });
+      });
+      const rv = host.querySelector("[data-rm-voice]");
+      if (rv) rv.addEventListener("click", function () { attach.voice = null; renderAttachChips(); });
+    }
+
 
     async function attachImageFile(file) {
       if (!file || !/^image\//.test(file.type)) return;
@@ -1281,10 +1359,9 @@
       try {
         const url = await GalleryDB.uploadChatImage(file);
         if (!url) throw new Error("Upload gagal");
-        const cur = String(ta.value || "").trim();
-        ta.value = cur ? cur + "\n" + url : url;
-        autoResizeEl(ta, 4);
-        status.textContent = "Gambar ditambahkan";
+        attach.images.push(url);
+        renderAttachChips();
+        status.textContent = "Gambar ditambahkan (teks tetap)";
       } catch (e) {
         status.textContent = e.message || String(e);
       }
@@ -1410,18 +1487,13 @@
       status.textContent = "Mengunggah suara…";
       try {
         const url = await GalleryDB.uploadChatAudio(blob);
-        const body = encodeVoiceBody(url, myVoiceTtl(), elapsed > 300 ? elapsed / 1000 : null);
-        const row = await GalleryDB.sendChat({
-          angkatanId: room.value || null,
-          authorName: resolveAuthorName(),
-          body: body,
-          avatarEmoji: selectedAvatar,
-          replyTo: msg.id,
-        });
-        wrap.remove();
-        clearReplyTarget();
-        if (row && row.id && !allMessages.some(function (m) { return m.id === row.id; })) addMsg(row);
-        status.textContent = "Balasan suara terkirim";
+        attach.voice = {
+          url: url,
+          ttl: myVoiceTtl(),
+          duration: elapsed > 300 ? elapsed / 1000 : null,
+        };
+        renderAttachChips();
+        status.textContent = "Suara siap — teks & gambar tetap. Klik Kirim teks.";
       } catch (e) {
         status.textContent = e.message || String(e);
       }
@@ -1447,13 +1519,18 @@
       clearReplyTarget();
     });
     wrap.querySelector(".chat-inline-send").addEventListener("click", async () => {
-      const body = String(ta.value || "").trim();
-      if (!body) return;
+      const text = String(ta.value || "").trim();
+      if (!text && !attach.images.length && !attach.voice) return;
       try {
+        const body = encodeMessageParts({
+          text: text.slice(0, CHAT_BODY_MAX),
+          images: attach.images.slice(),
+          voice: attach.voice,
+        });
         const row = await GalleryDB.sendChat({
           angkatanId: room.value || null,
           authorName: resolveAuthorName(),
-          body: body.slice(0, CHAT_BODY_MAX),
+          body: body,
           avatarEmoji: selectedAvatar,
           replyTo: msg.id,
         });
@@ -1912,7 +1989,12 @@
         URL.revokeObjectURL(obj);
       } catch (e) {}
       if (durSec == null && recordedMs > 300) durSec = recordedMs / 1000;
-      const body = encodeVoiceBody(url, myVoiceTtl(), durSec);
+      const typed = chatInput ? String(chatInput.value || "").trim() : "";
+      const body = encodeMessageParts({
+        text: typed.slice(0, CHAT_BODY_MAX),
+        images: [],
+        voice: { url: url, ttl: myVoiceTtl(), duration: durSec },
+      });
       const row = await GalleryDB.sendChat({
         angkatanId: room.value || null,
         authorName: resolveAuthorName(),
@@ -1920,6 +2002,7 @@
         avatarEmoji: selectedAvatar,
         replyTo: replyToId,
       });
+      if (chatInput) chatInput.value = "";
       clearReplyTarget();
       if (typingCtl) typingCtl.setTyping(false);
       if (row && row.id && !allMessages.some((m) => m.id === row.id)) addMsg(row);
