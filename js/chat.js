@@ -137,7 +137,13 @@
   }
 
   function isVoiceMessage(m) {
-    return !!(m && parseVoiceBody(m.body));
+    if (!m) return false;
+    try {
+      const parts = parseMessageParts(m.body);
+      return !!(parts && parts.voice);
+    } catch (e) {
+      return !!(m && parseVoiceBody(m.body));
+    }
   }
 
   function voiceTtlMs(ttl) {
@@ -147,12 +153,18 @@
   }
 
   function isVoiceExpired(m) {
-    const v = parseVoiceBody(m && m.body);
+    let v = null;
+    try {
+      const parts = parseMessageParts(m && m.body);
+      v = parts && parts.voice;
+    } catch (e) {
+      v = parseVoiceBody(m && m.body);
+    }
     if (!v) return false;
     if (v.ttl === "forever") return false;
-    const t = m.created_at ? Date.parse(m.created_at) : 0;
-    if (!t) return false;
-    return Date.now() - t > voiceTtlMs(v.ttl);
+    const ts = m.created_at ? Date.parse(m.created_at) : 0;
+    if (!ts) return false;
+    return Date.now() - ts > voiceTtlMs(v.ttl);
   }
 
   function voiceRetentionLabel(ttl) {
@@ -176,10 +188,115 @@
     return s;
   }
 
+  function parseMessageParts(body) {
+    const raw = String(body || "");
+    const trimmed = raw.trim();
+    if (!trimmed) return { text: "", images: [], voice: null };
+
+    // Legacy pure voice (single line)
+    if (/^__voice__/i.test(trimmed) && trimmed.indexOf("\n") < 0) {
+      const v = parseVoiceBody(trimmed);
+      if (v) return { text: "", images: [], voice: v };
+    }
+
+    if (/^__mix__/i.test(trimmed) || raw.indexOf("__img__") >= 0 || (raw.indexOf("__voice__") >= 0 && raw.indexOf("\n") >= 0)) {
+      const lines = raw.replace(/^__mix__\r?\n?/i, "").split(/\r?\n/);
+      const textLines = [];
+      const images = [];
+      let voice = null;
+      lines.forEach(function (line) {
+        const s = String(line || "");
+        if (/^__img__/i.test(s)) {
+          const u = s.replace(/^__img__/i, "").trim();
+          if (u) images.push(u);
+        } else if (/^__voice__/i.test(s.trim())) {
+          const v = parseVoiceBody(s.trim());
+          if (v) voice = v;
+        } else if (s.length) {
+          textLines.push(s);
+        }
+      });
+      return { text: textLines.join("\n").trim(), images: images, voice: voice };
+    }
+
+    return { text: raw, images: [], voice: null };
+  }
+
+  function encodeMessageParts(parts) {
+    const text = String((parts && parts.text) || "").trim();
+    const images = ((parts && parts.images) || [])
+      .map(function (u) { return String(u || "").trim(); })
+      .filter(Boolean);
+    const voice = parts && parts.voice && parts.voice.url ? parts.voice : null;
+
+    if (!images.length && !voice) return text;
+    if (!text && !images.length && voice) {
+      return encodeVoiceBody(voice.url, voice.ttl || myVoiceTtl(), voice.duration);
+    }
+
+    let out = "__mix__";
+    if (text) out += "\n" + text;
+    images.forEach(function (u) {
+      out += "\n__img__" + u;
+    });
+    if (voice) {
+      out += "\n" + encodeVoiceBody(voice.url, voice.ttl || myVoiceTtl(), voice.duration);
+    }
+    return out;
+  }
+
+  function voiceHtmlBlock(voice) {
+    if (!voice || !voice.url) return "";
+    const knownDur = voice.duration != null ? voice.duration : null;
+    const durLabel = knownDur != null ? fmtVoiceClock(knownDur) : "--:--";
+    return (
+      '<div class="chat-voice-msg">' +
+      '<div class="chat-voice-player"' +
+      (knownDur != null ? ' data-duration="' + knownDur + '"' : "") +
+      ">" +
+      '<button type="button" class="chat-voice-play" data-voice-play title="Putar/jeda">▶</button>' +
+      '<span class="chat-voice-time" data-voice-time>00:00 / ' +
+      durLabel +
+      "</span>" +
+      '<audio class="chat-voice-audio" preload="metadata" src="' +
+      esc(voice.url).replace(/"/g, "&quot;") +
+      '"></audio>' +
+      "</div>" +
+      '<small class="chat-voice-ttl">Pesan suara · hapus otomatis: ' +
+      esc(voiceRetentionLabel(voice.ttl)) +
+      "</small></div>"
+    );
+  }
+
+  function imagesHtmlBlock(images) {
+    if (!images || !images.length) return "";
+    return (
+      '<div class="chat-mix-images">' +
+      images
+        .map(function (u) {
+          const src = esc(u).replace(/"/g, "&quot;");
+          return (
+            '<a class="chat-mix-img-link" href="' +
+            src +
+            '" target="_blank" rel="noopener">' +
+            '<img class="chat-mix-img" src="' +
+            src +
+            '" alt="gambar" loading="lazy" />' +
+            "</a>"
+          );
+        })
+        .join("") +
+      "</div>"
+    );
+  }
+
   function plainTextFromMessage(m) {
-    const v = parseVoiceBody(m && m.body);
-    if (v) return "Pesan suara";
-    return String((m && m.body) || "");
+    const parts = parseMessageParts(m && m.body);
+    const bits = [];
+    if (parts.text) bits.push(parts.text);
+    if (parts.images && parts.images.length) bits.push("[gambar]");
+    if (parts.voice) bits.push("Pesan suara");
+    return bits.join(" ") || "";
   }
 
   function messageSnippet(mOrBody, maxLen) {
@@ -187,11 +304,18 @@
     let body = mOrBody;
     if (mOrBody && typeof mOrBody === "object") body = mOrBody.body;
     body = String(body || "");
-    // jangan pernah bocorkan payload mentah ke UI
-    if (/__voice__/i.test(body)) {
-      const v = parseVoiceBody(body.trim());
-      const d = v && v.duration != null ? " (" + fmtVoiceClock(v.duration) + ")" : "";
-      return "🎤 Pesan suara" + d;
+    if (/__voice__|__mix__|__img__/i.test(body)) {
+      const parts = parseMessageParts(body);
+      const bits = [];
+      if (parts.text) bits.push(parts.text.replace(/\s+/g, " ").trim());
+      if (parts.images && parts.images.length) bits.push("🖼");
+      if (parts.voice) {
+        const d = parts.voice.duration != null ? " (" + fmtVoiceClock(parts.voice.duration) + ")" : "";
+        bits.push("🎤" + d);
+      }
+      let sn = bits.join(" ").trim() || "Pesan";
+      if (sn.length > maxLen) sn = sn.slice(0, maxLen) + "…";
+      return sn;
     }
     const tx = body.replace(/\s+/g, " ").trim();
     if (tx.length <= maxLen) return tx;

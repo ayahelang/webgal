@@ -1,6 +1,6 @@
-# Teks + gambar + suara bisa bersamaan
+# Hotfix: parseMessageParts is not defined
 
-Pesan campuran (`__mix__`) menyimpan teks, gambar, dan suara tanpa saling menghapus.
-- Balas/edit: lampiran tampil sebagai chip; bisa buang satu per satu
-- Kirim: semua digabung
-- Format lama (teks saja / suara murni) tetap terbaca
+Fungsi parseMessageParts + encodeMessageParts + voiceHtmlBlock + imagesHtmlBlock
+yang hilang sudah dikembalikan ke js/chat.js.
+
+Timpa: js/chat.js (dan css/style.css bila belum).
