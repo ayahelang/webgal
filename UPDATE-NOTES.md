@@ -1,5 +1,4 @@
-# Hotfix v3.1 — enrich is not defined
+# Video editor panel bisa digeser
 
-Perbaikan: fungsi `enrich` dan `filtered` yang hilang di `js/videos.js` sudah dikembalikan.
-
-Timpa minimal: `js/videos.js` (atau seluruh isi zip ini).
+Geser panel **Ubah video** dengan drag pada bar judul (area "Ubah video").
+Hanya mengubah `js/videos.js` + sedikit CSS.

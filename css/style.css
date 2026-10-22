@@ -3228,7 +3228,9 @@ body.chat-embed .chat-fields{
   border:1px solid rgba(125,227,255,.25);border-radius:14px;
   box-shadow:0 16px 48px rgba(0,0,0,.45);padding:14px 16px 16px;
 }
-.video-admin-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.video-admin-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;cursor:grab;user-select:none;touch-action:none}
+.video-admin-head.is-dragging{cursor:grabbing}
+.video-admin-panel{max-height:min(90vh,720px);overflow:auto}
 .video-admin-x{appearance:none;border:0;background:transparent;color:#9ec8d6;font-size:16px;cursor:pointer}
 .video-admin-form{display:grid;gap:10px}
 .video-admin-form label{display:grid;gap:4px;font-size:12px;color:#9ec8d6}

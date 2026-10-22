@@ -238,6 +238,49 @@
     m.addEventListener("click", (ev) => {
       if (ev.target && ev.target.getAttribute("data-close") === "1") closeAdminModal();
     });
+    // Panel bisa digeser lewat header
+    (function bindDragPanel() {
+      const panel = m.querySelector(".video-admin-panel");
+      const head = m.querySelector(".video-admin-head");
+      if (!panel || !head) return;
+      let dragging = false;
+      let ox = 0, oy = 0;
+      head.addEventListener("pointerdown", (ev) => {
+        if (ev.target.closest("button") || ev.target.closest("[data-close]")) return;
+        dragging = true;
+        const r = panel.getBoundingClientRect();
+        // pindah ke posisi fixed absolute dari center layout
+        panel.style.position = "fixed";
+        panel.style.margin = "0";
+        panel.style.left = r.left + "px";
+        panel.style.top = r.top + "px";
+        panel.style.transform = "none";
+        ox = ev.clientX - r.left;
+        oy = ev.clientY - r.top;
+        head.classList.add("is-dragging");
+        try { head.setPointerCapture(ev.pointerId); } catch (e) {}
+        ev.preventDefault();
+      });
+      head.addEventListener("pointermove", (ev) => {
+        if (!dragging) return;
+        const w = panel.offsetWidth;
+        const h = panel.offsetHeight;
+        let nl = ev.clientX - ox;
+        let nt = ev.clientY - oy;
+        nl = Math.max(8, Math.min(window.innerWidth - Math.min(80, w), nl));
+        nt = Math.max(8, Math.min(window.innerHeight - 40, nt));
+        panel.style.left = nl + "px";
+        panel.style.top = nt + "px";
+      });
+      function endDrag(ev) {
+        if (!dragging) return;
+        dragging = false;
+        head.classList.remove("is-dragging");
+        try { if (ev && ev.pointerId != null) head.releasePointerCapture(ev.pointerId); } catch (e) {}
+      }
+      head.addEventListener("pointerup", endDrag);
+      head.addEventListener("pointercancel", endDrag);
+    })();
     const form = m.querySelector("#videoAdminForm");
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
