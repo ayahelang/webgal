@@ -248,82 +248,16 @@
   }
 
   function wireAnnVoicePlayers(root) {
+    if (window.SHVoice && SHVoice.wirePlayers) {
+      SHVoice.wirePlayers(root);
+      return;
+    }
     if (!root) return;
-    root.querySelectorAll(".ann-voice-block, .chat-voice-player, .ann-voice-slot-render").forEach(function (wrap) {
-      if (wrap.dataset.wired) return;
-      wrap.dataset.wired = "1";
-      var audio = wrap.querySelector("audio");
-      var btn = wrap.querySelector("[data-voice-play]");
-      var timeEl = wrap.querySelector("[data-voice-time]");
-      if (!audio) return;
-      // legacy plain audio
-      if (!btn) {
-        audio.controls = true;
-        audio.preload = "metadata";
-        audio.style.display = "block";
-        return;
-      }
-      if (!timeEl) return;
-      var known = parseFloat(wrap.getAttribute("data-duration") || "");
-      if (!isFinite(known)) known = null;
-      function totalDur() {
-        if (known != null) return known;
-        var d = audio.duration;
-        if (isFinite(d) && d > 0 && d !== Infinity) return d;
-        return null;
-      }
-      function renderTime() {
-        var dur = totalDur();
-        var cur = audio.currentTime || 0;
-        timeEl.textContent = fmtAnnClock(cur) + " / " + (dur != null ? fmtAnnClock(dur) : "--:--");
-      }
-      audio.addEventListener("loadedmetadata", function () {
-        var d = audio.duration;
-        if (known == null && isFinite(d) && d > 0 && d !== Infinity) known = d;
-        renderTime();
-      });
-      audio.addEventListener("timeupdate", renderTime);
-      audio.addEventListener("ended", function () {
-        btn.textContent = "▶";
-        renderTime();
-      });
-      btn.addEventListener("click", function (ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (audio.paused) {
-          audio.play().then(function () {
-            btn.textContent = "❚❚";
-          }).catch(function () {
-            btn.textContent = "▶";
-          });
-        } else {
-          audio.pause();
-          btn.textContent = "▶";
-        }
-      });
-      if (known == null && audio.src) {
-        fetch(audio.src, { mode: "cors" })
-          .then(function (r) { return r.ok ? r.blob() : null; })
-          .then(function (blob) {
-            if (!blob) return;
-            var obj = URL.createObjectURL(blob);
-            var probe = new Audio();
-            probe.preload = "metadata";
-            probe.src = obj;
-            probe.onloadedmetadata = function () {
-              if (isFinite(probe.duration) && probe.duration > 0 && probe.duration !== Infinity) {
-                known = probe.duration;
-                wrap.setAttribute("data-duration", String(known));
-                audio.src = obj;
-                renderTime();
-              }
-            };
-          })
-          .catch(function () {});
-      }
-      try { audio.load(); } catch (e) {}
-      renderTime();
+    root.querySelectorAll("audio").forEach(function (a) {
+      a.controls = true;
+      a.style.display = "block";
     });
   }
+
 
 })();

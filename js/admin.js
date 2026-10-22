@@ -592,16 +592,26 @@
     slot.setAttribute("data-voice-url", url);
     if (dur != null) slot.setAttribute("data-duration", String(dur));
     else slot.removeAttribute("data-duration");
-    body.innerHTML =
-      `<div class="chat-voice-player ann-voice-block" data-voice-url="${url.replace(/"/g, "&quot;")}"` +
-      (dur != null ? ` data-duration="${dur}"` : "") +
-      `>` +
-      `<button type="button" class="chat-voice-play" data-voice-play title="Putar">▶</button>` +
-      `<span class="chat-voice-time" data-voice-time>00:00 / ${durLabel}</span>` +
-      `<audio class="chat-voice-audio" preload="metadata" src="${url.replace(/"/g, "&quot;")}"></audio>` +
-      `</div>`;
+    if (window.SHVoice && SHVoice.playerHtml) {
+      body.innerHTML = SHVoice.playerHtml({
+        url: url,
+        duration: dur,
+        ttlLabel: "Pesan suara pengumuman",
+        downloadable: true,
+      });
+    } else {
+      body.innerHTML =
+        `<div class="chat-voice-player ann-voice-block sh-voice-player" data-voice-url="${url.replace(/"/g, "&quot;")}"` +
+        (dur != null ? ` data-duration="${dur}"` : "") +
+        `>` +
+        `<button type="button" class="chat-voice-play" data-voice-play title="Putar">▶</button>` +
+        `<span class="chat-voice-time" data-voice-time>00:00 / ${durLabel}</span>` +
+        `<audio class="chat-voice-audio" preload="metadata" src="${url.replace(/"/g, "&quot;")}"></audio>` +
+        `</div>`;
+    }
     slot.hidden = false;
-    wireAnnAdminVoice(body);
+    if (window.SHVoice && SHVoice.wirePlayers) SHVoice.wirePlayers(body);
+    else if (typeof wireAnnAdminVoice === "function") wireAnnAdminVoice(body);
   }
   function buildAnnBodyHtml() {
     const ed = $("#annEditor");
@@ -617,17 +627,29 @@
     const url = slot && !slot.hidden ? slot.getAttribute("data-voice-url") : "";
     if (url) {
       const dur = slot.getAttribute("data-duration") || "";
-      const durLabel = dur
-        ? (String(Math.floor(parseFloat(dur) / 60)).padStart(2, "0") + ":" + String(Math.floor(parseFloat(dur) % 60)).padStart(2, "0"))
-        : "--:--";
-      html +=
-        `<div class="ann-voice-slot-render ann-voice-block chat-voice-player" data-voice-url="${url.replace(/"/g, "&quot;")}"` +
-        (dur ? ` data-duration="${dur}"` : "") +
-        `>` +
-        `<button type="button" class="chat-voice-play" data-voice-play>▶</button>` +
-        `<span class="chat-voice-time" data-voice-time>00:00 / ${durLabel}</span>` +
-        `<audio class="chat-voice-audio" preload="metadata" src="${url.replace(/"/g, "&quot;")}"></audio>` +
-        `<small class="chat-voice-ttl">Pesan suara pengumuman</small></div>`;
+      const durNum = dur ? parseFloat(dur) : null;
+      if (window.SHVoice && SHVoice.playerHtml) {
+        html +=
+          '<div class="ann-voice-slot-render">' +
+          SHVoice.playerHtml({
+            url: url,
+            duration: isFinite(durNum) ? durNum : null,
+            ttlLabel: "Pesan suara pengumuman",
+            downloadable: true,
+          }) +
+          "</div>";
+      } else {
+        const durLabel = isFinite(durNum)
+          ? String(Math.floor(durNum / 60)).padStart(2, "0") + ":" + String(Math.floor(durNum % 60)).padStart(2, "0")
+          : "--:--";
+        html +=
+          `<div class="ann-voice-slot-render ann-voice-block chat-voice-player sh-voice-player" data-voice-url="${url.replace(/"/g, "&quot;")}"` +
+          (dur ? ` data-duration="${dur}"` : "") +
+          `>` +
+          `<button type="button" class="chat-voice-play" data-voice-play>▶</button>` +
+          `<span class="chat-voice-time" data-voice-time>00:00 / ${durLabel}</span>` +
+          `<audio class="chat-voice-audio" preload="metadata" src="${url.replace(/"/g, "&quot;")}"></audio></div>`;
+      }
     }
     return html;
   }

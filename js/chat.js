@@ -247,24 +247,41 @@
 
   function voiceHtmlBlock(voice) {
     if (!voice || !voice.url) return "";
+    const ttl = "Pesan suara · hapus otomatis: " + voiceRetentionLabel(voice.ttl);
+    if (window.SHVoice && SHVoice.playerHtml) {
+      return (
+        '<div class="chat-voice-msg">' +
+        SHVoice.playerHtml({
+          url: voice.url,
+          duration: voice.duration,
+          ttlLabel: ttl,
+          downloadable: true,
+        }) +
+        "</div>"
+      );
+    }
     const knownDur = voice.duration != null ? voice.duration : null;
     const durLabel = knownDur != null ? fmtVoiceClock(knownDur) : "--:--";
     return (
       '<div class="chat-voice-msg">' +
-      '<div class="chat-voice-player"' +
+      '<div class="chat-voice-player sh-voice-player"' +
       (knownDur != null ? ' data-duration="' + knownDur + '"' : "") +
-      ">" +
-      '<button type="button" class="chat-voice-play" data-voice-play title="Putar/jeda">▶</button>' +
-      '<span class="chat-voice-time" data-voice-time>00:00 / ' +
+      ' data-voice-url="' +
+      esc(voice.url).replace(/"/g, "&quot;") +
+      '">' +
+      '<button type="button" class="chat-voice-play sh-voice-play" data-voice-play title="Putar/jeda">▶</button>' +
+      '<div class="sh-voice-track"><span class="chat-voice-time sh-voice-time" data-voice-time>00:00 / ' +
       durLabel +
-      "</span>" +
-      '<audio class="chat-voice-audio" preload="metadata" src="' +
+      '</span><input type="range" class="sh-voice-seek" min="0" max="1000" value="0" step="1" /></div>' +
+      '<a class="sh-voice-dl" href="' +
+      esc(voice.url).replace(/"/g, "&quot;") +
+      '" download="pesan-suara" title="Unduh">⬇</a>' +
+      '<audio class="chat-voice-audio sh-voice-audio" preload="metadata" src="' +
       esc(voice.url).replace(/"/g, "&quot;") +
       '"></audio>' +
-      "</div>" +
-      '<small class="chat-voice-ttl">Pesan suara · hapus otomatis: ' +
-      esc(voiceRetentionLabel(voice.ttl)) +
-      "</small></div>"
+      '<small class="chat-voice-ttl sh-voice-ttl">' +
+      esc(ttl) +
+      "</small></div></div>"
     );
   }
 
@@ -716,86 +733,26 @@
   }
 
     function wireVoicePlayer(root) {
+    if (window.SHVoice && SHVoice.wirePlayers) {
+      SHVoice.wirePlayers(root || log || document);
+      return;
+    }
+    // fallback minimal
     if (!root) return;
-    root.querySelectorAll(".chat-voice-player").forEach(function (wrap) {
+    root.querySelectorAll(".chat-voice-player, .sh-voice-player").forEach(function (wrap) {
       if (wrap.dataset.wired) return;
       wrap.dataset.wired = "1";
       const audio = wrap.querySelector("audio");
       const btn = wrap.querySelector("[data-voice-play]");
-      const timeEl = wrap.querySelector("[data-voice-time]");
-      if (!audio || !btn || !timeEl) return;
-      let known = parseFloat(wrap.getAttribute("data-duration") || "");
-      if (!isFinite(known)) known = null;
-      function totalDur() {
-        if (known != null) return known;
-        const d = audio.duration;
-        if (isFinite(d) && d > 0 && d !== Infinity) return d;
-        return null;
+      if (audio && btn) {
+        btn.addEventListener("click", function () {
+          if (audio.paused) audio.play();
+          else audio.pause();
+        });
       }
-      function renderTime() {
-        const dur = totalDur();
-        const cur = audio.currentTime || 0;
-        timeEl.textContent = fmtVoiceClock(cur) + " / " + (dur != null ? fmtVoiceClock(dur) : "--:--");
-      }
-      audio.addEventListener("loadedmetadata", function () {
-        const d = audio.duration;
-        if (known == null && isFinite(d) && d > 0 && d !== Infinity) known = d;
-        renderTime();
-      });
-      audio.addEventListener("durationchange", renderTime);
-      audio.addEventListener("timeupdate", renderTime);
-      audio.addEventListener("ended", function () {
-        btn.textContent = "▶";
-        renderTime();
-      });
-      btn.addEventListener("click", function (ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (audio.paused) {
-          if (log) {
-            log.querySelectorAll("audio.chat-voice-audio").forEach(function (a) {
-              if (a !== audio) {
-                try { a.pause(); } catch (e) {}
-              }
-            });
-            log.querySelectorAll("[data-voice-play]").forEach(function (b) {
-              if (b !== btn) b.textContent = "▶";
-            });
-          }
-          audio.play().then(function () {
-            btn.textContent = "❚❚";
-          }).catch(function () {
-            btn.textContent = "▶";
-          });
-        } else {
-          audio.pause();
-          btn.textContent = "▶";
-        }
-      });
-      if (known == null && audio.src) {
-        fetch(audio.src, { mode: "cors" })
-          .then(function (r) { return r.ok ? r.blob() : null; })
-          .then(function (blob) {
-            if (!blob) return;
-            const obj = URL.createObjectURL(blob);
-            const probe = new Audio();
-            probe.preload = "metadata";
-            probe.src = obj;
-            probe.onloadedmetadata = function () {
-              if (isFinite(probe.duration) && probe.duration > 0 && probe.duration !== Infinity) {
-                known = probe.duration;
-                wrap.setAttribute("data-duration", String(known));
-                audio.src = obj;
-                renderTime();
-              }
-            };
-          })
-          .catch(function () {});
-      }
-      try { audio.load(); } catch (e) {}
-      renderTime();
     });
   }
+
   function upsertLocal(m) {
     const i = allMessages.findIndex((x) => x.id === m.id);
     if (i >= 0) allMessages[i] = Object.assign({}, allMessages[i], m);
@@ -1178,8 +1135,10 @@
       '<button type="button" class="chat-inline-tool chat-inline-tool-btn chat-inline-voice" title="Ganti dengan pesan suara">🎤 Suara</button>' +
       '<span class="muted chat-inline-hint">Sisa edit: ' + left + "× · tempel (Ctrl+V)</span>" +
       "</div>" +
-      '<div class="chat-voice-bar chat-inline-voice-bar" hidden>' +
-      '<span class="chat-voice-dot"></span><span class="chat-inline-voice-timer">00:00</span>' +
+      '<div class="chat-voice-bar chat-inline-voice-bar sh-voice-rec-bar" hidden>' +
+      '<span class="chat-voice-dot sh-voice-dot"></span>' +
+      '<span class="chat-inline-voice-timer sh-voice-timer">00:00</span>' +
+      '<canvas class="chat-voice-meter sh-voice-meter" width="140" height="28" aria-hidden="true"></canvas>' +
       '<button type="button" class="chat-act chat-inline-voice-send">Simpan sebagai suara</button>' +
       '<button type="button" class="chat-act chat-inline-voice-cancel">Batal rekam</button>' +
       "</div>" +
@@ -1273,83 +1232,64 @@
       }
     });
     ta.addEventListener("input", function () { autoResizeEl(ta, 8); });
-    // Rekam suara saat edit (mengganti isi pesan)
+    // Rekam suara saat edit — standar SHVoice (teks tetap, suara melengkapi)
     (function bindEditVoice() {
-      let localRec = null, localChunks = [], localStream = null, localTimer = null, localStarted = 0;
-      const voiceBar = wrap.querySelector(".chat-inline-voice-bar");
-      const voiceTimerEl = wrap.querySelector(".chat-inline-voice-timer");
+      const bar = wrap.querySelector(".chat-inline-voice-bar");
+      if (!bar || !window.SHVoice || !SHVoice.createRecorder) return;
+      const timerEl = bar.querySelector(".chat-inline-voice-timer, .sh-voice-timer");
+      const canvas = bar.querySelector("canvas");
+      const ctl = SHVoice.createRecorder({
+        bar: bar,
+        timerEl: timerEl,
+        canvas: canvas,
+        maxMs: 180000,
+        onStop: async function (blob, durationSec) {
+          if (!blob || blob.size < 800) {
+            status.textContent = "Rekaman terlalu pendek";
+            return;
+          }
+          if (!GalleryDB.uploadChatAudio) {
+            status.textContent = "Upload suara belum tersedia";
+            return;
+          }
+          status.textContent = "Mengunggah suara…";
+          try {
+            const url = await GalleryDB.uploadChatAudio(blob);
+            attach.voice = {
+              url: url,
+              ttl: myVoiceTtl(),
+              duration: durationSec,
+            };
+            renderAttachChips();
+            status.textContent = "Suara siap (teks & gambar tetap). Klik Simpan teks.";
+          } catch (e) {
+            status.textContent = e.message || String(e);
+          }
+        },
+        onError: function (err) {
+          status.textContent = (err && err.message) || String(err);
+        },
+      });
       const voiceBtn = wrap.querySelector(".chat-inline-voice");
-      if (!voiceBtn) return;
-      function stopRec(send) {
-        return new Promise(function (resolve) {
-          if (!localRec) { resolve(null); return; }
-          const rec = localRec;
-          const type = rec.mimeType || "audio/webm";
-          rec.onstop = function () {
-            const blob = localChunks.length ? new Blob(localChunks, { type: type }) : null;
-            localChunks = []; localRec = null;
-            if (localStream) { try { localStream.getTracks().forEach(function (tr) { tr.stop(); }); } catch (e) {} localStream = null; }
-            if (localTimer) clearInterval(localTimer); localTimer = null;
-            if (voiceBar) voiceBar.hidden = true;
-            resolve(send ? blob : null);
-          };
-          try { if (rec.state !== "inactive") rec.stop(); else rec.onstop(); } catch (e) { resolve(null); }
-        });
-      }
-      async function startRec() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          status.textContent = "Browser tidak mendukung rekaman"; return;
-        }
-        try {
-          localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } });
-        } catch (e) { status.textContent = "Izin mikrofon ditolak"; return; }
-        localChunks = [];
-        let mime = "";
-        ["audio/webm;codecs=opus", "audio/webm"].forEach(function (c) {
-          if (!mime && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) mime = c;
-        });
-        try { localRec = mime ? new MediaRecorder(localStream, { mimeType: mime }) : new MediaRecorder(localStream); }
-        catch (e) { status.textContent = "Gagal mulai rekaman"; return; }
-        localRec.ondataavailable = function (ev) { if (ev.data && ev.data.size) localChunks.push(ev.data); };
-        localRec.start(250);
-        localStarted = Date.now();
-        if (voiceBar) voiceBar.hidden = false;
-        if (voiceTimerEl) voiceTimerEl.textContent = "00:00";
-        if (localTimer) clearInterval(localTimer);
-        localTimer = setInterval(function () {
-          const s = Math.floor((Date.now() - localStarted) / 1000);
-          if (voiceTimerEl) voiceTimerEl.textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
-          if (s >= 180) wrap.querySelector(".chat-inline-voice-send").click();
-        }, 250);
-        status.textContent = "Merekam… (akan mengganti isi pesan)";
-      }
-      voiceBtn.addEventListener("click", function () {
-        if (localRec && localRec.state === "recording") stopRec(false); else startRec();
-      });
-      wrap.querySelector(".chat-inline-voice-cancel").addEventListener("click", function () {
-        stopRec(false); status.textContent = "Rekaman dibatalkan";
-      });
-      wrap.querySelector(".chat-inline-voice-send").addEventListener("click", async function () {
-        const elapsed = localStarted ? Date.now() - localStarted : 0;
-        const blob = await stopRec(true);
-        if (!blob || blob.size < 800) { status.textContent = "Rekaman terlalu pendek"; return; }
-        if (!GalleryDB.uploadChatAudio) { status.textContent = "Upload suara belum tersedia"; return; }
-        status.textContent = "Mengunggah suara…";
-        try {
-          const url = await GalleryDB.uploadChatAudio(blob);
-          attach.voice = {
-            url: url,
-            ttl: myVoiceTtl(),
-            duration: elapsed > 300 ? elapsed / 1000 : null,
-          };
-          renderAttachChips();
-          status.textContent = "Suara siap (teks & gambar tetap). Klik Simpan teks.";
-        } catch (e) { status.textContent = e.message || String(e); }
-      });
-      const cancelBtn = wrap.querySelector(".chat-inline-cancel");
-      if (cancelBtn) {
-        cancelBtn.addEventListener("click", function () { stopRec(false); }, true);
-      }
+      if (voiceBtn)
+        voiceBtn.onclick = function () {
+          if (ctl.isRecording()) ctl.cancel();
+          else {
+            ctl.start();
+            status.textContent = "Merekam… lihat gelombang & timer";
+          }
+        };
+      const sendBtn = wrap.querySelector(".chat-inline-voice-send");
+      if (sendBtn)
+        sendBtn.onclick = function () {
+          ctl.stop();
+        };
+      const cancelBtn = wrap.querySelector(".chat-inline-voice-cancel");
+      if (cancelBtn)
+        cancelBtn.onclick = function () {
+          ctl.cancel();
+          status.textContent = "Rekaman dibatalkan";
+        };
     })();
 
     wrap.querySelector(".chat-inline-cancel").addEventListener("click", () => {
@@ -1401,6 +1341,54 @@
     }
   }
 
+
+  /** Rekam inline (balas/edit) dengan meter + timer standar SHVoice */
+  function mountInlineVoiceRecorder(wrap, onReady) {
+    const bar = wrap.querySelector(".chat-inline-voice-bar, .sh-voice-rec-bar");
+    const voiceBtn = wrap.querySelector(".chat-inline-voice");
+    const sendBtn = wrap.querySelector(".chat-inline-voice-send");
+    const cancelBtn = wrap.querySelector(".chat-inline-voice-cancel");
+    if (!bar || !voiceBtn) return null;
+
+    if (window.SHVoice && SHVoice.createRecorder) {
+      const timerEl = bar.querySelector(".chat-inline-voice-timer, .sh-voice-timer");
+      const canvas = bar.querySelector("canvas");
+      let pending = null;
+      const ctl = SHVoice.createRecorder({
+        bar: bar,
+        timerEl: timerEl,
+        canvas: canvas,
+        maxMs: 180000,
+        onStop: function (blob, durationSec) {
+          pending = { blob: blob, durationSec: durationSec };
+          if (onReady) onReady(blob, durationSec);
+        },
+        onError: function (err) {
+          if (status) status.textContent = (err && err.message) || String(err);
+        },
+      });
+      voiceBtn.addEventListener("click", function () {
+        if (ctl.isRecording()) ctl.cancel();
+        else {
+          pending = null;
+          ctl.start();
+          if (status) status.textContent = "Merekam… lihat gelombang & timer";
+        }
+      });
+      if (sendBtn)
+        sendBtn.addEventListener("click", function () {
+          ctl.stop();
+        });
+      if (cancelBtn)
+        cancelBtn.addEventListener("click", function () {
+          ctl.cancel();
+          if (status) status.textContent = "Rekaman dibatalkan";
+        });
+      return ctl;
+    }
+    return null;
+  }
+
   function openInlineReply(msg, bubble) {
     if (!bubble) return;
     if (!canReplyTo(msg)) {
@@ -1424,9 +1412,11 @@
       '<button type="button" class="chat-inline-tool chat-inline-tool-btn chat-inline-voice" title="Pesan suara">🎤 Suara</button>' +
       '<span class="muted chat-inline-hint">atau tempel screenshot (Ctrl+V)</span>' +
       "</div>" +
-      '<div class="chat-voice-bar chat-inline-voice-bar" hidden>' +
-      '<span class="chat-voice-dot"></span><span class="chat-inline-voice-timer">00:00</span>' +
-      '<button type="button" class="chat-act chat-inline-voice-send">Kirim suara</button>' +
+      '<div class="chat-voice-bar chat-inline-voice-bar sh-voice-rec-bar" hidden>' +
+      '<span class="chat-voice-dot sh-voice-dot"></span>' +
+      '<span class="chat-inline-voice-timer sh-voice-timer">00:00</span>' +
+      '<canvas class="chat-voice-meter sh-voice-meter" width="140" height="28" aria-hidden="true"></canvas>' +
+      '<button type="button" class="chat-act chat-inline-voice-send">Pasang suara</button>' +
       '<button type="button" class="chat-act chat-inline-voice-cancel">Batal rekam</button>' +
       "</div>" +
       '<div class="chat-inline-actions">' +
@@ -1510,118 +1500,72 @@
       }
     });
 
-    // Voice for reply (reuse global recorder helpers if available)
-    let localRec = null;
-    let localChunks = [];
-    let localStream = null;
-    let localTimer = null;
-    let localStarted = 0;
-    const voiceBar = wrap.querySelector(".chat-inline-voice-bar");
-    const voiceTimerEl = wrap.querySelector(".chat-inline-voice-timer");
-    function stopLocalRec(send) {
-      return new Promise(function (resolve) {
-        if (!localRec) {
-          resolve(null);
-          return;
+    // Voice for reply — standar SHVoice (timer + gelombang)
+    (function () {
+      const shCtl = mountInlineVoiceRecorder(wrap, null);
+      if (shCtl && window.SHVoice) {
+        const sendBtn = wrap.querySelector(".chat-inline-voice-send");
+        if (sendBtn) {
+          // override: on stop upload & attach
+          const bar = wrap.querySelector(".chat-inline-voice-bar");
+          const timerEl = bar && bar.querySelector(".chat-inline-voice-timer, .sh-voice-timer");
+          const canvas = bar && bar.querySelector("canvas");
+          // re-bind with onStop that sets attach.voice
+          const ctl = SHVoice.createRecorder({
+            bar: bar,
+            timerEl: timerEl,
+            canvas: canvas,
+            maxMs: 180000,
+            onStop: async function (blob, durationSec) {
+              if (!blob || blob.size < 800) {
+                status.textContent = "Rekaman terlalu pendek";
+                return;
+              }
+              if (!GalleryDB.uploadChatAudio) {
+                status.textContent = "Upload suara belum tersedia";
+                return;
+              }
+              status.textContent = "Mengunggah suara…";
+              try {
+                const url = await GalleryDB.uploadChatAudio(blob);
+                attach.voice = {
+                  url: url,
+                  ttl: myVoiceTtl(),
+                  duration: durationSec,
+                };
+                renderAttachChips();
+                status.textContent = "Suara siap — teks & gambar tetap. Klik Kirim teks.";
+              } catch (e) {
+                status.textContent = e.message || String(e);
+              }
+            },
+            onError: function (err) {
+              status.textContent = (err && err.message) || String(err);
+            },
+          });
+          const voiceBtn = wrap.querySelector(".chat-inline-voice");
+          voiceBtn.onclick = function () {
+            if (ctl.isRecording()) ctl.cancel();
+            else {
+              ctl.start();
+              status.textContent = "Merekam… lihat gelombang & timer";
+            }
+          };
+          sendBtn.onclick = function () {
+            ctl.stop();
+          };
+          const cancelBtn = wrap.querySelector(".chat-inline-voice-cancel");
+          if (cancelBtn)
+            cancelBtn.onclick = function () {
+              ctl.cancel();
+              status.textContent = "Rekaman dibatalkan";
+            };
         }
-        const rec = localRec;
-        const type = rec.mimeType || "audio/webm";
-        rec.onstop = function () {
-          const blob = localChunks.length ? new Blob(localChunks, { type: type }) : null;
-          localChunks = [];
-          localRec = null;
-          if (localStream) {
-            try { localStream.getTracks().forEach(function (tr) { tr.stop(); }); } catch (e) {}
-            localStream = null;
-          }
-          if (localTimer) clearInterval(localTimer);
-          localTimer = null;
-          if (voiceBar) voiceBar.hidden = true;
-          resolve(send ? blob : null);
-        };
-        try {
-          if (rec.state !== "inactive") rec.stop();
-          else rec.onstop();
-        } catch (e) {
-          resolve(null);
-        }
-      });
-    }
-    async function startLocalRec() {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        status.textContent = "Browser tidak mendukung rekaman";
         return;
       }
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
-        });
-      } catch (e) {
-        status.textContent = "Izin mikrofon ditolak";
-        return;
-      }
-      localChunks = [];
-      let mime = "";
-      ["audio/webm;codecs=opus", "audio/webm"].forEach(function (c) {
-        if (!mime && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) mime = c;
-      });
-      try {
-        localRec = mime ? new MediaRecorder(localStream, { mimeType: mime }) : new MediaRecorder(localStream);
-      } catch (e) {
-        status.textContent = "Gagal mulai rekaman";
-        return;
-      }
-      localRec.ondataavailable = function (ev) {
-        if (ev.data && ev.data.size) localChunks.push(ev.data);
-      };
-      localRec.start(250);
-      localStarted = Date.now();
-      if (voiceBar) voiceBar.hidden = false;
-      if (voiceTimerEl) voiceTimerEl.textContent = "00:00";
-      if (localTimer) clearInterval(localTimer);
-      localTimer = setInterval(function () {
-        const s = Math.floor((Date.now() - localStarted) / 1000);
-        if (voiceTimerEl) {
-          voiceTimerEl.textContent =
-            String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
-        }
-        if (s >= 180) wrap.querySelector(".chat-inline-voice-send").click();
-      }, 250);
-      status.textContent = "Merekam balasan suara…";
-    }
-    wrap.querySelector(".chat-inline-voice").addEventListener("click", function () {
-      if (localRec && localRec.state === "recording") stopLocalRec(false);
-      else startLocalRec();
-    });
-    wrap.querySelector(".chat-inline-voice-cancel").addEventListener("click", function () {
-      stopLocalRec(false);
-      status.textContent = "Rekaman dibatalkan";
-    });
-    wrap.querySelector(".chat-inline-voice-send").addEventListener("click", async function () {
-      const elapsed = localStarted ? Date.now() - localStarted : 0;
-      const blob = await stopLocalRec(true);
-      if (!blob || blob.size < 800) {
-        status.textContent = "Rekaman terlalu pendek";
-        return;
-      }
-      if (!GalleryDB.uploadChatAudio) {
-        status.textContent = "Upload suara belum tersedia";
-        return;
-      }
-      status.textContent = "Mengunggah suara…";
-      try {
-        const url = await GalleryDB.uploadChatAudio(blob);
-        attach.voice = {
-          url: url,
-          ttl: myVoiceTtl(),
-          duration: elapsed > 300 ? elapsed / 1000 : null,
-        };
-        renderAttachChips();
-        status.textContent = "Suara siap — teks & gambar tetap. Klik Kirim teks.";
-      } catch (e) {
-        status.textContent = e.message || String(e);
-      }
-    });
+      // fallback tanpa SHVoice: kode minimal
+      status.textContent = "Muat ulang halaman untuk rekaman penuh";
+    })();
 
     ta.addEventListener("input", () => {
       autoResizeEl(ta, 4);
