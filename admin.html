@@ -351,10 +351,16 @@
               <span class="chat-voice-dot" aria-hidden="true"></span>
               <span id="annVoiceTimer" class="chat-voice-timer">00:00</span>
               <canvas id="annVoiceMeter" class="chat-voice-meter" width="140" height="28" aria-hidden="true"></canvas>
-              <button type="button" id="annVoiceStop" class="chat-act">Kirim suara</button>
+              <button type="button" id="annVoiceStop" class="chat-act">Pasang suara</button>
               <button type="button" id="annVoiceCancel" class="chat-act">Batal</button>
             </div>
-            <div id="annVoicePreview" class="ann-voice-preview" hidden></div>
+            <div id="annVoiceSlot" class="ann-voice-slot" hidden>
+              <div class="ann-voice-slot-head">
+                <strong>Pesan suara</strong>
+                <button type="button" id="annVoiceRemove" class="chat-act" title="Hapus suara">Hapus suara</button>
+              </div>
+              <div id="annVoiceSlotBody" class="ann-voice-slot-body"></div>
+            </div>
           </div>
           <fieldset class="ann-fieldset">
             <legend>Tampil di mana &amp; siapa</legend>

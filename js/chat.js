@@ -113,13 +113,27 @@
 
 
   const VOICE_PREFIX = "__voice__";
-  const VOICE_RE = /^__voice__\|ttl=(3h|24h|forever)\|(\S+)/i;
+  // __voice__|ttl=3h|url  ATAU  __voice__|ttl=3h|dur=12.5|url
+  const VOICE_RE = /^__voice__\|ttl=(3h|24h|forever)(?:\|dur=([\d.]+))?\|(.+)$/i;
 
   function parseVoiceBody(body) {
     const s = String(body || "").trim();
     const m = s.match(VOICE_RE);
     if (!m) return null;
-    return { ttl: m[1].toLowerCase(), url: m[2] };
+    const dur = m[2] != null && m[2] !== "" ? parseFloat(m[2]) : NaN;
+    return {
+      ttl: m[1].toLowerCase(),
+      duration: isFinite(dur) ? dur : null,
+      url: m[3],
+    };
+  }
+
+  function fmtVoiceClock(sec) {
+    if (!isFinite(sec) || sec < 0) return "--:--";
+    sec = Math.floor(sec);
+    const mm = Math.floor(sec / 60);
+    const ss = sec % 60;
+    return String(mm).padStart(2, "0") + ":" + String(ss).padStart(2, "0");
   }
 
   function isVoiceMessage(m) {
@@ -153,14 +167,35 @@
     return "3h";
   }
 
-  function encodeVoiceBody(url, ttl) {
-    return VOICE_PREFIX + "|ttl=" + (ttl || "3h") + "|" + String(url || "").trim();
+  function encodeVoiceBody(url, ttl, durationSec) {
+    let s = VOICE_PREFIX + "|ttl=" + (ttl || "3h");
+    if (durationSec != null && isFinite(durationSec) && durationSec > 0) {
+      s += "|dur=" + (Math.round(durationSec * 10) / 10);
+    }
+    s += "|" + String(url || "").trim();
+    return s;
   }
 
   function plainTextFromMessage(m) {
     const v = parseVoiceBody(m && m.body);
-    if (v) return v.url;
+    if (v) return "Pesan suara";
     return String((m && m.body) || "");
+  }
+
+  function messageSnippet(mOrBody, maxLen) {
+    maxLen = maxLen || 80;
+    let body = mOrBody;
+    if (mOrBody && typeof mOrBody === "object") body = mOrBody.body;
+    body = String(body || "");
+    // jangan pernah bocorkan payload mentah ke UI
+    if (/__voice__/i.test(body)) {
+      const v = parseVoiceBody(body.trim());
+      const d = v && v.duration != null ? " (" + fmtVoiceClock(v.duration) + ")" : "";
+      return "🎤 Pesan suara" + d;
+    }
+    const tx = body.replace(/\s+/g, " ").trim();
+    if (tx.length <= maxLen) return tx;
+    return tx.slice(0, maxLen) + "…";
   }
 
   function isImageUrl(u) {
@@ -324,8 +359,7 @@
     const lab = $("#chatReplyLabel");
     if (bar) bar.hidden = false;
     if (lab) {
-      const snip = String(m.body || "").replace(/\s+/g, " ").slice(0, 60);
-      lab.textContent = "Membalas " + (m.author_name || "Anonim") + ": " + snip;
+      lab.textContent = "Membalas " + (m.author_name || "Anonim") + ": " + messageSnippet(m, 60);
     }
     if (chatInput) chatInput.focus();
   }
@@ -338,12 +372,40 @@
   }
 
   function orderedForDisplay(list) {
-    // Keep chronological; indent by depth. Flat list is fine for UX.
-    return list.slice().sort((a, b) => {
+    // Hierarki: balasan tampil di bawah induk (DFS), saudara urut waktu
+    const map = Object.create(null);
+    (list || []).forEach(function (m) {
+      if (m && m.id) map[String(m.id)] = m;
+    });
+    const children = Object.create(null);
+    const roots = [];
+    (list || []).forEach(function (m) {
+      if (!m) return;
+      const pid = m.reply_to ? String(m.reply_to) : "";
+      if (pid && map[pid]) {
+        if (!children[pid]) children[pid] = [];
+        children[pid].push(m);
+      } else {
+        roots.push(m);
+      }
+    });
+    function byTime(a, b) {
       const ta = a.created_at ? Date.parse(a.created_at) : 0;
       const tb = b.created_at ? Date.parse(b.created_at) : 0;
       return ta - tb;
+    }
+    roots.sort(byTime);
+    Object.keys(children).forEach(function (k) {
+      children[k].sort(byTime);
     });
+    const out = [];
+    function walk(m) {
+      out.push(m);
+      const kids = children[String(m.id)];
+      if (kids) kids.forEach(walk);
+    }
+    roots.forEach(walk);
+    return out;
   }
 
   function purgeExpiredVoiceLocal() {
@@ -425,11 +487,17 @@
     const voice = parseVoiceBody(m.body);
     let bodyHtml = "";
     if (voice) {
+      const knownDur = voice.duration != null ? voice.duration : null;
+      const durLabel = knownDur != null ? fmtVoiceClock(knownDur) : "--:--";
       bodyHtml =
         '<div class="chat-voice-msg">' +
-        '<div class="chat-voice-player">' +
+        '<div class="chat-voice-player"' +
+        (knownDur != null ? ' data-duration="' + knownDur + '"' : "") +
+        ">" +
         '<button type="button" class="chat-voice-play" data-voice-play title="Putar/jeda">▶</button>' +
-        '<span class="chat-voice-time" data-voice-time>00:00 / --:--</span>' +
+        '<span class="chat-voice-time" data-voice-time>00:00 / ' +
+        durLabel +
+        "</span>" +
         '<audio class="chat-voice-audio" preload="metadata" src="' +
         esc(voice.url).replace(/"/g, "&quot;") +
         '"></audio>' +
@@ -445,12 +513,13 @@
     if (m.reply_to) {
       const parent = msgById(m.reply_to);
       if (parent) {
-        const snip = esc(String(parent.body || "").replace(/\s+/g, " ").slice(0, 80));
+        let snip = messageSnippet(parent, 80);
+        if (/__voice__/i.test(snip)) snip = "🎤 Pesan suara";
         parentHtml =
           '<div class="chat-reply-ref">↩ ' +
           esc(parent.author_name || "Anonim") +
           ": " +
-          snip +
+          esc(snip) +
           "</div>";
       } else {
         parentHtml = '<div class="chat-reply-ref">↩ balasan</div>';
@@ -493,15 +562,7 @@
     else wireVoicePlayer(div);
   }
 
-  function fmtVoiceClock(sec) {
-    if (!isFinite(sec) || sec < 0) return "--:--";
-    sec = Math.floor(sec);
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
-  }
-
-  function wireVoicePlayer(root) {
+    function wireVoicePlayer(root) {
     if (!root) return;
     root.querySelectorAll(".chat-voice-player").forEach(function (wrap) {
       if (wrap.dataset.wired) return;
@@ -510,12 +571,24 @@
       const btn = wrap.querySelector("[data-voice-play]");
       const timeEl = wrap.querySelector("[data-voice-time]");
       if (!audio || !btn || !timeEl) return;
-      function renderTime() {
-        const dur = audio.duration;
-        const cur = audio.currentTime || 0;
-        timeEl.textContent = fmtVoiceClock(cur) + " / " + fmtVoiceClock(dur);
+      let known = parseFloat(wrap.getAttribute("data-duration") || "");
+      if (!isFinite(known)) known = null;
+      function totalDur() {
+        if (known != null) return known;
+        const d = audio.duration;
+        if (isFinite(d) && d > 0 && d !== Infinity) return d;
+        return null;
       }
-      audio.addEventListener("loadedmetadata", renderTime);
+      function renderTime() {
+        const dur = totalDur();
+        const cur = audio.currentTime || 0;
+        timeEl.textContent = fmtVoiceClock(cur) + " / " + (dur != null ? fmtVoiceClock(dur) : "--:--");
+      }
+      audio.addEventListener("loadedmetadata", function () {
+        const d = audio.duration;
+        if (known == null && isFinite(d) && d > 0 && d !== Infinity) known = d;
+        renderTime();
+      });
       audio.addEventListener("durationchange", renderTime);
       audio.addEventListener("timeupdate", renderTime);
       audio.addEventListener("ended", function () {
@@ -526,7 +599,6 @@
         ev.preventDefault();
         ev.stopPropagation();
         if (audio.paused) {
-          // pause other voice in log
           if (log) {
             log.querySelectorAll("audio.chat-voice-audio").forEach(function (a) {
               if (a !== audio) {
@@ -547,12 +619,30 @@
           btn.textContent = "▶";
         }
       });
-      // trigger metadata load
+      if (known == null && audio.src) {
+        fetch(audio.src, { mode: "cors" })
+          .then(function (r) { return r.ok ? r.blob() : null; })
+          .then(function (blob) {
+            if (!blob) return;
+            const obj = URL.createObjectURL(blob);
+            const probe = new Audio();
+            probe.preload = "metadata";
+            probe.src = obj;
+            probe.onloadedmetadata = function () {
+              if (isFinite(probe.duration) && probe.duration > 0 && probe.duration !== Infinity) {
+                known = probe.duration;
+                wrap.setAttribute("data-duration", String(known));
+                audio.src = obj;
+                renderTime();
+              }
+            };
+          })
+          .catch(function () {});
+      }
       try { audio.load(); } catch (e) {}
       renderTime();
     });
   }
-
   function upsertLocal(m) {
     const i = allMessages.findIndex((x) => x.id === m.id);
     if (i >= 0) allMessages[i] = Object.assign({}, allMessages[i], m);
@@ -999,8 +1089,7 @@
     const lab = $("#chatReplyLabel");
     if (bar) bar.hidden = false;
     if (lab) {
-      const snip = String(msg.body || "").replace(/\s+/g, " ").slice(0, 60);
-      lab.textContent = "Membalas " + (msg.author_name || "Anonim") + ": " + snip;
+      lab.textContent = "Membalas " + (msg.author_name || "Anonim") + ": " + messageSnippet(msg, 60);
     }
 
     const wrap = document.createElement("div");
@@ -1389,6 +1478,7 @@
       cancelVoiceRecord();
       return;
     }
+    const recordedMs = voiceStartedAt ? Date.now() - voiceStartedAt : 0;
     const rec = mediaRecorder;
     const type = rec.mimeType || "audio/webm";
     await new Promise(function (resolve) {
@@ -1436,7 +1526,22 @@
     try {
       const url = await GalleryDB.uploadChatAudio(blob);
       if (!url) throw new Error("Upload gagal");
-      const body = encodeVoiceBody(url, myVoiceTtl());
+      let durSec = null;
+      try {
+        const tmp = document.createElement("audio");
+        tmp.preload = "metadata";
+        const obj = URL.createObjectURL(blob);
+        tmp.src = obj;
+        await new Promise(function (res) {
+          tmp.onloadedmetadata = function () { res(); };
+          tmp.onerror = function () { res(); };
+          setTimeout(res, 2000);
+        });
+        if (isFinite(tmp.duration) && tmp.duration > 0 && tmp.duration !== Infinity) durSec = tmp.duration;
+        URL.revokeObjectURL(obj);
+      } catch (e) {}
+      if (durSec == null && recordedMs > 300) durSec = recordedMs / 1000;
+      const body = encodeVoiceBody(url, myVoiceTtl(), durSec);
       const row = await GalleryDB.sendChat({
         angkatanId: room.value || null,
         authorName: resolveAuthorName(),

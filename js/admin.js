@@ -571,6 +571,108 @@
     return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
   }
 
+  function clearAnnVoiceSlot() {
+    const slot = $("#annVoiceSlot");
+    const body = $("#annVoiceSlotBody");
+    if (body) body.innerHTML = "";
+    if (slot) {
+      slot.hidden = true;
+      slot.removeAttribute("data-voice-url");
+      slot.removeAttribute("data-duration");
+    }
+  }
+  function setAnnVoiceSlot(url, durationSec) {
+    const slot = $("#annVoiceSlot");
+    const body = $("#annVoiceSlotBody");
+    if (!slot || !body || !url) return;
+    const dur = durationSec != null && isFinite(durationSec) ? durationSec : null;
+    const durLabel = dur != null
+      ? (String(Math.floor(dur / 60)).padStart(2, "0") + ":" + String(Math.floor(dur % 60)).padStart(2, "0"))
+      : "--:--";
+    slot.setAttribute("data-voice-url", url);
+    if (dur != null) slot.setAttribute("data-duration", String(dur));
+    else slot.removeAttribute("data-duration");
+    body.innerHTML =
+      `<div class="chat-voice-player ann-voice-block" data-voice-url="${url.replace(/"/g, "&quot;")}"` +
+      (dur != null ? ` data-duration="${dur}"` : "") +
+      `>` +
+      `<button type="button" class="chat-voice-play" data-voice-play title="Putar">▶</button>` +
+      `<span class="chat-voice-time" data-voice-time>00:00 / ${durLabel}</span>` +
+      `<audio class="chat-voice-audio" preload="metadata" src="${url.replace(/"/g, "&quot;")}"></audio>` +
+      `</div>`;
+    slot.hidden = false;
+    wireAnnAdminVoice(body);
+  }
+  function buildAnnBodyHtml() {
+    const ed = $("#annEditor");
+    let html = ed ? ed.innerHTML : "";
+    // bersihkan sisa voice lama di editor jika ada
+    try {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = html;
+      tmp.querySelectorAll(".ann-voice-block, .ann-voice-slot-render, [data-voice-url]").forEach((n) => n.remove());
+      html = tmp.innerHTML;
+    } catch (e) {}
+    const slot = $("#annVoiceSlot");
+    const url = slot && !slot.hidden ? slot.getAttribute("data-voice-url") : "";
+    if (url) {
+      const dur = slot.getAttribute("data-duration") || "";
+      const durLabel = dur
+        ? (String(Math.floor(parseFloat(dur) / 60)).padStart(2, "0") + ":" + String(Math.floor(parseFloat(dur) % 60)).padStart(2, "0"))
+        : "--:--";
+      html +=
+        `<div class="ann-voice-slot-render ann-voice-block chat-voice-player" data-voice-url="${url.replace(/"/g, "&quot;")}"` +
+        (dur ? ` data-duration="${dur}"` : "") +
+        `>` +
+        `<button type="button" class="chat-voice-play" data-voice-play>▶</button>` +
+        `<span class="chat-voice-time" data-voice-time>00:00 / ${durLabel}</span>` +
+        `<audio class="chat-voice-audio" preload="metadata" src="${url.replace(/"/g, "&quot;")}"></audio>` +
+        `<small class="chat-voice-ttl">Pesan suara pengumuman</small></div>`;
+    }
+    return html;
+  }
+  function wireAnnAdminVoice(root) {
+    if (!root) return;
+    root.querySelectorAll(".chat-voice-player").forEach((wrap) => {
+      if (wrap.dataset.wired) return;
+      wrap.dataset.wired = "1";
+      const audio = wrap.querySelector("audio");
+      const btn = wrap.querySelector("[data-voice-play]");
+      const timeEl = wrap.querySelector("[data-voice-time]");
+      if (!audio || !btn || !timeEl) return;
+      let known = parseFloat(wrap.getAttribute("data-duration") || "");
+      if (!isFinite(known)) known = null;
+      function fmt(sec) {
+        if (!isFinite(sec) || sec < 0) return "--:--";
+        sec = Math.floor(sec);
+        return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
+      }
+      function render() {
+        const dur = known != null ? known : (isFinite(audio.duration) && audio.duration !== Infinity ? audio.duration : null);
+        timeEl.textContent = fmt(audio.currentTime || 0) + " / " + (dur != null ? fmt(dur) : "--:--");
+      }
+      audio.addEventListener("loadedmetadata", () => {
+        if (known == null && isFinite(audio.duration) && audio.duration !== Infinity) known = audio.duration;
+        render();
+      });
+      audio.addEventListener("timeupdate", render);
+      audio.addEventListener("ended", () => { btn.textContent = "▶"; render(); });
+      btn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (audio.paused) {
+          audio.play().then(() => { btn.textContent = "❚❚"; }).catch(() => {});
+        } else {
+          audio.pause();
+          btn.textContent = "▶";
+        }
+      });
+      try { audio.load(); } catch (e) {}
+      render();
+    });
+  }
+
+
   async function refreshAnnouncements() {
     const host = $("#annList");
     if (!host) return;
@@ -642,7 +744,27 @@
           const f = $("#annForm");
           f.querySelector("[name=id]").value = r.id;
           f.querySelector("[name=title]").value = r.title || "";
-          $("#annEditor").innerHTML = r.body_html || "";
+          {
+            const raw = r.body_html || "";
+            const tmp = document.createElement("div");
+            tmp.innerHTML = raw;
+            const voiceEl = tmp.querySelector(".ann-voice-block, .ann-voice-slot-render, [data-voice-url]");
+            const slot = $("#annVoiceSlot");
+            const slotBody = $("#annVoiceSlotBody");
+            if (voiceEl && slot && slotBody) {
+              const url = voiceEl.getAttribute("data-voice-url") || (voiceEl.querySelector("audio") && voiceEl.querySelector("audio").src) || "";
+              const dur = voiceEl.getAttribute("data-duration") || "";
+              voiceEl.remove();
+              if (url) {
+                setAnnVoiceSlot(url, dur ? parseFloat(dur) : null);
+              } else {
+                clearAnnVoiceSlot();
+              }
+            } else {
+              clearAnnVoiceSlot();
+            }
+            $("#annEditor").innerHTML = tmp.innerHTML;
+          }
           f.querySelector("[name=show_home]").checked =
             (r.show_on || "").indexOf("home") >= 0 || r.audience === "public" || r.show_on === "both";
           f.querySelector("[name=show_logged]").checked =
@@ -799,7 +921,7 @@
       const payload = {
         id: fd.get("id") || null,
         title: fd.get("title"),
-        body_html: $("#annEditor").innerHTML,
+        body_html: buildAnnBodyHtml(),
         audience,
         show_on,
         target_students: showStudents ? readAnnTargets() : [],
@@ -818,13 +940,13 @@
         f.reset();
         f.querySelector("[name=id]").value = "";
         $("#annEditor").innerHTML = "";
-        const prev = $("#annVoicePreview");
-        if (prev) { prev.hidden = true; prev.innerHTML = ""; }
+        clearAnnVoiceSlot();
         await refreshAnnouncements();
       } catch (e) {
         $("#annStatus").textContent = e.message || String(e);
       }
     }
+
 
     // --- Pesan suara pengumuman (mirip chat) ---
     let annRec = null;
@@ -962,6 +1084,7 @@
         }
       });
       const chunks = annChunks.slice();
+      const elapsedMs = annStarted ? (Date.now() - annStarted) : 0;
       annCancelRec();
       if (!send || !chunks.length) {
         $("#annStatus").textContent = send ? "Rekaman kosong" : "Rekaman dibatalkan";
@@ -980,45 +1103,23 @@
       try {
         const url = await GalleryDB.uploadChatAudio(blob);
         if (!url) throw new Error("Upload gagal");
-        // hitung durasi lokal
-        let durLabel = "";
+        let durSec = null;
         try {
           const tmp = document.createElement("audio");
           tmp.preload = "metadata";
-          tmp.src = URL.createObjectURL(blob);
+          const obj = URL.createObjectURL(blob);
+          tmp.src = obj;
           await new Promise((res) => {
             tmp.onloadedmetadata = () => res();
             tmp.onerror = () => res();
             setTimeout(res, 1500);
           });
-          if (isFinite(tmp.duration)) {
-            const sec = Math.floor(tmp.duration);
-            durLabel = String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
-          }
-          URL.revokeObjectURL(tmp.src);
+          if (isFinite(tmp.duration) && tmp.duration > 0 && tmp.duration !== Infinity) durSec = tmp.duration;
+          URL.revokeObjectURL(obj);
         } catch (e) {}
-        const ed = $("#annEditor");
-        const block =
-          `<div class="ann-voice-block chat-voice-player" data-voice-url="${url.replace(/"/g, "&quot;")}">` +
-          `<button type="button" class="chat-voice-play" data-voice-play>▶</button>` +
-          `<span class="chat-voice-time" data-voice-time>00:00 / ${durLabel || "--:--"}</span>` +
-          `<audio class="chat-voice-audio" preload="metadata" src="${url.replace(/"/g, "&quot;")}"></audio>` +
-          `<small class="chat-voice-ttl">Pesan suara pengumuman${durLabel ? " · " + durLabel : ""}</small>` +
-          `</div><p></p>`;
-        if (ed) {
-          ed.focus();
-          try {
-            document.execCommand("insertHTML", false, block);
-          } catch (e) {
-            ed.innerHTML += block;
-          }
-        }
-        const prev = $("#annVoicePreview");
-        if (prev) {
-          prev.hidden = false;
-          prev.innerHTML = block;
-        }
-        $("#annStatus").textContent = "Suara ditambahkan ke isi pengumuman.";
+        if (durSec == null && elapsedMs > 300) durSec = elapsedMs / 1000;
+        setAnnVoiceSlot(url, durSec);
+        $("#annStatus").textContent = "Suara dipasang (kotak terpisah di bawah teks).";
       } catch (e) {
         $("#annStatus").textContent = e.message || String(e);
       }
@@ -1034,6 +1135,11 @@
     if (annVoiceStop) annVoiceStop.addEventListener("click", () => annStopRec(true));
     const annVoiceCancel = $("#annVoiceCancel");
     if (annVoiceCancel) annVoiceCancel.addEventListener("click", () => annCancelRec());
+    const annVoiceRemove = $("#annVoiceRemove");
+    if (annVoiceRemove) annVoiceRemove.addEventListener("click", () => {
+      clearAnnVoiceSlot();
+      $("#annStatus").textContent = "Pesan suara dihapus dari pengumuman.";
+    });
 
     f.onsubmit = saveAnnouncement;
     const annSave = $("#annSave");

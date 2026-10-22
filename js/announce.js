@@ -173,7 +173,17 @@
         `<button type="button" class="sh-ann-close">Tutup</button></div></div>`;
       overlay.querySelector("h2").textContent = ann.title || "Pengumuman";
       overlay.querySelector(".sh-ann-body").innerHTML = ann.body_html || "";
-      wireAnnVoicePlayers(overlay.querySelector(".sh-ann-body"));
+      const bodyEl = overlay.querySelector(".sh-ann-body");
+      // pastikan blok suara bisa diklik di atas elemen lain
+      bodyEl.querySelectorAll(".ann-voice-block, .chat-voice-player").forEach(function (el) {
+        el.style.position = "relative";
+        el.style.zIndex = "2";
+        el.style.pointerEvents = "auto";
+      });
+      bodyEl.querySelectorAll("audio").forEach(function (a) {
+        a.removeAttribute("crossorigin");
+      });
+      wireAnnVoicePlayers(bodyEl);
       const timerEl = overlay.querySelector(".sh-ann-timer");
       const close = () => {
         clearInterval(iv);
@@ -239,24 +249,39 @@
 
   function wireAnnVoicePlayers(root) {
     if (!root) return;
-    root.querySelectorAll(".ann-voice-block, .chat-voice-player").forEach(function (wrap) {
+    root.querySelectorAll(".ann-voice-block, .chat-voice-player, .ann-voice-slot-render").forEach(function (wrap) {
       if (wrap.dataset.wired) return;
       wrap.dataset.wired = "1";
-      let audio = wrap.querySelector("audio");
-      let btn = wrap.querySelector("[data-voice-play]");
-      let timeEl = wrap.querySelector("[data-voice-time]");
-      // legacy: only audio controls
-      if (audio && !btn) {
+      var audio = wrap.querySelector("audio");
+      var btn = wrap.querySelector("[data-voice-play]");
+      var timeEl = wrap.querySelector("[data-voice-time]");
+      if (!audio) return;
+      // legacy plain audio
+      if (!btn) {
         audio.controls = true;
         audio.preload = "metadata";
+        audio.style.display = "block";
         return;
       }
-      if (!audio || !btn || !timeEl) return;
-      function renderTime() {
-        timeEl.textContent = fmtAnnClock(audio.currentTime || 0) + " / " + fmtAnnClock(audio.duration);
+      if (!timeEl) return;
+      var known = parseFloat(wrap.getAttribute("data-duration") || "");
+      if (!isFinite(known)) known = null;
+      function totalDur() {
+        if (known != null) return known;
+        var d = audio.duration;
+        if (isFinite(d) && d > 0 && d !== Infinity) return d;
+        return null;
       }
-      audio.addEventListener("loadedmetadata", renderTime);
-      audio.addEventListener("durationchange", renderTime);
+      function renderTime() {
+        var dur = totalDur();
+        var cur = audio.currentTime || 0;
+        timeEl.textContent = fmtAnnClock(cur) + " / " + (dur != null ? fmtAnnClock(dur) : "--:--");
+      }
+      audio.addEventListener("loadedmetadata", function () {
+        var d = audio.duration;
+        if (known == null && isFinite(d) && d > 0 && d !== Infinity) known = d;
+        renderTime();
+      });
       audio.addEventListener("timeupdate", renderTime);
       audio.addEventListener("ended", function () {
         btn.textContent = "▶";
@@ -264,13 +289,38 @@
       });
       btn.addEventListener("click", function (ev) {
         ev.preventDefault();
+        ev.stopPropagation();
         if (audio.paused) {
-          audio.play().then(function () { btn.textContent = "❚❚"; }).catch(function () {});
+          audio.play().then(function () {
+            btn.textContent = "❚❚";
+          }).catch(function () {
+            btn.textContent = "▶";
+          });
         } else {
           audio.pause();
           btn.textContent = "▶";
         }
       });
+      if (known == null && audio.src) {
+        fetch(audio.src, { mode: "cors" })
+          .then(function (r) { return r.ok ? r.blob() : null; })
+          .then(function (blob) {
+            if (!blob) return;
+            var obj = URL.createObjectURL(blob);
+            var probe = new Audio();
+            probe.preload = "metadata";
+            probe.src = obj;
+            probe.onloadedmetadata = function () {
+              if (isFinite(probe.duration) && probe.duration > 0 && probe.duration !== Infinity) {
+                known = probe.duration;
+                wrap.setAttribute("data-duration", String(known));
+                audio.src = obj;
+                renderTime();
+              }
+            };
+          })
+          .catch(function () {});
+      }
       try { audio.load(); } catch (e) {}
       renderTime();
     });
