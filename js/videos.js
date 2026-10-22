@@ -100,6 +100,29 @@
     return "Video";
   }
 
+  function enrich(v) {
+    const on = v.owner_name || "";
+    if (!on) return Object.assign({}, v, { _class: "", _year: "" });
+    const hit = students.find((s) => norm(s.name) === norm(on));
+    if (hit) return Object.assign({}, v, { _class: String(hit.class || ""), _year: String(hit.angkatan || "") });
+    const m = String(v.description || "").match(/Angkatan\s+(\d{4}).*?(\d{2})/i);
+    if (m) return Object.assign({}, v, { _year: m[1], _class: m[2] });
+    return Object.assign({}, v, { _class: "", _year: "" });
+  }
+
+  function filtered() {
+    return all.filter((v) => {
+      if (state.cat !== "all" && v.category_id !== state.cat) return false;
+      if (state.year && v._year && v._year !== state.year) return false;
+      if (state.kelas && v._class && v._class !== state.kelas) return false;
+      if (state.q) {
+        const hay = [v.title, v.description, v.owner_name, v.url].join(" ").toLowerCase();
+        if (!hay.includes(state.q)) return false;
+      }
+      return true;
+    });
+  }
+
   function card(v) {
     const catName = (v.gallery_video_categories && v.gallery_video_categories.name) || "Video";
     const meta = [v.owner_name, v._year ? "Angkatan " + v._year : "", v._class ? "Kls " + v._class : ""]
