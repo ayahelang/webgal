@@ -895,14 +895,19 @@
     if (btnPrev)
       btnPrev.onclick = () => {
         if (window.SHAnnounce) {
+          // buildAnnBodyHtml = teks editor + slot suara (bukan hanya innerHTML editor)
+          const html = typeof buildAnnBodyHtml === "function" ? buildAnnBodyHtml() : ($("#annEditor") && $("#annEditor").innerHTML) || "";
           SHAnnounce.showSplash({
             title: f.querySelector("[name=title]").value || "Preview",
-            body_html: $("#annEditor").innerHTML,
+            body_html: html,
             splash_seconds: Number(f.querySelector("[name=splash_seconds]").value) || 15,
             id: "preview-" + Date.now(),
             times_per_day: 99,
             active: true,
           });
+        } else {
+          const st = $("#annStatus");
+          if (st) st.textContent = "Modul pengumuman belum termuat";
         }
       };
     async function saveAnnouncement(ev) {

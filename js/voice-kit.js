@@ -213,8 +213,10 @@
       '<button type="button" class="sh-voice-stop" data-voice-stop title="Stop">⏹</button>' +
       '<div class="sh-voice-track">' +
       '<span class="sh-voice-time" data-voice-time>00:00 / ' + durLabel + "</span>" +
+      '<div class="sh-voice-seek-wrap">' +
+      '<div class="sh-voice-seek-fill" data-voice-fill></div>' +
       '<input type="range" class="sh-voice-seek" min="0" max="1000" value="0" step="1" aria-label="Posisi audio" />' +
-      "</div>" +
+      "</div></div>" +
       (dl ? '<button type="button" class="sh-voice-dl" data-voice-dl title="Unduh suara">⬇</button>' : "") +
       '<audio class="sh-voice-audio" preload="auto" src="' + url + '" playsinline></audio>' +
       (ttl ? '<small class="sh-voice-ttl">' + ttl + "</small>" : "") +
@@ -260,31 +262,43 @@
       if (!srcUrl) srcUrl = audio.getAttribute("src") || audio.src || "";
     }
 
-    // Pastikan struktur track + seek
-    if (!seek || !timeEl) {
-      var track = wrap.querySelector(".sh-voice-track");
-      if (!track) {
-        track = document.createElement("div");
-        track.className = "sh-voice-track";
-        if (btn && btn.nextSibling) wrap.insertBefore(track, btn.nextSibling);
-        else wrap.appendChild(track);
-      }
-      if (!timeEl) {
-        timeEl = document.createElement("span");
-        timeEl.className = "sh-voice-time";
-        timeEl.setAttribute("data-voice-time", "");
-        track.insertBefore(timeEl, track.firstChild);
-      }
-      if (!seek) {
-        seek = document.createElement("input");
-        seek.type = "range";
-        seek.className = "sh-voice-seek";
-        seek.min = "0";
-        seek.max = "1000";
-        seek.value = "0";
-        seek.step = "1";
-        track.appendChild(seek);
-      }
+    // Pastikan struktur track + seek + fill
+    var track = wrap.querySelector(".sh-voice-track");
+    if (!track) {
+      track = document.createElement("div");
+      track.className = "sh-voice-track";
+      if (btn && btn.nextSibling) wrap.insertBefore(track, btn.nextSibling);
+      else wrap.appendChild(track);
+    }
+    if (!timeEl) {
+      timeEl = document.createElement("span");
+      timeEl.className = "sh-voice-time";
+      timeEl.setAttribute("data-voice-time", "");
+      track.insertBefore(timeEl, track.firstChild);
+    }
+    var seekWrap = wrap.querySelector(".sh-voice-seek-wrap");
+    if (!seekWrap) {
+      seekWrap = document.createElement("div");
+      seekWrap.className = "sh-voice-seek-wrap";
+      track.appendChild(seekWrap);
+    }
+    if (!seekWrap.querySelector("[data-voice-fill], .sh-voice-seek-fill")) {
+      var fill = document.createElement("div");
+      fill.className = "sh-voice-seek-fill";
+      fill.setAttribute("data-voice-fill", "");
+      seekWrap.insertBefore(fill, seekWrap.firstChild);
+    }
+    if (!seek) {
+      seek = document.createElement("input");
+      seek.type = "range";
+      seek.className = "sh-voice-seek";
+      seek.min = "0";
+      seek.max = "1000";
+      seek.value = "0";
+      seek.step = "1";
+      seekWrap.appendChild(seek);
+    } else if (seek.parentElement !== seekWrap) {
+      seekWrap.appendChild(seek);
     }
 
     if (!stopBtn) {
@@ -327,6 +341,8 @@
       btn.setAttribute("aria-label", playing ? "Jeda" : "Putar");
     }
 
+    var fillEl = wrap.querySelector("[data-voice-fill], .sh-voice-seek-fill");
+
     function renderTime() {
       var dur = totalDur();
       var cur = 0;
@@ -335,11 +351,19 @@
       if (timeEl) {
         timeEl.textContent = formatClock(cur) + " / " + (dur != null ? formatClock(dur) : "--:--");
       }
+      var pct = 0;
+      if (dur != null && dur > 0) {
+        pct = (cur / dur) * 100;
+        if (pct < 0) pct = 0;
+        if (pct > 100) pct = 100;
+      }
+      if (fillEl) {
+        fillEl.style.width = pct + "%";
+      }
       if (seek && !seeking && dur != null && dur > 0) {
-        var v = Math.round((cur / dur) * 1000);
-        if (v < 0) v = 0;
-        if (v > 1000) v = 1000;
+        var v = Math.round((pct / 100) * 1000);
         seek.value = String(v);
+        try { seek.setAttribute("value", String(v)); } catch (e) {}
       }
     }
 

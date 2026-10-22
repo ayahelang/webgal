@@ -3365,17 +3365,34 @@ body.chat-embed .chat-fields{
 .sh-voice-time, .chat-voice-time{
   font-size:12px;font-weight:700;color:#9ec8d6;font-variant-numeric:tabular-nums;
 }
+.sh-voice-seek-wrap{
+  position:relative;width:100%;height:14px;border-radius:999px;
+  background:rgba(125,227,255,.18);overflow:hidden;margin-top:2px;
+}
+.sh-voice-seek-fill{
+  position:absolute;left:0;top:0;bottom:0;width:0%;
+  background:linear-gradient(90deg,rgba(125,227,255,.75),rgba(80,200,255,.95));
+  border-radius:999px;pointer-events:none;transition:width .08s linear;
+}
 .sh-voice-seek{
-  -webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:999px;
-  background:rgba(125,227,255,.2);outline:none;cursor:pointer;margin:0;
+  -webkit-appearance:none;appearance:none;position:absolute;left:0;top:0;
+  width:100%;height:14px;margin:0;padding:0;border:0;outline:none;cursor:pointer;
+  background:transparent;z-index:2;
 }
+.sh-voice-seek::-webkit-slider-runnable-track{height:14px;background:transparent;border:none}
 .sh-voice-seek::-webkit-slider-thumb{
-  -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
-  background:#7de3ff;border:2px solid #0a1620;cursor:pointer;
+  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:#e8fbff;border:2px solid #0a1620;cursor:pointer;margin-top:0;
+  box-shadow:0 0 0 2px rgba(125,227,255,.35);
 }
+.sh-voice-seek::-moz-range-track{height:14px;background:transparent;border:none}
 .sh-voice-seek::-moz-range-thumb{
-  width:14px;height:14px;border-radius:50%;background:#7de3ff;border:2px solid #0a1620;cursor:pointer;
+  width:16px;height:16px;border-radius:50%;background:#e8fbff;border:2px solid #0a1620;cursor:pointer;
 }
+.sh-ann-body .sh-voice-player,
+.sh-ann-body .sh-voice-seek-wrap{display:block;max-width:min(100%,300px)}
+.sh-ann-body .sh-voice-seek{display:block!important;opacity:1!important;height:14px!important}
+
 .sh-voice-dl{
   display:inline-flex;align-items:center;justify-content:center;
   width:32px;height:32px;border-radius:8px;text-decoration:none;

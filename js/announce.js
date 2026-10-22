@@ -174,16 +174,20 @@
       overlay.querySelector("h2").textContent = ann.title || "Pengumuman";
       overlay.querySelector(".sh-ann-body").innerHTML = ann.body_html || "";
       const bodyEl = overlay.querySelector(".sh-ann-body");
-      // pastikan blok suara bisa diklik di atas elemen lain
-      bodyEl.querySelectorAll(".ann-voice-block, .chat-voice-player").forEach(function (el) {
+      bodyEl.querySelectorAll(".ann-voice-block, .chat-voice-player, .sh-voice-player, .ann-voice-slot-render").forEach(function (el) {
         el.style.position = "relative";
         el.style.zIndex = "2";
         el.style.pointerEvents = "auto";
       });
       bodyEl.querySelectorAll("audio").forEach(function (a) {
         a.removeAttribute("crossorigin");
+        a.preload = "auto";
       });
       wireAnnVoicePlayers(bodyEl);
+      // wire lagi setelah layout (slider/player siap)
+      setTimeout(function () {
+        wireAnnVoicePlayers(bodyEl);
+      }, 50);
       const timerEl = overlay.querySelector(".sh-ann-timer");
       const close = () => {
         clearInterval(iv);

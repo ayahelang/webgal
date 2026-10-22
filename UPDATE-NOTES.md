@@ -1,16 +1,7 @@
-# Player suara: seek + timer + stop
+# Slider visual + preview splash suara
 
-## Perbaikan
-- Slider bergerak seiring audio (poll 100ms)
-- Geser slider → posisi audio & waktu ikut
-- Ikon ▶ / ❚❚ berganti saat play/pause
-- Tombol ⏹ Stop (ulang ke awal)
-- Unduh: coba file asli (webm/ogg); MP3 tidak tersedia karena browser merekam WebM
-- Lebar max ~300px
+1. Progress bar (fill) + range seek yang terlihat jelas
+2. Preview splash admin memakai buildAnnBodyHtml() → suara ikut tampil
+3. Splash frontend wire player (termasuk .sh-voice-player)
 
-## Dipakai di
-chat, balas, edit, pengumuman, editor pengumuman (via SHVoice.wirePlayers / playerHtml)
-
-## File
-js/voice-kit.js (wajib), js/chat.js, js/announce.js, js/admin.js, css/style.css
-Pastikan voice-kit.js dimuat SEBELUM chat.js / announce.js / admin.js
+File: js/voice-kit.js, js/admin.js, js/announce.js, js/chat.js, css/style.css
