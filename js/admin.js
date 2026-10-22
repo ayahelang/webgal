@@ -299,12 +299,31 @@
   }
 
   function scrollToForm(sel) {
-    // Auto-scroll dimatikan agar tidak mengganggu pengisian data
     const f = $(sel);
     if (!f) return;
     try {
-      const el = f.querySelector("input,select,textarea,[contenteditable='true']");
-      if (el) el.focus({ preventScroll: true });
+      // Loncat ke form pengeditan (mis. setelah klik Ubah di list)
+      f.scrollIntoView({ behavior: "smooth", block: "start" });
+      f.classList.add("admin-form-flash");
+      setTimeout(function () {
+        f.classList.remove("admin-form-flash");
+      }, 1200);
+      setTimeout(function () {
+        const el =
+          f.querySelector("input[name=title]") ||
+          f.querySelector("input:not([type=hidden]):not([type=checkbox]):not([type=radio])") ||
+          f.querySelector("[contenteditable='true']") ||
+          f.querySelector("textarea, select");
+        if (el) {
+          try {
+            el.focus({ preventScroll: true });
+          } catch (e2) {
+            try {
+              el.focus();
+            } catch (e3) {}
+          }
+        }
+      }, 400);
     } catch (e) {}
   }
   function collapseTreeParents(root, depthKeepOpen) {

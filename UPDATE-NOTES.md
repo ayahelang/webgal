@@ -1,9 +1,8 @@
-# Player sh-ap (layout bersih)
+# Admin: Ubah pengumuman → lompat ke form
 
-Class baru sh-ap-* agar tidak bentrok CSS lama.
-Grid: [Play][Stop][waktu+slider][Unduh]
+Klik tombol Ubah di list pengumuman akan:
+- scroll halus ke #annForm
+- fokus ke field judul
+- highlight ringkas pada form
 
-seek.max = durasi detik, seek.value = currentTime
-timeupdate + interval 100ms
-
-WAJIB hard-refresh / clear cache setelah upload voice-kit.js + style.css
+File: js/admin.js, css/style.css

@@ -3549,3 +3549,11 @@ body.chat-embed .chat-fields{
 /* netralkan sisa CSS lama yang bikin slider loncat */
 .sh-voice-seek-wrap,.sh-voice-seek-fill{display:none!important}
 .sh-audio-seek{max-width:100%}
+
+/* Flash ringkas saat lompat ke form edit admin */
+.admin-form-flash, form.admin-form-flash, #annForm.admin-form-flash{
+  outline: 2px solid rgba(125,227,255,.65);
+  outline-offset: 6px;
+  border-radius: 12px;
+  transition: outline-color .3s ease;
+}
