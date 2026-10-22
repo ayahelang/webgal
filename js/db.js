@@ -676,11 +676,11 @@
     let platform = "other";
     let embed = u;
     let id = null;
-    let m;
     let playable = true;
+    let play_mode = "iframe"; // iframe | video | link
     let hint = "";
 
-    // File video langsung (CDN Instagram/FB, .mp4, dll.) — diputar lewat <video>
+    // File video langsung (CDN IG/FB, .mp4, dll.)
     const isDirectVideo =
       /\.(mp4|webm|ogg|m4v)(\?|#|$)/i.test(u) ||
       /fbcdn\.net\/.*\.mp4/i.test(u) ||
@@ -698,37 +698,109 @@
       };
     }
 
-    m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/i);
+    let m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/i);
     if (m) {
-      platform = "youtube";
-      id = m[1];
-      embed = "https://www.youtube.com/embed/" + id;
-      return { platform, embed_url: embed, id, playable: true, play_mode: "iframe", hint: "" };
+      return {
+        platform: "youtube",
+        embed_url: "https://www.youtube.com/embed/" + m[1],
+        id: m[1],
+        playable: true,
+        play_mode: "iframe",
+        hint: "",
+      };
     }
+
     m = u.match(/dailymotion\.com\/(?:video|embed\/video)\/([a-zA-Z0-9]+)/i) || u.match(/dai\.ly\/([a-zA-Z0-9]+)/i);
     if (m) {
-      platform = "dailymotion";
-      id = m[1];
-      embed = "https://www.dailymotion.com/embed/video/" + id;
-      return { platform, embed_url: embed, id, playable: true, play_mode: "iframe", hint: "" };
+      return {
+        platform: "dailymotion",
+        embed_url: "https://www.dailymotion.com/embed/video/" + m[1],
+        id: m[1],
+        playable: true,
+        play_mode: "iframe",
+        hint: "",
+      };
     }
+
+    // TikTok — embed resmi
     if (/tiktok\.com\//i.test(u)) {
       platform = "tiktok";
-      return { platform, embed_url: u, id: null, playable: true, play_mode: "link", hint: "TikTok dibuka di tab sumber." };
+      m = u.match(/tiktok\.com\/@[^/]+\/video\/(\d+)/i) || u.match(/tiktok\.com\/.*?\/video\/(\d+)/i) || u.match(/[?&]item_id=(\d+)/i);
+      if (m) {
+        id = m[1];
+        embed = "https://www.tiktok.com/embed/v2/" + id;
+        return { platform, embed_url: embed, id, playable: true, play_mode: "iframe", hint: "" };
+      }
+      // vm.tiktok.com short links — buka sumber
+      return {
+        platform,
+        embed_url: u,
+        id: null,
+        playable: true,
+        play_mode: "link",
+        hint: "Link pendek TikTok: buka dulu di browser, salin URL penuh berbentuk tiktok.com/@user/video/ANGKA.",
+      };
     }
+
+    // Instagram post/reel — embed path
     if (/instagram\.com\//i.test(u)) {
       platform = "instagram";
-      // Halaman Instagram post tidak bisa di-embed andal tanpa oEmbed token
-      playable = false;
-      hint =
-        "Link halaman Instagram tidak bisa diputar di galeri. Salin URL file .mp4 langsung (dari unduhan/network) atau unggah ke YouTube/Dailymotion.";
-      return { platform, embed_url: u, id: null, playable, play_mode: "none", hint };
+      m = u.match(/instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/i);
+      if (m) {
+        id = m[1];
+        const kind = (u.match(/instagram\.com\/(p|reel|tv)\//i) || [])[1] || "p";
+        embed = "https://www.instagram.com/" + kind + "/" + id + "/embed";
+        return {
+          platform,
+          embed_url: embed,
+          id,
+          playable: true,
+          play_mode: "iframe",
+          hint: "Jika embed IG kosong, gunakan URL file .mp4 langsung dari unduhan.",
+        };
+      }
+      return {
+        platform,
+        embed_url: u,
+        id: null,
+        playable: false,
+        play_mode: "none",
+        hint:
+          "Link Instagram tidak dikenali. Gunakan https://www.instagram.com/reel/KODE/ atau https://www.instagram.com/p/KODE/ atau URL .mp4 langsung.",
+      };
     }
+
+    // Twitter / X
+    if (/(?:twitter\.com|x\.com)\//i.test(u)) {
+      platform = "twitter";
+      m = u.match(/(?:twitter\.com|x\.com)\/[^/]+\/status\/(\d+)/i);
+      if (m) {
+        id = m[1];
+        embed = "https://platform.twitter.com/embed/Tweet.html?id=" + id;
+        return {
+          platform,
+          embed_url: embed,
+          id,
+          playable: true,
+          play_mode: "iframe",
+          hint: "Jika video X tidak muncul, buka lewat tombol sumber.",
+        };
+      }
+      return {
+        platform,
+        embed_url: u,
+        id: null,
+        playable: false,
+        play_mode: "none",
+        hint: "Gunakan link postingan penuh: https://x.com/user/status/ANGKA",
+      };
+    }
+
+    // Facebook
     if (/facebook\.com\/|fb\.watch\//i.test(u)) {
       platform = "facebook";
       let href = u.split("#")[0];
-      let fm;
-      fm = href.match(/facebook\.com\/reel\/(\d+)/i);
+      let fm = href.match(/facebook\.com\/reel\/(\d+)/i);
       if (fm) {
         id = fm[1];
         href = "https://www.facebook.com/reel/" + id + "/";
@@ -736,14 +808,13 @@
           "https://www.facebook.com/plugins/video.php?href=" +
           encodeURIComponent(href) +
           "&show_text=0&width=560";
-        // Plugin sering diblokir domain pihak ketiga — tandai semi
         return {
           platform,
           embed_url: embed,
           id,
           playable: true,
           play_mode: "iframe",
-          hint: "Jika tidak diputar, buka di Facebook atau gunakan URL .mp4 langsung.",
+          hint: "Facebook sering memblokir putar di situs lain. Jika 'Video unavailable', buka sumber atau pakai URL .mp4.",
         };
       }
       if ((fm = href.match(/facebook\.com\/(?:[^/]+\/)?videos\/(?:[^/]+\/)?(\d+)/i))) {
@@ -764,31 +835,26 @@
           "&show_text=0&width=560";
         return { platform, embed_url: embed, id, playable: true, play_mode: "iframe", hint: "" };
       }
-      // share/v, share/r, fb.watch tanpa id numerik — biasanya tidak playable di iframe pihak ketiga
-      playable = false;
-      hint =
-        "Link Facebook share (share/v/…) tidak bisa diputar di galeri. Buka link itu di browser, salin URL akhir berbentuk facebook.com/reel/ANGKA atau facebook.com/watch?v=ANGKA, atau gunakan URL file .mp4 langsung.";
-      return { platform, embed_url: u, id: null, playable, play_mode: "none", hint };
-    }
-    if (/(?:twitter\.com|x\.com)\//i.test(u)) {
-      platform = "twitter";
+      // share/v — tidak andal
       return {
         platform,
         embed_url: u,
         id: null,
         playable: false,
         play_mode: "none",
-        hint: "Link X/Twitter tidak didukung. Gunakan YouTube, Dailymotion, atau URL .mp4 langsung.",
+        hint:
+          "Link Facebook share/v tidak bisa diputar di galeri. Buka di browser → salin URL akhir (facebook.com/reel/ANGKA atau watch?v=ANGKA), atau gunakan URL file .mp4.",
       };
     }
+
     return {
       platform: "other",
-      embed_url: embed,
+      embed_url: u,
       id: null,
       playable: false,
       play_mode: "none",
       hint:
-        "Format link tidak dikenali. Gunakan YouTube, Dailymotion, facebook.com/reel/ID, atau URL file .mp4 langsung.",
+        "Format tidak dikenali. Gunakan YouTube, Dailymotion, TikTok (/video/ANGKA), Instagram (/reel/KODE), X (/status/ANGKA), Facebook reel/ID, atau URL .mp4.",
     };
   }
 

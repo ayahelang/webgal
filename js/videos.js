@@ -88,6 +88,18 @@
     return "iframe";
   }
 
+  function platformLabel(v) {
+    const p = String((parsedVideo(v).platform || v.platform || "")).toLowerCase();
+    if (p === "facebook") return "Facebook";
+    if (p === "instagram") return "Instagram";
+    if (p === "tiktok") return "TikTok";
+    if (p === "twitter") return "X / Twitter";
+    if (p === "direct") return "Video";
+    if (p === "youtube") return "YouTube";
+    if (p === "dailymotion") return "Dailymotion";
+    return "Video";
+  }
+
   function card(v) {
     const catName = (v.gallery_video_categories && v.gallery_video_categories.name) || "Video";
     const meta = [v.owner_name, v._year ? "Angkatan " + v._year : "", v._class ? "Kls " + v._class : ""]
@@ -97,21 +109,27 @@
     const embed = ensureEmbed(v);
     const mode = playModeOf(v);
     const embEsc = esc(embed);
-    const fb = isFacebookVideo(v) && mode !== "video";
+    const label = platformLabel(v);
+    const plat = String((parsedVideo(v).platform || "")).toLowerCase();
     let frame;
     if (mode === "video") {
       frame = `<button type="button" class="video-thumb-btn video-thumb-ph is-direct" data-embed="${embEsc}" data-play="video" aria-label="Putar video">
-          <span class="video-ph-label">Video</span>
+          <span class="video-ph-label">${esc(label)}</span>
           <span class="video-play">▶</span>
         </button>`;
+    } else if (mode === "link") {
+      frame = `<a class="video-thumb-btn video-thumb-ph is-link" href="${esc(v.url || embed)}" target="_blank" rel="noopener" aria-label="Buka di ${esc(label)}">
+          <span class="video-ph-label">${esc(label)}</span>
+          <span class="video-play">↗</span>
+        </a>`;
     } else if (thumb) {
-      frame = `<button type="button" class="video-thumb-btn" data-embed="${embEsc}" data-play="iframe" aria-label="Putar video">
+      frame = `<button type="button" class="video-thumb-btn" data-embed="${embEsc}" data-play="iframe" data-src-url="${esc(v.url || "")}" data-platform="${esc(plat)}" aria-label="Putar video">
           <img class="video-thumb" src="${esc(thumb)}" alt="" loading="lazy" decoding="async" width="480" height="270">
           <span class="video-play">▶</span>
         </button>`;
     } else {
-      frame = `<button type="button" class="video-thumb-btn video-thumb-ph ${fb ? "is-fb" : ""}" data-embed="${embEsc}" data-play="iframe" aria-label="Putar video">
-          <span class="video-ph-label">${fb ? "Facebook" : "Video"}</span>
+      frame = `<button type="button" class="video-thumb-btn video-thumb-ph is-${esc(plat || "video")}" data-embed="${embEsc}" data-play="iframe" data-src-url="${esc(v.url || "")}" data-platform="${esc(plat)}" aria-label="Putar video">
+          <span class="video-ph-label">${esc(label)}</span>
           <span class="video-play">▶</span>
         </button>`;
     }
@@ -136,10 +154,12 @@
   }
 
   function bindPlay(root) {
-    (root || document).querySelectorAll(".video-thumb-btn").forEach((btn) => {
+    (root || document).querySelectorAll("button.video-thumb-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const embed = btn.getAttribute("data-embed") || "";
         const mode = btn.getAttribute("data-play") || "iframe";
+        const srcUrl = btn.getAttribute("data-src-url") || "";
+        const platform = btn.getAttribute("data-platform") || "";
         const host = btn.closest("[data-video-frame]");
         if (!host || !embed) return;
         if (mode === "video") {
@@ -148,6 +168,16 @@
         }
         const sep = embed.indexOf("?") >= 0 ? "&" : "?";
         const src = embed + sep + "autoplay=1";
+        const openHref = (srcUrl || embed).replace(/"/g, "&quot;");
+        // Facebook sering "Video unavailable" di iframe — tampilkan iframe + tombol buka sumber
+        if (platform === "facebook") {
+          host.innerHTML = `
+            <div class="video-fb-wrap">
+              <iframe src="${src.replace(/"/g, "&quot;")}" title="Video" allow="autoplay; encrypted-media; picture-in-picture; web-share" allowfullscreen loading="eager"></iframe>
+              <a class="video-open-src" href="${openHref}" target="_blank" rel="noopener">Jika tidak diputar, buka di Facebook ↗</a>
+            </div>`;
+          return;
+        }
         host.innerHTML = `<iframe src="${src.replace(/"/g, "&quot;")}" title="Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="eager"></iframe>`;
       });
     });
@@ -170,7 +200,7 @@
         <form id="videoAdminForm" class="video-admin-form">
           <label>Judul<input name="title" required maxlength="200" /></label>
           <label>URL video<input name="url" required /></label>
-          <p class="muted video-admin-hint">Didukung: YouTube, Dailymotion, facebook.com/reel/ANGKA, atau URL .mp4 langsung. Link share/v Facebook & halaman Instagram tidak bisa diputar.</p>
+          <p class="muted video-admin-hint">Didukung: YouTube, Dailymotion, TikTok (/video/ANGKA), Instagram (/reel/KODE), X (/status/ANGKA), Facebook (/reel/ANGKA), atau URL .mp4. Hindari facebook.com/share/v/…</p>
           <label>Kategori<select name="categoryId"><option value="">—</option></select></label>
           <label>Pemilik / pemilik karya<input name="ownerName" maxlength="120" /></label>
           <label>Deskripsi<textarea name="description" rows="3" maxlength="2000"></textarea></label>
@@ -345,9 +375,38 @@
     }
     try {
       await loadStudents();
-      try {
-        if (GalleryDB.isCurrentUserAdmin) iAmAdmin = !!(await GalleryDB.isCurrentUserAdmin());
-      } catch (e) { iAmAdmin = false; }
+      async function refreshAdminFlag() {
+        let admin = false;
+        try {
+          if (GalleryDB.isCurrentUserAdmin) admin = !!(await GalleryDB.isCurrentUserAdmin());
+        } catch (e) {}
+        if (!admin) {
+          try {
+            const prof = GalleryDB.getMyProfile ? await GalleryDB.getMyProfile() : null;
+            if (prof && prof.is_admin) admin = true;
+          } catch (e) {}
+        }
+        if (!admin) {
+          try {
+            const sess = GalleryDB.getSession ? await GalleryDB.getSession() : null;
+            const email = sess && sess.user && sess.user.email;
+            if (email && window.SUPABASE_CONFIG && Array.isArray(SUPABASE_CONFIG.adminEmails)) {
+              admin = SUPABASE_CONFIG.adminEmails.map(String).map((x) => x.toLowerCase()).includes(String(email).toLowerCase());
+            }
+          } catch (e) {}
+        }
+        const changed = admin !== iAmAdmin;
+        iAmAdmin = admin;
+        return changed;
+      }
+      await refreshAdminFlag();
+      // Auth kadang siap belakangan — cek ulang
+      setTimeout(async () => {
+        if (await refreshAdminFlag()) render();
+      }, 1500);
+      setTimeout(async () => {
+        if (await refreshAdminFlag()) render();
+      }, 4000);
       const cats = await GalleryDB.listVideoCategories();
       videoCats = cats || [];
       const filters = $("#videoFilters");

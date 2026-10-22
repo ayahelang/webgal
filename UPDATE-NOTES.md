@@ -1,24 +1,23 @@
-# Webgal — Video gallery fix v2 (FB share + direct MP4 + admin)
+# Webgal Video Gallery v3
 
-## Perilaku link
-| Jenis link | Hasil |
-|------------|--------|
-| **URL .mp4 langsung** (termasuk `instagram.*.fbcdn.net/...mp4`) | Bisa diputar (`<video>`) |
-| YouTube / Dailymotion | Seperti biasa |
-| `facebook.com/reel/ANGKA` atau `watch?v=ANGKA` | Coba embed plugin |
-| `facebook.com/share/v/...` | **Ditolak** saat tambah — tidak playable di situs pihak ketiga |
-| Halaman Instagram (instagram.com/...) | **Ditolak** — pakai URL .mp4 langsung |
+## Admin
+Tombol **✎ Ubah** / **🗑 Hapus** muncul di tiap kartu setelah login admin (deteksi diulang 1.5s & 4s jika sesi belakangan siap).
 
-### Saran link yang benar
-1. YouTube / Dailymotion (paling stabil)
-2. URL file `.mp4` langsung (contoh CDN yang Anda kirim)
-3. Facebook bentuk `https://www.facebook.com/reel/1389299909981389/` (buka share/v dulu, salin URL akhir)
+## Platform
+| Platform | Format yang didukung |
+|----------|----------------------|
+| YouTube / Dailymotion | URL biasa |
+| TikTok | `tiktok.com/@user/video/ANGKA` → embed resmi |
+| Instagram | `instagram.com/reel/KODE` atau `/p/KODE` → embed |
+| X | `x.com/user/status/ANGKA` → embed tweet |
+| Facebook | `facebook.com/reel/ANGKA` (share/v ditolak). Jika iframe "unavailable" → tombol buka di Facebook |
+| .mp4 langsung | Player HTML5 |
 
-## Admin di halaman Video
-Login sebagai admin → tiap kartu punya **✎ Ubah** dan **🗑 Hapus**.
-Ubah membuka floating panel (judul, URL, kategori, pemilik, deskripsi).
+## Panduan
+Accordion "Cara menambahkan link video yang benar" di atas grid video.
 
 ## File
+- videos.html
 - js/db.js
 - js/videos.js
 - css/style.css
