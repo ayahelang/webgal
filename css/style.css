@@ -3557,3 +3557,20 @@ body.chat-embed .chat-fields{
   border-radius: 12px;
   transition: outline-color .3s ease;
 }
+
+/* Pengumuman: jangan pernah tampilkan audio native */
+.sh-ann-splash audio,
+.sh-ann-body audio,
+.ann-voice-slot-render audio,
+.sh-ap audio{
+  display:none !important;
+  width:0 !important;
+  height:0 !important;
+  opacity:0 !important;
+  pointer-events:none !important;
+  position:absolute !important;
+}
+.sh-ann-splash audio[controls],
+.sh-ann-body audio[controls]{
+  display:none !important;
+}

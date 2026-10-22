@@ -174,20 +174,12 @@
       overlay.querySelector("h2").textContent = ann.title || "Pengumuman";
       overlay.querySelector(".sh-ann-body").innerHTML = ann.body_html || "";
       const bodyEl = overlay.querySelector(".sh-ann-body");
-      bodyEl.querySelectorAll(".ann-voice-block, .chat-voice-player, .sh-voice-player, .ann-voice-slot-render").forEach(function (el) {
-        el.style.position = "relative";
-        el.style.zIndex = "2";
-        el.style.pointerEvents = "auto";
-      });
-      bodyEl.querySelectorAll("audio").forEach(function (a) {
-        a.removeAttribute("crossorigin");
-        a.preload = "auto";
-      });
+      normalizeAnnVoiceUi(bodyEl);
       wireAnnVoicePlayers(bodyEl);
-      // wire lagi setelah layout (slider/player siap)
       setTimeout(function () {
+        normalizeAnnVoiceUi(bodyEl);
         wireAnnVoicePlayers(bodyEl);
-      }, 50);
+      }, 60);
       const timerEl = overlay.querySelector(".sh-ann-timer");
       const close = () => {
         clearInterval(iv);
@@ -251,16 +243,86 @@
     return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
   }
 
+  /**
+   * Satu player custom saja — buang audio native / duplikat.
+   */
+  function normalizeAnnVoiceUi(root) {
+    if (!root) return;
+    // Kumpulkan URL suara dari audio / data-attribute
+    var urls = [];
+    var durs = [];
+    root.querySelectorAll("audio, [data-voice-url], [data-src]").forEach(function (node) {
+      var u = "";
+      var d = "";
+      if (node.tagName === "AUDIO") {
+        u = node.getAttribute("src") || node.src || "";
+        node.removeAttribute("controls");
+        node.controls = false;
+      } else {
+        u = node.getAttribute("data-voice-url") || node.getAttribute("data-src") || "";
+        d = node.getAttribute("data-duration") || node.getAttribute("data-dur") || "";
+      }
+      u = String(u || "").trim();
+      if (u && urls.indexOf(u) < 0) {
+        urls.push(u);
+        durs.push(d ? parseFloat(d) : null);
+      }
+    });
+
+    // Hapus semua blok player lama & audio mentah di body
+    root.querySelectorAll(
+      "audio, .sh-ap, .sh-audio, .sh-voice-player, .chat-voice-player, .ann-voice-block, .ann-voice-slot-render, .chat-voice-msg"
+    ).forEach(function (n) {
+      n.remove();
+    });
+
+    // Sisipkan satu player custom per URL unik
+    urls.forEach(function (u, i) {
+      var wrap = document.createElement("div");
+      wrap.className = "ann-voice-slot-render";
+      var dur = durs[i];
+      if (window.SHVoice && SHVoice.playerHtml) {
+        wrap.innerHTML = SHVoice.playerHtml({
+          url: u,
+          duration: dur != null && isFinite(dur) ? dur : null,
+          ttlLabel: "",
+          downloadable: true,
+        });
+      } else {
+        wrap.innerHTML =
+          '<div class="sh-ap" data-src="' +
+          u.replace(/"/g, "&quot;") +
+          '">' +
+          '<button type="button" class="sh-ap-play">▶</button>' +
+          '<button type="button" class="sh-ap-stop">■</button>' +
+          '<div class="sh-ap-body"><div class="sh-ap-time"><span class="sh-ap-cur">00:00</span> / <span class="sh-ap-dur">00:00</span></div>' +
+          '<input class="sh-ap-seek" type="range" min="0" max="1" value="0" step="0.01" /></div>' +
+          '<button type="button" class="sh-ap-dl">⬇</button>' +
+          '<audio class="sh-ap-audio" preload="metadata" playsinline src="' +
+          u.replace(/"/g, "&quot;") +
+          '"></audio></div>';
+      }
+      root.appendChild(wrap);
+    });
+
+    // Pastikan tak ada controls native
+    root.querySelectorAll("audio").forEach(function (a) {
+      a.removeAttribute("controls");
+      a.controls = false;
+      a.style.setProperty("display", "none", "important");
+    });
+  }
+
   function wireAnnVoicePlayers(root) {
-    if (window.SHVoice && SHVoice.wirePlayers) {
-      SHVoice.wirePlayers(root);
-      return;
-    }
     if (!root) return;
     root.querySelectorAll("audio").forEach(function (a) {
-      a.controls = true;
-      a.style.display = "block";
+      a.removeAttribute("controls");
+      a.controls = false;
+      a.style.setProperty("display", "none", "important");
     });
+    if (window.SHVoice && SHVoice.wirePlayers) {
+      SHVoice.wirePlayers(root);
+    }
   }
 
 

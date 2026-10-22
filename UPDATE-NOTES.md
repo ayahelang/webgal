@@ -1,8 +1,7 @@
-# Admin: Ubah pengumuman → lompat ke form
+# Preview pengumuman: satu player custom
 
-Klik tombol Ubah di list pengumuman akan:
-- scroll halus ke #annForm
-- fokus ke field judul
-- highlight ringkas pada form
+- Hapus audio native (controls browser)
+- Satu UI sh-ap: play/pause, stop, seek, elapsed/total, unduh
+- normalizeAnnVoiceUi di splash + preview
 
-File: js/admin.js, css/style.css
+js/announce.js, js/voice-kit.js, css/style.css
