@@ -176,10 +176,10 @@
       const bodyEl = overlay.querySelector(".sh-ann-body");
       normalizeAnnVoiceUi(bodyEl);
       wireAnnVoicePlayers(bodyEl);
+      // satu kali lagi setelah layout — tanpa rebuild total (hanya wire)
       setTimeout(function () {
-        normalizeAnnVoiceUi(bodyEl);
         wireAnnVoicePlayers(bodyEl);
-      }, 60);
+      }, 100);
       const timerEl = overlay.querySelector(".sh-ann-timer");
       const close = () => {
         clearInterval(iv);
@@ -248,64 +248,80 @@
    */
   function normalizeAnnVoiceUi(root) {
     if (!root) return;
-    // Kumpulkan URL suara dari audio / data-attribute
-    var urls = [];
-    var durs = [];
-    root.querySelectorAll("audio, [data-voice-url], [data-src]").forEach(function (node) {
-      var u = "";
-      var d = "";
-      if (node.tagName === "AUDIO") {
-        u = node.getAttribute("src") || node.src || "";
-        node.removeAttribute("controls");
-        node.controls = false;
-      } else {
-        u = node.getAttribute("data-voice-url") || node.getAttribute("data-src") || "";
-        d = node.getAttribute("data-duration") || node.getAttribute("data-dur") || "";
-      }
+    var items = []; // {url, dur}
+    function addItem(u, d) {
       u = String(u || "").trim();
-      if (u && urls.indexOf(u) < 0) {
-        urls.push(u);
-        durs.push(d ? parseFloat(d) : null);
+      if (!u || u.indexOf("blob:") === 0) return; // blob preview lokal biasanya sudah invalid
+      // skip duplicates
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].url === u) {
+          if (items[i].dur == null && d != null && isFinite(d)) items[i].dur = d;
+          return;
+        }
       }
+      items.push({ url: u, dur: d != null && isFinite(d) ? d : null });
+    }
+
+    root.querySelectorAll("audio").forEach(function (node) {
+      var u = node.getAttribute("src") || "";
+      if (!u && node.src) u = node.src;
+      var d = null;
+      var host = node.closest("[data-duration], [data-dur], .sh-ap, .sh-voice-player, .ann-voice-block");
+      if (host) {
+        var ds = host.getAttribute("data-duration") || host.getAttribute("data-dur");
+        if (ds) d = parseFloat(ds);
+      }
+      if (isFinite(node.duration) && node.duration > 0 && node.duration !== Infinity) {
+        d = node.duration;
+      }
+      addItem(u, d);
+    });
+    root.querySelectorAll("[data-voice-url], [data-src]").forEach(function (node) {
+      var u = node.getAttribute("data-voice-url") || node.getAttribute("data-src") || "";
+      var ds = node.getAttribute("data-duration") || node.getAttribute("data-dur") || "";
+      addItem(u, ds ? parseFloat(ds) : null);
     });
 
-    // Hapus semua blok player lama & audio mentah di body
+    // Hapus player/audio lama
     root.querySelectorAll(
       "audio, .sh-ap, .sh-audio, .sh-voice-player, .chat-voice-player, .ann-voice-block, .ann-voice-slot-render, .chat-voice-msg"
     ).forEach(function (n) {
       n.remove();
     });
 
-    // Sisipkan satu player custom per URL unik
-    urls.forEach(function (u, i) {
+    items.forEach(function (it) {
       var wrap = document.createElement("div");
       wrap.className = "ann-voice-slot-render";
-      var dur = durs[i];
       if (window.SHVoice && SHVoice.playerHtml) {
         wrap.innerHTML = SHVoice.playerHtml({
-          url: u,
-          duration: dur != null && isFinite(dur) ? dur : null,
+          url: it.url,
+          duration: it.dur,
           ttlLabel: "",
           downloadable: true,
         });
       } else {
         wrap.innerHTML =
-          '<div class="sh-ap" data-src="' +
-          u.replace(/"/g, "&quot;") +
-          '">' +
+          '<div class="sh-ap" data-src="' + it.url.replace(/"/g, "&quot;") + '"' +
+          (it.dur ? ' data-dur="' + it.dur + '"' : "") +
+          ">" +
           '<button type="button" class="sh-ap-play">▶</button>' +
           '<button type="button" class="sh-ap-stop">■</button>' +
           '<div class="sh-ap-body"><div class="sh-ap-time"><span class="sh-ap-cur">00:00</span> / <span class="sh-ap-dur">00:00</span></div>' +
-          '<input class="sh-ap-seek" type="range" min="0" max="1" value="0" step="0.01" /></div>' +
+          '<input class="sh-ap-seek" type="range" min="0" max="' + (it.dur || 1) + '" value="0" step="0.01" /></div>' +
           '<button type="button" class="sh-ap-dl">⬇</button>' +
-          '<audio class="sh-ap-audio" preload="metadata" playsinline src="' +
-          u.replace(/"/g, "&quot;") +
-          '"></audio></div>';
+          '<audio class="sh-ap-audio" preload="auto" playsinline src="' + it.url.replace(/"/g, "&quot;") + '"></audio></div>';
+      }
+      // pastikan audio preload auto + src absolut
+      var a = wrap.querySelector("audio");
+      if (a) {
+        a.preload = "auto";
+        a.removeAttribute("controls");
+        a.controls = false;
+        try { a.load(); } catch (e) {}
       }
       root.appendChild(wrap);
     });
 
-    // Pastikan tak ada controls native
     root.querySelectorAll("audio").forEach(function (a) {
       a.removeAttribute("controls");
       a.controls = false;

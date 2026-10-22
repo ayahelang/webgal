@@ -233,7 +233,7 @@
       '" value="0" step="0.01" />' +
       "</div>" +
       (showDl ? '<button type="button" class="sh-ap-dl" aria-label="Unduh">⬇</button>' : "") +
-      '<audio class="sh-ap-audio" preload="metadata" playsinline src="' + url + '"></audio>' +
+      '<audio class="sh-ap-audio" preload="auto" playsinline src="' + url + '"></audio>' +
       (ttl ? '<div class="sh-ap-meta">' + ttl + "</div>" : "") +
       "</div>"
     );
@@ -278,7 +278,7 @@
         '" value="0" step="0.01" />' +
         "</div>" +
         '<button type="button" class="sh-ap-dl" aria-label="Unduh">⬇</button>' +
-        '<audio class="sh-ap-audio" preload="metadata" playsinline src="' +
+        '<audio class="sh-ap-audio" preload="auto" playsinline src="' +
         String(src).replace(/"/g, "&quot;") +
         '"></audio>' +
         (ttl ? '<div class="sh-ap-meta"></div>' : "");
@@ -361,24 +361,60 @@
     audio.addEventListener("pause", tickOff);
     audio.addEventListener("ended", tickOff);
 
+    // Pastikan src terpasang
+    if (src && !audio.getAttribute("src") && !audio.src) {
+      audio.src = src;
+    }
+    if (src && audio.src && audio.src.indexOf(String(src).slice(0, 32)) < 0 && String(src).indexOf("http") === 0) {
+      try { audio.src = src; } catch (e) {}
+    }
+
     btnPlay.addEventListener("click", function (e) {
       e.preventDefault();
       e.stopPropagation();
+      if (!audio.getAttribute("src") && !audio.src && src) {
+        audio.src = src;
+      }
       if (audio.paused) {
-        // pause others
         document.querySelectorAll(".sh-ap audio").forEach(function (a) {
           if (a !== audio) {
-            try {
-              a.pause();
-            } catch (err) {}
+            try { a.pause(); } catch (err) {}
           }
         });
-        var p = audio.play();
-        if (p && p.catch) p.catch(function () {});
+        var startPlay = function () {
+          var p = audio.play();
+          if (p && p.then) {
+            p.then(function () { ui(); }).catch(function (err) {
+              console.warn("[SHVoice] play gagal:", err && err.message ? err.message : err);
+              btnPlay.title = "Gagal putar: " + (err && err.message ? err.message : "error");
+              ui();
+            });
+          } else {
+            ui();
+          }
+        };
+        try {
+          if (audio.readyState < 2) {
+            audio.load();
+            audio.addEventListener("canplay", function once() {
+              audio.removeEventListener("canplay", once);
+              startPlay();
+            });
+            // fallback timeout
+            setTimeout(function () {
+              if (audio.paused) startPlay();
+            }, 400);
+          } else {
+            startPlay();
+          }
+        } catch (err) {
+          console.warn("[SHVoice] load/play:", err);
+          startPlay();
+        }
       } else {
         audio.pause();
+        ui();
       }
-      ui();
     });
 
     btnStop.addEventListener("click", function (e) {

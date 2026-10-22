@@ -1,7 +1,8 @@
-# Preview pengumuman: satu player custom
+# Perbaiki play di preview pengumuman
 
-- Hapus audio native (controls browser)
-- Satu UI sh-ap: play/pause, stop, seek, elapsed/total, unduh
-- normalizeAnnVoiceUi di splash + preview
+- URL audio diekstrak lebih andal
+- preload=auto + load sebelum play
+- Hindari double-normalize yang mengosongkan src
+- Error play tercatat di console
 
-js/announce.js, js/voice-kit.js, css/style.css
+Jika masih diam: buka DevTools → Console, lihat [SHVoice] play gagal
