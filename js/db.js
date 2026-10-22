@@ -1293,9 +1293,20 @@
     const myId = session.user.id;
     const ownerId = msg && msg.user_id ? String(msg.user_id) : "";
     if (ownerId && ownerId === myId) return { ok: true, as: "owner" };
+    // Pesan lama tanpa user_id: cocokkan nama display login
+    if (!ownerId) {
+      try {
+        const meta = session.user.user_metadata || {};
+        const nm = String(meta.full_name || meta.name || "").trim().toLowerCase();
+        const an = String((msg && msg.author_name) || "").trim().toLowerCase();
+        if (nm && an && nm === an) return { ok: true, as: "owner_name" };
+        const prof = await getMyProfile();
+        const pn = String((prof && (prof.display_name || prof.linked_student_name)) || "").trim().toLowerCase();
+        if (pn && an && pn === an) return { ok: true, as: "owner_name" };
+      } catch (e) {}
+    }
     const staff = await isCurrentUserStaff();
     if (!staff) return { ok: false, reason: "not_allowed" };
-    // Staff cannot moderate other staff / admin messages
     if (ownerId) {
       const target = await getProfileById(ownerId);
       if (isStaffProfile(target) || (target && isAdminEmail(target.email))) {
@@ -1333,9 +1344,9 @@
     const sb = client();
     if (!sb) return [];
     const colsFull =
-      "id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered,updated_at,reply_to";
+      "id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered,updated_at,reply_to,edit_count,edit_history";
     const colsNoUpdated =
-      "id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered,reply_to";
+      "id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered,reply_to,edit_count,edit_history";
     const colsMinimal =
       "id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered";
     async function run(cols) {
@@ -1420,12 +1431,65 @@
       if (gate.reason === "peer_staff") throw new Error("Tidak dapat mengubah pesan admin/guru lain");
       throw new Error("Tidak berhak mengubah pesan ini");
     }
-    const payload = { body: text };
-    // updated_at optional column
-    payload.updated_at = new Date().toISOString();
+    // Maks 3x edit; simpan histori body lama (JSON kecil, ~teks singkat)
+    let hist = [];
+    try {
+      if (Array.isArray(existing.edit_history)) hist = existing.edit_history.slice();
+      else if (typeof existing.edit_history === "string" && existing.edit_history) {
+        hist = JSON.parse(existing.edit_history);
+        if (!Array.isArray(hist)) hist = [];
+      }
+    } catch (e) {
+      hist = [];
+    }
+    const editCount = Number(existing.edit_count) || hist.length || 0;
+    if (editCount >= 3) {
+      throw new Error("Batas edit tercapai (maksimal 3 kali). Pesan tidak bisa diubah lagi.");
+    }
+    const prevBody = String(existing.body || "");
+    if (prevBody && prevBody !== text) {
+      hist.push({
+        body: prevBody.length > 2000 ? prevBody.slice(0, 2000) + "…" : prevBody,
+        at: existing.updated_at || existing.created_at || new Date().toISOString(),
+      });
+      // simpan maksimal 3 versi lama
+      if (hist.length > 3) hist = hist.slice(-3);
+    }
+    const payload = {
+      body: text,
+      updated_at: new Date().toISOString(),
+      edit_count: editCount + 1,
+      edit_history: hist,
+    };
     let { data, error } = await sb.from("gallery_chat").update(payload).eq("id", msgId).select("*").single();
-    if (error && /updated_at/i.test(String(error.message || ""))) {
-      const r2 = await sb.from("gallery_chat").update({ body: text }).eq("id", msgId).select("*").single();
+    // kolom histori belum ada → coba tanpa edit_history/edit_count
+    if (error && /edit_history|edit_count/i.test(String(error.message || ""))) {
+      const r2 = await sb
+        .from("gallery_chat")
+        .update({ body: text, updated_at: payload.updated_at })
+        .eq("id", msgId)
+        .select("*")
+        .single();
+      if (r2.error && /updated_at/i.test(String(r2.error.message || ""))) {
+        const r3 = await sb.from("gallery_chat").update({ body: text }).eq("id", msgId).select("*").single();
+        data = r3.data;
+        error = r3.error;
+      } else {
+        data = r2.data;
+        error = r2.error;
+      }
+      if (!error && data) {
+        // tempel histori di client saja (DB belum siap)
+        data.edit_history = hist;
+        data.edit_count = editCount + 1;
+      }
+    } else if (error && /updated_at/i.test(String(error.message || ""))) {
+      const r2 = await sb
+        .from("gallery_chat")
+        .update({ body: text, edit_count: editCount + 1, edit_history: hist })
+        .eq("id", msgId)
+        .select("*")
+        .single();
       data = r2.data;
       error = r2.error;
     }

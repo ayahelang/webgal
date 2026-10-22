@@ -1,14 +1,24 @@
-# Perbaikan chat hierarki + preview suara + durasi + pengumuman play
+# Edit balasan + gambar/suara di balas + histori (maks 3×)
 
-## Chat
-- Preview balasan tidak lagi menampilkan string `__voice__|…` → "🎤 Pesan suara"
-- Hierarki balasan dikembalikan (anak di bawah induk)
-- Durasi total dari `dur=` di body; rekaman baru selalu simpan durasi
+## Fitur
+1. Bisa **Ubah balasan sendiri** (owner by user_id atau nama login)
+2. Kotak balas: 🖼 gambar / tempel screenshot, 🎤 pesan suara
+3. Kotak edit: 🖼 gambar / tempel screenshot
+4. Maksimal **3× edit** per pesan; tombol **Histori** menampilkan versi lama
+5. Label `(diedit N×)` pada pesan
 
-## Pengumuman
-- Suara di **kotak terpisah** (bukan di editor teks)
-- Play + durasi diperbaiki (hapus crossorigin yang sering memblokir)
-- Hapus suara lewat tombol "Hapus suara"
+## Database (ringan)
+Jalankan sekali di Supabase SQL:
+```sql
+ALTER TABLE gallery_chat
+  ADD COLUMN IF NOT EXISTS edit_count integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS edit_history jsonb DEFAULT '[]'::jsonb;
+```
+Tanpa kolom ini, edit tetap jalan; histori penuh butuh kolom di atas.
+Histori hanya menyimpan teks lama (dipotong 2000 char), max 3 entri — tidak memberatkan.
 
 ## File
-js/chat.js, js/announce.js, js/admin.js, js/db.js, css/style.css, admin.html
+- js/chat.js
+- js/db.js
+- css/style.css
+- chat-edit-history.sql

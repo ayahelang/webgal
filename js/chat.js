@@ -286,11 +286,34 @@
   }
 
   function canShowActions(m) {
-    if (!myUserId) return false;
     const ownerId = m.user_id ? String(m.user_id) : "";
-    if (ownerId && ownerId === myUserId) return true;
+    if (myUserId && ownerId && ownerId === myUserId) return true;
+    // pemilik by nama (login display / tautan) — termasuk balasan sendiri
+    const myNames = [];
+    if (loginDisplayName) myNames.push(String(loginDisplayName).toLowerCase());
+    try {
+      const n = resolveAuthorName && resolveAuthorName();
+      if (n) myNames.push(String(n).toLowerCase());
+    } catch (e) {}
+    const an = String((m && m.author_name) || "").toLowerCase();
+    if (an && myNames.some(function (x) { return x && x === an; })) return true;
+    if (!myUserId) return false;
     if (!iAmStaff) return false;
     if (ownerId && staffByUser[ownerId] === true) return false;
+    return true;
+  }
+
+  function editCountOf(m) {
+    if (!m) return 0;
+    if (m.edit_count != null && m.edit_count !== "") return Number(m.edit_count) || 0;
+    if (Array.isArray(m.edit_history)) return m.edit_history.length;
+    return 0;
+  }
+
+  function canEditMessage(m) {
+    if (!canShowActions(m)) return false;
+    if (isVoiceMessage(m)) return false; // suara: hanya hapus
+    if (editCountOf(m) >= 3) return false;
     return true;
   }
 
@@ -479,9 +502,10 @@
     div.dataset.id = m.id || "";
     if (m.reply_to) div.dataset.replyTo = m.reply_to;
     const t = m.created_at ? new Date(m.created_at).toLocaleString("id-ID") : "";
+    const ec = editCountOf(m);
     const edited =
-      m.updated_at && m.created_at && String(m.updated_at) !== String(m.created_at)
-        ? ' <small class="chat-edited">(diedit)</small>'
+      ec > 0 || (m.updated_at && m.created_at && String(m.updated_at) !== String(m.created_at))
+        ? ' <small class="chat-edited">(diedit' + (ec ? " " + ec + "×" : "") + ")</small>"
         : "";
     const av = m.avatar_emoji || "💬";
     const voice = parseVoiceBody(m.body);
@@ -531,9 +555,15 @@
         '<button type="button" class="chat-act chat-act-reply" data-act="reply" title="Balas">Balas</button>';
     }
     if (canShowActions(m)) {
-      if (!voice) {
+      if (canEditMessage(m)) {
         actions +=
           '<button type="button" class="chat-act chat-act-edit" data-act="edit" title="Ubah">Ubah</button>';
+      }
+      if (editCountOf(m) > 0 || (m.edit_history && m.edit_history.length)) {
+        actions +=
+          '<button type="button" class="chat-act chat-act-hist" data-act="hist" title="Histori edit">Histori (' +
+          editCountOf(m) +
+          ")</button>";
       }
       actions +=
         '<button type="button" class="chat-act chat-act-del" data-act="del" title="Hapus">Hapus</button>';
@@ -996,6 +1026,10 @@
   }
 
   async function handleEdit(msg, bubble) {
+    if (!canEditMessage(msg)) {
+      if (editCountOf(msg) >= 3) status.textContent = "Batas edit tercapai (maks. 3×)";
+      return;
+    }
     if (!bubble) bubble = log && log.querySelector('.chat-bubble[data-id="' + String(msg.id).replace(/"/g, "") + '"]');
     if (!bubble) return;
     closeAllInlineComposers(bubble);
@@ -1007,12 +1041,15 @@
     if (textEl) textEl.hidden = true;
     if (moreBtn) moreBtn.hidden = true;
 
+    const left = 3 - editCountOf(msg);
     const wrap = document.createElement("div");
     wrap.className = "chat-inline-composer chat-inline-edit";
     wrap.innerHTML =
-      '<textarea class="chat-inline-ta" maxlength="' +
-      CHAT_BODY_MAX +
-      '" rows="1"></textarea>' +
+      '<textarea class="chat-inline-ta" maxlength="' + CHAT_BODY_MAX + '" rows="1"></textarea>' +
+      '<div class="chat-inline-tools">' +
+      '<label class="chat-inline-tool" title="Gambar / screenshot"><input type="file" accept="image/*" class="chat-inline-file" hidden>🖼</label>' +
+      '<span class="muted chat-inline-hint">Sisa edit: ' + left + "× · tempel screenshot (Ctrl+V)</span>" +
+      "</div>" +
       '<div class="chat-inline-actions">' +
       '<button type="button" class="btn btn-primary chat-inline-save">Simpan</button>' +
       '<button type="button" class="chat-act chat-inline-cancel">Batal</button>' +
@@ -1025,7 +1062,44 @@
     ta.focus();
     ta.setSelectionRange(ta.value.length, ta.value.length);
 
-    ta.addEventListener("input", () => autoResizeEl(ta, 8));
+    async function attachImageFile(file) {
+      if (!file || !/^image\//.test(file.type)) return;
+      if (!GalleryDB.uploadChatImage) {
+        status.textContent = "Upload gambar belum tersedia";
+        return;
+      }
+      status.textContent = "Mengunggah gambar…";
+      try {
+        const url = await GalleryDB.uploadChatImage(file);
+        if (!url) throw new Error("Upload gagal");
+        const cur = String(ta.value || "").trim();
+        ta.value = cur ? cur + "\n" + url : url;
+        autoResizeEl(ta, 8);
+        status.textContent = "Gambar ditambahkan";
+      } catch (e) {
+        status.textContent = e.message || String(e);
+      }
+    }
+    wrap.querySelector(".chat-inline-file").addEventListener("change", function (ev) {
+      const f = ev.target.files && ev.target.files[0];
+      if (f) attachImageFile(f);
+      ev.target.value = "";
+    });
+    ta.addEventListener("paste", function (ev) {
+      const items = ev.clipboardData && ev.clipboardData.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type && items[i].type.indexOf("image") === 0) {
+          const f = items[i].getAsFile();
+          if (f) {
+            ev.preventDefault();
+            attachImageFile(f);
+          }
+          break;
+        }
+      }
+    });
+    ta.addEventListener("input", function () { autoResizeEl(ta, 8); });
     wrap.querySelector(".chat-inline-cancel").addEventListener("click", () => {
       wrap.remove();
       bubble.classList.remove("is-editing");
@@ -1050,7 +1124,7 @@
         const updated = await GalleryDB.updateChat({ id: msg.id, body: text.slice(0, CHAT_BODY_MAX) });
         upsertLocal(updated);
         renderMessages();
-        status.textContent = "Pesan diperbarui";
+        status.textContent = "Pesan diperbarui (" + editCountOf(updated) + "/3 edit)";
       } catch (e) {
         status.textContent = e.message || String(e);
       }
@@ -1079,25 +1153,25 @@
     closeAllInlineComposers(bubble);
     // remove existing reply composer on this bubble
     const existing = bubble.querySelector(".chat-inline-reply");
-    if (existing) {
-      existing.remove();
-      return; // toggle off
-    }
+    if (existing) existing.remove();
+
     replyToId = msg.id;
     replyToMeta = { author_name: msg.author_name, body: msg.body };
-    const bar = $("#chatReplyBar");
-    const lab = $("#chatReplyLabel");
-    if (bar) bar.hidden = false;
-    if (lab) {
-      lab.textContent = "Membalas " + (msg.author_name || "Anonim") + ": " + messageSnippet(msg, 60);
-    }
 
     const wrap = document.createElement("div");
     wrap.className = "chat-inline-composer chat-inline-reply";
     wrap.innerHTML =
-      '<textarea class="chat-inline-ta" maxlength="' +
-      CHAT_BODY_MAX +
-      '" rows="1" placeholder="Tulis balasan…"></textarea>' +
+      '<textarea class="chat-inline-ta" maxlength="' + CHAT_BODY_MAX + '" rows="1" placeholder="Tulis balasan… (bisa tempel screenshot)"></textarea>' +
+      '<div class="chat-inline-tools">' +
+      '<label class="chat-inline-tool" title="Gambar / screenshot"><input type="file" accept="image/*" class="chat-inline-file" hidden>🖼</label>' +
+      '<button type="button" class="chat-inline-tool chat-inline-voice" title="Pesan suara">🎤</button>' +
+      '<span class="muted chat-inline-hint">Gambar · suara · tempel (Ctrl+V)</span>' +
+      "</div>" +
+      '<div id="chatInlineVoiceBar" class="chat-voice-bar chat-inline-voice-bar" hidden>' +
+      '<span class="chat-voice-dot"></span><span class="chat-inline-voice-timer">00:00</span>' +
+      '<button type="button" class="chat-act chat-inline-voice-send">Kirim suara</button>' +
+      '<button type="button" class="chat-act chat-inline-voice-cancel">Batal rekam</button>' +
+      "</div>" +
       '<div class="chat-inline-actions">' +
       '<button type="button" class="btn btn-primary chat-inline-send">Kirim</button>' +
       '<button type="button" class="chat-act chat-inline-cancel">Batal</button>' +
@@ -1108,6 +1182,162 @@
     const ta = wrap.querySelector(".chat-inline-ta");
     autoResizeEl(ta, 4);
     ta.focus();
+
+    async function attachImageFile(file) {
+      if (!file || !/^image\//.test(file.type)) return;
+      if (!GalleryDB.uploadChatImage) {
+        status.textContent = "Upload gambar belum tersedia";
+        return;
+      }
+      status.textContent = "Mengunggah gambar…";
+      try {
+        const url = await GalleryDB.uploadChatImage(file);
+        if (!url) throw new Error("Upload gagal");
+        const cur = String(ta.value || "").trim();
+        ta.value = cur ? cur + "\n" + url : url;
+        autoResizeEl(ta, 4);
+        status.textContent = "Gambar ditambahkan";
+      } catch (e) {
+        status.textContent = e.message || String(e);
+      }
+    }
+    wrap.querySelector(".chat-inline-file").addEventListener("change", function (ev) {
+      const f = ev.target.files && ev.target.files[0];
+      if (f) attachImageFile(f);
+      ev.target.value = "";
+    });
+    ta.addEventListener("paste", function (ev) {
+      const items = ev.clipboardData && ev.clipboardData.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type && items[i].type.indexOf("image") === 0) {
+          const f = items[i].getAsFile();
+          if (f) {
+            ev.preventDefault();
+            attachImageFile(f);
+          }
+          break;
+        }
+      }
+    });
+
+    // Voice for reply (reuse global recorder helpers if available)
+    let localRec = null;
+    let localChunks = [];
+    let localStream = null;
+    let localTimer = null;
+    let localStarted = 0;
+    const voiceBar = wrap.querySelector(".chat-inline-voice-bar");
+    const voiceTimerEl = wrap.querySelector(".chat-inline-voice-timer");
+    function stopLocalRec(send) {
+      return new Promise(function (resolve) {
+        if (!localRec) {
+          resolve(null);
+          return;
+        }
+        const rec = localRec;
+        const type = rec.mimeType || "audio/webm";
+        rec.onstop = function () {
+          const blob = localChunks.length ? new Blob(localChunks, { type: type }) : null;
+          localChunks = [];
+          localRec = null;
+          if (localStream) {
+            try { localStream.getTracks().forEach(function (tr) { tr.stop(); }); } catch (e) {}
+            localStream = null;
+          }
+          if (localTimer) clearInterval(localTimer);
+          localTimer = null;
+          if (voiceBar) voiceBar.hidden = true;
+          resolve(send ? blob : null);
+        };
+        try {
+          if (rec.state !== "inactive") rec.stop();
+          else rec.onstop();
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    }
+    async function startLocalRec() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        status.textContent = "Browser tidak mendukung rekaman";
+        return;
+      }
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
+        });
+      } catch (e) {
+        status.textContent = "Izin mikrofon ditolak";
+        return;
+      }
+      localChunks = [];
+      let mime = "";
+      ["audio/webm;codecs=opus", "audio/webm"].forEach(function (c) {
+        if (!mime && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) mime = c;
+      });
+      try {
+        localRec = mime ? new MediaRecorder(localStream, { mimeType: mime }) : new MediaRecorder(localStream);
+      } catch (e) {
+        status.textContent = "Gagal mulai rekaman";
+        return;
+      }
+      localRec.ondataavailable = function (ev) {
+        if (ev.data && ev.data.size) localChunks.push(ev.data);
+      };
+      localRec.start(250);
+      localStarted = Date.now();
+      if (voiceBar) voiceBar.hidden = false;
+      if (voiceTimerEl) voiceTimerEl.textContent = "00:00";
+      if (localTimer) clearInterval(localTimer);
+      localTimer = setInterval(function () {
+        const s = Math.floor((Date.now() - localStarted) / 1000);
+        if (voiceTimerEl) {
+          voiceTimerEl.textContent =
+            String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+        }
+        if (s >= 180) wrap.querySelector(".chat-inline-voice-send").click();
+      }, 250);
+      status.textContent = "Merekam balasan suara…";
+    }
+    wrap.querySelector(".chat-inline-voice").addEventListener("click", function () {
+      if (localRec && localRec.state === "recording") stopLocalRec(false);
+      else startLocalRec();
+    });
+    wrap.querySelector(".chat-inline-voice-cancel").addEventListener("click", function () {
+      stopLocalRec(false);
+      status.textContent = "Rekaman dibatalkan";
+    });
+    wrap.querySelector(".chat-inline-voice-send").addEventListener("click", async function () {
+      const elapsed = localStarted ? Date.now() - localStarted : 0;
+      const blob = await stopLocalRec(true);
+      if (!blob || blob.size < 800) {
+        status.textContent = "Rekaman terlalu pendek";
+        return;
+      }
+      if (!GalleryDB.uploadChatAudio) {
+        status.textContent = "Upload suara belum tersedia";
+        return;
+      }
+      status.textContent = "Mengunggah suara…";
+      try {
+        const url = await GalleryDB.uploadChatAudio(blob);
+        const body = encodeVoiceBody(url, myVoiceTtl(), elapsed > 300 ? elapsed / 1000 : null);
+        const row = await GalleryDB.sendChat({
+          angkatanId: room.value || null,
+          authorName: resolveAuthorName(),
+          body: body,
+          avatarEmoji: selectedAvatar,
+          replyTo: msg.id,
+        });
+        wrap.remove();
+        clearReplyTarget();
+        if (row && row.id && !allMessages.some(function (m) { return m.id === row.id; })) addMsg(row);
+        status.textContent = "Balasan suara terkirim";
+      } catch (e) {
+        status.textContent = e.message || String(e);
+      }
+    });
 
     ta.addEventListener("input", () => {
       autoResizeEl(ta, 4);
@@ -1124,6 +1354,7 @@
       }
     });
     wrap.querySelector(".chat-inline-cancel").addEventListener("click", () => {
+      stopLocalRec(false);
       wrap.remove();
       clearReplyTarget();
     });
@@ -1148,6 +1379,57 @@
       }
     });
   }
+
+  function showEditHistory(msg) {
+    let hist = [];
+    try {
+      if (Array.isArray(msg.edit_history)) hist = msg.edit_history;
+      else if (typeof msg.edit_history === "string") hist = JSON.parse(msg.edit_history) || [];
+    } catch (e) {
+      hist = [];
+    }
+    if (!hist.length) {
+      status.textContent = "Belum ada histori edit tersimpan";
+      return;
+    }
+    let prev = document.getElementById("chatHistModal");
+    if (prev) prev.remove();
+    const m = document.createElement("div");
+    m.id = "chatHistModal";
+    m.className = "chat-hist-modal";
+    const items = hist
+      .slice()
+      .reverse()
+      .map(function (h, i) {
+        const at = h.at ? new Date(h.at).toLocaleString("id-ID") : "";
+        let body = String(h.body || "");
+        if (/__voice__/i.test(body)) body = "🎤 Pesan suara";
+        else if (body.length > 400) body = body.slice(0, 400) + "…";
+        return (
+          '<div class="chat-hist-item"><div class="chat-hist-meta">Versi lama · ' +
+          esc(at) +
+          '</div><pre class="chat-hist-body">' +
+          esc(body) +
+          "</pre></div>"
+        );
+      })
+      .join("");
+    m.innerHTML =
+      '<div class="chat-hist-backdrop" data-close="1"></div>' +
+      '<div class="chat-hist-panel" role="dialog">' +
+      "<header><strong>Histori edit</strong> <span class=\"muted\">" +
+      editCountOf(msg) +
+      "/3</span>" +
+      '<button type="button" data-close="1" aria-label="Tutup">✕</button></header>' +
+      '<div class="chat-hist-list">' +
+      items +
+      "</div></div>";
+    document.body.appendChild(m);
+    m.addEventListener("click", function (ev) {
+      if (ev.target && ev.target.getAttribute("data-close") === "1") m.remove();
+    });
+  }
+
 
   if (log) {
     log.addEventListener("click", (ev) => {
@@ -1208,6 +1490,7 @@
         handleEdit(msg, bubble);
       } else if (btn.dataset.act === "del") handleDelete(msg);
       else if (btn.dataset.act === "reply") openInlineReply(msg, bubble);
+      else if (btn.dataset.act === "hist") showEditHistory(msg);
     });
   }
 
