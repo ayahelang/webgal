@@ -15,11 +15,15 @@
     const start = ann.starts_at ? new Date(ann.starts_at) : null;
     let end = ann.ends_at ? new Date(ann.ends_at) : null;
     if (start && now < start) return false;
-    // duration overrides if ends empty
-    if (!end && start && (ann.duration_days || ann.duration_hours)) {
+    // duration if ends empty; default 24 jam jika tidak diset
+    if (!end && start) {
       end = new Date(start.getTime());
-      if (ann.duration_days) end.setDate(end.getDate() + Number(ann.duration_days));
-      if (ann.duration_hours) end.setHours(end.getHours() + Number(ann.duration_hours));
+      if (ann.duration_days || ann.duration_hours) {
+        if (ann.duration_days) end.setDate(end.getDate() + Number(ann.duration_days));
+        if (ann.duration_hours) end.setHours(end.getHours() + Number(ann.duration_hours));
+      } else {
+        end.setHours(end.getHours() + 24);
+      }
     }
     if (end && now > end) return false;
 
@@ -117,10 +121,14 @@
     const start = ann.starts_at ? new Date(ann.starts_at) : null;
     let end = ann.ends_at ? new Date(ann.ends_at) : null;
     if (start && now < start) return false;
-    if (!end && start && (ann.duration_days || ann.duration_hours)) {
+    if (!end && start) {
       end = new Date(start.getTime());
-      if (ann.duration_days) end.setDate(end.getDate() + Number(ann.duration_days));
-      if (ann.duration_hours) end.setHours(end.getHours() + Number(ann.duration_hours));
+      if (ann.duration_days || ann.duration_hours) {
+        if (ann.duration_days) end.setDate(end.getDate() + Number(ann.duration_days));
+        if (ann.duration_hours) end.setHours(end.getHours() + Number(ann.duration_hours));
+      } else {
+        end.setHours(end.getHours() + 24);
+      }
     }
     if (end && now > end) return false;
     return !!ann.active;
@@ -165,6 +173,7 @@
         `<button type="button" class="sh-ann-close">Tutup</button></div></div>`;
       overlay.querySelector("h2").textContent = ann.title || "Pengumuman";
       overlay.querySelector(".sh-ann-body").innerHTML = ann.body_html || "";
+      wireAnnVoicePlayers(overlay.querySelector(".sh-ann-body"));
       const timerEl = overlay.querySelector(".sh-ann-timer");
       const close = () => {
         clearInterval(iv);
@@ -219,4 +228,52 @@
 
   if (document.readyState === "complete") setTimeout(boot, 600);
   else window.addEventListener("load", () => setTimeout(boot, 600));
+
+  function fmtAnnClock(sec) {
+    if (!isFinite(sec) || sec < 0) return "--:--";
+    sec = Math.floor(sec);
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  }
+
+  function wireAnnVoicePlayers(root) {
+    if (!root) return;
+    root.querySelectorAll(".ann-voice-block, .chat-voice-player").forEach(function (wrap) {
+      if (wrap.dataset.wired) return;
+      wrap.dataset.wired = "1";
+      let audio = wrap.querySelector("audio");
+      let btn = wrap.querySelector("[data-voice-play]");
+      let timeEl = wrap.querySelector("[data-voice-time]");
+      // legacy: only audio controls
+      if (audio && !btn) {
+        audio.controls = true;
+        audio.preload = "metadata";
+        return;
+      }
+      if (!audio || !btn || !timeEl) return;
+      function renderTime() {
+        timeEl.textContent = fmtAnnClock(audio.currentTime || 0) + " / " + fmtAnnClock(audio.duration);
+      }
+      audio.addEventListener("loadedmetadata", renderTime);
+      audio.addEventListener("durationchange", renderTime);
+      audio.addEventListener("timeupdate", renderTime);
+      audio.addEventListener("ended", function () {
+        btn.textContent = "▶";
+        renderTime();
+      });
+      btn.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        if (audio.paused) {
+          audio.play().then(function () { btn.textContent = "❚❚"; }).catch(function () {});
+        } else {
+          audio.pause();
+          btn.textContent = "▶";
+        }
+      });
+      try { audio.load(); } catch (e) {}
+      renderTime();
+    });
+  }
+
 })();

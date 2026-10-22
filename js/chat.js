@@ -427,9 +427,13 @@
     if (voice) {
       bodyHtml =
         '<div class="chat-voice-msg">' +
-        '<audio class="chat-voice-audio" controls preload="metadata" src="' +
+        '<div class="chat-voice-player">' +
+        '<button type="button" class="chat-voice-play" data-voice-play title="Putar/jeda">▶</button>' +
+        '<span class="chat-voice-time" data-voice-time>00:00 / --:--</span>' +
+        '<audio class="chat-voice-audio" preload="metadata" src="' +
         esc(voice.url).replace(/"/g, "&quot;") +
         '"></audio>' +
+        "</div>" +
         '<small class="chat-voice-ttl">Pesan suara · hapus otomatis: ' +
         esc(voiceRetentionLabel(voice.ttl)) +
         "</small></div>";
@@ -486,6 +490,67 @@
       "</div>";
     log.appendChild(div);
     if (!voice) applyTextClamp(div.querySelector(".chat-text"));
+    else wireVoicePlayer(div);
+  }
+
+  function fmtVoiceClock(sec) {
+    if (!isFinite(sec) || sec < 0) return "--:--";
+    sec = Math.floor(sec);
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  }
+
+  function wireVoicePlayer(root) {
+    if (!root) return;
+    root.querySelectorAll(".chat-voice-player").forEach(function (wrap) {
+      if (wrap.dataset.wired) return;
+      wrap.dataset.wired = "1";
+      const audio = wrap.querySelector("audio");
+      const btn = wrap.querySelector("[data-voice-play]");
+      const timeEl = wrap.querySelector("[data-voice-time]");
+      if (!audio || !btn || !timeEl) return;
+      function renderTime() {
+        const dur = audio.duration;
+        const cur = audio.currentTime || 0;
+        timeEl.textContent = fmtVoiceClock(cur) + " / " + fmtVoiceClock(dur);
+      }
+      audio.addEventListener("loadedmetadata", renderTime);
+      audio.addEventListener("durationchange", renderTime);
+      audio.addEventListener("timeupdate", renderTime);
+      audio.addEventListener("ended", function () {
+        btn.textContent = "▶";
+        renderTime();
+      });
+      btn.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (audio.paused) {
+          // pause other voice in log
+          if (log) {
+            log.querySelectorAll("audio.chat-voice-audio").forEach(function (a) {
+              if (a !== audio) {
+                try { a.pause(); } catch (e) {}
+              }
+            });
+            log.querySelectorAll("[data-voice-play]").forEach(function (b) {
+              if (b !== btn) b.textContent = "▶";
+            });
+          }
+          audio.play().then(function () {
+            btn.textContent = "❚❚";
+          }).catch(function () {
+            btn.textContent = "▶";
+          });
+        } else {
+          audio.pause();
+          btn.textContent = "▶";
+        }
+      });
+      // trigger metadata load
+      try { audio.load(); } catch (e) {}
+      renderTime();
+    });
   }
 
   function upsertLocal(m) {
@@ -997,6 +1062,19 @@
 
   if (log) {
     log.addEventListener("click", (ev) => {
+      // Klik avatar → tampil/sembunyi tombol Balas/Ubah/Hapus
+      const av = ev.target.closest(".chat-av");
+      if (av && log.contains(av)) {
+        const bubble = av.closest(".chat-bubble");
+        if (bubble) {
+          const open = bubble.classList.contains("show-actions");
+          log.querySelectorAll(".chat-bubble.show-actions").forEach(function (b) {
+            if (b !== bubble) b.classList.remove("show-actions");
+          });
+          bubble.classList.toggle("show-actions", !open);
+        }
+        return;
+      }
       const btn = ev.target.closest("[data-act]");
       if (!btn) return;
       const bubble = btn.closest(".chat-bubble");
@@ -1115,7 +1193,7 @@
     const s = Math.floor(ms / 1000);
     const m = Math.floor(s / 60);
     const r = s % 60;
-    return m + ":" + String(r).padStart(2, "0");
+    return String(m).padStart(2, "0") + ":" + String(r).padStart(2, "0");
   }
 
   function setVoiceBar(on) {

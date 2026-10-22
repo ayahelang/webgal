@@ -2723,7 +2723,18 @@ html.sh-loupe-on * {
 
 
 /* Chat edit/delete actions */
-.chat-actions{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.chat-actions{display:none;gap:6px;margin-top:6px;flex-wrap:wrap}
+.chat-bubble.show-actions .chat-actions{display:flex}
+.chat-av{cursor:pointer;transition:box-shadow .15s,transform .1s}
+.chat-bubble.show-actions .chat-av{box-shadow:0 0 0 2px rgba(125,227,255,.45)}
+.chat-voice-player{display:flex;align-items:center;gap:8px;max-width:100%}
+.chat-voice-play{
+  appearance:none;border:1px solid rgba(125,227,255,.35);background:rgba(125,227,255,.12);
+  color:#e8fbff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1;flex-shrink:0
+}
+.chat-voice-play:hover{background:rgba(125,227,255,.22)}
+.chat-voice-time{font-size:12px;font-weight:700;color:#9ec8d6;font-variant-numeric:tabular-nums;min-width:96px}
+.chat-voice-audio{display:none}
 .chat-act{
   appearance:none;border:1px solid rgba(255,255,255,.14);
   background:rgba(255,255,255,.05);color:#9ec8d6;

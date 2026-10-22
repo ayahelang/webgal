@@ -2399,20 +2399,62 @@
     return data || [];
   }
 
+  function extractVoiceUrlsFromHtml(html) {
+    const s = String(html || "");
+    const out = [];
+    const re = /data-voice-url=["']([^"']+)["']/gi;
+    let m;
+    while ((m = re.exec(s))) out.push(m[1]);
+    const re2 = /<audio[^>]+src=["']([^"']+)["']/gi;
+    while ((m = re2.exec(s))) out.push(m[1]);
+    return [...new Set(out.filter(Boolean))];
+  }
+
+  async function deleteChatStorageByPublicUrl(publicUrl) {
+    const sb = client();
+    if (!sb || !publicUrl) return;
+    try {
+      const u = String(publicUrl);
+      const marker = "/object/public/chat-images/";
+      let path = "";
+      const i = u.indexOf(marker);
+      if (i >= 0) path = decodeURIComponent(u.slice(i + marker.length).split("?")[0]);
+      else {
+        const j = u.indexOf("/chat-images/");
+        if (j >= 0) path = decodeURIComponent(u.slice(j + "/chat-images/".length).split("?")[0]);
+      }
+      if (!path) return;
+      await sb.storage.from("chat-images").remove([path]);
+    } catch (e) {
+      console.warn("storage delete", e);
+    }
+  }
+
   async function upsertAnnouncement(payload) {
     if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
     const sb = client();
     const session = await getSession();
+    const nowIso = new Date().toISOString();
+    let starts = payload.starts_at || nowIso;
+    let ends = payload.ends_at || null;
+    let duration_days = payload.duration_days != null && payload.duration_days !== "" ? Number(payload.duration_days) : null;
+    let duration_hours = payload.duration_hours != null && payload.duration_hours !== "" ? Number(payload.duration_hours) : null;
+    // Default: mulai sekarang (jika kosong), tampil 24 jam jika tidak ada selesai & tidak ada durasi
+    if (!payload.starts_at) starts = nowIso;
+    if (!ends && (duration_days == null || isNaN(duration_days)) && (duration_hours == null || isNaN(duration_hours))) {
+      duration_hours = 24;
+      duration_days = null;
+    }
     const row = {
       title: payload.title || "",
       body_html: payload.body_html || "",
       audience: payload.audience || "public",
       target_students: payload.target_students || [],
       show_on: payload.show_on || "home",
-      starts_at: payload.starts_at || new Date().toISOString(),
-      ends_at: payload.ends_at || null,
-      duration_days: payload.duration_days != null ? Number(payload.duration_days) : null,
-      duration_hours: payload.duration_hours != null ? Number(payload.duration_hours) : null,
+      starts_at: starts,
+      ends_at: ends,
+      duration_days: duration_days != null && !isNaN(duration_days) ? duration_days : null,
+      duration_hours: duration_hours != null && !isNaN(duration_hours) ? duration_hours : null,
       times_per_day: Number(payload.times_per_day) || 1,
       schedule_hours: payload.schedule_hours || [],
       splash_seconds: Number(payload.splash_seconds) || 15,
@@ -2423,9 +2465,18 @@
         const meta = u.user_metadata || {};
         return meta.full_name || meta.name || u.email || "";
       })(),
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso,
     };
     if (payload.id) {
+      // jika edit dan voice lama diganti/dihapus, bersihkan storage voice lama
+      try {
+        const { data: prev } = await sb.from("gallery_announcements").select("body_html").eq("id", payload.id).maybeSingle();
+        const oldUrls = extractVoiceUrlsFromHtml(prev && prev.body_html);
+        const newUrls = extractVoiceUrlsFromHtml(row.body_html);
+        for (const u of oldUrls) {
+          if (newUrls.indexOf(u) < 0) await deleteChatStorageByPublicUrl(u);
+        }
+      } catch (e) {}
       const { data, error } = await sb.from("gallery_announcements").update(row).eq("id", payload.id).select("*").single();
       if (error) throw error;
       return data;
@@ -2438,6 +2489,11 @@
   async function deleteAnnouncement(id) {
     if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
     const sb = client();
+    try {
+      const { data: prev } = await sb.from("gallery_announcements").select("body_html").eq("id", id).maybeSingle();
+      const urls = extractVoiceUrlsFromHtml(prev && prev.body_html);
+      for (const u of urls) await deleteChatStorageByPublicUrl(u);
+    } catch (e) {}
     const { error } = await sb.from("gallery_announcements").delete().eq("id", id);
     if (error) throw error;
   }

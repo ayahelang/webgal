@@ -786,10 +786,16 @@
         .split(/[,\s]+/)
         .map((x) => parseInt(x, 10))
         .filter((n) => !isNaN(n) && n >= 0 && n <= 23);
-      let starts = fd.get("starts_at");
-      starts = starts ? new Date(starts).toISOString() : new Date().toISOString();
-      let ends = fd.get("ends_at");
-      ends = ends ? new Date(ends).toISOString() : null;
+      let startsRaw = String(fd.get("starts_at") || "").trim();
+      let starts = startsRaw ? new Date(startsRaw).toISOString() : new Date().toISOString();
+      let endsRaw = String(fd.get("ends_at") || "").trim();
+      let ends = endsRaw ? new Date(endsRaw).toISOString() : null;
+      let duration_days = fd.get("duration_days") ? Number(fd.get("duration_days")) : null;
+      let duration_hours = fd.get("duration_hours") ? Number(fd.get("duration_hours")) : null;
+      // Default tampil 24 jam jika tidak diisi selesai & tidak diisi durasi
+      if (!ends && (duration_days == null || isNaN(duration_days)) && (duration_hours == null || isNaN(duration_hours))) {
+        duration_hours = 24;
+      }
       const payload = {
         id: fd.get("id") || null,
         title: fd.get("title"),
@@ -799,8 +805,8 @@
         target_students: showStudents ? readAnnTargets() : [],
         starts_at: starts,
         ends_at: ends,
-        duration_days: fd.get("duration_days") ? Number(fd.get("duration_days")) : null,
-        duration_hours: fd.get("duration_hours") ? Number(fd.get("duration_hours")) : null,
+        duration_days: duration_days,
+        duration_hours: duration_hours,
         times_per_day: Number(fd.get("times_per_day")) || 1,
         schedule_hours: hoursRaw,
         splash_seconds: Number(fd.get("splash_seconds")) || 15,
@@ -812,11 +818,223 @@
         f.reset();
         f.querySelector("[name=id]").value = "";
         $("#annEditor").innerHTML = "";
+        const prev = $("#annVoicePreview");
+        if (prev) { prev.hidden = true; prev.innerHTML = ""; }
         await refreshAnnouncements();
       } catch (e) {
         $("#annStatus").textContent = e.message || String(e);
       }
     }
+
+    // --- Pesan suara pengumuman (mirip chat) ---
+    let annRec = null;
+    let annChunks = [];
+    let annStream = null;
+    let annTimer = null;
+    let annStarted = 0;
+    let annAudioCtx = null;
+    let annAnalyser = null;
+    let annMeterRaf = 0;
+
+    function annFmt(ms) {
+      const s = Math.floor(ms / 1000);
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return String(m).padStart(2, "0") + ":" + String(r).padStart(2, "0");
+    }
+    function annStopMeter() {
+      if (annMeterRaf) cancelAnimationFrame(annMeterRaf);
+      annMeterRaf = 0;
+      if (annAudioCtx) {
+        try { annAudioCtx.close(); } catch (e) {}
+        annAudioCtx = null;
+      }
+      annAnalyser = null;
+    }
+    function annStartMeter(stream) {
+      annStopMeter();
+      const canvas = $("#annVoiceMeter");
+      if (!canvas || !stream) return;
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        annAudioCtx = new AC();
+        if (annAudioCtx.state === "suspended") annAudioCtx.resume();
+        const src = annAudioCtx.createMediaStreamSource(stream);
+        annAnalyser = annAudioCtx.createAnalyser();
+        annAnalyser.fftSize = 256;
+        src.connect(annAnalyser);
+        const data = new Uint8Array(annAnalyser.frequencyBinCount);
+        const ctx = canvas.getContext("2d");
+        const bars = 20;
+        function draw() {
+          annMeterRaf = requestAnimationFrame(draw);
+          annAnalyser.getByteFrequencyData(data);
+          const w = canvas.width, h = canvas.height;
+          ctx.clearRect(0, 0, w, h);
+          const gap = 2, bw = (w - gap * (bars - 1)) / bars;
+          for (let i = 0; i < bars; i++) {
+            const idx = Math.min(data.length - 1, 4 + Math.floor(i * (data.length * 0.45) / bars));
+            const v = data[idx] / 255;
+            const bh = Math.max(2, v * (h - 2));
+            ctx.fillStyle = "rgba(125,227,255,0.85)";
+            ctx.fillRect(i * (bw + gap), (h - bh) / 2, bw, bh);
+          }
+        }
+        draw();
+      } catch (e) {}
+    }
+    function annCancelRec() {
+      try { if (annRec && annRec.state !== "inactive") annRec.stop(); } catch (e) {}
+      annRec = null;
+      annChunks = [];
+      if (annStream) {
+        try { annStream.getTracks().forEach((tr) => tr.stop()); } catch (e) {}
+        annStream = null;
+      }
+      if (annTimer) clearInterval(annTimer);
+      annTimer = null;
+      annStopMeter();
+      const bar = $("#annVoiceBar");
+      if (bar) bar.hidden = true;
+      const vb = $("#annVoiceBtn");
+      if (vb) vb.classList.remove("is-recording");
+    }
+    async function annStartRec() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        $("#annStatus").textContent = "Browser tidak mendukung rekaman";
+        return;
+      }
+      try {
+        annStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+        });
+      } catch (e) {
+        $("#annStatus").textContent = "Izin mikrofon ditolak";
+        return;
+      }
+      annChunks = [];
+      let mime = "";
+      ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"].forEach((c) => {
+        if (!mime && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) mime = c;
+      });
+      try {
+        annRec = mime
+          ? new MediaRecorder(annStream, { mimeType: mime, audioBitsPerSecond: 128000 })
+          : new MediaRecorder(annStream);
+      } catch (e) {
+        annCancelRec();
+        $("#annStatus").textContent = "Gagal mulai rekaman";
+        return;
+      }
+      annRec.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size) annChunks.push(ev.data);
+      };
+      annRec.start(250);
+      annStarted = Date.now();
+      const bar = $("#annVoiceBar");
+      if (bar) bar.hidden = false;
+      const timerEl = $("#annVoiceTimer");
+      if (timerEl) timerEl.textContent = "00:00";
+      if (annTimer) clearInterval(annTimer);
+      annTimer = setInterval(() => {
+        if (timerEl) timerEl.textContent = annFmt(Date.now() - annStarted);
+        if (Date.now() - annStarted > 180000) annStopRec(true);
+      }, 250);
+      annStartMeter(annStream);
+      const vb = $("#annVoiceBtn");
+      if (vb) vb.classList.add("is-recording");
+      $("#annStatus").textContent = "Merekam suara pengumuman…";
+    }
+    async function annStopRec(send) {
+      if (!annRec) {
+        annCancelRec();
+        return;
+      }
+      const rec = annRec;
+      const type = rec.mimeType || "audio/webm";
+      await new Promise((resolve) => {
+        rec.onstop = () => resolve();
+        try {
+          if (rec.state !== "inactive") rec.stop();
+          else resolve();
+        } catch (e) {
+          resolve();
+        }
+      });
+      const chunks = annChunks.slice();
+      annCancelRec();
+      if (!send || !chunks.length) {
+        $("#annStatus").textContent = send ? "Rekaman kosong" : "Rekaman dibatalkan";
+        return;
+      }
+      const blob = new Blob(chunks, { type: type });
+      if (blob.size < 800) {
+        $("#annStatus").textContent = "Rekaman terlalu pendek";
+        return;
+      }
+      if (!GalleryDB.uploadChatAudio) {
+        $("#annStatus").textContent = "Upload suara belum tersedia";
+        return;
+      }
+      $("#annStatus").textContent = "Mengunggah suara…";
+      try {
+        const url = await GalleryDB.uploadChatAudio(blob);
+        if (!url) throw new Error("Upload gagal");
+        // hitung durasi lokal
+        let durLabel = "";
+        try {
+          const tmp = document.createElement("audio");
+          tmp.preload = "metadata";
+          tmp.src = URL.createObjectURL(blob);
+          await new Promise((res) => {
+            tmp.onloadedmetadata = () => res();
+            tmp.onerror = () => res();
+            setTimeout(res, 1500);
+          });
+          if (isFinite(tmp.duration)) {
+            const sec = Math.floor(tmp.duration);
+            durLabel = String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
+          }
+          URL.revokeObjectURL(tmp.src);
+        } catch (e) {}
+        const ed = $("#annEditor");
+        const block =
+          `<div class="ann-voice-block chat-voice-player" data-voice-url="${url.replace(/"/g, "&quot;")}">` +
+          `<button type="button" class="chat-voice-play" data-voice-play>▶</button>` +
+          `<span class="chat-voice-time" data-voice-time>00:00 / ${durLabel || "--:--"}</span>` +
+          `<audio class="chat-voice-audio" preload="metadata" src="${url.replace(/"/g, "&quot;")}"></audio>` +
+          `<small class="chat-voice-ttl">Pesan suara pengumuman${durLabel ? " · " + durLabel : ""}</small>` +
+          `</div><p></p>`;
+        if (ed) {
+          ed.focus();
+          try {
+            document.execCommand("insertHTML", false, block);
+          } catch (e) {
+            ed.innerHTML += block;
+          }
+        }
+        const prev = $("#annVoicePreview");
+        if (prev) {
+          prev.hidden = false;
+          prev.innerHTML = block;
+        }
+        $("#annStatus").textContent = "Suara ditambahkan ke isi pengumuman.";
+      } catch (e) {
+        $("#annStatus").textContent = e.message || String(e);
+      }
+    }
+    const annVoiceBtn = $("#annVoiceBtn");
+    if (annVoiceBtn) {
+      annVoiceBtn.addEventListener("click", () => {
+        if (annRec && annRec.state === "recording") annStopRec(true);
+        else annStartRec();
+      });
+    }
+    const annVoiceStop = $("#annVoiceStop");
+    if (annVoiceStop) annVoiceStop.addEventListener("click", () => annStopRec(true));
+    const annVoiceCancel = $("#annVoiceCancel");
+    if (annVoiceCancel) annVoiceCancel.addEventListener("click", () => annCancelRec());
+
     f.onsubmit = saveAnnouncement;
     const annSave = $("#annSave");
     if (annSave) annSave.onclick = (e) => { e.preventDefault(); saveAnnouncement(e); };
