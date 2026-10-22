@@ -37,12 +37,47 @@
   }
 
   function thumbUrl(v) {
+    if (v._thumb) return v._thumb;
     const id = ytId(v.url) || ytId(v.embed_url);
     if (id) return "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg";
     // dailymotion fallback: no easy static without id parse
     const dm = String(v.url || "").match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/);
     if (dm) return "https://www.dailymotion.com/thumbnail/video/" + dm[1];
+    // hint dari GalleryDB jika ada
+    try {
+      if (window.GalleryDB && GalleryDB.videoThumbnailHint) {
+        const h = GalleryDB.videoThumbnailHint(v.url || v.embed_url || "");
+        if (h) return h;
+      }
+    } catch (e) {}
     return "";
+  }
+
+  function isFacebookVideo(v) {
+    const p = String(v.platform || "").toLowerCase();
+    if (p === "facebook") return true;
+    const u = String(v.url || "") + " " + String(v.embed_url || "");
+    return /facebook\.com|fb\.watch/i.test(u);
+  }
+
+  function ensureEmbed(v) {
+    let emb = String(v.embed_url || "").trim();
+    // Perbaiki embed lama yang masih URL facebook mentah
+    if (isFacebookVideo(v) && emb && !/plugins\/video\.php/i.test(emb)) {
+      try {
+        if (window.GalleryDB && GalleryDB.parseVideoUrl) {
+          const parsed = GalleryDB.parseVideoUrl(v.url || emb);
+          if (parsed && parsed.embed_url) emb = parsed.embed_url;
+        } else {
+          const href = (v.url || emb).split("#")[0];
+          emb =
+            "https://www.facebook.com/plugins/video.php?href=" +
+            encodeURIComponent(href) +
+            "&show_text=0&width=560";
+        }
+      } catch (e) {}
+    }
+    return emb;
   }
 
   function enrich(v) {
@@ -74,14 +109,24 @@
       .filter(Boolean)
       .join(" · ");
     const thumb = thumbUrl(v);
-    const embed = esc(v.embed_url || "");
-    const frame = thumb
-      ? `<button type="button" class="video-thumb-btn" data-embed="${embed}" aria-label="Putar video">
+    const embed = esc(ensureEmbed(v));
+    const fb = isFacebookVideo(v);
+    let frame;
+    if (thumb) {
+      frame = `<button type="button" class="video-thumb-btn" data-embed="${embed}" aria-label="Putar video">
           <img class="video-thumb" src="${esc(thumb)}" alt="" loading="lazy" decoding="async" width="480" height="270">
           <span class="video-play">▶</span>
-        </button>`
-      : `<iframe src="${embed}" title="${esc(v.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>`;
-    return `<article class="video-card">
+        </button>`;
+    } else if (fb || embed) {
+      // Placeholder + tombol play (hindari auto-load iframe FB yang berat)
+      frame = `<button type="button" class="video-thumb-btn video-thumb-ph ${fb ? "is-fb" : ""}" data-embed="${embed}" aria-label="Putar video">
+          <span class="video-ph-label">${fb ? "Facebook" : "Video"}</span>
+          <span class="video-play">▶</span>
+        </button>`;
+    } else {
+      frame = `<div class="video-thumb-ph">Tidak ada embed</div>`;
+    }
+    return `<article class="video-card" data-video-id="${esc(v.id || "")}" data-video-url="${esc(v.url || "")}">
       <div class="video-frame" data-video-frame>${frame}</div>
       <div class="video-meta">
         <span class="pill">${esc(catName)}</span>
@@ -97,12 +142,48 @@
   function bindPlay(root) {
     (root || document).querySelectorAll(".video-thumb-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const embed = btn.getAttribute("data-embed");
+        let embed = btn.getAttribute("data-embed") || "";
         const host = btn.closest("[data-video-frame]");
         if (!host || !embed) return;
-        host.innerHTML = `<iframe src="${embed}${embed.indexOf("?") >= 0 ? "&" : "?"}autoplay=1" title="Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+        // Facebook plugin: autoplay param
+        const sep = embed.indexOf("?") >= 0 ? "&" : "?";
+        const src = /plugins\/video\.php/i.test(embed)
+          ? embed + sep + "autoplay=1"
+          : embed + sep + "autoplay=1";
+        host.innerHTML = `<iframe src="${src}" title="Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="eager"></iframe>`;
       });
     });
+  }
+
+  async function enrichFacebookThumbs(root) {
+    if (!window.GalleryDB || !GalleryDB.fetchVideoMeta) return;
+    const cards = (root || document).querySelectorAll(".video-card[data-video-url]");
+    for (const el of cards) {
+      const url = el.getAttribute("data-video-url") || "";
+      if (!/facebook\.com|fb\.watch/i.test(url)) continue;
+      const img = el.querySelector(".video-thumb");
+      if (img && img.getAttribute("src")) continue;
+      const ph = el.querySelector(".video-thumb-ph");
+      try {
+        const meta = await GalleryDB.fetchVideoMeta(url);
+        if (meta && meta.thumbnail) {
+          const frame = el.querySelector("[data-video-frame]");
+          const btn = el.querySelector(".video-thumb-btn");
+          const embed = (btn && btn.getAttribute("data-embed")) || "";
+          if (frame) {
+            frame.innerHTML = `<button type="button" class="video-thumb-btn" data-embed="${embed.replace(/"/g, "&quot;")}" aria-label="Putar video">
+              <img class="video-thumb" src="${String(meta.thumbnail).replace(/"/g, "&quot;")}" alt="" loading="lazy" decoding="async" width="480" height="270">
+              <span class="video-play">▶</span>
+            </button>`;
+            bindPlay(frame);
+          }
+          if (meta.title && meta.title !== "Video Facebook") {
+            const h3 = el.querySelector("h3");
+            if (h3 && (/^Video/i.test(h3.textContent || "") || !h3.textContent)) h3.textContent = meta.title;
+          }
+        }
+      } catch (e) {}
+    }
   }
 
   function render() {
@@ -110,6 +191,7 @@
     const list = filtered();
     grid.innerHTML = list.map(card).join("") || "";
     bindPlay(grid);
+    enrichFacebookThumbs(grid);
     if (window.SHSocial) {
       SHSocial.bind(grid);
       SHSocial.hydrate(grid);

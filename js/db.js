@@ -653,7 +653,7 @@
   async function adminUpdateVideo(id, { title, url, categoryId, description, ownerName }) {
     const sb = client();
     const parsed = parseVideoUrl(url);
-    if (parsed.platform === "other") throw new Error("Link harus YouTube atau Dailymotion.");
+    if (parsed.platform === "other") throw new Error("Link harus YouTube, Dailymotion, Facebook, TikTok, atau Instagram.");
     const patch = {
       title: title || "Video",
       url,
@@ -703,7 +703,34 @@
     }
     if (/facebook\.com\/|fb\.watch\//i.test(u)) {
       platform = "facebook";
-      return { platform, embed_url: u, id: null };
+      // Normalisasi share/v, reel, watch, videos → plugin embed resmi Facebook
+      let href = u.split("#")[0];
+      let fm;
+      fm = href.match(/facebook\.com\/reel\/(\d+)/i);
+      if (fm) {
+        id = fm[1];
+        href = "https://www.facebook.com/reel/" + id + "/";
+      } else if ((fm = href.match(/facebook\.com\/(?:[^/]+\/)?videos\/(?:[^/]+\/)?(\d+)/i))) {
+        id = fm[1];
+        href = "https://www.facebook.com/video.php?v=" + id;
+      } else if ((fm = href.match(/facebook\.com\/watch\/?\?v=(\d+)/i))) {
+        id = fm[1];
+        href = "https://www.facebook.com/video.php?v=" + id;
+      } else if ((fm = href.match(/fb\.watch\/([A-Za-z0-9_-]+)/i))) {
+        id = fm[1];
+        href = "https://fb.watch/" + id + "/";
+      } else if ((fm = href.match(/facebook\.com\/share\/v\/([A-Za-z0-9_-]+)/i))) {
+        id = fm[1];
+        href = "https://www.facebook.com/share/v/" + id + "/";
+      } else if ((fm = href.match(/facebook\.com\/share\/r\/([A-Za-z0-9_-]+)/i))) {
+        id = fm[1];
+        href = "https://www.facebook.com/share/r/" + id + "/";
+      }
+      embed =
+        "https://www.facebook.com/plugins/video.php?href=" +
+        encodeURIComponent(href) +
+        "&show_text=0&width=560";
+      return { platform, embed_url: embed, id };
     }
     if (/(?:twitter\.com|x\.com)\//i.test(u)) {
       platform = "twitter";
@@ -760,6 +787,22 @@
         /* coba endpoint berikutnya */
       }
     }
+    // Facebook share/reel: oEmbed sering gagal → ambil og:image via proxy
+    if (parsed.platform === "facebook") {
+      try {
+        const og = await fetchOpenGraphMeta(url);
+        if (og && (og.image || og.title)) {
+          return {
+            title: og.title || "Video Facebook",
+            description: "Facebook",
+            thumbnail: og.image || "",
+            platform: "facebook",
+            embed_url: parsed.embed_url,
+            provider: "Facebook",
+          };
+        }
+      } catch (e) {}
+    }
     let host = "";
     try { host = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
     return {
@@ -770,6 +813,34 @@
       embed_url: parsed.embed_url,
       provider: parsed.platform,
     };
+  }
+
+  /** Scrape og:image / og:title via public CORS proxy (best-effort). */
+  async function fetchOpenGraphMeta(url) {
+    const proxies = [
+      "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
+      "https://corsproxy.io/?" + encodeURIComponent(url),
+    ];
+    for (let i = 0; i < proxies.length; i++) {
+      try {
+        const res = await fetch(proxies[i]);
+        if (!res.ok) continue;
+        const html = await res.text();
+        if (!html || html.length < 40) continue;
+        let image = "";
+        let title = "";
+        let m =
+          html.match(/property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+          html.match(/content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+        if (m) image = String(m[1]).replace(/&amp;/g, "&");
+        m =
+          html.match(/property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
+          html.match(/content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
+        if (m) title = String(m[1]).replace(/&amp;/g, "&").replace(/&#xb7;/g, "·");
+        if (image || title) return { image, title };
+      } catch (e) {}
+    }
+    return null;
   }
 
   async function resolveMyAlumni() {
@@ -1034,7 +1105,7 @@
   async function addVideo({ title, url, categoryId, description, createdBy, ownerName }) {
     const sb = client();
     const parsed = parseVideoUrl(url);
-    if (parsed.platform === "other") throw new Error("Link harus YouTube atau Dailymotion.");
+    if (parsed.platform === "other") throw new Error("Link harus YouTube, Dailymotion, Facebook, TikTok, atau Instagram.");
     const row = {
       title: title || "Video",
       url,
