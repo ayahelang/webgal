@@ -198,257 +198,242 @@
     };
   }
 
+
+  /**
+   * Player HTML — pola klasik (play/pause, range ber-skala detik, stop, unduh)
+   */
   function playerHtml(opts) {
     opts = opts || {};
     var url = String(opts.url || "").replace(/"/g, "&quot;");
-    var known = opts.duration != null && isFinite(opts.duration) ? Number(opts.duration) : null;
-    var durLabel = known != null ? formatClock(known) : "--:--";
+    var known = opts.duration != null && isFinite(Number(opts.duration)) ? Number(opts.duration) : null;
+    var durLabel = known != null ? formatClock(known) : "0:00";
     var ttl = opts.ttlLabel ? String(opts.ttlLabel) : "";
     var dl = opts.downloadable !== false;
     return (
-      '<div class="sh-voice-player"' +
+      '<div class="sh-audio" data-voice-url="' + url + '"' +
       (known != null ? ' data-duration="' + known + '"' : "") +
-      ' data-voice-url="' + url + '">' +
-      '<button type="button" class="sh-voice-play" data-voice-play title="Putar/jeda">▶</button>' +
-      '<button type="button" class="sh-voice-stop" data-voice-stop title="Stop">⏹</button>' +
-      '<div class="sh-voice-track">' +
-      '<span class="sh-voice-time" data-voice-time>00:00 / ' + durLabel + "</span>" +
-      '<div class="sh-voice-seek-wrap">' +
-      '<div class="sh-voice-seek-fill" data-voice-fill></div>' +
-      '<input type="range" class="sh-voice-seek" min="0" max="1000" value="0" step="1" aria-label="Posisi audio" />' +
-      "</div></div>" +
-      (dl ? '<button type="button" class="sh-voice-dl" data-voice-dl title="Unduh suara">⬇</button>' : "") +
-      '<audio class="sh-voice-audio" preload="auto" src="' + url + '" playsinline></audio>' +
-      (ttl ? '<small class="sh-voice-ttl">' + ttl + "</small>" : "") +
+      ">" +
+      '<div class="sh-audio-row">' +
+      '<button type="button" class="sh-audio-btn sh-audio-play" data-voice-play title="Putar / jeda">▶</button>' +
+      '<button type="button" class="sh-audio-btn sh-audio-stop" data-voice-stop title="Stop">⏹</button>' +
+      '<div class="sh-audio-main">' +
+      '<div class="sh-audio-times"><span data-voice-cur>0:00</span> / <span data-voice-dur>' + durLabel + "</span></div>" +
+      '<input type="range" class="sh-audio-seek" data-voice-seek min="0" max="' +
+      (known != null ? known : 1) +
+      '" value="0" step="any" />' +
+      "</div>" +
+      (dl
+        ? '<button type="button" class="sh-audio-btn sh-audio-dl" data-voice-dl title="Unduh">⬇</button>'
+        : "") +
+      "</div>" +
+      '<audio preload="metadata" playsinline src="' + url + '"></audio>' +
+      (ttl ? '<div class="sh-audio-ttl">' + ttl + "</div>" : "") +
       "</div>"
     );
   }
 
+  function fmtClockSimple(sec) {
+    if (!isFinite(sec) || sec < 0) return "0:00";
+    sec = Math.floor(sec);
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    return m + ":" + String(s).padStart(2, "0");
+  }
+
   /**
-   * Wire semua player di root. Aman dipanggil berulang (idempotent per elemen).
+   * Wire player klasik di root.
+   * Pola populer: seek.max = duration (detik), seek.value = currentTime.
    */
   function wirePlayers(root) {
     if (!root) return;
-    var nodes = root.querySelectorAll(".sh-voice-player, .chat-voice-player, .ann-voice-block");
-    for (var n = 0; n < nodes.length; n++) {
-      wireOne(nodes[n], root);
+    var nodes = root.querySelectorAll(".sh-audio, .sh-voice-player, .chat-voice-player, .ann-voice-block");
+    for (var i = 0; i < nodes.length; i++) {
+      wireClassicPlayer(nodes[i], root);
     }
   }
 
-  function wireOne(wrap, root) {
-    if (!wrap || wrap.getAttribute("data-sh-wired") === "3") return;
-    wrap.setAttribute("data-sh-wired", "3");
-    wrap.classList.add("sh-voice-player");
+  function wireClassicPlayer(box, root) {
+    if (!box || box.getAttribute("data-sh-audio") === "1") return;
+    box.setAttribute("data-sh-audio", "1");
 
-    var audio = wrap.querySelector("audio");
-    var btn = wrap.querySelector("[data-voice-play], .sh-voice-play, .chat-voice-play");
-    var stopBtn = wrap.querySelector("[data-voice-stop], .sh-voice-stop");
-    var timeEl = wrap.querySelector("[data-voice-time], .sh-voice-time, .chat-voice-time");
-    var seek = wrap.querySelector(".sh-voice-seek");
-    var dlBtn = wrap.querySelector("[data-voice-dl], .sh-voice-dl");
-    var srcUrl = wrap.getAttribute("data-voice-url") || "";
-
+    var audio = box.querySelector("audio");
+    var url = box.getAttribute("data-voice-url") || "";
     if (!audio) {
-      if (!srcUrl) return;
+      if (!url) return;
       audio = document.createElement("audio");
-      audio.className = "sh-voice-audio";
-      audio.preload = "auto";
+      audio.preload = "metadata";
       audio.setAttribute("playsinline", "");
-      audio.src = srcUrl;
-      wrap.appendChild(audio);
+      audio.src = url;
+      box.appendChild(audio);
     } else {
-      audio.preload = "auto";
+      if (!url) url = audio.getAttribute("src") || audio.src || "";
+      audio.preload = "metadata";
       audio.setAttribute("playsinline", "");
-      if (!srcUrl) srcUrl = audio.getAttribute("src") || audio.src || "";
     }
 
-    // Pastikan struktur track + seek + fill
-    var track = wrap.querySelector(".sh-voice-track");
-    if (!track) {
-      track = document.createElement("div");
-      track.className = "sh-voice-track";
-      if (btn && btn.nextSibling) wrap.insertBefore(track, btn.nextSibling);
-      else wrap.appendChild(track);
-    }
-    if (!timeEl) {
-      timeEl = document.createElement("span");
-      timeEl.className = "sh-voice-time";
-      timeEl.setAttribute("data-voice-time", "");
-      track.insertBefore(timeEl, track.firstChild);
-    }
-    var seekWrap = wrap.querySelector(".sh-voice-seek-wrap");
-    if (!seekWrap) {
-      seekWrap = document.createElement("div");
-      seekWrap.className = "sh-voice-seek-wrap";
-      track.appendChild(seekWrap);
-    }
-    if (!seekWrap.querySelector("[data-voice-fill], .sh-voice-seek-fill")) {
-      var fill = document.createElement("div");
-      fill.className = "sh-voice-seek-fill";
-      fill.setAttribute("data-voice-fill", "");
-      seekWrap.insertBefore(fill, seekWrap.firstChild);
-    }
-    if (!seek) {
-      seek = document.createElement("input");
-      seek.type = "range";
-      seek.className = "sh-voice-seek";
-      seek.min = "0";
-      seek.max = "1000";
-      seek.value = "0";
-      seek.step = "1";
-      seekWrap.appendChild(seek);
-    } else if (seek.parentElement !== seekWrap) {
-      seekWrap.appendChild(seek);
+    // Upgrade struktur lama → .sh-audio jika perlu
+    var playBtn = box.querySelector("[data-voice-play], .sh-audio-play, .sh-voice-play, .chat-voice-play");
+    var stopBtn = box.querySelector("[data-voice-stop], .sh-audio-stop, .sh-voice-stop");
+    var seek = box.querySelector("[data-voice-seek], .sh-audio-seek, .sh-voice-seek");
+    var curEl = box.querySelector("[data-voice-cur]");
+    var durEl = box.querySelector("[data-voice-dur]");
+    var timeLegacy = box.querySelector("[data-voice-time], .sh-voice-time, .chat-voice-time");
+    var dlBtn = box.querySelector("[data-voice-dl], .sh-audio-dl, .sh-voice-dl");
+
+    // Jika seek tidak ada (player lama), bangun ulang UI di dalam box
+    if (!seek || !playBtn) {
+      var known0 = parseFloat(box.getAttribute("data-duration") || "");
+      if (!isFinite(known0) || known0 <= 0) known0 = null;
+      var ttlNode = box.querySelector(".sh-voice-ttl, .sh-audio-ttl, .chat-voice-ttl");
+      var ttlHtml = ttlNode ? ttlNode.outerHTML : "";
+      box.className = "sh-audio";
+      box.innerHTML =
+        '<div class="sh-audio-row">' +
+        '<button type="button" class="sh-audio-btn sh-audio-play" data-voice-play title="Putar / jeda">▶</button>' +
+        '<button type="button" class="sh-audio-btn sh-audio-stop" data-voice-stop title="Stop">⏹</button>' +
+        '<div class="sh-audio-main">' +
+        '<div class="sh-audio-times"><span data-voice-cur>0:00</span> / <span data-voice-dur>' +
+        (known0 != null ? fmtClockSimple(known0) : "0:00") +
+        "</span></div>" +
+        '<input type="range" class="sh-audio-seek" data-voice-seek min="0" max="' +
+        (known0 != null ? known0 : 1) +
+        '" value="0" step="any" />' +
+        "</div>" +
+        '<button type="button" class="sh-audio-btn sh-audio-dl" data-voice-dl title="Unduh">⬇</button>' +
+        "</div>" +
+        '<audio preload="metadata" playsinline src="' +
+        String(url).replace(/"/g, "&quot;") +
+        '"></audio>' +
+        ttlHtml;
+      audio = box.querySelector("audio");
+      playBtn = box.querySelector("[data-voice-play]");
+      stopBtn = box.querySelector("[data-voice-stop]");
+      seek = box.querySelector("[data-voice-seek]");
+      curEl = box.querySelector("[data-voice-cur]");
+      durEl = box.querySelector("[data-voice-dur]");
+      dlBtn = box.querySelector("[data-voice-dl]");
+      timeLegacy = null;
     }
 
-    if (!stopBtn) {
-      stopBtn = document.createElement("button");
-      stopBtn.type = "button";
-      stopBtn.className = "sh-voice-stop";
-      stopBtn.setAttribute("data-voice-stop", "");
-      stopBtn.title = "Stop";
-      stopBtn.textContent = "⏹";
-      if (btn && btn.nextSibling) wrap.insertBefore(stopBtn, btn.nextSibling);
-      else wrap.appendChild(stopBtn);
-    }
-
-    if (!dlBtn && srcUrl) {
-      dlBtn = document.createElement("button");
-      dlBtn.type = "button";
-      dlBtn.className = "sh-voice-dl";
-      dlBtn.setAttribute("data-voice-dl", "");
-      dlBtn.title = "Unduh suara";
-      dlBtn.textContent = "⬇";
-      wrap.appendChild(dlBtn);
-    }
-
-    var known = parseFloat(wrap.getAttribute("data-duration") || "");
+    var known = parseFloat(box.getAttribute("data-duration") || "");
     if (!isFinite(known) || known <= 0) known = null;
-    var seeking = false;
-    var pollTimer = null;
+    var dragging = false;
 
-    function totalDur() {
+    function duration() {
       var d = audio.duration;
       if (isFinite(d) && d > 0 && d !== Infinity) return d;
       if (known != null && known > 0) return known;
-      return null;
+      return 0;
     }
 
-    function setPlayIcon(playing) {
-      if (!btn) return;
-      btn.textContent = playing ? "❚❚" : "▶";
-      btn.classList.toggle("is-playing", !!playing);
-      btn.setAttribute("aria-label", playing ? "Jeda" : "Putar");
-    }
-
-    var fillEl = wrap.querySelector("[data-voice-fill], .sh-voice-seek-fill");
-
-    function renderTime() {
-      var dur = totalDur();
+    function paint() {
+      var dur = duration();
       var cur = 0;
-      try { cur = audio.currentTime || 0; } catch (e) { cur = 0; }
+      try {
+        cur = audio.currentTime || 0;
+      } catch (e) {
+        cur = 0;
+      }
       if (!isFinite(cur)) cur = 0;
-      if (timeEl) {
-        timeEl.textContent = formatClock(cur) + " / " + (dur != null ? formatClock(dur) : "--:--");
+      if (dur > 0 && !dragging) {
+        seek.min = 0;
+        seek.max = dur;
+        seek.value = cur;
       }
-      var pct = 0;
-      if (dur != null && dur > 0) {
-        pct = (cur / dur) * 100;
-        if (pct < 0) pct = 0;
-        if (pct > 100) pct = 100;
-      }
-      if (fillEl) {
-        fillEl.style.width = pct + "%";
-      }
-      if (seek && !seeking && dur != null && dur > 0) {
-        var v = Math.round((pct / 100) * 1000);
-        seek.value = String(v);
-        try { seek.setAttribute("value", String(v)); } catch (e) {}
-      }
+      var curTxt = fmtClockSimple(cur);
+      var durTxt = dur > 0 ? fmtClockSimple(dur) : "0:00";
+      if (curEl) curEl.textContent = curTxt;
+      if (durEl) durEl.textContent = durTxt;
+      if (timeLegacy) timeLegacy.textContent = curTxt + " / " + durTxt;
     }
 
-    function startPoll() {
-      stopPoll();
-      pollTimer = setInterval(function () {
-        renderTime();
-        if (audio.paused || audio.ended) {
-          setPlayIcon(false);
-          stopPoll();
-        }
-      }, 100);
+    function setPlayingUi(on) {
+      if (!playBtn) return;
+      playBtn.textContent = on ? "❚❚" : "▶";
+      playBtn.classList.toggle("is-playing", !!on);
     }
 
-    function stopPoll() {
-      if (pollTimer) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-      }
-    }
-
-    function pauseOthers() {
-      var scope = root || document;
-      var list = scope.querySelectorAll("audio.sh-voice-audio, audio.chat-voice-audio");
-      for (var i = 0; i < list.length; i++) {
-        if (list[i] !== audio) {
-          try { list[i].pause(); } catch (e) {}
-        }
-      }
-      var btns = scope.querySelectorAll("[data-voice-play], .sh-voice-play, .chat-voice-play");
-      for (var j = 0; j < btns.length; j++) {
-        if (btns[j] !== btn) {
-          btns[j].textContent = "▶";
-          btns[j].classList.remove("is-playing");
-        }
-      }
-    }
-
+    // metadata → set max slider ke durasi nyata
     audio.addEventListener("loadedmetadata", function () {
       var d = audio.duration;
       if (isFinite(d) && d > 0 && d !== Infinity) {
         known = d;
-        wrap.setAttribute("data-duration", String(known));
+        box.setAttribute("data-duration", String(d));
+        seek.max = d;
       }
-      renderTime();
+      paint();
     });
-    audio.addEventListener("durationchange", renderTime);
-    audio.addEventListener("timeupdate", renderTime);
+    audio.addEventListener("durationchange", function () {
+      var d = audio.duration;
+      if (isFinite(d) && d > 0 && d !== Infinity) {
+        known = d;
+        seek.max = d;
+      }
+      paint();
+    });
+
+    // inti real-time: timeupdate (standar semua player)
+    audio.addEventListener("timeupdate", paint);
+
     audio.addEventListener("play", function () {
-      setPlayIcon(true);
-      startPoll();
+      setPlayingUi(true);
     });
     audio.addEventListener("pause", function () {
-      if (!audio.ended) setPlayIcon(false);
-      stopPoll();
-      renderTime();
+      setPlayingUi(false);
+      paint();
     });
     audio.addEventListener("ended", function () {
-      setPlayIcon(false);
-      stopPoll();
-      try { audio.currentTime = 0; } catch (e) {}
-      renderTime();
+      setPlayingUi(false);
+      try {
+        audio.currentTime = 0;
+      } catch (e) {}
+      paint();
     });
-    audio.addEventListener("seeking", renderTime);
-    audio.addEventListener("seeked", renderTime);
 
-    if (btn) {
-      btn.addEventListener("click", function (ev) {
+    // cadangan: interval saat playing (kalau timeupdate jarang di browser tertentu)
+    var tick = null;
+    function startTick() {
+      stopTick();
+      tick = setInterval(function () {
+        if (!audio.paused && !audio.ended) paint();
+        else stopTick();
+      }, 200);
+    }
+    function stopTick() {
+      if (tick) {
+        clearInterval(tick);
+        tick = null;
+      }
+    }
+    audio.addEventListener("play", startTick);
+    audio.addEventListener("pause", stopTick);
+    audio.addEventListener("ended", stopTick);
+
+    if (playBtn) {
+      playBtn.addEventListener("click", function (ev) {
         ev.preventDefault();
         ev.stopPropagation();
         if (audio.paused) {
-          pauseOthers();
+          // jeda player lain di root
+          var scope = root || document;
+          var all = scope.querySelectorAll(".sh-audio audio, .sh-voice-player audio, .chat-voice-player audio, audio.sh-voice-audio");
+          for (var i = 0; i < all.length; i++) {
+            if (all[i] !== audio) {
+              try {
+                all[i].pause();
+              } catch (e) {}
+            }
+          }
           var p = audio.play();
-          setPlayIcon(true);
-          startPoll();
-          if (p && p.then) {
+          setPlayingUi(true);
+          if (p && p.catch) {
             p.catch(function () {
-              setPlayIcon(false);
-              stopPoll();
+              setPlayingUi(false);
             });
           }
         } else {
           audio.pause();
-          setPlayIcon(false);
-          stopPoll();
+          setPlayingUi(false);
         }
       });
     }
@@ -461,58 +446,63 @@
           audio.pause();
           audio.currentTime = 0;
         } catch (e) {}
-        setPlayIcon(false);
-        stopPoll();
-        renderTime();
+        setPlayingUi(false);
+        paint();
       });
     }
 
-    function applySeekFromInput() {
-      var dur = totalDur();
-      if (dur == null || dur <= 0 || !seek) return;
-      var t = (Number(seek.value) / 1000) * dur;
-      if (!isFinite(t)) return;
-      try {
-        audio.currentTime = Math.max(0, Math.min(dur, t));
-      } catch (e) {}
-      renderTime();
-    }
-
+    // seek: input = geser real-time (pola standar)
     if (seek) {
-      seek.addEventListener("pointerdown", function () { seeking = true; });
-      seek.addEventListener("mousedown", function () { seeking = true; });
-      seek.addEventListener("touchstart", function () { seeking = true; }, { passive: true });
+      seek.addEventListener("pointerdown", function () {
+        dragging = true;
+      });
+      seek.addEventListener("mousedown", function () {
+        dragging = true;
+      });
+      seek.addEventListener("touchstart", function () {
+        dragging = true;
+      }, { passive: true });
+
       seek.addEventListener("input", function () {
-        seeking = true;
-        applySeekFromInput();
+        dragging = true;
+        var t = parseFloat(seek.value);
+        if (!isFinite(t)) return;
+        try {
+          audio.currentTime = t;
+        } catch (e) {}
+        // update angka segera saat digeser
+        var dur = duration();
+        var curTxt = fmtClockSimple(t);
+        var durTxt = dur > 0 ? fmtClockSimple(dur) : "0:00";
+        if (curEl) curEl.textContent = curTxt;
+        if (durEl) durEl.textContent = durTxt;
+        if (timeLegacy) timeLegacy.textContent = curTxt + " / " + durTxt;
       });
-      seek.addEventListener("change", function () {
-        seeking = false;
-        applySeekFromInput();
-      });
-      seek.addEventListener("pointerup", function () {
-        seeking = false;
-        applySeekFromInput();
-      });
-      seek.addEventListener("mouseup", function () {
-        seeking = false;
-        applySeekFromInput();
-      });
-      seek.addEventListener("touchend", function () {
-        seeking = false;
-        applySeekFromInput();
-      });
+
+      function endDrag() {
+        dragging = false;
+        var t = parseFloat(seek.value);
+        if (isFinite(t)) {
+          try {
+            audio.currentTime = t;
+          } catch (e) {}
+        }
+        paint();
+      }
+      seek.addEventListener("pointerup", endDrag);
+      seek.addEventListener("mouseup", endDrag);
+      seek.addEventListener("touchend", endDrag);
+      seek.addEventListener("change", endDrag);
     }
 
     if (dlBtn) {
       dlBtn.addEventListener("click", function (ev) {
         ev.preventDefault();
         ev.stopPropagation();
-        var url = srcUrl || audio.src;
-        if (!url) return;
+        var u = url || audio.src;
+        if (!u) return;
         dlBtn.disabled = true;
-        // Coba unduh sebagai file (webm/ogg — browser tidak merekam MP3 native)
-        fetch(url, { mode: "cors", credentials: "omit" })
+        fetch(u, { mode: "cors", credentials: "omit" })
           .then(function (r) {
             if (!r.ok) throw new Error("fail");
             return r.blob();
@@ -521,11 +511,10 @@
             var type = blob.type || "audio/webm";
             var ext = "webm";
             if (type.indexOf("ogg") >= 0) ext = "ogg";
-            else if (type.indexOf("mp4") >= 0 || type.indexOf("m4a") >= 0) ext = "m4a";
-            else if (type.indexOf("mpeg") >= 0 || type.indexOf("mp3") >= 0) ext = "mp3";
+            else if (type.indexOf("mp4") >= 0) ext = "m4a";
+            else if (type.indexOf("mpeg") >= 0) ext = "mp3";
             var obj = URL.createObjectURL(blob);
             var a = document.createElement("a");
-            a.style.display = "none";
             a.href = obj;
             a.download = "pesan-suara." + ext;
             document.body.appendChild(a);
@@ -536,15 +525,7 @@
             }, 1500);
           })
           .catch(function () {
-            // Fallback: buka tab (CORS storage belum mengizinkan fetch)
-            var a = document.createElement("a");
-            a.href = url;
-            a.target = "_blank";
-            a.rel = "noopener";
-            a.download = "pesan-suara.webm";
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
+            window.open(u, "_blank", "noopener");
           })
           .finally(function () {
             dlBtn.disabled = false;
@@ -552,8 +533,10 @@
       });
     }
 
-    try { audio.load(); } catch (e) {}
-    renderTime();
+    try {
+      audio.load();
+    } catch (e) {}
+    paint();
   }
 
   function recorderBarHtml() {

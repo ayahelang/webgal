@@ -1,7 +1,11 @@
-# Slider visual + preview splash suara
+# Player klasik (standar HTML5)
 
-1. Progress bar (fill) + range seek yang terlihat jelas
-2. Preview splash admin memakai buildAnnBodyHtml() → suara ikut tampil
-3. Splash frontend wire player (termasuk .sh-voice-player)
+Pola umum player audio:
+- seek.max = durasi (detik)
+- seek.value = currentTime
+- timeupdate → update slider + angka
+- input pada slider → audio.currentTime = seek.value
 
-File: js/voice-kit.js, js/admin.js, js/announce.js, js/chat.js, css/style.css
+UI dalam satu kotak: ▶/❚❚ · ⏹ · waktu · slider · ⬇
+
+File: js/voice-kit.js, css/style.css (+ chat/admin/announce jika perlu)
