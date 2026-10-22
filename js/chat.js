@@ -776,6 +776,7 @@
     filtered.forEach((m) => appendBubble(m, q, depthOf(m, map)));
     log.scrollTop = log.scrollHeight;
     enrichVideoCards(log);
+    wireVoicePlayer(log);
     if (status && window.GalleryDB && GalleryDB.enabled()) {
       if (q) {
         status.textContent =
@@ -927,12 +928,11 @@
     });
   }
 
-    function wireVoicePlayer(root) {
+  function wireVoicePlayer(root) {
     if (window.SHVoice && SHVoice.wirePlayers) {
       SHVoice.wirePlayers(root || log || document);
       return;
     }
-    // fallback minimal
     if (!root) return;
     root.querySelectorAll(".chat-voice-player, .sh-voice-player").forEach(function (wrap) {
       if (wrap.dataset.wired) return;

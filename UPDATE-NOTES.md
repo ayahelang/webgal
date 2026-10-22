@@ -1,19 +1,16 @@
-# Seek slider + unduh + media terhapus + tunda guru
+# Player suara: seek + timer + stop
 
-## Player
-- Slider bergerak saat play & bisa digeser (seek)
-- Pause OK
-- Unduh via blob (bukan tab baru); format webm/ogg sesuai rekaman
-- Lebar max ~320px (muat di card HP)
+## Perbaikan
+- Slider bergerak seiring audio (poll 100ms)
+- Geser slider → posisi audio & waktu ikut
+- Ikon ▶ / ❚❚ berganti saat play/pause
+- Tombol ⏹ Stop (ulang ke awal)
+- Unduh: coba file asli (webm/ogg); MP3 tidak tersedia karena browser merekam WebM
+- Lebar max ~300px
 
-## Gambar/suara terhapus
-- Placeholder "Gambar/Suara telah dihapus" tanpa URL Supabase
-- Broken image diganti placeholder
-
-## Tunda penghapusan (guru/staff)
-- Muncul jika sisa waktu < 1 jam
-- +1 hari per klik
-- Admin tetap bisa hapus manual
+## Dipakai di
+chat, balas, edit, pengumuman, editor pengumuman (via SHVoice.wirePlayers / playerHtml)
 
 ## File
-js/voice-kit.js, js/chat.js, js/db.js, css/style.css
+js/voice-kit.js (wajib), js/chat.js, js/announce.js, js/admin.js, css/style.css
+Pastikan voice-kit.js dimuat SEBELUM chat.js / announce.js / admin.js

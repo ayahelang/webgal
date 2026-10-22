@@ -3350,10 +3350,10 @@ body.chat-embed .chat-fields{
 
 /* ===== SHVoice standar (shared) ===== */
 .sh-voice-player, .chat-voice-player{
-  display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px;
   padding:8px 10px;border-radius:12px;
   background:rgba(0,0,0,.22);border:1px solid rgba(125,227,255,.18);
-  width:100%;max-width:min(100%,320px);
+  width:100%;max-width:min(100%,300px);
   box-sizing:border-box;
 }
 .sh-voice-play, .chat-voice-play{
@@ -3421,3 +3421,10 @@ body.chat-embed .chat-fields{
 }
 .chat-delay-btn:hover{background:rgba(255,180,60,.22)}
 .chat-voice-msg{max-width:min(100%,320px)}
+
+.sh-voice-stop{
+  appearance:none;border:1px solid rgba(125,227,255,.35);background:rgba(125,227,255,.08);
+  color:#e8fbff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:11px;line-height:1;flex-shrink:0
+}
+.sh-voice-stop:hover{background:rgba(125,227,255,.18)}
+.sh-voice-play.is-playing{background:rgba(125,227,255,.28);border-color:rgba(125,227,255,.55)}
