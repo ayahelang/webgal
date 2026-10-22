@@ -1,11 +1,9 @@
-# Player klasik (standar HTML5)
+# Player sh-ap (layout bersih)
 
-Pola umum player audio:
-- seek.max = durasi (detik)
-- seek.value = currentTime
-- timeupdate → update slider + angka
-- input pada slider → audio.currentTime = seek.value
+Class baru sh-ap-* agar tidak bentrok CSS lama.
+Grid: [Play][Stop][waktu+slider][Unduh]
 
-UI dalam satu kotak: ▶/❚❚ · ⏹ · waktu · slider · ⬇
+seek.max = durasi detik, seek.value = currentTime
+timeupdate + interval 100ms
 
-File: js/voice-kit.js, css/style.css (+ chat/admin/announce jika perlu)
+WAJIB hard-refresh / clear cache setelah upload voice-kit.js + style.css
