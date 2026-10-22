@@ -3353,7 +3353,8 @@ body.chat-embed .chat-fields{
   display:flex;flex-wrap:wrap;align-items:center;gap:8px;
   padding:8px 10px;border-radius:12px;
   background:rgba(0,0,0,.22);border:1px solid rgba(125,227,255,.18);
-  max-width:100%;
+  width:100%;max-width:min(100%,320px);
+  box-sizing:border-box;
 }
 .sh-voice-play, .chat-voice-play{
   appearance:none;border:1px solid rgba(125,227,255,.35);background:rgba(125,227,255,.12);
@@ -3405,3 +3406,18 @@ body.chat-embed .chat-fields{
   70%{box-shadow:0 0 0 8px rgba(255,92,122,0)}
   100%{box-shadow:0 0 0 0 rgba(255,92,122,0)}
 }
+
+.chat-media-gone{
+  display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;
+  background:rgba(0,0,0,.25);border:1px dashed rgba(255,255,255,.15);
+  color:#9db5c0;font-size:13px;max-width:min(100%,320px);
+}
+.chat-media-gone small{font-size:11px;opacity:.85}
+.chat-mix-img-wrap{position:relative;display:inline-block;max-width:100%}
+.chat-delay-btn{
+  display:inline-block;margin-top:6px;padding:4px 10px;border-radius:8px;cursor:pointer;
+  border:1px solid rgba(255,200,100,.4);background:rgba(255,180,60,.12);color:#ffe6b0;
+  font-size:11px;font-weight:700;
+}
+.chat-delay-btn:hover{background:rgba(255,180,60,.22)}
+.chat-voice-msg{max-width:min(100%,320px)}

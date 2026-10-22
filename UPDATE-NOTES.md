@@ -1,35 +1,19 @@
-# Standar suara (SHVoice)
+# Seek slider + unduh + media terhapus + tunda guru
 
-## Library baru: js/voice-kit.js
-Dipakai berulang di chat, balas, edit, pengumuman.
+## Player
+- Slider bergerak saat play & bisa digeser (seek)
+- Pause OK
+- Unduh via blob (bukan tab baru); format webm/ogg sesuai rekaman
+- Lebar max ~320px (muat di card HP)
 
-### Rekam (standar)
-- Timer MM:SS
-- Grafik gelombang (meter)
-- Maks ~3 menit
+## Gambar/suara terhapus
+- Placeholder "Gambar/Suara telah dihapus" tanpa URL Supabase
+- Broken image diganti placeholder
 
-### Putar (standar)
-- ▶ / ❚❚
-- Slider seek (geser maju-mundur)
-- ⬇ Unduh
-- Tampil 00:12 / 01:30
+## Tunda penghapusan (guru/staff)
+- Muncul jika sisa waktu < 1 jam
+- +1 hari per klik
+- Admin tetap bisa hapus manual
 
-### Hapus otomatis pesan suara chat (tetap)
-| Peran | Retensi |
-|-------|---------|
-| Siswa / umum | **3 jam** |
-| Guru / staff | **24 jam** |
-| Admin | **permanen** (sampai dihapus manual) |
-
-Pengumuman: file suara dihapus saat pengumuman dihapus.
-
-## Deploy
-1. Upload `js/voice-kit.js` (baru)
-2. Timpa js/chat.js, js/admin.js, js/announce.js, css/style.css
-3. Timpa HTML yang memuat script (minimal chat.html + admin.html + halaman dengan announce.js)
-   Pastikan urutan: `voice-kit.js` **sebelum** chat.js / admin.js / announce.js
-
-## File di zip
-- js/voice-kit.js, chat.js, admin.js, announce.js
-- css/style.css
-- html-patch/* (contoh halaman yang sudah disisipkan script)
+## File
+js/voice-kit.js, js/chat.js, js/db.js, css/style.css

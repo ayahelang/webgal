@@ -4076,6 +4076,7 @@
     sendChat,
     updateChat,
     deleteChat,
+    deleteChatStorageByPublicUrl,
     canModerateChatMessage,
     isCurrentUserStaff,
     subscribeChat,

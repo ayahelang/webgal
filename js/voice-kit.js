@@ -264,11 +264,7 @@
       "</span>" +
       '<input type="range" class="sh-voice-seek" min="0" max="1000" value="0" step="1" aria-label="Posisi audio" />' +
       "</div>" +
-      (dl
-        ? '<a class="sh-voice-dl" href="' +
-          url +
-          '" download="pesan-suara" title="Unduh suara" target="_blank" rel="noopener">⬇</a>'
-        : "") +
+      (dl ? '<button type="button" class="sh-voice-dl" title="Unduh suara">⬇</button>' : "") +
       '<audio class="sh-voice-audio" preload="metadata" src="' +
       url +
       '"></audio>' +
@@ -284,27 +280,39 @@
     if (!root) return;
     const nodes = root.querySelectorAll(".sh-voice-player, .chat-voice-player, .ann-voice-block");
     nodes.forEach(function (wrap) {
-      if (wrap.dataset.shVoiceWired) return;
-      wrap.dataset.shVoiceWired = "1";
+      if (wrap.dataset.shVoiceWired === "2") return;
+      wrap.dataset.shVoiceWired = "2";
 
       let audio = wrap.querySelector("audio");
       let btn = wrap.querySelector("[data-voice-play], .sh-voice-play, .chat-voice-play");
       let timeEl = wrap.querySelector("[data-voice-time], .sh-voice-time, .chat-voice-time");
       let seek = wrap.querySelector(".sh-voice-seek");
-      const srcUrl = wrap.getAttribute("data-voice-url") || (audio && audio.getAttribute("src")) || "";
+      let dl = wrap.querySelector(".sh-voice-dl");
+      const srcUrl =
+        wrap.getAttribute("data-voice-url") ||
+        (audio && (audio.getAttribute("src") || audio.src)) ||
+        "";
 
-      // Upgrade legacy player DOM if missing seek
-      if (audio && !seek) {
-        const track = document.createElement("div");
+      if (!audio && srcUrl) {
+        audio = document.createElement("audio");
+        audio.className = "sh-voice-audio chat-voice-audio";
+        audio.preload = "metadata";
+        audio.src = srcUrl;
+        wrap.appendChild(audio);
+      }
+      if (!audio) return;
+
+      // Pastikan seek ada
+      if (!seek) {
+        const track = wrap.querySelector(".sh-voice-track") || document.createElement("div");
         track.className = "sh-voice-track";
-        if (timeEl) track.appendChild(timeEl);
-        else {
+        if (!timeEl) {
           timeEl = document.createElement("span");
           timeEl.className = "sh-voice-time";
           timeEl.setAttribute("data-voice-time", "");
           timeEl.textContent = "00:00 / --:--";
-          track.appendChild(timeEl);
         }
+        if (!timeEl.parentElement) track.appendChild(timeEl);
         seek = document.createElement("input");
         seek.type = "range";
         seek.className = "sh-voice-seek";
@@ -314,25 +322,66 @@
         seek.step = "1";
         seek.setAttribute("aria-label", "Posisi audio");
         track.appendChild(seek);
-        if (btn && btn.nextSibling) wrap.insertBefore(track, btn.nextSibling);
-        else wrap.appendChild(track);
-
-        if (!wrap.querySelector(".sh-voice-dl") && srcUrl) {
-          const a = document.createElement("a");
-          a.className = "sh-voice-dl";
-          a.href = srcUrl;
-          a.download = "pesan-suara";
-          a.title = "Unduh suara";
-          a.target = "_blank";
-          a.rel = "noopener";
-          a.textContent = "⬇";
-          wrap.appendChild(a);
+        if (!track.parentElement) {
+          if (btn && btn.nextSibling) wrap.insertBefore(track, btn.nextSibling);
+          else wrap.appendChild(track);
         }
-        wrap.classList.add("sh-voice-player");
       }
 
-      if (!audio) return;
-      // legacy plain audio only
+      // Tombol unduh: fetch blob (CORS) agar benar-benar terunduh
+      if (!dl && srcUrl) {
+        dl = document.createElement("button");
+        dl.type = "button";
+        dl.className = "sh-voice-dl";
+        dl.title = "Unduh suara";
+        dl.textContent = "⬇";
+        wrap.appendChild(dl);
+      }
+      if (dl) {
+        // ganti <a> jadi handler aman
+        if (dl.tagName === "A") {
+          const btnDl = document.createElement("button");
+          btnDl.type = "button";
+          btnDl.className = "sh-voice-dl";
+          btnDl.title = "Unduh suara";
+          btnDl.textContent = "⬇";
+          dl.replaceWith(btnDl);
+          dl = btnDl;
+        }
+        dl.addEventListener("click", function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const url = srcUrl || audio.src;
+          if (!url) return;
+          dl.disabled = true;
+          fetch(url)
+            .then(function (r) {
+              if (!r.ok) throw new Error("Gagal unduh");
+              return r.blob();
+            })
+            .then(function (blob) {
+              const ext = (blob.type || "").indexOf("ogg") >= 0 ? "ogg" : (blob.type || "").indexOf("mp4") >= 0 ? "m4a" : "webm";
+              const obj = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = obj;
+              a.download = "pesan-suara." + ext;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              setTimeout(function () {
+                URL.revokeObjectURL(obj);
+              }, 2000);
+            })
+            .catch(function () {
+              // fallback: buka di tab hanya jika fetch gagal
+              window.open(url, "_blank", "noopener");
+            })
+            .finally(function () {
+              dl.disabled = false;
+            });
+        });
+      }
+
       if (!btn) {
         audio.controls = true;
         audio.style.display = "block";
@@ -340,28 +389,41 @@
       }
 
       let known = parseFloat(wrap.getAttribute("data-duration") || "");
-      if (!isFinite(known)) known = null;
+      if (!isFinite(known) || known <= 0) known = null;
       let seeking = false;
+      let raf = 0;
 
       function totalDur() {
-        if (known != null) return known;
         const d = audio.duration;
         if (isFinite(d) && d > 0 && d !== Infinity) return d;
+        if (known != null && known > 0) return known;
         return null;
       }
 
       function renderTime() {
         const dur = totalDur();
-        const cur = audio.currentTime || 0;
-        if (timeEl) timeEl.textContent = formatClock(cur) + " / " + (dur != null ? formatClock(dur) : "--:--");
+        const cur = isFinite(audio.currentTime) ? audio.currentTime : 0;
+        if (timeEl) {
+          timeEl.textContent = formatClock(cur) + " / " + (dur != null ? formatClock(dur) : "--:--");
+        }
         if (seek && !seeking && dur != null && dur > 0) {
-          seek.value = String(Math.round((cur / dur) * 1000));
+          const v = Math.max(0, Math.min(1000, Math.round((cur / dur) * 1000)));
+          if (String(seek.value) !== String(v)) seek.value = String(v);
+        }
+      }
+
+      function tick() {
+        renderTime();
+        if (!audio.paused && !audio.ended) {
+          raf = requestAnimationFrame(tick);
+        } else {
+          raf = 0;
         }
       }
 
       audio.addEventListener("loadedmetadata", function () {
         const d = audio.duration;
-        if (known == null && isFinite(d) && d > 0 && d !== Infinity) {
+        if (isFinite(d) && d > 0 && d !== Infinity) {
           known = d;
           wrap.setAttribute("data-duration", String(known));
         }
@@ -369,8 +431,24 @@
       });
       audio.addEventListener("durationchange", renderTime);
       audio.addEventListener("timeupdate", renderTime);
+      audio.addEventListener("play", function () {
+        btn.textContent = "❚❚";
+        if (!raf) raf = requestAnimationFrame(tick);
+      });
+      audio.addEventListener("pause", function () {
+        btn.textContent = "▶";
+        if (raf) {
+          cancelAnimationFrame(raf);
+          raf = 0;
+        }
+        renderTime();
+      });
       audio.addEventListener("ended", function () {
         btn.textContent = "▶";
+        if (raf) {
+          cancelAnimationFrame(raf);
+          raf = 0;
+        }
         renderTime();
       });
 
@@ -378,7 +456,6 @@
         ev.preventDefault();
         ev.stopPropagation();
         if (audio.paused) {
-          // pause others in same root/document
           const scope = root || document;
           scope.querySelectorAll("audio.sh-voice-audio, audio.chat-voice-audio").forEach(function (a) {
             if (a !== audio) {
@@ -390,35 +467,54 @@
           scope.querySelectorAll("[data-voice-play], .sh-voice-play, .chat-voice-play").forEach(function (b) {
             if (b !== btn) b.textContent = "▶";
           });
-          audio
-            .play()
-            .then(function () {
+          const p = audio.play();
+          if (p && p.then) {
+            p.then(function () {
               btn.textContent = "❚❚";
-            })
-            .catch(function () {
+            }).catch(function () {
               btn.textContent = "▶";
             });
+          }
         } else {
           audio.pause();
           btn.textContent = "▶";
         }
       });
 
+      function applySeek() {
+        const dur = totalDur();
+        if (dur == null || dur <= 0) return;
+        const t = (Number(seek.value) / 1000) * dur;
+        try {
+          audio.currentTime = Math.max(0, Math.min(dur, t));
+        } catch (e) {}
+        renderTime();
+      }
+
       if (seek) {
         seek.addEventListener("pointerdown", function () {
           seeking = true;
         });
-        seek.addEventListener("pointerup", function () {
-          seeking = false;
+        seek.addEventListener("mousedown", function () {
+          seeking = true;
         });
+        seek.addEventListener("touchstart", function () {
+          seeking = true;
+        }, { passive: true });
+        const endSeek = function () {
+          seeking = false;
+          applySeek();
+        };
+        seek.addEventListener("pointerup", endSeek);
+        seek.addEventListener("mouseup", endSeek);
+        seek.addEventListener("touchend", endSeek);
         seek.addEventListener("input", function () {
-          const dur = totalDur();
-          if (dur == null || dur <= 0) return;
-          const t = (Number(seek.value) / 1000) * dur;
-          try {
-            audio.currentTime = t;
-          } catch (e) {}
-          renderTime();
+          seeking = true;
+          applySeek();
+        });
+        seek.addEventListener("change", function () {
+          seeking = false;
+          applySeek();
         });
       }
 

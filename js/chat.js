@@ -114,18 +114,98 @@
 
   const VOICE_PREFIX = "__voice__";
   // __voice__|ttl=3h|url  ATAU  __voice__|ttl=3h|dur=12.5|url
-  const VOICE_RE = /^__voice__\|ttl=(3h|24h|forever)(?:\|dur=([\d.]+))?\|(.+)$/i;
+  const VOICE_RE = /^__voice__\|ttl=(3h|24h|forever)(?:\|dur=([\d.]+))?(?:\|holduntil=([^|]+))?\|(deleted|https?:\/\/\S+|\S+)$/i;
 
   function parseVoiceBody(body) {
     const s = String(body || "").trim();
     const m = s.match(VOICE_RE);
     if (!m) return null;
     const dur = m[2] != null && m[2] !== "" ? parseFloat(m[2]) : NaN;
+    const hold = m[3] ? Date.parse(m[3]) : null;
+    const tail = m[4];
+    if (String(tail).toLowerCase() === "deleted") {
+      return {
+        ttl: m[1].toLowerCase(),
+        duration: isFinite(dur) ? dur : null,
+        holdUntil: hold && isFinite(hold) ? hold : null,
+        url: "",
+        deleted: true,
+        deletedReason: "expired",
+      };
+    }
     return {
       ttl: m[1].toLowerCase(),
       duration: isFinite(dur) ? dur : null,
-      url: m[3],
+      holdUntil: hold && isFinite(hold) ? hold : null,
+      url: tail,
+      deleted: false,
     };
+  }
+
+  function parseImageToken(line) {
+    const s = String(line || "").trim();
+    if (!/^__img__/i.test(s)) return null;
+    const rest = s.replace(/^__img__/i, "").trim();
+    // Structured: |u=URL|ttl=3h|holduntil=...|deleted=1|reason=...
+    if (rest.indexOf("|") >= 0 || /^u=/i.test(rest) || /^deleted=/i.test(rest)) {
+      const parts = rest.split("|").filter(Boolean);
+      const o = { url: "", ttl: myVoiceTtl(), holdUntil: null, deleted: false, deletedReason: "" };
+      // legacy: first segment may be bare URL
+      parts.forEach(function (p, idx) {
+        const kv = p.split("=");
+        if (kv.length >= 2) {
+          const k = kv[0].toLowerCase();
+          const v = kv.slice(1).join("=");
+          if (k === "u" || k === "url") o.url = v;
+          else if (k === "ttl") o.ttl = v;
+          else if (k === "holduntil") {
+            const ts = Date.parse(v);
+            o.holdUntil = isFinite(ts) ? ts : null;
+          } else if (k === "deleted") o.deleted = v === "1" || v === "true";
+          else if (k === "reason") o.deletedReason = v;
+        } else if (idx === 0 && /^https?:\/\//i.test(p)) {
+          o.url = p;
+        }
+      });
+      if (o.deleted) o.url = "";
+      return o;
+    }
+    // plain URL
+    if (!rest) return null;
+    if (/^deleted$/i.test(rest)) {
+      return { url: "", ttl: "3h", holdUntil: null, deleted: true, deletedReason: "expired" };
+    }
+    return { url: rest, ttl: myVoiceTtl(), holdUntil: null, deleted: false, deletedReason: "" };
+  }
+
+  function encodeImageToken(img) {
+    if (!img) return "";
+    if (img.deleted || !img.url) {
+      return "__img__|deleted=1|reason=" + (img.deletedReason || "expired") + "|ttl=" + (img.ttl || "3h");
+    }
+    let s = "__img__|u=" + String(img.url).trim() + "|ttl=" + (img.ttl || myVoiceTtl());
+    if (img.holdUntil && isFinite(img.holdUntil)) {
+      s += "|holduntil=" + new Date(img.holdUntil).toISOString();
+    }
+    return s;
+  }
+
+  function mediaDeadline(createdAt, ttl, holdUntil) {
+    if (ttl === "forever") return Infinity;
+    const base = createdAt ? Date.parse(createdAt) : Date.now();
+    const life = voiceTtlMs(ttl || "3h");
+    let end = base + (life === Infinity ? 0 : life);
+    if (life === Infinity) return Infinity;
+    if (holdUntil && isFinite(holdUntil) && holdUntil > end) end = holdUntil;
+    // hold extends from max(natural end, holdUntil)
+    if (holdUntil && isFinite(holdUntil)) end = Math.max(end, holdUntil);
+    return end;
+  }
+
+  function mediaMsLeft(createdAt, ttl, holdUntil) {
+    const end = mediaDeadline(createdAt, ttl, holdUntil);
+    if (end === Infinity) return Infinity;
+    return end - Date.now();
   }
 
   function fmtVoiceClock(sec) {
@@ -160,11 +240,11 @@
     } catch (e) {
       v = parseVoiceBody(m && m.body);
     }
-    if (!v) return false;
+    if (!v || v.deleted) return false;
+    if (!v.url) return false;
     if (v.ttl === "forever") return false;
-    const ts = m.created_at ? Date.parse(m.created_at) : 0;
-    if (!ts) return false;
-    return Date.now() - ts > voiceTtlMs(v.ttl);
+    const left = mediaMsLeft(m.created_at, v.ttl, v.holdUntil);
+    return left !== Infinity && left <= 0;
   }
 
   function voiceRetentionLabel(ttl) {
@@ -179,10 +259,21 @@
     return "3h";
   }
 
-  function encodeVoiceBody(url, ttl, durationSec) {
+  function encodeVoiceBody(url, ttl, durationSec, holdUntil) {
+    if (!url || url === "deleted") {
+      let s = VOICE_PREFIX + "|ttl=" + (ttl || "3h");
+      if (durationSec != null && isFinite(durationSec) && durationSec > 0) {
+        s += "|dur=" + (Math.round(durationSec * 10) / 10);
+      }
+      s += "|deleted";
+      return s;
+    }
     let s = VOICE_PREFIX + "|ttl=" + (ttl || "3h");
     if (durationSec != null && isFinite(durationSec) && durationSec > 0) {
       s += "|dur=" + (Math.round(durationSec * 10) / 10);
+    }
+    if (holdUntil && isFinite(holdUntil)) {
+      s += "|holduntil=" + new Date(holdUntil).toISOString();
     }
     s += "|" + String(url || "").trim();
     return s;
@@ -207,8 +298,8 @@
       lines.forEach(function (line) {
         const s = String(line || "");
         if (/^__img__/i.test(s)) {
-          const u = s.replace(/^__img__/i, "").trim();
-          if (u) images.push(u);
+          const img = parseImageToken(s);
+          if (img) images.push(img);
         } else if (/^__voice__/i.test(s.trim())) {
           const v = parseVoiceBody(s.trim());
           if (v) voice = v;
@@ -224,30 +315,60 @@
 
   function encodeMessageParts(parts) {
     const text = String((parts && parts.text) || "").trim();
-    const images = ((parts && parts.images) || [])
-      .map(function (u) { return String(u || "").trim(); })
-      .filter(Boolean);
-    const voice = parts && parts.voice && parts.voice.url ? parts.voice : null;
+    const images = ((parts && parts.images) || []).map(function (im) {
+      if (!im) return null;
+      if (typeof im === "string") {
+        return { url: im, ttl: myVoiceTtl(), holdUntil: null, deleted: false };
+      }
+      return im;
+    }).filter(Boolean);
+    const voice = parts && parts.voice ? parts.voice : null;
 
-    if (!images.length && !voice) return text;
-    if (!text && !images.length && voice) {
-      return encodeVoiceBody(voice.url, voice.ttl || myVoiceTtl(), voice.duration);
+    const hasImg = images.length > 0;
+    const hasVoice = !!(voice && (voice.url || voice.deleted));
+    if (!hasImg && !hasVoice) return text;
+    if (!text && !hasImg && hasVoice) {
+      return encodeVoiceBody(voice.deleted ? "deleted" : voice.url, voice.ttl || myVoiceTtl(), voice.duration, voice.holdUntil);
     }
 
     let out = "__mix__";
     if (text) out += "\n" + text;
-    images.forEach(function (u) {
-      out += "\n__img__" + u;
+    images.forEach(function (im) {
+      out += "\n" + encodeImageToken(im);
     });
-    if (voice) {
-      out += "\n" + encodeVoiceBody(voice.url, voice.ttl || myVoiceTtl(), voice.duration);
+    if (hasVoice) {
+      out += "\n" + encodeVoiceBody(voice.deleted ? "deleted" : voice.url, voice.ttl || myVoiceTtl(), voice.duration, voice.holdUntil);
     }
     return out;
   }
 
-  function voiceHtmlBlock(voice) {
-    if (!voice || !voice.url) return "";
-    const ttl = "Pesan suara · hapus otomatis: " + voiceRetentionLabel(voice.ttl);
+  function voiceHtmlBlock(voice, msg) {
+    if (!voice) return "";
+    if (voice.deleted || !voice.url) {
+      return (
+        '<div class="chat-media-gone chat-voice-gone">' +
+        "<span>Suara telah dihapus</span>" +
+        "<small>oleh sistem (melewati batas waktu) atau dihapus manual</small></div>"
+      );
+    }
+    const left = msg ? mediaMsLeft(msg.created_at, voice.ttl, voice.holdUntil) : Infinity;
+    if (left !== Infinity && left <= 0) {
+      return (
+        '<div class="chat-media-gone chat-voice-gone">' +
+        "<span>Suara telah dihapus</span>" +
+        "<small>oleh sistem (melewati batas waktu)</small></div>"
+      );
+    }
+    let ttl = "Pesan suara · hapus otomatis: " + voiceRetentionLabel(voice.ttl);
+    if (left !== Infinity && left > 0 && left < 3600000) {
+      const mins = Math.max(1, Math.ceil(left / 60000));
+      ttl += " · sisa ~" + mins + " mnt";
+    }
+    let delayBtn = "";
+    if (iAmStaff && left !== Infinity && left > 0 && left < 3600000) {
+      delayBtn =
+        '<button type="button" class="chat-delay-btn" data-act="delay-voice" title="Tunda penghapusan 1 hari">⏱ Tunda 1 hari</button>';
+    }
     if (window.SHVoice && SHVoice.playerHtml) {
       return (
         '<div class="chat-voice-msg">' +
@@ -257,6 +378,7 @@
           ttlLabel: ttl,
           downloadable: true,
         }) +
+        delayBtn +
         "</div>"
       );
     }
@@ -285,21 +407,47 @@
     );
   }
 
-  function imagesHtmlBlock(images) {
+  function imagesHtmlBlock(images, msg) {
     if (!images || !images.length) return "";
+    const created = msg && msg.created_at;
     return (
       '<div class="chat-mix-images">' +
       images
-        .map(function (u) {
-          const src = esc(u).replace(/"/g, "&quot;");
+        .map(function (im, idx) {
+          const img = typeof im === "string" ? { url: im, ttl: "3h" } : im || {};
+          if (img.deleted || !img.url) {
+            return (
+              '<div class="chat-media-gone" role="img" aria-label="Gambar telah dihapus">' +
+              "<span>Gambar telah dihapus</span>" +
+              '<small>' +
+              esc(img.deletedReason === "manual" ? "oleh admin/pengajar" : "oleh sistem (melewati batas waktu)") +
+              "</small></div>"
+            );
+          }
+          const left = mediaMsLeft(created, img.ttl || "3h", img.holdUntil);
+          if (left !== Infinity && left <= 0) {
+            return (
+              '<div class="chat-media-gone" role="img" aria-label="Gambar telah dihapus">' +
+              "<span>Gambar telah dihapus</span>" +
+              "<small>oleh sistem (melewati batas waktu)</small></div>"
+            );
+          }
+          // Jangan pakai <a href=url> agar URL tidak tampil di status bar saat hover
+          const src = esc(img.url).replace(/"/g, "&quot;");
+          let delayBtn = "";
+          if (iAmStaff && left !== Infinity && left > 0 && left < 3600000) {
+            delayBtn =
+              '<button type="button" class="chat-delay-btn" data-act="delay-img" data-img-idx="' +
+              idx +
+              '" title="Tunda penghapusan 1 hari">⏱ Tunda 1 hari</button>';
+          }
           return (
-            '<a class="chat-mix-img-link" href="' +
-            src +
-            '" target="_blank" rel="noopener">' +
+            '<div class="chat-mix-img-wrap">' +
             '<img class="chat-mix-img" src="' +
             src +
-            '" alt="gambar" loading="lazy" />' +
-            "</a>"
+            '" alt="gambar chat" loading="lazy" />' +
+            delayBtn +
+            "</div>"
           );
         })
         .join("") +
@@ -363,13 +511,11 @@
       const safeHref = href.replace(/"/g, "&quot;");
       if (isImageUrl(href)) {
         return (
-          '<a class="chat-img-wrap" href="' +
-          safeHref +
-          '" target="_blank" rel="noopener noreferrer">' +
+          '<span class="chat-img-wrap">' +
           '<img class="chat-img" src="' +
           safeHref +
-          '" alt="gambar chat" loading="lazy" />' +
-          "</a>"
+          '" alt="gambar chat" loading="lazy" data-chat-img="1" />' +
+          "</span>"
         );
       }
       if (isVideoPlatformUrl(href)) {
@@ -573,13 +719,46 @@
   }
 
   function purgeExpiredVoiceLocal() {
-    const expired = allMessages.filter((m) => isVoiceExpired(m));
-    if (!expired.length) return;
-    allMessages = allMessages.filter((m) => !isVoiceExpired(m));
-    // best-effort hapus di server (hanya yang boleh)
-    expired.forEach((m) => {
-      if (!m || !m.id || !window.GalleryDB || !GalleryDB.deleteChat) return;
-      GalleryDB.deleteChat({ id: m.id }).catch(function () {});
+    const toSoft = [];
+    const toDelete = [];
+    allMessages.forEach(function (m) {
+      if (!m) return;
+      const parts = parseMessageParts(m.body);
+      const pureVoice =
+        parts.voice &&
+        parts.voice.url &&
+        !parts.text &&
+        !(parts.images && parts.images.length);
+      if (isVoiceExpired(m) && pureVoice) {
+        toDelete.push(m);
+        return;
+      }
+      // mix / gambar: soft expire
+      let need = false;
+      if (parts.voice && parts.voice.url && !parts.voice.deleted) {
+        const left = mediaMsLeft(m.created_at, parts.voice.ttl, parts.voice.holdUntil);
+        if (left !== Infinity && left <= 0) need = true;
+      }
+      (parts.images || []).forEach(function (im) {
+        if (im && im.url && !im.deleted) {
+          const left = mediaMsLeft(m.created_at, im.ttl, im.holdUntil);
+          if (left !== Infinity && left <= 0) need = true;
+        }
+      });
+      if (need) toSoft.push(m);
+    });
+    if (toDelete.length) {
+      const ids = {};
+      toDelete.forEach(function (m) {
+        ids[m.id] = true;
+        if (m.id && GalleryDB.deleteChat) GalleryDB.deleteChat({ id: m.id }).catch(function () {});
+      });
+      allMessages = allMessages.filter(function (m) {
+        return !ids[m.id];
+      });
+    }
+    toSoft.forEach(function (m) {
+      softExpireMediaInMessage(m);
     });
   }
 
@@ -660,10 +839,10 @@
         "</div>";
     }
     if (parts.images && parts.images.length) {
-      bodyHtml += imagesHtmlBlock(parts.images);
+      bodyHtml += imagesHtmlBlock(parts.images, m);
     }
     if (parts.voice) {
-      bodyHtml += voiceHtmlBlock(parts.voice);
+      bodyHtml += voiceHtmlBlock(parts.voice, m);
     }
     if (!bodyHtml) {
       const bodyEsc = esc(m.body);
@@ -730,6 +909,22 @@
     log.appendChild(div);
     if (parts.text) applyTextClamp(div.querySelector(".chat-text-main") || div.querySelector(".chat-text"));
     if (hasVoice) wireVoicePlayer(div);
+    bindBrokenImagePlaceholders(div);
+  }
+
+  function bindBrokenImagePlaceholders(root) {
+    if (!root) return;
+    root.querySelectorAll("img.chat-mix-img, img.chat-img, img[data-chat-img]").forEach(function (img) {
+      if (img.dataset.errBound) return;
+      img.dataset.errBound = "1";
+      img.addEventListener("error", function () {
+        const gone = document.createElement("div");
+        gone.className = "chat-media-gone";
+        gone.innerHTML = "<span>Gambar telah dihapus</span><small>oleh sistem atau tidak tersedia</small>";
+        if (img.parentElement) img.parentElement.replaceWith(gone);
+        else img.replaceWith(gone);
+      });
+    });
   }
 
     function wireVoicePlayer(root) {
@@ -1205,7 +1400,7 @@
       try {
         const url = await GalleryDB.uploadChatImage(file);
         if (!url) throw new Error("Upload gagal");
-        attach.images.push(url);
+        attach.images.push({ url: url, ttl: myVoiceTtl(), holdUntil: null, deleted: false });
         renderAttachChips();
         status.textContent = "Gambar ditambahkan (teks tetap)";
       } catch (e) {
@@ -1473,7 +1668,7 @@
       try {
         const url = await GalleryDB.uploadChatImage(file);
         if (!url) throw new Error("Upload gagal");
-        attach.images.push(url);
+        attach.images.push({ url: url, ttl: myVoiceTtl(), holdUntil: null, deleted: false });
         renderAttachChips();
         status.textContent = "Gambar ditambahkan (teks tetap)";
       } catch (e) {
@@ -1611,6 +1806,98 @@
         status.textContent = e.message || String(e);
       }
     });
+  }
+
+
+  async function delayMediaExpiry(msg, kind, imgIdx) {
+    if (!iAmStaff && !iAmAdmin) {
+      status.textContent = "Hanya guru/admin yang bisa menunda penghapusan";
+      return;
+    }
+    const parts = parseMessageParts(msg.body);
+    const extendMs = 24 * 3600 * 1000;
+    const now = Date.now();
+    if (kind === "voice" && parts.voice && parts.voice.url) {
+      const curEnd = mediaDeadline(msg.created_at, parts.voice.ttl, parts.voice.holdUntil);
+      const base = curEnd === Infinity ? now : Math.max(now, curEnd);
+      parts.voice.holdUntil = base + extendMs;
+    } else if (kind === "img") {
+      const im = parts.images[imgIdx];
+      if (!im || !im.url) return;
+      const curEnd = mediaDeadline(msg.created_at, im.ttl, im.holdUntil);
+      const base = curEnd === Infinity ? now : Math.max(now, curEnd);
+      im.holdUntil = base + extendMs;
+      parts.images[imgIdx] = im;
+    } else {
+      return;
+    }
+    const body = encodeMessageParts(parts);
+    status.textContent = "Menunda penghapusan…";
+    try {
+      const updated = await GalleryDB.updateChat({ id: msg.id, body: body });
+      // Jangan hitung sebagai edit user bias — tapi updateChat menambah edit_count.
+      // Untuk tunda, idealnya API terpisah; sementara tetap update body.
+      upsertLocal(updated || Object.assign({}, msg, { body: body }));
+      renderMessages();
+      status.textContent = "Penghapusan ditunda 1 hari";
+    } catch (e) {
+      status.textContent = e.message || String(e);
+    }
+  }
+
+  /** Tandai media kedaluwarsa di body (tanpa URL) + hapus storage best-effort */
+  async function softExpireMediaInMessage(msg) {
+    const parts = parseMessageParts(msg.body);
+    let changed = false;
+    if (parts.voice && parts.voice.url && !parts.voice.deleted) {
+      const left = mediaMsLeft(msg.created_at, parts.voice.ttl, parts.voice.holdUntil);
+      if (left !== Infinity && left <= 0) {
+        const url = parts.voice.url;
+        parts.voice = {
+          ttl: parts.voice.ttl,
+          duration: parts.voice.duration,
+          holdUntil: parts.voice.holdUntil,
+          url: "",
+          deleted: true,
+          deletedReason: "expired",
+        };
+        changed = true;
+        try {
+          if (GalleryDB.deleteChatStorageByPublicUrl) await GalleryDB.deleteChatStorageByPublicUrl(url);
+        } catch (e) {}
+      }
+    }
+    (parts.images || []).forEach(function (im, i) {
+      if (!im || !im.url || im.deleted) return;
+      const left = mediaMsLeft(msg.created_at, im.ttl, im.holdUntil);
+      if (left !== Infinity && left <= 0) {
+        const url = im.url;
+        parts.images[i] = {
+          ttl: im.ttl,
+          holdUntil: im.holdUntil,
+          url: "",
+          deleted: true,
+          deletedReason: "expired",
+        };
+        changed = true;
+        try {
+          if (GalleryDB.deleteChatStorageByPublicUrl) GalleryDB.deleteChatStorageByPublicUrl(url);
+        } catch (e) {}
+      }
+    });
+    if (!changed) return;
+    const body = encodeMessageParts(parts);
+    // pure media message empty text -> still keep placeholder body
+    try {
+      if (GalleryDB.updateChat) {
+        const updated = await GalleryDB.updateChat({ id: msg.id, body: body });
+        upsertLocal(updated || Object.assign({}, msg, { body: body }));
+      } else {
+        upsertLocal(Object.assign({}, msg, { body: body }));
+      }
+    } catch (e) {
+      upsertLocal(Object.assign({}, msg, { body: body }));
+    }
   }
 
   function showEditHistory(msg) {
