@@ -1,23 +1,24 @@
-# Webgal — Facebook video gallery support
+# Webgal — Video gallery fix v2 (FB share + direct MP4 + admin)
 
-Hanya menyentuh galeri video (parse/embed/thumbnail). Fitur chat & lainnya tidak diubah.
+## Perilaku link
+| Jenis link | Hasil |
+|------------|--------|
+| **URL .mp4 langsung** (termasuk `instagram.*.fbcdn.net/...mp4`) | Bisa diputar (`<video>`) |
+| YouTube / Dailymotion | Seperti biasa |
+| `facebook.com/reel/ANGKA` atau `watch?v=ANGKA` | Coba embed plugin |
+| `facebook.com/share/v/...` | **Ditolak** saat tambah — tidak playable di situs pihak ketiga |
+| Halaman Instagram (instagram.com/...) | **Ditolak** — pakai URL .mp4 langsung |
 
-## Yang diperbaiki
-1. Link Facebook didukung, termasuk:
-   - `https://www.facebook.com/share/v/...`
-   - `facebook.com/reel/...`
-   - `facebook.com/.../videos/...`
-   - `fb.watch/...`
-2. Embed memakai plugin resmi:
-   `https://www.facebook.com/plugins/video.php?href=...`
-3. Thumbnail best-effort dari Open Graph (proxy), fallback placeholder "Facebook" + tombol ▶
-4. Klik ▶ memutar video di iframe
+### Saran link yang benar
+1. YouTube / Dailymotion (paling stabil)
+2. URL file `.mp4` langsung (contoh CDN yang Anda kirim)
+3. Facebook bentuk `https://www.facebook.com/reel/1389299909981389/` (buka share/v dulu, salin URL akhir)
+
+## Admin di halaman Video
+Login sebagai admin → tiap kartu punya **✎ Ubah** dan **🗑 Hapus**.
+Ubah membuka floating panel (judul, URL, kategori, pemilik, deskripsi).
 
 ## File
-- `js/db.js` — parseVideoUrl + fetchVideoMeta (OG)
-- `js/videos.js` — tampilan kartu & play
-- `css/style.css` — placeholder thumb Facebook
-
-## Catatan
-- Video yang **sudah tersimpan** dengan embed lama (URL mentah) akan diperbaiki otomatis saat ditampilkan di halaman Video.
-- Thumbnail FB bergantung pada proxy publik; jika gagal, tetap bisa diputar lewat placeholder ▶.
+- js/db.js
+- js/videos.js
+- css/style.css

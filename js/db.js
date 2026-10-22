@@ -652,8 +652,7 @@
 
   async function adminUpdateVideo(id, { title, url, categoryId, description, ownerName }) {
     const sb = client();
-    const parsed = parseVideoUrl(url);
-    if (parsed.platform === "other") throw new Error("Link harus YouTube, Dailymotion, Facebook, TikTok, atau Instagram.");
+    const parsed = assertPlayableVideoUrl(url);
     const patch = {
       title: title || "Video",
       url,
@@ -678,65 +677,130 @@
     let embed = u;
     let id = null;
     let m;
+    let playable = true;
+    let hint = "";
+
+    // File video langsung (CDN Instagram/FB, .mp4, dll.) — diputar lewat <video>
+    const isDirectVideo =
+      /\.(mp4|webm|ogg|m4v)(\?|#|$)/i.test(u) ||
+      /fbcdn\.net\/.*\.mp4/i.test(u) ||
+      /cdninstagram\.com\/.*\.mp4/i.test(u) ||
+      /instagram\.[a-z0-9.-]+\.fna\.fbcdn\.net\/.*\.mp4/i.test(u) ||
+      /scontent[a-z0-9.-]*\.cdninstagram\.com\/.*\.mp4/i.test(u);
+    if (isDirectVideo) {
+      return {
+        platform: "direct",
+        embed_url: u,
+        id: null,
+        playable: true,
+        play_mode: "video",
+        hint: "",
+      };
+    }
+
     m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/i);
     if (m) {
       platform = "youtube";
       id = m[1];
       embed = "https://www.youtube.com/embed/" + id;
-      return { platform, embed_url: embed, id };
+      return { platform, embed_url: embed, id, playable: true, play_mode: "iframe", hint: "" };
     }
     m = u.match(/dailymotion\.com\/(?:video|embed\/video)\/([a-zA-Z0-9]+)/i) || u.match(/dai\.ly\/([a-zA-Z0-9]+)/i);
     if (m) {
       platform = "dailymotion";
       id = m[1];
       embed = "https://www.dailymotion.com/embed/video/" + id;
-      return { platform, embed_url: embed, id };
+      return { platform, embed_url: embed, id, playable: true, play_mode: "iframe", hint: "" };
     }
     if (/tiktok\.com\//i.test(u)) {
       platform = "tiktok";
-      embed = u; // oEmbed dipakai untuk meta; embed iframe via player jika perlu
-      return { platform, embed_url: embed, id: null };
+      return { platform, embed_url: u, id: null, playable: true, play_mode: "link", hint: "TikTok dibuka di tab sumber." };
     }
     if (/instagram\.com\//i.test(u)) {
       platform = "instagram";
-      return { platform, embed_url: u, id: null };
+      // Halaman Instagram post tidak bisa di-embed andal tanpa oEmbed token
+      playable = false;
+      hint =
+        "Link halaman Instagram tidak bisa diputar di galeri. Salin URL file .mp4 langsung (dari unduhan/network) atau unggah ke YouTube/Dailymotion.";
+      return { platform, embed_url: u, id: null, playable, play_mode: "none", hint };
     }
     if (/facebook\.com\/|fb\.watch\//i.test(u)) {
       platform = "facebook";
-      // Normalisasi share/v, reel, watch, videos → plugin embed resmi Facebook
       let href = u.split("#")[0];
       let fm;
       fm = href.match(/facebook\.com\/reel\/(\d+)/i);
       if (fm) {
         id = fm[1];
         href = "https://www.facebook.com/reel/" + id + "/";
-      } else if ((fm = href.match(/facebook\.com\/(?:[^/]+\/)?videos\/(?:[^/]+\/)?(\d+)/i))) {
-        id = fm[1];
-        href = "https://www.facebook.com/video.php?v=" + id;
-      } else if ((fm = href.match(/facebook\.com\/watch\/?\?v=(\d+)/i))) {
-        id = fm[1];
-        href = "https://www.facebook.com/video.php?v=" + id;
-      } else if ((fm = href.match(/fb\.watch\/([A-Za-z0-9_-]+)/i))) {
-        id = fm[1];
-        href = "https://fb.watch/" + id + "/";
-      } else if ((fm = href.match(/facebook\.com\/share\/v\/([A-Za-z0-9_-]+)/i))) {
-        id = fm[1];
-        href = "https://www.facebook.com/share/v/" + id + "/";
-      } else if ((fm = href.match(/facebook\.com\/share\/r\/([A-Za-z0-9_-]+)/i))) {
-        id = fm[1];
-        href = "https://www.facebook.com/share/r/" + id + "/";
+        embed =
+          "https://www.facebook.com/plugins/video.php?href=" +
+          encodeURIComponent(href) +
+          "&show_text=0&width=560";
+        // Plugin sering diblokir domain pihak ketiga — tandai semi
+        return {
+          platform,
+          embed_url: embed,
+          id,
+          playable: true,
+          play_mode: "iframe",
+          hint: "Jika tidak diputar, buka di Facebook atau gunakan URL .mp4 langsung.",
+        };
       }
-      embed =
-        "https://www.facebook.com/plugins/video.php?href=" +
-        encodeURIComponent(href) +
-        "&show_text=0&width=560";
-      return { platform, embed_url: embed, id };
+      if ((fm = href.match(/facebook\.com\/(?:[^/]+\/)?videos\/(?:[^/]+\/)?(\d+)/i))) {
+        id = fm[1];
+        href = "https://www.facebook.com/video.php?v=" + id;
+        embed =
+          "https://www.facebook.com/plugins/video.php?href=" +
+          encodeURIComponent(href) +
+          "&show_text=0&width=560";
+        return { platform, embed_url: embed, id, playable: true, play_mode: "iframe", hint: "" };
+      }
+      if ((fm = href.match(/facebook\.com\/watch\/?\?v=(\d+)/i))) {
+        id = fm[1];
+        href = "https://www.facebook.com/video.php?v=" + id;
+        embed =
+          "https://www.facebook.com/plugins/video.php?href=" +
+          encodeURIComponent(href) +
+          "&show_text=0&width=560";
+        return { platform, embed_url: embed, id, playable: true, play_mode: "iframe", hint: "" };
+      }
+      // share/v, share/r, fb.watch tanpa id numerik — biasanya tidak playable di iframe pihak ketiga
+      playable = false;
+      hint =
+        "Link Facebook share (share/v/…) tidak bisa diputar di galeri. Buka link itu di browser, salin URL akhir berbentuk facebook.com/reel/ANGKA atau facebook.com/watch?v=ANGKA, atau gunakan URL file .mp4 langsung.";
+      return { platform, embed_url: u, id: null, playable, play_mode: "none", hint };
     }
     if (/(?:twitter\.com|x\.com)\//i.test(u)) {
       platform = "twitter";
-      return { platform, embed_url: u, id: null };
+      return {
+        platform,
+        embed_url: u,
+        id: null,
+        playable: false,
+        play_mode: "none",
+        hint: "Link X/Twitter tidak didukung. Gunakan YouTube, Dailymotion, atau URL .mp4 langsung.",
+      };
     }
-    return { platform, embed_url: embed, id };
+    return {
+      platform: "other",
+      embed_url: embed,
+      id: null,
+      playable: false,
+      play_mode: "none",
+      hint:
+        "Format link tidak dikenali. Gunakan YouTube, Dailymotion, facebook.com/reel/ID, atau URL file .mp4 langsung.",
+    };
+  }
+
+  function assertPlayableVideoUrl(url) {
+    const parsed = parseVideoUrl(url);
+    if (parsed.platform === "other" || parsed.playable === false) {
+      throw new Error(
+        parsed.hint ||
+          "Link tidak bisa diputar di galeri. Gunakan YouTube, Dailymotion, reel Facebook (…/reel/ANGKA), atau URL .mp4 langsung."
+      );
+    }
+    return parsed;
   }
 
   /** Best-effort static thumbnail without network (YouTube / Dailymotion). */
@@ -1000,8 +1064,8 @@
     if (!prof || !prof.linked_student_name) {
       throw new Error("Tautkan nama + angkatan di Profil dulu.");
     }
+    const parsed = assertPlayableVideoUrl(url);
     const meta = await fetchVideoMeta(url);
-    const parsed = parseVideoUrl(url);
     // YouTube/Dailymotion wajib embed; sosmed lain simpan link + meta
     if (parsed.platform === "other") {
       // still allow if meta found
@@ -1046,7 +1110,7 @@
     const patch = {};
     if (url) {
       const meta = await fetchVideoMeta(url);
-      const parsed = parseVideoUrl(url);
+      const parsed = assertPlayableVideoUrl(url);
       patch.url = url;
       patch.platform = meta.platform || parsed.platform;
       patch.embed_url = parsed.embed_url || url;
@@ -1104,8 +1168,7 @@
   }
   async function addVideo({ title, url, categoryId, description, createdBy, ownerName }) {
     const sb = client();
-    const parsed = parseVideoUrl(url);
-    if (parsed.platform === "other") throw new Error("Link harus YouTube, Dailymotion, Facebook, TikTok, atau Instagram.");
+    const parsed = assertPlayableVideoUrl(url);
     const row = {
       title: title || "Video",
       url,
@@ -1122,6 +1185,7 @@
     return data;
   }
   async function deleteVideo(id) {
+    await requireAdmin();
     const sb = client();
     const { error } = await sb.from("gallery_videos").delete().eq("id", id);
     if (error) throw error;

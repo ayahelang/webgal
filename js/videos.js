@@ -10,6 +10,8 @@
     year: "",
     kelas: "",
   };
+  let iAmAdmin = false;
+  let videoCats = [];
   try {
     const sp = new URLSearchParams(location.search);
     const st = (sp.get("student") || sp.get("q") || "").trim();
@@ -40,10 +42,8 @@
     if (v._thumb) return v._thumb;
     const id = ytId(v.url) || ytId(v.embed_url);
     if (id) return "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg";
-    // dailymotion fallback: no easy static without id parse
     const dm = String(v.url || "").match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/);
     if (dm) return "https://www.dailymotion.com/thumbnail/video/" + dm[1];
-    // hint dari GalleryDB jika ada
     try {
       if (window.GalleryDB && GalleryDB.videoThumbnailHint) {
         const h = GalleryDB.videoThumbnailHint(v.url || v.embed_url || "");
@@ -51,6 +51,22 @@
       }
     } catch (e) {}
     return "";
+  }
+
+  function parsedVideo(v) {
+    try {
+      if (window.GalleryDB && GalleryDB.parseVideoUrl) {
+        return GalleryDB.parseVideoUrl(v.url || v.embed_url || "");
+      }
+    } catch (e) {}
+    return { platform: v.platform || "other", embed_url: v.embed_url || v.url || "", play_mode: "iframe" };
+  }
+
+  function isDirectVideo(v) {
+    const p = parsedVideo(v);
+    if (p.play_mode === "video" || p.platform === "direct") return true;
+    const u = String(v.url || "") + " " + String(v.embed_url || "");
+    return /\.(mp4|webm|ogg|m4v)(\?|#|$)/i.test(u) || /fbcdn\.net\/.*\.mp4/i.test(u);
   }
 
   function isFacebookVideo(v) {
@@ -61,46 +77,15 @@
   }
 
   function ensureEmbed(v) {
-    let emb = String(v.embed_url || "").trim();
-    // Perbaiki embed lama yang masih URL facebook mentah
-    if (isFacebookVideo(v) && emb && !/plugins\/video\.php/i.test(emb)) {
-      try {
-        if (window.GalleryDB && GalleryDB.parseVideoUrl) {
-          const parsed = GalleryDB.parseVideoUrl(v.url || emb);
-          if (parsed && parsed.embed_url) emb = parsed.embed_url;
-        } else {
-          const href = (v.url || emb).split("#")[0];
-          emb =
-            "https://www.facebook.com/plugins/video.php?href=" +
-            encodeURIComponent(href) +
-            "&show_text=0&width=560";
-        }
-      } catch (e) {}
-    }
-    return emb;
+    const p = parsedVideo(v);
+    return String(p.embed_url || v.embed_url || v.url || "").trim();
   }
 
-  function enrich(v) {
-    const on = v.owner_name || "";
-    if (!on) return { ...v, _class: "", _year: "" };
-    const hit = students.find((s) => norm(s.name) === norm(on));
-    if (hit) return { ...v, _class: String(hit.class || ""), _year: String(hit.angkatan || "") };
-    const m = String(v.description || "").match(/Angkatan\s+(\d{4}).*?(\d{2})/i);
-    if (m) return { ...v, _year: m[1], _class: m[2] };
-    return { ...v, _class: "", _year: "" };
-  }
-
-  function filtered() {
-    return all.filter((v) => {
-      if (state.cat !== "all" && v.category_id !== state.cat) return false;
-      if (state.year && v._year && v._year !== state.year) return false;
-      if (state.kelas && v._class && v._class !== state.kelas) return false;
-      if (state.q) {
-        const hay = [v.title, v.description, v.owner_name, v.url].join(" ").toLowerCase();
-        if (!hay.includes(state.q)) return false;
-      }
-      return true;
-    });
+  function playModeOf(v) {
+    const p = parsedVideo(v);
+    if (p.play_mode) return p.play_mode;
+    if (isDirectVideo(v)) return "video";
+    return "iframe";
   }
 
   function card(v) {
@@ -109,23 +94,33 @@
       .filter(Boolean)
       .join(" · ");
     const thumb = thumbUrl(v);
-    const embed = esc(ensureEmbed(v));
-    const fb = isFacebookVideo(v);
+    const embed = ensureEmbed(v);
+    const mode = playModeOf(v);
+    const embEsc = esc(embed);
+    const fb = isFacebookVideo(v) && mode !== "video";
     let frame;
-    if (thumb) {
-      frame = `<button type="button" class="video-thumb-btn" data-embed="${embed}" aria-label="Putar video">
+    if (mode === "video") {
+      frame = `<button type="button" class="video-thumb-btn video-thumb-ph is-direct" data-embed="${embEsc}" data-play="video" aria-label="Putar video">
+          <span class="video-ph-label">Video</span>
+          <span class="video-play">▶</span>
+        </button>`;
+    } else if (thumb) {
+      frame = `<button type="button" class="video-thumb-btn" data-embed="${embEsc}" data-play="iframe" aria-label="Putar video">
           <img class="video-thumb" src="${esc(thumb)}" alt="" loading="lazy" decoding="async" width="480" height="270">
           <span class="video-play">▶</span>
         </button>`;
-    } else if (fb || embed) {
-      // Placeholder + tombol play (hindari auto-load iframe FB yang berat)
-      frame = `<button type="button" class="video-thumb-btn video-thumb-ph ${fb ? "is-fb" : ""}" data-embed="${embed}" aria-label="Putar video">
+    } else {
+      frame = `<button type="button" class="video-thumb-btn video-thumb-ph ${fb ? "is-fb" : ""}" data-embed="${embEsc}" data-play="iframe" aria-label="Putar video">
           <span class="video-ph-label">${fb ? "Facebook" : "Video"}</span>
           <span class="video-play">▶</span>
         </button>`;
-    } else {
-      frame = `<div class="video-thumb-ph">Tidak ada embed</div>`;
     }
+    const adminBtns = iAmAdmin
+      ? `<div class="video-admin-acts">
+          <button type="button" class="video-admin-btn" data-video-act="edit" title="Ubah">✎ Ubah</button>
+          <button type="button" class="video-admin-btn is-danger" data-video-act="del" title="Hapus">🗑 Hapus</button>
+        </div>`
+      : "";
     return `<article class="video-card" data-video-id="${esc(v.id || "")}" data-video-url="${esc(v.url || "")}">
       <div class="video-frame" data-video-frame>${frame}</div>
       <div class="video-meta">
@@ -135,6 +130,7 @@
         ${v.description ? `<p>${esc(v.description)}</p>` : ""}
         ${window.SHSocial ? SHSocial.barHtml("video", v.id, {}) : ""}
         <a href="${esc(v.url)}" target="_blank" rel="noopener">Buka sumber ↗</a>
+        ${adminBtns}
       </div>
     </article>`;
   }
@@ -142,48 +138,130 @@
   function bindPlay(root) {
     (root || document).querySelectorAll(".video-thumb-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        let embed = btn.getAttribute("data-embed") || "";
+        const embed = btn.getAttribute("data-embed") || "";
+        const mode = btn.getAttribute("data-play") || "iframe";
         const host = btn.closest("[data-video-frame]");
         if (!host || !embed) return;
-        // Facebook plugin: autoplay param
+        if (mode === "video") {
+          host.innerHTML = `<video class="video-native" src="${embed.replace(/"/g, "&quot;")}" controls autoplay playsinline preload="metadata"></video>`;
+          return;
+        }
         const sep = embed.indexOf("?") >= 0 ? "&" : "?";
-        const src = /plugins\/video\.php/i.test(embed)
-          ? embed + sep + "autoplay=1"
-          : embed + sep + "autoplay=1";
-        host.innerHTML = `<iframe src="${src}" title="Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="eager"></iframe>`;
+        const src = embed + sep + "autoplay=1";
+        host.innerHTML = `<iframe src="${src.replace(/"/g, "&quot;")}" title="Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="eager"></iframe>`;
       });
     });
   }
 
-  async function enrichFacebookThumbs(root) {
-    if (!window.GalleryDB || !GalleryDB.fetchVideoMeta) return;
-    const cards = (root || document).querySelectorAll(".video-card[data-video-url]");
-    for (const el of cards) {
-      const url = el.getAttribute("data-video-url") || "";
-      if (!/facebook\.com|fb\.watch/i.test(url)) continue;
-      const img = el.querySelector(".video-thumb");
-      if (img && img.getAttribute("src")) continue;
-      const ph = el.querySelector(".video-thumb-ph");
+  function ensureAdminModal() {
+    let m = document.getElementById("videoAdminModal");
+    if (m) return m;
+    m = document.createElement("div");
+    m.id = "videoAdminModal";
+    m.className = "video-admin-modal";
+    m.hidden = true;
+    m.innerHTML = `
+      <div class="video-admin-backdrop" data-close="1"></div>
+      <div class="video-admin-panel" role="dialog" aria-modal="true" aria-label="Ubah video">
+        <header class="video-admin-head">
+          <strong>Ubah video</strong>
+          <button type="button" class="video-admin-x" data-close="1" aria-label="Tutup">✕</button>
+        </header>
+        <form id="videoAdminForm" class="video-admin-form">
+          <label>Judul<input name="title" required maxlength="200" /></label>
+          <label>URL video<input name="url" required /></label>
+          <p class="muted video-admin-hint">Didukung: YouTube, Dailymotion, facebook.com/reel/ANGKA, atau URL .mp4 langsung. Link share/v Facebook & halaman Instagram tidak bisa diputar.</p>
+          <label>Kategori<select name="categoryId"><option value="">—</option></select></label>
+          <label>Pemilik / pemilik karya<input name="ownerName" maxlength="120" /></label>
+          <label>Deskripsi<textarea name="description" rows="3" maxlength="2000"></textarea></label>
+          <p id="videoAdminStatus" class="muted" style="margin:0"></p>
+          <div class="video-admin-foot">
+            <button type="button" class="btn btn-ghost" data-close="1">Batal</button>
+            <button type="submit" class="btn btn-primary">Simpan</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(m);
+    m.addEventListener("click", (ev) => {
+      if (ev.target && ev.target.getAttribute("data-close") === "1") closeAdminModal();
+    });
+    const form = m.querySelector("#videoAdminForm");
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const id = form.dataset.id;
+      const status = m.querySelector("#videoAdminStatus");
+      const fd = new FormData(form);
+      const payload = {
+        title: String(fd.get("title") || "").trim(),
+        url: String(fd.get("url") || "").trim(),
+        categoryId: String(fd.get("categoryId") || "").trim() || null,
+        ownerName: String(fd.get("ownerName") || "").trim(),
+        description: String(fd.get("description") || "").trim(),
+      };
+      status.textContent = "Menyimpan…";
       try {
-        const meta = await GalleryDB.fetchVideoMeta(url);
-        if (meta && meta.thumbnail) {
-          const frame = el.querySelector("[data-video-frame]");
-          const btn = el.querySelector(".video-thumb-btn");
-          const embed = (btn && btn.getAttribute("data-embed")) || "";
-          if (frame) {
-            frame.innerHTML = `<button type="button" class="video-thumb-btn" data-embed="${embed.replace(/"/g, "&quot;")}" aria-label="Putar video">
-              <img class="video-thumb" src="${String(meta.thumbnail).replace(/"/g, "&quot;")}" alt="" loading="lazy" decoding="async" width="480" height="270">
-              <span class="video-play">▶</span>
-            </button>`;
-            bindPlay(frame);
-          }
-          if (meta.title && meta.title !== "Video Facebook") {
-            const h3 = el.querySelector("h3");
-            if (h3 && (/^Video/i.test(h3.textContent || "") || !h3.textContent)) h3.textContent = meta.title;
+        await GalleryDB.adminUpdateVideo(id, payload);
+        status.textContent = "Tersimpan.";
+        const raw = await GalleryDB.listVideos();
+        all = (raw || []).map(enrich);
+        render();
+        setTimeout(closeAdminModal, 400);
+      } catch (e) {
+        status.textContent = e.message || String(e);
+      }
+    });
+    return m;
+  }
+
+  function closeAdminModal() {
+    const m = document.getElementById("videoAdminModal");
+    if (m) m.hidden = true;
+  }
+
+  function openAdminEdit(v) {
+    const m = ensureAdminModal();
+    const form = m.querySelector("#videoAdminForm");
+    form.dataset.id = v.id;
+    form.title.value = v.title || "";
+    form.url.value = v.url || "";
+    form.ownerName.value = v.owner_name || "";
+    form.description.value = v.description || "";
+    const sel = form.categoryId;
+    sel.innerHTML = `<option value="">—</option>` + (videoCats || [])
+      .map((c) => `<option value="${esc(c.id)}" ${c.id === v.category_id ? "selected" : ""}>${esc(c.name)}</option>`)
+      .join("");
+    m.querySelector("#videoAdminStatus").textContent = "";
+    m.hidden = false;
+  }
+
+  function bindAdmin(root) {
+    if (!iAmAdmin) return;
+    (root || document).querySelectorAll("[data-video-act]").forEach((btn) => {
+      btn.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const card = btn.closest(".video-card");
+        if (!card) return;
+        const id = card.getAttribute("data-video-id");
+        const v = all.find((x) => String(x.id) === String(id));
+        if (!v) return;
+        const act = btn.getAttribute("data-video-act");
+        if (act === "edit") {
+          openAdminEdit(v);
+          return;
+        }
+        if (act === "del") {
+          if (!confirm("Hapus video \"" + (v.title || id) + "\"?")) return;
+          try {
+            await GalleryDB.deleteVideo(id);
+            all = all.filter((x) => String(x.id) !== String(id));
+            render();
+          } catch (e) {
+            alert(e.message || String(e));
           }
         }
-      } catch (e) {}
-    }
+      });
+    });
   }
 
   function render() {
@@ -191,7 +269,7 @@
     const list = filtered();
     grid.innerHTML = list.map(card).join("") || "";
     bindPlay(grid);
-    enrichFacebookThumbs(grid);
+    bindAdmin(grid);
     if (window.SHSocial) {
       SHSocial.bind(grid);
       SHSocial.hydrate(grid);
@@ -267,7 +345,11 @@
     }
     try {
       await loadStudents();
+      try {
+        if (GalleryDB.isCurrentUserAdmin) iAmAdmin = !!(await GalleryDB.isCurrentUserAdmin());
+      } catch (e) { iAmAdmin = false; }
       const cats = await GalleryDB.listVideoCategories();
+      videoCats = cats || [];
       const filters = $("#videoFilters");
       if (filters) {
         filters.innerHTML = `<button type="button" class="filter active" data-cat="all" data-slug="">Semua</button>`;
