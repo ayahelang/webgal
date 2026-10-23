@@ -3681,3 +3681,12 @@ body.chat-embed .chat-fields{
 
 .ann-days-grid{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:6px}
 .ann-days-grid .check{margin:0;font-size:13px}
+
+.chat-search-sep{opacity:.45;padding:0 2px;font-size:11px;color:#9ec8d6}
+.chat-search-msg-count{opacity:.95}
+mark.chat-hit.chat-search-kw-current{
+  outline:2px solid #7de3ff;
+  background:rgba(255,220,80,.55)!important;
+  box-shadow:0 0 0 2px rgba(125,227,255,.35);
+}
+.chat-search-nav{flex-wrap:wrap;max-width:min(100%,340px)}

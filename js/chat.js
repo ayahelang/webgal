@@ -9,8 +9,12 @@
   const searchCountEl = $("#chatSearchCount");
   const searchPrevBtn = $("#chatSearchPrev");
   const searchNextBtn = $("#chatSearchNext");
+  const searchMsgPrevBtn = $("#chatSearchMsgPrev");
+  const searchMsgNextBtn = $("#chatSearchMsgNext");
+  const searchMsgCountEl = $("#chatSearchMsgCount");
   const searchClearBtn = $("#chatSearchClear");
-  let searchMatchIndex = 0;
+  let searchKwIndex = 0;
+  let searchMsgIndex = 0;
   const avatarPicker = $("#chatAvatarPicker");
   const nameInput = $("#chatName");
   const chatInput = $("#chatInput");
@@ -782,68 +786,141 @@
     filtered.forEach((m) => appendBubble(m, q, depthOf(m, map)));
     enrichVideoCards(log);
     wireVoicePlayer(log);
-    // Navigasi hasil pencarian
+    // Navigasi hasil pencarian (per kata + per pesan)
     if (q) {
-      const hits = log.querySelectorAll(".chat-bubble");
-      hits.forEach(function (b) { b.classList.add("chat-search-hit"); });
-      if (searchMatchIndex >= hits.length) searchMatchIndex = Math.max(0, hits.length - 1);
-      if (searchMatchIndex < 0) searchMatchIndex = 0;
-      updateSearchNav(hits.length, q);
-      jumpToSearchMatch(false);
+      const bubbles = log.querySelectorAll(".chat-bubble");
+      bubbles.forEach(function (b) {
+        b.classList.add("chat-search-hit");
+      });
+      const kwTotal = log.querySelectorAll("mark.chat-hit").length;
+      const msgTotal = bubbles.length;
+      if (searchKwIndex >= kwTotal) searchKwIndex = Math.max(0, kwTotal - 1);
+      if (searchKwIndex < 0) searchKwIndex = 0;
+      if (searchMsgIndex >= msgTotal) searchMsgIndex = Math.max(0, msgTotal - 1);
+      if (searchMsgIndex < 0) searchMsgIndex = 0;
+      updateSearchNav(q, kwTotal, msgTotal);
+      // default fokus ke kata pertama (juga scroll pesan terkait)
+      jumpToKeyword(false);
     } else {
-      searchMatchIndex = 0;
-      updateSearchNav(0, "");
+      searchKwIndex = 0;
+      searchMsgIndex = 0;
+      updateSearchNav("", 0, 0);
       log.scrollTop = log.scrollHeight;
-    }
-    if (status && window.GalleryDB && GalleryDB.enabled()) {
-      if (q) {
-        /* count di floating nav; status boleh ringkas */
-      }
     }
   }
 
-  function updateSearchNav(total, q) {
+  function updateSearchNav(q, kwTotal, msgTotal) {
     if (!searchNav) return;
     if (!q) {
       searchNav.hidden = true;
       return;
     }
     searchNav.hidden = false;
-    const n = total || 0;
-    const cur = n ? searchMatchIndex + 1 : 0;
-    if (searchCountEl) searchCountEl.textContent = cur + " / " + n;
-    if (searchPrevBtn) searchPrevBtn.disabled = n < 2;
-    if (searchNextBtn) searchNextBtn.disabled = n < 2;
+    const kt = kwTotal || 0;
+    const mt = msgTotal || 0;
+    const kc = kt ? searchKwIndex + 1 : 0;
+    const mc = mt ? searchMsgIndex + 1 : 0;
+    if (searchCountEl) searchCountEl.textContent = kc + " / " + kt + " kata";
+    if (searchMsgCountEl) searchMsgCountEl.textContent = mc + " / " + mt + " pesan";
+    if (searchPrevBtn) searchPrevBtn.disabled = kt < 2;
+    if (searchNextBtn) searchNextBtn.disabled = kt < 2;
+    if (searchMsgPrevBtn) searchMsgPrevBtn.disabled = mt < 2;
+    if (searchMsgNextBtn) searchMsgNextBtn.disabled = mt < 2;
   }
 
-  function jumpToSearchMatch(smooth) {
+  function jumpToKeyword(smooth) {
     if (!log) return;
-    const hits = log.querySelectorAll(".chat-bubble.chat-search-hit, .chat-bubble");
-    if (!hits.length) return;
-    if (searchMatchIndex < 0) searchMatchIndex = 0;
-    if (searchMatchIndex >= hits.length) searchMatchIndex = hits.length - 1;
-    hits.forEach(function (b, i) {
-      b.classList.toggle("chat-search-current", i === searchMatchIndex);
+    const marks = log.querySelectorAll("mark.chat-hit");
+    const bubbles = log.querySelectorAll(".chat-bubble");
+    marks.forEach(function (m) {
+      m.classList.remove("chat-search-kw-current");
     });
-    const el = hits[searchMatchIndex];
-    if (el) {
+    bubbles.forEach(function (b) {
+      b.classList.remove("chat-search-current");
+    });
+    if (!marks.length) {
+      // tidak ada mark (mis. hanya cocok di body terfilter aneh) — fallback pesan
+      if (bubbles.length) jumpToMessage(smooth);
+      return;
+    }
+    if (searchKwIndex < 0) searchKwIndex = 0;
+    if (searchKwIndex >= marks.length) searchKwIndex = marks.length - 1;
+    const mark = marks[searchKwIndex];
+    mark.classList.add("chat-search-kw-current");
+    const bubble = mark.closest(".chat-bubble");
+    if (bubble) {
+      bubble.classList.add("chat-search-current");
+      // sync index pesan
+      const arr = Array.prototype.slice.call(bubbles);
+      const mi = arr.indexOf(bubble);
+      if (mi >= 0) searchMsgIndex = mi;
+    }
+    try {
+      mark.scrollIntoView({
+        behavior: smooth === false ? "auto" : "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+    } catch (e) {
       try {
-        el.scrollIntoView({ behavior: smooth === false ? "auto" : "smooth", block: "center" });
-      } catch (e) {
-        try { el.scrollIntoView(true); } catch (e2) {}
-      }
+        mark.scrollIntoView(true);
+      } catch (e2) {}
     }
-    if (searchCountEl) {
-      searchCountEl.textContent = (searchMatchIndex + 1) + " / " + hits.length;
-    }
+    updateSearchNav(getSearchQ(), marks.length, bubbles.length);
   }
 
-  function searchGo(delta) {
+  function jumpToMessage(smooth) {
     if (!log) return;
-    const hits = log.querySelectorAll(".chat-bubble");
-    if (!hits.length) return;
-    searchMatchIndex = (searchMatchIndex + delta + hits.length) % hits.length;
-    jumpToSearchMatch(true);
+    const bubbles = log.querySelectorAll(".chat-bubble");
+    if (!bubbles.length) return;
+    if (searchMsgIndex < 0) searchMsgIndex = 0;
+    if (searchMsgIndex >= bubbles.length) searchMsgIndex = bubbles.length - 1;
+    bubbles.forEach(function (b, i) {
+      b.classList.toggle("chat-search-current", i === searchMsgIndex);
+    });
+    const el = bubbles[searchMsgIndex];
+    // pilih keyword pertama di dalam pesan ini
+    const marksIn = el.querySelectorAll("mark.chat-hit");
+    const allMarks = log.querySelectorAll("mark.chat-hit");
+    allMarks.forEach(function (m) {
+      m.classList.remove("chat-search-kw-current");
+    });
+    if (marksIn.length) {
+      marksIn[0].classList.add("chat-search-kw-current");
+      const arr = Array.prototype.slice.call(allMarks);
+      const ki = arr.indexOf(marksIn[0]);
+      if (ki >= 0) searchKwIndex = ki;
+    }
+    try {
+      el.scrollIntoView({
+        behavior: smooth === false ? "auto" : "smooth",
+        block: "center",
+      });
+    } catch (e) {
+      try {
+        el.scrollIntoView(true);
+      } catch (e2) {}
+    }
+    updateSearchNav(getSearchQ(), allMarks.length, bubbles.length);
+  }
+
+  function searchGoKeyword(delta) {
+    if (!log) return;
+    const marks = log.querySelectorAll("mark.chat-hit");
+    if (!marks.length) {
+      searchGoMessage(delta);
+      return;
+    }
+    searchKwIndex = (searchKwIndex + delta + marks.length) % marks.length;
+    jumpToKeyword(true);
+  }
+
+  function searchGoMessage(delta) {
+    if (!log) return;
+    const bubbles = log.querySelectorAll(".chat-bubble");
+    if (!bubbles.length) return;
+    searchMsgIndex = (searchMsgIndex + delta + bubbles.length) % bubbles.length;
+    jumpToMessage(true);
   }
 
   function applyTextClamp(textEl) {
@@ -951,12 +1028,15 @@
     if (!canReplyTo(m) && !canShowActions(m) && !(editCountOf(m) > 0 || (m.edit_history && m.edit_history.length))) {
       actions = "";
     }
+    const nameHtml = q
+      ? highlight(esc(m.author_name || ""), q)
+      : esc(m.author_name || "");
     div.innerHTML =
       '<div class="chat-av">' +
       esc(av) +
       "</div>" +
-      '<div class="chat-body"><strong>' +
-      esc(m.author_name) +
+      '<div class="chat-body"><strong class="chat-author-name">' +
+      nameHtml +
       "</strong> <small>" +
       esc(t) +
       "</small>" +
@@ -2102,26 +2182,31 @@
     let searchTimer = null;
     searchInput.addEventListener("input", () => {
       clearTimeout(searchTimer);
-      searchMatchIndex = 0;
+      searchKwIndex = 0;
+      searchMsgIndex = 0;
       searchTimer = setTimeout(renderMessages, 120);
     });
     searchInput.addEventListener("keydown", function (ev) {
       if (ev.key === "Enter") {
         ev.preventDefault();
-        if (ev.shiftKey) searchGo(-1);
-        else searchGo(1);
+        // Enter = kata berikutnya; Ctrl/Cmd+Enter = pesan berikutnya
+        if (ev.ctrlKey || ev.metaKey) searchGoMessage(ev.shiftKey ? -1 : 1);
+        else searchGoKeyword(ev.shiftKey ? -1 : 1);
       } else if (ev.key === "F3") {
         ev.preventDefault();
-        searchGo(ev.shiftKey ? -1 : 1);
+        searchGoKeyword(ev.shiftKey ? -1 : 1);
       }
     });
   }
-  if (searchPrevBtn) searchPrevBtn.addEventListener("click", function () { searchGo(-1); });
-  if (searchNextBtn) searchNextBtn.addEventListener("click", function () { searchGo(1); });
+  if (searchPrevBtn) searchPrevBtn.addEventListener("click", function () { searchGoKeyword(-1); });
+  if (searchNextBtn) searchNextBtn.addEventListener("click", function () { searchGoKeyword(1); });
+  if (searchMsgPrevBtn) searchMsgPrevBtn.addEventListener("click", function () { searchGoMessage(-1); });
+  if (searchMsgNextBtn) searchMsgNextBtn.addEventListener("click", function () { searchGoMessage(1); });
   if (searchClearBtn) {
     searchClearBtn.addEventListener("click", function () {
       if (searchInput) searchInput.value = "";
-      searchMatchIndex = 0;
+      searchKwIndex = 0;
+      searchMsgIndex = 0;
       renderMessages();
       if (searchInput) searchInput.focus();
     });

@@ -1,7 +1,6 @@
-# Perbaiki play suara pengumuman (editor / preview / uji frontend)
+# Search: hitung per kata + lompat kata/pesan
 
-- Event delegation document-level untuk tombol play
-- Wire ulang paksa + retry
-- Audio tidak display:none (beberapa browser gagal play)
-
-File: js/voice-kit.js, js/admin.js, js/announce.js, css/style.css
+- Counter: N / total **kata** + N / total **pesan**
+- ▲▼ lompat per kemunculan keyword
+- ◀▶ lompat per item chat
+- Enter = kata berikutnya; Ctrl+Enter = pesan berikutnya

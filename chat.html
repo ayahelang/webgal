@@ -48,7 +48,7 @@
   <main class="skills-main">
     <section class="skills-hero">
       <div class="eyebrow">LIVE CHAT</div>
-      <h1>Ngobrol Dong..</h1>
+      <h1>Obrolan kenang-kenangan</h1>
       <p class="skills-lead">Per angkatan atau lintas angkatan. Ada indikator <b>sedang mengetik</b> dan avatar emoji.</p>
     </section>
     <div id="chatWin" class="chat-win mode-dock" data-mode="dock">
@@ -82,9 +82,13 @@
             <span>Cari di chat</span>
             <div class="chat-search-wrap">
               <div id="chatSearchNav" class="chat-search-nav" hidden>
-                <span id="chatSearchCount" class="chat-search-count">0 / 0</span>
-                <button type="button" id="chatSearchPrev" class="chat-search-nav-btn" title="Sebelumnya">▲</button>
-                <button type="button" id="chatSearchNext" class="chat-search-nav-btn" title="Berikutnya">▼</button>
+                <span id="chatSearchCount" class="chat-search-count" title="Kemunculan kata">0 / 0 kata</span>
+                <button type="button" id="chatSearchPrev" class="chat-search-nav-btn" title="Kata sebelumnya">▲</button>
+                <button type="button" id="chatSearchNext" class="chat-search-nav-btn" title="Kata berikutnya">▼</button>
+                <span class="chat-search-sep" aria-hidden="true">|</span>
+                <span id="chatSearchMsgCount" class="chat-search-count chat-search-msg-count" title="Pesan yang cocok">0 / 0 pesan</span>
+                <button type="button" id="chatSearchMsgPrev" class="chat-search-nav-btn" title="Pesan sebelumnya">◀</button>
+                <button type="button" id="chatSearchMsgNext" class="chat-search-nav-btn" title="Pesan berikutnya">▶</button>
                 <button type="button" id="chatSearchClear" class="chat-search-nav-btn" title="Hapus pencarian">✕</button>
               </div>
               <input id="chatSearch" type="search" placeholder="Cari teks atau nama…" autocomplete="off">
