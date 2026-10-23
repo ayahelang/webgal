@@ -5,6 +5,12 @@
   const status = $("#chatStatus");
   const typingLine = $("#typingLine");
   const searchInput = $("#chatSearch");
+  const searchNav = $("#chatSearchNav");
+  const searchCountEl = $("#chatSearchCount");
+  const searchPrevBtn = $("#chatSearchPrev");
+  const searchNextBtn = $("#chatSearchNext");
+  const searchClearBtn = $("#chatSearchClear");
+  let searchMatchIndex = 0;
   const avatarPicker = $("#chatAvatarPicker");
   const nameInput = $("#chatName");
   const chatInput = $("#chatInput");
@@ -774,15 +780,70 @@
     const map = Object.create(null);
     allMessages.forEach((x) => { if (x.id) map[x.id] = x; });
     filtered.forEach((m) => appendBubble(m, q, depthOf(m, map)));
-    log.scrollTop = log.scrollHeight;
     enrichVideoCards(log);
     wireVoicePlayer(log);
+    // Navigasi hasil pencarian
+    if (q) {
+      const hits = log.querySelectorAll(".chat-bubble");
+      hits.forEach(function (b) { b.classList.add("chat-search-hit"); });
+      if (searchMatchIndex >= hits.length) searchMatchIndex = Math.max(0, hits.length - 1);
+      if (searchMatchIndex < 0) searchMatchIndex = 0;
+      updateSearchNav(hits.length, q);
+      jumpToSearchMatch(false);
+    } else {
+      searchMatchIndex = 0;
+      updateSearchNav(0, "");
+      log.scrollTop = log.scrollHeight;
+    }
     if (status && window.GalleryDB && GalleryDB.enabled()) {
       if (q) {
-        status.textContent =
-          filtered.length + " dari " + allMessages.length + ' pesan cocok · "' + q + '"';
+        /* count di floating nav; status boleh ringkas */
       }
     }
+  }
+
+  function updateSearchNav(total, q) {
+    if (!searchNav) return;
+    if (!q) {
+      searchNav.hidden = true;
+      return;
+    }
+    searchNav.hidden = false;
+    const n = total || 0;
+    const cur = n ? searchMatchIndex + 1 : 0;
+    if (searchCountEl) searchCountEl.textContent = cur + " / " + n;
+    if (searchPrevBtn) searchPrevBtn.disabled = n < 2;
+    if (searchNextBtn) searchNextBtn.disabled = n < 2;
+  }
+
+  function jumpToSearchMatch(smooth) {
+    if (!log) return;
+    const hits = log.querySelectorAll(".chat-bubble.chat-search-hit, .chat-bubble");
+    if (!hits.length) return;
+    if (searchMatchIndex < 0) searchMatchIndex = 0;
+    if (searchMatchIndex >= hits.length) searchMatchIndex = hits.length - 1;
+    hits.forEach(function (b, i) {
+      b.classList.toggle("chat-search-current", i === searchMatchIndex);
+    });
+    const el = hits[searchMatchIndex];
+    if (el) {
+      try {
+        el.scrollIntoView({ behavior: smooth === false ? "auto" : "smooth", block: "center" });
+      } catch (e) {
+        try { el.scrollIntoView(true); } catch (e2) {}
+      }
+    }
+    if (searchCountEl) {
+      searchCountEl.textContent = (searchMatchIndex + 1) + " / " + hits.length;
+    }
+  }
+
+  function searchGo(delta) {
+    if (!log) return;
+    const hits = log.querySelectorAll(".chat-bubble");
+    if (!hits.length) return;
+    searchMatchIndex = (searchMatchIndex + delta + hits.length) % hits.length;
+    jumpToSearchMatch(true);
   }
 
   function applyTextClamp(textEl) {
@@ -2041,7 +2102,28 @@
     let searchTimer = null;
     searchInput.addEventListener("input", () => {
       clearTimeout(searchTimer);
+      searchMatchIndex = 0;
       searchTimer = setTimeout(renderMessages, 120);
+    });
+    searchInput.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        if (ev.shiftKey) searchGo(-1);
+        else searchGo(1);
+      } else if (ev.key === "F3") {
+        ev.preventDefault();
+        searchGo(ev.shiftKey ? -1 : 1);
+      }
+    });
+  }
+  if (searchPrevBtn) searchPrevBtn.addEventListener("click", function () { searchGo(-1); });
+  if (searchNextBtn) searchNextBtn.addEventListener("click", function () { searchGo(1); });
+  if (searchClearBtn) {
+    searchClearBtn.addEventListener("click", function () {
+      if (searchInput) searchInput.value = "";
+      searchMatchIndex = 0;
+      renderMessages();
+      if (searchInput) searchInput.focus();
     });
   }
 

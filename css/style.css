@@ -3587,3 +3587,53 @@ body.chat-embed .chat-fields{
   0%,100%{ opacity:1; transform:translateY(0); }
   50%{ opacity:1; transform:translateY(-1px); }
 }
+
+/* Chat fields: satu baris nama | ruang | cari */
+.chat-fields{display:flex;flex-direction:column;gap:8px}
+.chat-fields-row{
+  display:grid;
+  grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr) minmax(0,1.2fr);
+  gap:8px;
+  align-items:end;
+}
+.chat-fields-row .field{margin:0;min-width:0}
+.chat-fields-row .field > span{
+  display:block;font-size:11px;margin-bottom:3px;color:#8aa3ae;white-space:nowrap;
+}
+.chat-fields-row input,
+.chat-fields-row select{
+  width:100%;box-sizing:border-box;min-width:0;
+}
+.chat-search-wrap{position:relative}
+.chat-search-nav{
+  position:absolute;left:0;right:0;bottom:calc(100% + 4px);
+  display:flex;align-items:center;gap:4px;
+  padding:4px 6px;border-radius:10px;
+  background:rgba(8,18,28,.96);
+  border:1px solid rgba(125,227,255,.3);
+  box-shadow:0 6px 18px rgba(0,0,0,.35);
+  z-index:20;
+  width:max-content;max-width:100%;
+  margin-left:auto;
+}
+.chat-search-count{
+  font-size:11px;font-weight:700;color:#9ec8d6;
+  font-variant-numeric:tabular-nums;padding:0 4px;white-space:nowrap;
+}
+.chat-search-nav-btn{
+  appearance:none;border:1px solid rgba(125,227,255,.3);
+  background:rgba(125,227,255,.1);color:#e8fbff;
+  width:26px;height:26px;border-radius:7px;cursor:pointer;
+  font-size:11px;line-height:1;padding:0;
+}
+.chat-search-nav-btn:hover{background:rgba(125,227,255,.22)}
+.chat-search-nav-btn:disabled{opacity:.4;cursor:default}
+.chat-bubble.chat-search-current{
+  outline:2px solid rgba(125,227,255,.55);
+  outline-offset:2px;
+  background:rgba(125,227,255,.06);
+}
+@media (max-width:640px){
+  .chat-fields-row{grid-template-columns:1fr 1fr}
+  .chat-f-search{grid-column:1/-1}
+}

@@ -62,10 +62,27 @@
         </div>
       </div>
     <div class="summary-card chat-panel" style="display:grid;gap:12px;max-width:100%;overflow-x:hidden;box-sizing:border-box">
-      <div class="chat-fields" style="display:grid;gap:10px">
-        <label class="field"><span>Nama tampilan</span>
-          <input id="chatName" type="text" maxlength="40" placeholder="Kosong = nama akun login / Anonim">
-        </label>
+      <div class="chat-fields">
+        <div class="chat-fields-row">
+          <label class="field chat-f-name"><span>Nama tampilan</span>
+            <input id="chatName" type="text" maxlength="40" placeholder="Kosong = akun login / Anonim">
+          </label>
+          <label class="field chat-f-room"><span>Ruang chat</span>
+            <select id="chatRoom"></select>
+          </label>
+          <div class="field chat-f-search">
+            <span>Cari di chat</span>
+            <div class="chat-search-wrap">
+              <div id="chatSearchNav" class="chat-search-nav" hidden>
+                <span id="chatSearchCount" class="chat-search-count">0 / 0</span>
+                <button type="button" id="chatSearchPrev" class="chat-search-nav-btn" title="Sebelumnya">▲</button>
+                <button type="button" id="chatSearchNext" class="chat-search-nav-btn" title="Berikutnya">▼</button>
+                <button type="button" id="chatSearchClear" class="chat-search-nav-btn" title="Hapus pencarian">✕</button>
+              </div>
+              <input id="chatSearch" type="search" placeholder="Cari teks atau nama…" autocomplete="off">
+            </div>
+          </div>
+        </div>
         <div class="field chat-avatar-field">
           <button type="button" id="chatAvatarToggle" class="chat-avatar-toggle" aria-expanded="false" title="Pilih avatar emoji">
             <span class="chat-avatar-toggle-label">Avatar</span>
@@ -74,12 +91,6 @@
           </button>
           <div id="chatAvatarPicker" class="chat-avatar-picker is-collapsed" role="group" aria-label="Pilih avatar emoji" hidden></div>
         </div>
-        <label class="field"><span>Ruang chat</span>
-          <select id="chatRoom"></select>
-        </label>
-        <label class="field"><span>Cari di chat</span>
-          <input id="chatSearch" type="search" placeholder="Cari teks atau nama…" autocomplete="off">
-        </label>
       </div>
       <div id="chatLog" class="chat-log"></div>
       <div id="typingLine" class="typing-line" aria-live="polite"></div>

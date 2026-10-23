@@ -1,11 +1,8 @@
-# Avatar → lompat ke Balas + pengumuman play frontend
+# Chat search nav + fields row
 
-## Perubahan
-- Klik avatar chat: tampil aksi + scroll ke tombol Balas + highlight sebentar
-- voice-kit.js dimuat di semua halaman yang punya announce.js
-- Splash: wire player setelah overlay di DOM
+- Nama | Ruang | Cari dalam satu baris
+- Popup floating di atas kotak cari: N / total · ▲ · ▼ · ✕
+- Enter / F3 = berikutnya, Shift+Enter = sebelumnya
+- Hasil aktif disorot di log
 
-## File
-- js/chat.js, js/announce.js, js/voice-kit.js
-- css/style.css
-- semua *.html (script voice-kit sebelum announce)
+File: chat.html, js/chat.js, css/style.css
