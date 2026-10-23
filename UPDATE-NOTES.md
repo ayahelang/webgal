@@ -1,6 +1,3 @@
-# Search: hitung per kata + lompat kata/pesan
+# Search nav: default hidden, no X button
 
-- Counter: N / total **kata** + N / total **pesan**
-- ▲▼ lompat per kemunculan keyword
-- ◀▶ lompat per item chat
-- Enter = kata berikutnya; Ctrl+Enter = pesan berikutnya
+Nav hanya muncul saat kotak cari berisi teks. Clear pakai X native input.

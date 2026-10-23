@@ -12,7 +12,6 @@
   const searchMsgPrevBtn = $("#chatSearchMsgPrev");
   const searchMsgNextBtn = $("#chatSearchMsgNext");
   const searchMsgCountEl = $("#chatSearchMsgCount");
-  const searchClearBtn = $("#chatSearchClear");
   let searchKwIndex = 0;
   let searchMsgIndex = 0;
   const avatarPicker = $("#chatAvatarPicker");
@@ -811,6 +810,8 @@
 
   function updateSearchNav(q, kwTotal, msgTotal) {
     if (!searchNav) return;
+    q = String(q || "").trim();
+    // Default tersembunyi; hanya muncul jika kotak cari berisi teks
     if (!q) {
       searchNav.hidden = true;
       return;
@@ -2184,6 +2185,8 @@
       clearTimeout(searchTimer);
       searchKwIndex = 0;
       searchMsgIndex = 0;
+      const qNow = (searchInput.value || "").trim();
+      if (!qNow && searchNav) searchNav.hidden = true;
       searchTimer = setTimeout(renderMessages, 120);
     });
     searchInput.addEventListener("keydown", function (ev) {
@@ -2202,15 +2205,6 @@
   if (searchNextBtn) searchNextBtn.addEventListener("click", function () { searchGoKeyword(1); });
   if (searchMsgPrevBtn) searchMsgPrevBtn.addEventListener("click", function () { searchGoMessage(-1); });
   if (searchMsgNextBtn) searchMsgNextBtn.addEventListener("click", function () { searchGoMessage(1); });
-  if (searchClearBtn) {
-    searchClearBtn.addEventListener("click", function () {
-      if (searchInput) searchInput.value = "";
-      searchKwIndex = 0;
-      searchMsgIndex = 0;
-      renderMessages();
-      if (searchInput) searchInput.focus();
-    });
-  }
 
   if (nameInput) {
     nameInput.addEventListener("change", () => {
