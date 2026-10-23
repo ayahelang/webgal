@@ -3650,3 +3650,6 @@ body.chat-embed .chat-fields{
   .chat-fields-row{grid-template-columns:auto 1fr 1fr}
   .chat-f-search{grid-column:1/-1}
 }
+
+.ann-days-grid{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:6px}
+.ann-days-grid .check{margin:0;font-size:13px}

@@ -2521,6 +2521,7 @@
       duration_hours: duration_hours != null && !isNaN(duration_hours) ? duration_hours : null,
       times_per_day: Number(payload.times_per_day) || 1,
       schedule_hours: payload.schedule_hours || [],
+      schedule_days: Array.isArray(payload.schedule_days) ? payload.schedule_days : [],
       splash_seconds: Number(payload.splash_seconds) || 15,
       active: payload.active !== false,
       created_by: (function () {

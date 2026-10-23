@@ -12,6 +12,10 @@
 
   function inSchedule(ann, now) {
     if (!ann.active) return false;
+    const days = Array.isArray(ann.schedule_days) ? ann.schedule_days.map(Number) : [];
+    if (days.length) {
+      if (days.indexOf(now.getDay()) < 0) return false;
+    }
     const start = ann.starts_at ? new Date(ann.starts_at) : null;
     let end = ann.ends_at ? new Date(ann.ends_at) : null;
     if (start && now < start) return false;
@@ -178,6 +182,17 @@
       const close = () => {
         clearInterval(iv);
         overlay.remove();
+        if (opts.testMode || ann._forceShow) {
+          showFloatBtn(Object.assign({}, ann, {
+            active: true,
+            starts_at: null,
+            ends_at: null,
+            duration_days: null,
+            duration_hours: 24,
+          }));
+          resolve();
+          return;
+        }
         if (!opts.fromFloat) markSeen(ann);
         if (isStillValid(ann)) showFloatBtn(ann);
         else removeFloat(ann.id);
@@ -211,8 +226,9 @@
         sessionStorage.removeItem("sh_ann_force_preview");
         const force = JSON.parse(raw);
         if (force && force.body_html != null) {
+          force.active = true;
+          force._forceShow = true;
           await showSplash(force, { fromFloat: false, testMode: true });
-          // tetap lanjut queue normal? tidak — fokus uji coba saja
           return;
         }
       }

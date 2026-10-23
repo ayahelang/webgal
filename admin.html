@@ -375,6 +375,19 @@
           <label class="field"><span>Berlaku (jam)</span><input type="number" name="duration_hours" min="0" placeholder="mis. 24"></label>
           <label class="field"><span>Berapa kali / hari</span><input type="number" name="times_per_day" min="1" max="24" value="1"></label>
           <label class="field"><span>Jam tampil (0–23, pisah koma)</span><input name="schedule_hours" placeholder="kosong = otomatis merata, mis. 8,12,18"></label>
+          <div class="field ann-days-field" style="grid-column:1/-1">
+            <span>Hari tampil berulang (kosong = setiap hari)</span>
+            <div class="ann-days-grid" id="annDaysGrid">
+              <label class="check"><input type="checkbox" name="schedule_days" value="1"> Sen</label>
+              <label class="check"><input type="checkbox" name="schedule_days" value="2"> Sel</label>
+              <label class="check"><input type="checkbox" name="schedule_days" value="3"> Rab</label>
+              <label class="check"><input type="checkbox" name="schedule_days" value="4"> Kam</label>
+              <label class="check"><input type="checkbox" name="schedule_days" value="5"> Jum</label>
+              <label class="check"><input type="checkbox" name="schedule_days" value="6"> Sab</label>
+              <label class="check"><input type="checkbox" name="schedule_days" value="0"> Min</label>
+            </div>
+            <small class="muted">Centang hari agar pengumuman hanya muncul di hari tersebut (masih mengikuti jam &amp; batas waktu).</small>
+          </div>
           <label class="field"><span>Durasi splash (detik)</span><input type="number" name="splash_seconds" min="5" max="120" value="15"></label>
           <label class="check ann-active-align"><input type="checkbox" name="active" checked> Aktif</label>
           <div class="admin-form-actions" style="grid-column:1/-1">

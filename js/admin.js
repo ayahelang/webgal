@@ -741,6 +741,7 @@
                 <div class="ann-sess-actions">
                   <button type="button" class="btn btn-ghost btn-xs" data-ann-stats="${r.id}">Statistik ▾</button>
                   <button type="button" data-edit-ann="${r.id}">Ubah</button>
+                  <button type="button" data-dup-ann="${r.id}">Duplikat</button>
                   <button type="button" data-del-ann="${r.id}">Hapus</button>
                 </div>
               </div>
@@ -756,6 +757,56 @@
           await refreshAnnouncements();
         })
       );
+
+      $$("#annList [data-dup-ann]").forEach((b) =>
+        b.addEventListener("click", () => {
+          const r = rows.find((x) => String(x.id) === String(b.dataset.dupAnn));
+          if (!r) return;
+          const f = $("#annForm");
+          if (!f) return;
+          f.querySelector("[name=id]").value = "";
+          f.querySelector("[name=title]").value = (r.title || "") + " (salinan)";
+          {
+            const raw = r.body_html || "";
+            const tmp = document.createElement("div");
+            tmp.innerHTML = raw;
+            const voiceEl = tmp.querySelector(".ann-voice-block, .ann-voice-slot-render, [data-voice-url], .sh-ap");
+            if (voiceEl && typeof setAnnVoiceSlot === "function") {
+              const url =
+                voiceEl.getAttribute("data-voice-url") ||
+                voiceEl.getAttribute("data-src") ||
+                (voiceEl.querySelector("audio") && voiceEl.querySelector("audio").src) ||
+                "";
+              const dur = voiceEl.getAttribute("data-duration") || voiceEl.getAttribute("data-dur") || "";
+              voiceEl.remove();
+              if (url) setAnnVoiceSlot(url, dur ? parseFloat(dur) : null);
+              else if (typeof clearAnnVoiceSlot === "function") clearAnnVoiceSlot();
+            } else if (typeof clearAnnVoiceSlot === "function") {
+              clearAnnVoiceSlot();
+            }
+            $("#annEditor").innerHTML = tmp.innerHTML;
+          }
+          f.querySelector("[name=show_home]").checked =
+            (r.show_on || "").indexOf("home") >= 0 || r.audience === "public" || r.show_on === "both";
+          f.querySelector("[name=show_logged]").checked =
+            (r.show_on || "").indexOf("user") >= 0 || r.audience === "logged_in" || r.show_on === "both";
+          f.querySelector("[name=show_students]").checked = r.audience === "students";
+          $("#annStudentTree").classList.toggle("is-collapsed", r.audience !== "students");
+          setAnnTargets(r.target_students || []);
+          f.querySelector("[name=starts_at]").value = toLocalInput(r.starts_at);
+          f.querySelector("[name=ends_at]").value = toLocalInput(r.ends_at);
+          f.querySelector("[name=duration_days]").value = r.duration_days || "";
+          f.querySelector("[name=duration_hours]").value = r.duration_hours || "";
+          f.querySelector("[name=times_per_day]").value = r.times_per_day || 1;
+          f.querySelector("[name=schedule_hours]").value = (r.schedule_hours || []).join(",");
+          setAnnScheduleDays(f, r.schedule_days || []);
+          f.querySelector("[name=splash_seconds]").value = r.splash_seconds || 15;
+          f.querySelector("[name=active]").checked = r.active !== false;
+          $("#annStatus").textContent = "Mode duplikat: simpan untuk membuat pengumuman baru · " + (r.title || "");
+          scrollToForm("#annForm");
+        })
+      );
+
       $$("#annList [data-ann-stats]").forEach((b) =>
         b.addEventListener("click", async () => {
           const id = b.dataset.annStats;
@@ -819,6 +870,7 @@
           f.querySelector("[name=duration_hours]").value = r.duration_hours || "";
           f.querySelector("[name=times_per_day]").value = r.times_per_day || 1;
           f.querySelector("[name=schedule_hours]").value = (r.schedule_hours || []).join(",");
+          setAnnScheduleDays(f, r.schedule_days || []);
           f.querySelector("[name=splash_seconds]").value = r.splash_seconds || 15;
           f.querySelector("[name=active]").checked = r.active !== false;
           $("#annStatus").textContent = "Mode edit: " + (r.title || "");
@@ -828,6 +880,22 @@
     } catch (e) {
       host.innerHTML = "<p class='muted'>" + esc(e.message || e) + "</p>";
     }
+  }
+
+
+  function readAnnScheduleDays(form) {
+    if (!form) return [];
+    return Array.from(form.querySelectorAll('input[name="schedule_days"]:checked'))
+      .map(function (el) { return Number(el.value); })
+      .filter(function (n) { return n >= 0 && n <= 6; });
+  }
+  function setAnnScheduleDays(form, days) {
+    if (!form) return;
+    const set = {};
+    (days || []).forEach(function (d) { set[Number(d)] = true; });
+    form.querySelectorAll('input[name="schedule_days"]').forEach(function (el) {
+      el.checked = !!set[Number(el.value)];
+    });
   }
 
   function bindAnnouncementForm() {
@@ -909,6 +977,8 @@
         $("#annEditor").innerHTML = "";
         $("#annStatus").textContent = "";
         $("#annStudentTree").classList.add("is-collapsed");
+        setAnnScheduleDays(f, []);
+        if (typeof clearAnnVoiceSlot === "function") clearAnnVoiceSlot();
       };
     function buildAnnPreviewPayload() {
       const html =
@@ -924,7 +994,14 @@
         active: true,
         audience: "public",
         show_on: "both",
+        schedule_days: [],
+        schedule_hours: [],
+        starts_at: null,
+        ends_at: null,
+        duration_days: null,
+        duration_hours: null,
         _testFrontend: true,
+        _forceShow: true,
       };
     }
     const btnPrev = $("#annPreview");
@@ -1004,6 +1081,7 @@
         duration_hours: duration_hours,
         times_per_day: Number(fd.get("times_per_day")) || 1,
         schedule_hours: hoursRaw,
+        schedule_days: readAnnScheduleDays(f),
         splash_seconds: Number(fd.get("splash_seconds")) || 15,
         active: f.querySelector("[name=active]").checked,
       };

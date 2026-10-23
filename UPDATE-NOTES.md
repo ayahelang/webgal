@@ -1,12 +1,13 @@
-# Avatar sebaris + Uji pengumuman di frontend
+# Pengumuman: hari tampil + duplikat + uji frontend
 
-## Chat
-Avatar di kiri sebaris: Avatar | Nama | Ruang | Cari
+## Uji di frontend
+Langsung tampil, abaikan jadwal. Konten & suara sesuai form.
 
-## Pengumuman admin
-Tombol baru **Uji di frontend**:
-- menyimpan draft ke sessionStorage
-- membuka index.html di tab baru
-- splash + perilaku float seperti pengunjung
+## Hari tampil
+Centang Sen-Min. Kosong = setiap hari.
 
-File: chat.html, admin.html, js/admin.js, js/announce.js, css/style.css
+## Duplikat
+Tombol di list.
+
+## SQL (Supabase sekali)
+sql/patch-announcement-schedule-days.sql
