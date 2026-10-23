@@ -1,5 +1,3 @@
-# Player pengumuman = desain chat
+# Player suara pengumuman = identik chat
 
-- Slider track tipis 4px (bukan batang tebal)
-- Tombol 32px, layout flex seperti chat
-- Berlaku editor, splash, frontend
+Sekali desain: tombol 34px, seek 3px, layout flex seperti screenshot chat.
