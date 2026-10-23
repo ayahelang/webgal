@@ -20,3 +20,11 @@ Data utama berasal dari file Excel kelas 51 & 52, lalu diperkaya dengan URL kary
 - Added **Garden Up F** by Fitriani Ramadhani.
 - Project hover/focus tooltip shows the local description immediately and can enrich it with website metadata when available.
 - Updated both `data/websites.json` and `data/fallback.js`.
+
+
+## Versi terbaru (2026-10-23)
+- SEO: `robots.txt`, `sitemap.xml`, `site.webmanifest`, canonical + JSON-LD
+- Tema **Terang** (putih/biru) — tombol tema mengambang kiri bawah
+- Dokumentasi: `docs/VERSION-HISTORY.md`, `docs/STRUCTURE.md`
+
+Live: https://webgal.silverhawk.web.id

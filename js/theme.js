@@ -1,7 +1,7 @@
 (function () {
   var KEY = "sh_theme";
-  var ORDER = ["youth", "adult", "senior"];
-  var LABEL = { youth: "Tema Muda", adult: "Tema Dewasa", senior: "Tema Lansia" };
+  var ORDER = ["youth", "light", "adult", "senior"];
+  var LABEL = { youth: "Tema Muda", light: "Tema Terang", adult: "Tema Dewasa", senior: "Tema Lansia" };
 
   function current() {
     var t = localStorage.getItem(KEY) || "youth";
@@ -12,7 +12,7 @@
     localStorage.setItem(KEY, t);
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-      var colors = { youth: "#081018", adult: "#161d26", senior: "#242018" };
+      var colors = { youth: "#081018", light: "#e8f4fc", adult: "#161d26", senior: "#242018" };
       meta.setAttribute("content", colors[t] || "#081018");
     }
     var btn = document.getElementById("themeToggle");

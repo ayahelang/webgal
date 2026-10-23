@@ -1841,6 +1841,138 @@ html{
 [data-theme="senior"] .topnav a{padding:8px 10px}
 [data-theme="senior"] .btn, [data-theme="senior"] button{font-size:15px}
 
+/* Tema Terang — putih + biru */
+[data-theme="light"]{
+  --bg:#f4f8fc;
+  --bg2:#e8f2fa;
+  --panel:rgba(255,255,255,.92);
+  --line:rgba(30,90,140,.14);
+  --text:#0c2433;
+  --muted:#4a6a7c;
+  --accent:#1a8fd1;
+  --accent2:#0d6e9f;
+  --cyan:#1a8fd1;
+  --cyan2:#0d7ab8;
+  --silver:#2a4a5c;
+  --scroll-track:#dceaf4;
+  --scroll-thumb:#7eb6d6;
+  --scroll-thumb-hover:#1a8fd1;
+  --theme-label:"Terang";
+  --shadow:0 16px 48px rgba(20,60,90,.12);
+}
+[data-theme="light"] body{
+  background:
+    radial-gradient(circle at 12% 10%, rgba(90,180,230,.18), transparent 42%),
+    radial-gradient(circle at 88% 0%, rgba(40,130,200,.12), transparent 40%),
+    linear-gradient(180deg, #f7fbfe 0%, #eef5fb 45%, #e6f0f8 100%) !important;
+  color:var(--text);
+}
+[data-theme="light"] .bg-grid{opacity:.35;filter:none}
+[data-theme="light"] .orb{opacity:.25}
+[data-theme="light"] .topbar{
+  background:rgba(255,255,255,.88) !important;
+  border-bottom:1px solid rgba(30,90,140,.12);
+  backdrop-filter:blur(12px);
+}
+[data-theme="light"] .topnav a{color:#1a3a4c}
+[data-theme="light"] .topnav a:hover,
+[data-theme="light"] .topnav a.active{color:#0a6aa8;background:rgba(26,143,209,.1)}
+[data-theme="light"] .brand b,
+[data-theme="light"] .brand small{color:#0c2433}
+[data-theme="light"] .brand-mark{
+  background:linear-gradient(135deg,#1a8fd1,#5ec8ff);
+  color:#fff;
+}
+[data-theme="light"] .summary-card,
+[data-theme="light"] .panel,
+[data-theme="light"] .card,
+[data-theme="light"] .work-card,
+[data-theme="light"] .video-card,
+[data-theme="light"] .skills-card,
+[data-theme="light"] .stat-card{
+  background:rgba(255,255,255,.9) !important;
+  border-color:rgba(30,90,140,.12) !important;
+  color:var(--text);
+  box-shadow:0 8px 28px rgba(20,60,90,.08);
+}
+[data-theme="light"] .muted{color:#5a7a8c !important}
+[data-theme="light"] .field input,
+[data-theme="light"] .field select,
+[data-theme="light"] .field textarea,
+[data-theme="light"] input[type=text],
+[data-theme="light"] input[type=search],
+[data-theme="light"] input[type=url],
+[data-theme="light"] select,
+[data-theme="light"] textarea{
+  background:rgba(255,255,255,.95) !important;
+  color:#0c2433 !important;
+  border-color:rgba(30,90,140,.2) !important;
+}
+[data-theme="light"] .btn-primary{
+  background:linear-gradient(135deg,#1a8fd1,#0d7ab8);
+  color:#fff;
+  border-color:transparent;
+}
+[data-theme="light"] .btn-ghost{
+  background:rgba(26,143,209,.08);
+  color:#0d5f8c;
+  border-color:rgba(26,143,209,.28);
+}
+[data-theme="light"] .theme-toggle{
+  background:rgba(255,255,255,.95) !important;
+  border-color:rgba(26,143,209,.35) !important;
+  color:#0c2433 !important;
+  box-shadow:0 8px 24px rgba(20,60,90,.12);
+}
+[data-theme="light"] .chat-bubble,
+[data-theme="light"] .chat-win,
+[data-theme="light"] .chat-panel{
+  background:rgba(255,255,255,.94) !important;
+  border-color:rgba(30,90,140,.12) !important;
+  color:#0c2433;
+}
+[data-theme="light"] .chat-log{background:rgba(240,247,252,.9)}
+[data-theme="light"] .sh-ap{
+  background:rgba(240,248,255,.95) !important;
+  border-color:rgba(26,143,209,.25) !important;
+}
+[data-theme="light"] .sh-ap-time{color:#1a5a7a !important}
+[data-theme="light"] .sh-ap-seek{background:rgba(26,143,209,.25) !important}
+[data-theme="light"] .sh-ann-splash .sh-ann-card{
+  background:rgba(255,255,255,.97) !important;
+  color:#0c2433;
+  border-color:rgba(26,143,209,.2);
+}
+[data-theme="light"] .footer,
+[data-theme="light"] footer{
+  color:#4a6a7c;
+  border-top-color:rgba(30,90,140,.12);
+}
+[data-theme="light"] .pill{
+  background:rgba(26,143,209,.12);
+  color:#0d5f8c;
+  border-color:rgba(26,143,209,.25);
+}
+[data-theme="light"] .filter{
+  background:rgba(255,255,255,.85);
+  color:#1a3a4c;
+  border-color:rgba(30,90,140,.18);
+}
+[data-theme="light"] .filter.active{
+  background:rgba(26,143,209,.15);
+  color:#0a6aa8;
+  border-color:rgba(26,143,209,.4);
+}
+[data-theme="light"] .admin-tabs a,
+[data-theme="light"] .admin-nav button{
+  color:#1a3a4c;
+}
+@media (max-width:640px){
+  [data-theme="light"] .topbar{padding-left:10px;padding-right:10px}
+  [data-theme="light"] .summary-card{border-radius:16px}
+}
+
+
 /* Theme toggle — floating (hemat ruang header) */
 .theme-toggle{
   position:fixed !important;

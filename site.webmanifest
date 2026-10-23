@@ -1,0 +1,19 @@
+{
+  "name": "Silverhawk Student Web Gallery",
+  "short_name": "WebGal",
+  "description": "Galeri Web Kreasi Santriwati SMA PMA — website, video, desain, skills.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f8fc",
+  "theme_color": "#1a8fd1",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
