@@ -599,7 +599,7 @@
 
   function canEditMessage(m) {
     if (!canShowActions(m)) return false;
-    if (isVoiceMessage(m)) return false; // suara: hanya hapus
+    // Pesan suara murni pun boleh diedit: tambah teks/gambar (suara tetap)
     if (editCountOf(m) >= 3) return false;
     return true;
   }
@@ -1327,7 +1327,7 @@
       '<textarea class="chat-inline-ta" maxlength="' + CHAT_BODY_MAX + '" rows="1"></textarea>' +
       '<div class="chat-inline-tools">' +
       '<label class="chat-inline-tool chat-inline-tool-btn" title="Gambar / screenshot"><input type="file" accept="image/*" class="chat-inline-file" hidden>🖼 Gambar</label>' +
-      '<button type="button" class="chat-inline-tool chat-inline-tool-btn chat-inline-voice" title="Ganti dengan pesan suara">🎤 Suara</button>' +
+      '<button type="button" class="chat-inline-tool chat-inline-tool-btn chat-inline-voice" title="Tambah/ganti pesan suara">🎤 Suara</button>' +
       '<span class="muted chat-inline-hint">Sisa edit: ' + left + "× · tempel (Ctrl+V)</span>" +
       "</div>" +
       '<div class="chat-voice-bar chat-inline-voice-bar sh-voice-rec-bar" hidden>' +
@@ -1338,7 +1338,7 @@
       '<button type="button" class="chat-act chat-inline-voice-cancel">Batal rekam</button>' +
       "</div>" +
       '<div class="chat-inline-actions">' +
-      '<button type="button" class="btn btn-primary chat-inline-save">Simpan teks</button>' +
+      '<button type="button" class="btn btn-primary chat-inline-save">Simpan</button>' +
       '<button type="button" class="chat-act chat-inline-cancel">Batal</button>' +
       "</div>";
     const ta = wrap.querySelector(".chat-inline-ta");
@@ -2003,10 +2003,6 @@
         return;
       }
       if (btn.dataset.act === "edit") {
-        if (isVoiceMessage(msg)) {
-          status.textContent = "Pesan suara tidak bisa diubah";
-          return;
-        }
         handleEdit(msg, bubble);
       } else if (btn.dataset.act === "del") handleDelete(msg);
       else if (btn.dataset.act === "reply") openInlineReply(msg, bubble);
