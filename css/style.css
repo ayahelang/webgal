@@ -2684,7 +2684,12 @@ html.sh-loupe-on * {
   gap:6px;
   align-items:center;
   max-width:100%;
-  padding:6px 0 2px;
+  padding:8px;
+  border-radius:12px;
+  /* transparan ~7% saja → opacity latar ~93% */
+  background:rgba(8,18,28,.93);
+  border:1px solid rgba(125,227,255,.28);
+  box-shadow:0 8px 22px rgba(0,0,0,.4);
 }
 .chat-avatar-picker[hidden],
 .chat-avatar-picker.is-collapsed{display:none!important}
@@ -3608,6 +3613,9 @@ body.chat-embed .chat-fields{
 .chat-f-avatar .chat-avatar-picker{
   position:absolute;left:0;top:calc(100% + 4px);z-index:30;
   min-width:200px;max-width:min(280px,70vw);
+  background:rgba(8,18,28,.93);
+  border:1px solid rgba(125,227,255,.28);
+  box-shadow:0 8px 22px rgba(0,0,0,.45);
 }
 .chat-fields-row .field{margin:0;min-width:0}
 .chat-fields-row .field > span{
