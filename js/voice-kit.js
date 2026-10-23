@@ -203,6 +203,7 @@
    * Player HTML — pola klasik (play/pause, range ber-skala detik, stop, unduh)
    */
 
+
   function fmtTime(sec) {
     if (!isFinite(sec) || sec < 0) sec = 0;
     sec = Math.floor(sec);
@@ -211,12 +212,9 @@
     return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
   }
 
-  /**
-   * UI player bersih — class unik sh-ap-* (hindari bentrok CSS lama)
-   */
   function playerHtml(opts) {
     opts = opts || {};
-    var url = String(opts.url || "").replace(/"/g, "&quot;");
+    var url = String(opts.url || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
     var dur = opts.duration != null && isFinite(Number(opts.duration)) ? Number(opts.duration) : 0;
     var ttl = opts.ttlLabel ? String(opts.ttlLabel) : "";
     var showDl = opts.downloadable !== false;
@@ -228,9 +226,7 @@
       '<div class="sh-ap-time"><span class="sh-ap-cur">00:00</span><span class="sh-ap-sep"> / </span><span class="sh-ap-dur">' +
       (dur ? fmtTime(dur) : "00:00") +
       "</span></div>" +
-      '<input class="sh-ap-seek" type="range" min="0" max="' +
-      (dur > 0 ? dur : 1) +
-      '" value="0" step="0.01" />' +
+      '<input class="sh-ap-seek" type="range" min="0" max="' + (dur > 0 ? dur : 1) + '" value="0" step="0.01" />' +
       "</div>" +
       (showDl ? '<button type="button" class="sh-ap-dl" aria-label="Unduh">⬇</button>' : "") +
       '<audio class="sh-ap-audio" preload="auto" playsinline src="' + url + '"></audio>' +
@@ -240,31 +236,62 @@
   }
 
   function wirePlayers(root) {
-    if (!root) return;
+    root = root || document;
     var list = root.querySelectorAll(".sh-ap, .sh-audio, .sh-voice-player, .chat-voice-player, .ann-voice-block");
     for (var i = 0; i < list.length; i++) {
-      wireOne(list[i]);
+      wireOne(list[i], true);
     }
+    ensureDelegate();
   }
 
-  function wireOne(el) {
-    if (!el || el._shApWired) return;
+  var _delegated = false;
+  function ensureDelegate() {
+    if (_delegated) return;
+    _delegated = true;
+    document.addEventListener(
+      "click",
+      function (e) {
+        var t = e.target;
+        if (!t || !t.closest) return;
+        var playBtn = t.closest(".sh-ap-play");
+        var stopBtn = t.closest(".sh-ap-stop");
+        var dlBtn = t.closest(".sh-ap-dl");
+        if (!playBtn && !stopBtn && !dlBtn) return;
+        var box = (playBtn || stopBtn || dlBtn).closest(".sh-ap, .sh-voice-player, .chat-voice-player, .ann-voice-block");
+        if (!box) return;
+        if (!box._shApCtl) wireOne(box, true);
+        var ctl = box._shApCtl;
+        if (!ctl) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (playBtn) ctl.toggle();
+        else if (stopBtn) ctl.stop();
+        else if (dlBtn) ctl.download();
+      },
+      true
+    );
+  }
 
-    // Jika bukan .sh-ap, rebuild ke struktur bersih
+  function wireOne(el, force) {
+    if (!el) return;
+    if (el._shApCtl && !force) return;
+
     var src =
       el.getAttribute("data-src") ||
       el.getAttribute("data-voice-url") ||
       "";
     var audio0 = el.querySelector("audio");
     if (!src && audio0) src = audio0.getAttribute("src") || audio0.src || "";
+    src = String(src || "").trim();
     var dur0 = parseFloat(el.getAttribute("data-dur") || el.getAttribute("data-duration") || "");
     if (!isFinite(dur0) || dur0 <= 0) dur0 = 0;
-    var ttlEl = el.querySelector(".sh-ap-meta, .sh-audio-ttl, .sh-voice-ttl, .chat-voice-ttl");
-    var ttl = ttlEl ? ttlEl.textContent : "";
 
-    if (!el.classList.contains("sh-ap") || !el.querySelector(".sh-ap-seek")) {
+    // Pastikan struktur sh-ap
+    if (!el.classList.contains("sh-ap") || !el.querySelector(".sh-ap-seek") || !el.querySelector(".sh-ap-play")) {
+      var ttlEl = el.querySelector(".sh-ap-meta, .sh-voice-ttl, .chat-voice-ttl");
+      var ttl = ttlEl ? ttlEl.textContent : "";
       el.className = "sh-ap";
-      el.setAttribute("data-src", src);
+      if (src) el.setAttribute("data-src", src);
       if (dur0) el.setAttribute("data-dur", String(dur0));
       el.innerHTML =
         '<button type="button" class="sh-ap-play" aria-label="Putar">▶</button>' +
@@ -273,81 +300,70 @@
         '<div class="sh-ap-time"><span class="sh-ap-cur">00:00</span><span class="sh-ap-sep"> / </span><span class="sh-ap-dur">' +
         (dur0 ? fmtTime(dur0) : "00:00") +
         "</span></div>" +
-        '<input class="sh-ap-seek" type="range" min="0" max="' +
-        (dur0 > 0 ? dur0 : 1) +
-        '" value="0" step="0.01" />' +
+        '<input class="sh-ap-seek" type="range" min="0" max="' + (dur0 > 0 ? dur0 : 1) + '" value="0" step="0.01" />' +
         "</div>" +
         '<button type="button" class="sh-ap-dl" aria-label="Unduh">⬇</button>' +
         '<audio class="sh-ap-audio" preload="auto" playsinline src="' +
         String(src).replace(/"/g, "&quot;") +
         '"></audio>' +
         (ttl ? '<div class="sh-ap-meta"></div>' : "");
-      if (ttl) el.querySelector(".sh-ap-meta").textContent = ttl;
+      if (ttl) {
+        var m = el.querySelector(".sh-ap-meta");
+        if (m) m.textContent = ttl;
+      }
     }
 
-    el._shApWired = true;
-
-    var audio = el.querySelector("audio.sh-ap-audio, audio");
+    var audio = el.querySelector("audio");
     var btnPlay = el.querySelector(".sh-ap-play");
     var btnStop = el.querySelector(".sh-ap-stop");
     var btnDl = el.querySelector(".sh-ap-dl");
     var seek = el.querySelector(".sh-ap-seek");
     var curEl = el.querySelector(".sh-ap-cur");
     var durEl = el.querySelector(".sh-ap-dur");
-    if (!audio || !seek || !btnPlay) return;
+    if (!audio || !btnPlay) return;
+
+    if (src && (!audio.getAttribute("src") || audio.getAttribute("src") !== src)) {
+      try {
+        audio.setAttribute("src", src);
+        audio.src = src;
+      } catch (e) {}
+    }
+    audio.preload = "auto";
+    audio.setAttribute("playsinline", "");
+    // jangan display:none ketat — beberapa browser susah play
+    audio.style.cssText = "position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;";
 
     var known = dur0;
-    var hold = false; // user sedang drag
+    var hold = false;
+    var iv = null;
 
-    function dur() {
+    function duration() {
       var d = audio.duration;
       if (isFinite(d) && d > 0 && d !== Infinity) return d;
       return known > 0 ? known : 0;
     }
 
-    function ui() {
-      var d = dur();
+    function paint() {
+      var d = duration();
       var t = 0;
       try {
         t = audio.currentTime || 0;
       } catch (e) {}
       if (!isFinite(t)) t = 0;
-      if (d > 0) {
+      if (seek && d > 0 && !hold) {
         seek.min = 0;
         seek.max = d;
-        if (!hold) seek.value = t;
+        seek.value = String(t);
       }
       if (curEl) curEl.textContent = fmtTime(t);
       if (durEl) durEl.textContent = d > 0 ? fmtTime(d) : "00:00";
-      btnPlay.textContent = audio.paused ? "▶" : "❚❚";
+      if (btnPlay) btnPlay.textContent = audio.paused ? "▶" : "❚❚";
     }
 
-    audio.addEventListener("loadedmetadata", function () {
-      var d = audio.duration;
-      if (isFinite(d) && d > 0 && d !== Infinity) {
-        known = d;
-        el.setAttribute("data-dur", String(d));
-        seek.max = d;
-      }
-      ui();
-    });
-    audio.addEventListener("timeupdate", ui);
-    audio.addEventListener("durationchange", ui);
-    audio.addEventListener("play", ui);
-    audio.addEventListener("pause", ui);
-    audio.addEventListener("ended", function () {
-      try {
-        audio.currentTime = 0;
-      } catch (e) {}
-      ui();
-    });
-
-    // interval cadangan saat play
-    var iv = null;
     function tickOn() {
       tickOff();
       iv = setInterval(function () {
-        if (!audio.paused) ui();
+        if (!audio.paused) paint();
         else tickOff();
       }, 100);
     }
@@ -357,135 +373,157 @@
         iv = null;
       }
     }
-    audio.addEventListener("play", tickOn);
-    audio.addEventListener("pause", tickOff);
-    audio.addEventListener("ended", tickOff);
 
-    // Pastikan src terpasang
-    if (src && !audio.getAttribute("src") && !audio.src) {
-      audio.src = src;
-    }
-    if (src && audio.src && audio.src.indexOf(String(src).slice(0, 32)) < 0 && String(src).indexOf("http") === 0) {
-      try { audio.src = src; } catch (e) {}
+    // remove old listeners by cloning buttons if re-wiring
+    if (force && el._shApCtl) {
+      // keep same elements; handlers via ctl object
     }
 
-    btnPlay.addEventListener("click", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!audio.getAttribute("src") && !audio.src && src) {
+    audio.addEventListener("loadedmetadata", function () {
+      var d = audio.duration;
+      if (isFinite(d) && d > 0 && d !== Infinity) {
+        known = d;
+        el.setAttribute("data-dur", String(d));
+        if (seek) seek.max = d;
+      }
+      paint();
+    });
+    audio.addEventListener("timeupdate", paint);
+    audio.addEventListener("play", function () {
+      paint();
+      tickOn();
+    });
+    audio.addEventListener("pause", function () {
+      paint();
+      tickOff();
+    });
+    audio.addEventListener("ended", function () {
+      try {
+        audio.currentTime = 0;
+      } catch (e) {}
+      paint();
+      tickOff();
+    });
+
+    if (seek && !seek._shApBound) {
+      seek._shApBound = true;
+      seek.addEventListener("input", function () {
+        hold = true;
+        var t = parseFloat(seek.value);
+        if (!isFinite(t)) return;
+        try {
+          audio.currentTime = t;
+        } catch (e) {}
+        if (curEl) curEl.textContent = fmtTime(t);
+      });
+      seek.addEventListener("change", function () {
+        hold = false;
+        var t = parseFloat(seek.value);
+        if (isFinite(t)) {
+          try {
+            audio.currentTime = t;
+          } catch (e) {}
+        }
+        paint();
+      });
+    }
+
+    function doPlay() {
+      if (!audio.getAttribute("src") && src) {
         audio.src = src;
       }
-      if (audio.paused) {
-        document.querySelectorAll(".sh-ap audio").forEach(function (a) {
-          if (a !== audio) {
-            try { a.pause(); } catch (err) {}
-          }
+      document.querySelectorAll(".sh-ap audio").forEach(function (a) {
+        if (a !== audio) {
+          try {
+            a.pause();
+          } catch (e) {}
+        }
+      });
+      var p = audio.play();
+      if (p && p.then) {
+        p.then(function () {
+          paint();
+          tickOn();
+        }).catch(function (err) {
+          console.warn("[SHVoice] play gagal:", err && err.message ? err.message : err);
+          if (btnPlay) btnPlay.title = "Gagal: " + (err && err.message ? err.message : "error");
+          paint();
         });
-        var startPlay = function () {
-          var p = audio.play();
-          if (p && p.then) {
-            p.then(function () { ui(); }).catch(function (err) {
-              console.warn("[SHVoice] play gagal:", err && err.message ? err.message : err);
-              btnPlay.title = "Gagal putar: " + (err && err.message ? err.message : "error");
-              ui();
-            });
-          } else {
-            ui();
-          }
-        };
-        try {
-          if (audio.readyState < 2) {
+      } else {
+        paint();
+        tickOn();
+      }
+    }
+
+    function toggle() {
+      if (audio.paused) {
+        if (audio.readyState < 2) {
+          try {
             audio.load();
-            audio.addEventListener("canplay", function once() {
-              audio.removeEventListener("canplay", once);
-              startPlay();
-            });
-            // fallback timeout
-            setTimeout(function () {
-              if (audio.paused) startPlay();
-            }, 400);
-          } else {
-            startPlay();
-          }
-        } catch (err) {
-          console.warn("[SHVoice] load/play:", err);
-          startPlay();
+          } catch (e) {}
+          var done = false;
+          var onReady = function () {
+            if (done) return;
+            done = true;
+            audio.removeEventListener("canplay", onReady);
+            doPlay();
+          };
+          audio.addEventListener("canplay", onReady);
+          setTimeout(function () {
+            if (!done) {
+              done = true;
+              doPlay();
+            }
+          }, 500);
+        } else {
+          doPlay();
         }
       } else {
         audio.pause();
-        ui();
+        paint();
       }
-    });
-
-    btnStop.addEventListener("click", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      audio.pause();
-      try {
-        audio.currentTime = 0;
-      } catch (err) {}
-      ui();
-    });
-
-    seek.addEventListener("input", function () {
-      hold = true;
-      var t = parseFloat(seek.value);
-      if (!isFinite(t)) return;
-      try {
-        audio.currentTime = t;
-      } catch (err) {}
-      if (curEl) curEl.textContent = fmtTime(t);
-    });
-    seek.addEventListener("change", function () {
-      hold = false;
-      var t = parseFloat(seek.value);
-      if (isFinite(t)) {
-        try {
-          audio.currentTime = t;
-        } catch (err) {}
-      }
-      ui();
-    });
-    // lepaskan hold jika pointer selesai di luar
-    seek.addEventListener("pointerup", function () {
-      hold = false;
-    });
-    seek.addEventListener("touchend", function () {
-      hold = false;
-    });
-
-    if (btnDl) {
-      btnDl.addEventListener("click", function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var u = src || audio.src;
-        if (!u) return;
-        fetch(u, { mode: "cors" })
-          .then(function (r) {
-            return r.blob();
-          })
-          .then(function (blob) {
-            var a = document.createElement("a");
-            var obj = URL.createObjectURL(blob);
-            a.href = obj;
-            a.download = "pesan-suara.webm";
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(function () {
-              URL.revokeObjectURL(obj);
-            }, 1000);
-          })
-          .catch(function () {
-            window.open(u, "_blank", "noopener");
-          });
-      });
     }
+
+    function stop() {
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+      } catch (e) {}
+      paint();
+      tickOff();
+    }
+
+    function download() {
+      var u = src || audio.src;
+      if (!u) return;
+      fetch(u, { mode: "cors" })
+        .then(function (r) {
+          return r.blob();
+        })
+        .then(function (blob) {
+          var a = document.createElement("a");
+          var obj = URL.createObjectURL(blob);
+          a.href = obj;
+          a.download = "pesan-suara.webm";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(function () {
+            URL.revokeObjectURL(obj);
+          }, 1000);
+        })
+        .catch(function () {
+          window.open(u, "_blank", "noopener");
+        });
+    }
+
+    el._shApCtl = { toggle: toggle, stop: stop, download: download, paint: paint, audio: audio };
+    el._shApWired = true;
 
     try {
       audio.load();
     } catch (e) {}
-    ui();
+    paint();
   }
 
   function recorderBarHtml() {

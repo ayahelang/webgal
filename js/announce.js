@@ -206,9 +206,9 @@
       document.body.appendChild(overlay);
       normalizeAnnVoiceUi(bodyEl);
       wireAnnVoicePlayers(bodyEl);
-      setTimeout(function () {
-        wireAnnVoicePlayers(bodyEl);
-      }, 120);
+      setTimeout(function () { wireAnnVoicePlayers(bodyEl); }, 50);
+      setTimeout(function () { wireAnnVoicePlayers(bodyEl); }, 250);
+      setTimeout(function () { wireAnnVoicePlayers(bodyEl); }, 600);
       timerEl.textContent = "Menutup otomatis: " + sec + "s";
       const iv = setInterval(() => {
         sec -= 1;

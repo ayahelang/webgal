@@ -629,8 +629,13 @@
         `</div>`;
     }
     slot.hidden = false;
-    if (window.SHVoice && SHVoice.wirePlayers) SHVoice.wirePlayers(body);
-    else if (typeof wireAnnAdminVoice === "function") wireAnnAdminVoice(body);
+    function wireSlot() {
+      if (window.SHVoice && SHVoice.wirePlayers) SHVoice.wirePlayers(body);
+      else if (typeof wireAnnAdminVoice === "function") wireAnnAdminVoice(body);
+    }
+    wireSlot();
+    setTimeout(wireSlot, 50);
+    setTimeout(wireSlot, 300);
   }
   function buildAnnBodyHtml() {
     const ed = $("#annEditor");

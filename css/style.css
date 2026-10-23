@@ -3547,7 +3547,10 @@ body.chat-embed .chat-fields{
   width:14px;height:14px;border-radius:50%;
   background:#7de3ff;border:2px solid #0b1520;cursor:pointer;
 }
-.sh-ap-audio,.sh-ap audio{display:none !important;width:0!important;height:0!important}
+.sh-ap-audio,.sh-ap audio{
+  position:absolute!important;width:1px!important;height:1px!important;
+  opacity:0!important;pointer-events:none!important;left:-9999px!important;
+}
 .chat-voice-msg{max-width:280px}
 .sh-ann-body .sh-ap{margin-top:8px}
 
@@ -3568,16 +3571,33 @@ body.chat-embed .chat-fields{
 .sh-ann-body audio,
 .ann-voice-slot-render audio,
 .sh-ap audio{
-  display:none !important;
-  width:0 !important;
-  height:0 !important;
+  position:absolute !important;
+  width:1px !important;
+  height:1px !important;
   opacity:0 !important;
   pointer-events:none !important;
-  position:absolute !important;
+  left:-9999px !important;
 }
 .sh-ann-splash audio[controls],
 .sh-ann-body audio[controls]{
-  display:none !important;
+  /* native controls tetap disembunyikan */
+  position:absolute !important;
+  opacity:0 !important;
+  pointer-events:none !important;
+}
+.ann-voice-slot-body .sh-ap,
+.ann-voice-slot-render .sh-ap,
+.sh-ann-body .sh-ap{
+  position:relative;
+  z-index:5;
+  pointer-events:auto;
+}
+.ann-voice-slot-body .sh-ap-play,
+.ann-voice-slot-render .sh-ap-play,
+.sh-ann-body .sh-ap-play{
+  pointer-events:auto;
+  cursor:pointer;
+  z-index:6;
 }
 
 /* Hint saat avatar diklik — sorot tombol aksi */
