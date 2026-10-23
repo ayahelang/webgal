@@ -1953,16 +1953,38 @@
 
   if (log) {
     log.addEventListener("click", (ev) => {
-      // Klik avatar → tampil/sembunyi tombol Balas/Ubah/Hapus
+      // Klik avatar → tampil tombol Balas/Ubah/Hapus + gulir ke area aksi
       const av = ev.target.closest(".chat-av");
       if (av && log.contains(av)) {
         const bubble = av.closest(".chat-bubble");
         if (bubble) {
           const open = bubble.classList.contains("show-actions");
           log.querySelectorAll(".chat-bubble.show-actions").forEach(function (b) {
-            if (b !== bubble) b.classList.remove("show-actions");
+            if (b !== bubble) {
+              b.classList.remove("show-actions");
+              b.classList.remove("actions-hint");
+            }
           });
-          bubble.classList.toggle("show-actions", !open);
+          if (open) {
+            bubble.classList.remove("show-actions");
+            bubble.classList.remove("actions-hint");
+          } else {
+            bubble.classList.add("show-actions");
+            bubble.classList.add("actions-hint");
+            const actions = bubble.querySelector(".chat-actions");
+            const replyBtn = bubble.querySelector('.chat-act-reply, [data-act="reply"]');
+            const target = replyBtn || actions;
+            if (target) {
+              try {
+                target.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+              } catch (e) {
+                try { target.scrollIntoView(true); } catch (e2) {}
+              }
+            }
+            setTimeout(function () {
+              bubble.classList.remove("actions-hint");
+            }, 2200);
+          }
         }
         return;
       }

@@ -3574,3 +3574,16 @@ body.chat-embed .chat-fields{
 .sh-ann-body audio[controls]{
   display:none !important;
 }
+
+/* Hint saat avatar diklik — sorot tombol aksi */
+.chat-bubble.actions-hint .chat-actions{
+  animation: chatActionsPulse 1.1s ease 2;
+}
+.chat-bubble.actions-hint .chat-act-reply{
+  box-shadow: 0 0 0 2px rgba(125,227,255,.55);
+  background: rgba(125,227,255,.22);
+}
+@keyframes chatActionsPulse{
+  0%,100%{ opacity:1; transform:translateY(0); }
+  50%{ opacity:1; transform:translateY(-1px); }
+}

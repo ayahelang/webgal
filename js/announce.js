@@ -174,12 +174,6 @@
       overlay.querySelector("h2").textContent = ann.title || "Pengumuman";
       overlay.querySelector(".sh-ann-body").innerHTML = ann.body_html || "";
       const bodyEl = overlay.querySelector(".sh-ann-body");
-      normalizeAnnVoiceUi(bodyEl);
-      wireAnnVoicePlayers(bodyEl);
-      // satu kali lagi setelah layout — tanpa rebuild total (hanya wire)
-      setTimeout(function () {
-        wireAnnVoicePlayers(bodyEl);
-      }, 100);
       const timerEl = overlay.querySelector(".sh-ann-timer");
       const close = () => {
         clearInterval(iv);
@@ -193,7 +187,13 @@
       overlay.addEventListener("click", (e) => {
         if (e.target === overlay) close();
       });
+      // Pasang ke DOM dulu, baru bangun player (agar audio + event stabil)
       document.body.appendChild(overlay);
+      normalizeAnnVoiceUi(bodyEl);
+      wireAnnVoicePlayers(bodyEl);
+      setTimeout(function () {
+        wireAnnVoicePlayers(bodyEl);
+      }, 120);
       timerEl.textContent = "Menutup otomatis: " + sec + "s";
       const iv = setInterval(() => {
         sec -= 1;
