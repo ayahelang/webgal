@@ -1,8 +1,5 @@
-# Chat search nav + fields row
+# Video card: hapus baris meta redundan
 
-- Nama | Ruang | Cari dalam satu baris
-- Popup floating di atas kotak cari: N / total · ▲ · ▼ · ✕
-- Enter / F3 = berikutnya, Shift+Enter = sebelumnya
-- Hasil aktif disorot di log
+Baris "Nama · Angkatan · Kls" di bawah judul dihapus (info sudah ada di judul/deskripsi).
 
-File: chat.html, js/chat.js, css/style.css
+Hanya js/videos.js

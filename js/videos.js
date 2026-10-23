@@ -145,9 +145,7 @@
 
   function card(v) {
     const catName = (v.gallery_video_categories && v.gallery_video_categories.name) || "Video";
-    const meta = [v.owner_name, v._year ? "Angkatan " + v._year : "", v._class ? "Kls " + v._class : ""]
-      .filter(Boolean)
-      .join(" · ");
+    // meta owner/angkatan/kelas dihilangkan — sudah ada di judul & deskripsi
     const thumb = thumbUrl(v);
     const embed = ensureEmbed(v);
     const mode = playModeOf(v);
@@ -194,8 +192,7 @@
         <div class="video-meta-main">
           <span class="pill">${esc(catName)}</span>
           <h3>${esc(v.title)}</h3>
-          ${meta ? `<p class="muted">${esc(meta)}</p>` : ""}
-          ${v.description ? `<p>${esc(v.description)}</p>` : ""}
+          ${v.description ? `<p class="muted">${esc(v.description)}</p>` : ""}
           ${window.SHSocial ? SHSocial.barHtml("video", v.id, {}) : ""}
         </div>
         ${manageBtns}
