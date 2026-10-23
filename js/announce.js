@@ -204,6 +204,23 @@
   }
 
   async function boot() {
+    // Uji dari admin: tampilkan payload paksa seperti pengunjung
+    try {
+      const raw = sessionStorage.getItem("sh_ann_force_preview");
+      if (raw && pageKind() !== "admin") {
+        sessionStorage.removeItem("sh_ann_force_preview");
+        const force = JSON.parse(raw);
+        if (force && force.body_html != null) {
+          await showSplash(force, { fromFloat: false, testMode: true });
+          // tetap lanjut queue normal? tidak — fokus uji coba saja
+          return;
+        }
+      }
+    } catch (e) {
+      try {
+        sessionStorage.removeItem("sh_ann_force_preview");
+      } catch (e2) {}
+    }
     if (pageKind() === "admin") return;
     if (!window.GalleryDB || !GalleryDB.fetchActiveAnnouncements) return;
     try {

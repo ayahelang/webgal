@@ -910,23 +910,50 @@
         $("#annStatus").textContent = "";
         $("#annStudentTree").classList.add("is-collapsed");
       };
+    function buildAnnPreviewPayload() {
+      const html =
+        typeof buildAnnBodyHtml === "function"
+          ? buildAnnBodyHtml()
+          : ($("#annEditor") && $("#annEditor").innerHTML) || "";
+      return {
+        title: (f.querySelector("[name=title]") && f.querySelector("[name=title]").value) || "Preview",
+        body_html: html,
+        splash_seconds: Number(f.querySelector("[name=splash_seconds]").value) || 15,
+        id: "preview-" + Date.now(),
+        times_per_day: 99,
+        active: true,
+        audience: "public",
+        show_on: "both",
+        _testFrontend: true,
+      };
+    }
     const btnPrev = $("#annPreview");
     if (btnPrev)
       btnPrev.onclick = () => {
         if (window.SHAnnounce) {
-          // buildAnnBodyHtml = teks editor + slot suara (bukan hanya innerHTML editor)
-          const html = typeof buildAnnBodyHtml === "function" ? buildAnnBodyHtml() : ($("#annEditor") && $("#annEditor").innerHTML) || "";
-          SHAnnounce.showSplash({
-            title: f.querySelector("[name=title]").value || "Preview",
-            body_html: html,
-            splash_seconds: Number(f.querySelector("[name=splash_seconds]").value) || 15,
-            id: "preview-" + Date.now(),
-            times_per_day: 99,
-            active: true,
-          });
+          SHAnnounce.showSplash(buildAnnPreviewPayload());
         } else {
           const st = $("#annStatus");
           if (st) st.textContent = "Modul pengumuman belum termuat";
+        }
+      };
+    const btnTestFe = $("#annTestFrontend");
+    if (btnTestFe)
+      btnTestFe.onclick = () => {
+        try {
+          const payload = buildAnnPreviewPayload();
+          payload.id = "test-fe-" + Date.now();
+          sessionStorage.setItem("sh_ann_force_preview", JSON.stringify(payload));
+          // Buka beranda seperti pengunjung — splash + float button setelah tutup
+          const url = "index.html?ann_test=1";
+          window.open(url, "_blank", "noopener");
+          const st = $("#annStatus");
+          if (st)
+            st.textContent =
+              "Uji frontend: tab baru dibuka (beranda). Tutup splash untuk melihat tombol mengambang seperti pengunjung.";
+        } catch (e) {
+          const st = $("#annStatus");
+          if (st) st.textContent = e.message || String(e);
         }
       };
     async function saveAnnouncement(ev) {

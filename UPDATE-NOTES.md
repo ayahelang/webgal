@@ -1,5 +1,12 @@
-# Video card: hapus baris meta redundan
+# Avatar sebaris + Uji pengumuman di frontend
 
-Baris "Nama · Angkatan · Kls" di bawah judul dihapus (info sudah ada di judul/deskripsi).
+## Chat
+Avatar di kiri sebaris: Avatar | Nama | Ruang | Cari
 
-Hanya js/videos.js
+## Pengumuman admin
+Tombol baru **Uji di frontend**:
+- menyimpan draft ke sessionStorage
+- membuka index.html di tab baru
+- splash + perilaku float seperti pengunjung
+
+File: chat.html, admin.html, js/admin.js, js/announce.js, css/style.css

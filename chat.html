@@ -64,10 +64,18 @@
     <div class="summary-card chat-panel" style="display:grid;gap:12px;max-width:100%;overflow-x:hidden;box-sizing:border-box">
       <div class="chat-fields">
         <div class="chat-fields-row">
+          <div class="field chat-avatar-field chat-f-avatar">
+            <span class="chat-f-label">Avatar</span>
+            <button type="button" id="chatAvatarToggle" class="chat-avatar-toggle" aria-expanded="false" title="Pilih avatar emoji">
+              <span id="chatAvatarCurrent" class="chat-avatar-current">💬</span>
+              <span class="chat-avatar-chevron" aria-hidden="true">▸</span>
+            </button>
+            <div id="chatAvatarPicker" class="chat-avatar-picker is-collapsed" role="group" aria-label="Pilih avatar emoji" hidden></div>
+          </div>
           <label class="field chat-f-name"><span>Nama tampilan</span>
             <input id="chatName" type="text" maxlength="40" placeholder="Kosong = akun login / Anonim">
           </label>
-          <label class="field chat-f-room"><span>Ruang chat</span>
+          <label class="field chat-f-room"><span>Ruang</span>
             <select id="chatRoom"></select>
           </label>
           <div class="field chat-f-search">
@@ -82,14 +90,6 @@
               <input id="chatSearch" type="search" placeholder="Cari teks atau nama…" autocomplete="off">
             </div>
           </div>
-        </div>
-        <div class="field chat-avatar-field">
-          <button type="button" id="chatAvatarToggle" class="chat-avatar-toggle" aria-expanded="false" title="Pilih avatar emoji">
-            <span class="chat-avatar-toggle-label">Avatar</span>
-            <span id="chatAvatarCurrent" class="chat-avatar-current">💬</span>
-            <span class="chat-avatar-chevron" aria-hidden="true">▸</span>
-          </button>
-          <div id="chatAvatarPicker" class="chat-avatar-picker is-collapsed" role="group" aria-label="Pilih avatar emoji" hidden></div>
         </div>
       </div>
       <div id="chatLog" class="chat-log"></div>
