@@ -3887,8 +3887,7 @@
     if (!type.startsWith("audio/") && type !== "video/webm") {
       throw new Error("File harus audio");
     }
-    // Mix WAV bisa lebih besar; batas 8 MB
-    if (blobOrFile.size > 8 * 1024 * 1024) throw new Error("Pesan suara terlalu besar (maks ~8 MB)");
+    if (blobOrFile.size > 3 * 1024 * 1024) throw new Error("Pesan suara terlalu besar (maks ~3 MB)");
     let folder = "anon";
     try {
       const sess = await getSession();
@@ -3898,8 +3897,6 @@
     if (/ogg/i.test(type)) ext = "ogg";
     else if (/mp4|m4a|aac/i.test(type)) ext = "m4a";
     else if (/mpeg|mp3/i.test(type)) ext = "mp3";
-    else if (/wav/i.test(type)) ext = "wav";
-    else if (/webm/i.test(type)) ext = "webm";
     const path =
       "voice/" +
       folder +
@@ -4360,14 +4357,20 @@
         errors.push((it.title || "") + ": " + (e.message || e));
       }
     }
-  
+    return { ok, total: items.length, errors };
+  }
+
+
+
   /* ===== Chat message emoji reactions (WA-style) ===== */
   async function listChatReactions(messageIds) {
     const sb = client();
     if (!sb || !messageIds || !messageIds.length) return {};
     const ids = messageIds.filter(Boolean).slice(0, 300);
     const map = {};
-    ids.forEach(function (id) { map[id] = []; });
+    ids.forEach(function (id) {
+      map[id] = [];
+    });
     try {
       const { data, error } = await sb
         .from("gallery_chat_reactions")
@@ -4379,16 +4382,11 @@
         map[r.message_id].push(r);
       });
     } catch (e) {
-      console.warn("listChatReactions", e);
+      console.warn("listChatReactions", e && e.message ? e.message : e);
     }
     return map;
   }
 
-  /**
-   * Toggle reaksi: jika user sudah pakai emoji yang sama → hapus;
-   * jika emoji lain → update; jika belum → insert.
-   * Returns { reactions: [...], mine: emoji|null }
-   */
   async function toggleChatReaction(messageId, emoji, authorName) {
     const sb = client();
     if (!sb) throw new Error("Supabase belum siap");
@@ -4402,40 +4400,28 @@
     } catch (e) {}
     const name = String(authorName || getGuestName() || "Anonim").slice(0, 80);
 
-    // Cari reaksi milik saya pada pesan ini
     let mine = null;
     try {
       let q = sb
         .from("gallery_chat_reactions")
         .select("id,emoji,author_name,author_user_id")
-        .eq("message_id", messageId);
+        .eq("message_id", messageId)
+        .limit(5);
       if (uid) q = q.eq("author_user_id", uid);
       else q = q.is("author_user_id", null).eq("author_name", name);
-      const { data, error } = await q.maybeSingle();
-      if (!error && data) mine = data;
-      // maybeSingle may fail if multiple — fallback
-    } catch (e) {
-      try {
-        let q2 = sb
-          .from("gallery_chat_reactions")
-          .select("id,emoji")
-          .eq("message_id", messageId);
-        if (uid) q2 = q2.eq("author_user_id", uid);
-        else q2 = q2.is("author_user_id", null).eq("author_name", name);
-        const { data: rows } = await q2.limit(1);
-        if (rows && rows[0]) mine = rows[0];
-      } catch (e2) {}
-    }
+      const { data, error } = await q;
+      if (!error && data && data.length) mine = data[0];
+    } catch (e) {}
 
     if (mine && mine.emoji === em) {
-      // toggle off
-      await sb.from("gallery_chat_reactions").delete().eq("id", mine.id);
+      const { error } = await sb.from("gallery_chat_reactions").delete().eq("id", mine.id);
+      if (error) throw error;
     } else if (mine) {
-      // change emoji
-      await sb
+      const { error } = await sb
         .from("gallery_chat_reactions")
         .update({ emoji: em, author_name: name })
         .eq("id", mine.id);
+      if (error) throw error;
     } else {
       const row = {
         message_id: messageId,
@@ -4450,10 +4436,6 @@
     const map = await listChatReactions([messageId]);
     return map[messageId] || [];
   }
-
-  return { ok, total: items.length, errors };
-  }
-
 
   global.GalleryDB = {
     enabled,
