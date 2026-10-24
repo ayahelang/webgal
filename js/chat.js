@@ -3195,6 +3195,30 @@
     nameInput.addEventListener("input", () => {
       saveProfile();
     });
+    // Klik / fokus nama → buka pilihan avatar agar user sadar ada emoji
+    function openAvatarFromName() {
+      buildAvatarPicker();
+      setAvatarExpanded(true);
+      // scroll picker into view if needed
+      try {
+        if (avatarPicker) avatarPicker.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      } catch (e) {}
+    }
+    nameInput.addEventListener("focus", openAvatarFromName);
+    nameInput.addEventListener("click", openAvatarFromName);
+    // Label "Nama tampilan" di field name
+    const nameField = nameInput.closest(".field, .chat-f-name, .chat-fields-row > div");
+    if (nameField) {
+      const lab = nameField.querySelector("span, label, .chat-f-label");
+      if (lab) {
+        lab.style.cursor = "pointer";
+        lab.title = "Klik untuk pilih avatar";
+        lab.addEventListener("click", function () {
+          openAvatarFromName();
+          try { nameInput.focus(); } catch (e) {}
+        });
+      }
+    }
   }
 
   if (chatInput) {

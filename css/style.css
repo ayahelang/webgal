@@ -4533,3 +4533,9 @@ button.chat-author-name:hover{
 }
 .chat-av-btn{font-size:20px;width:40px;height:40px;min-width:40px;min-height:40px;box-sizing:border-box}
 
+/* Nama tampilan: fokus/klik membuka avatar */
+#chatName:focus{
+  border-color:rgba(125,227,255,.45);
+  box-shadow:0 0 0 2px rgba(125,227,255,.12);
+}
+
