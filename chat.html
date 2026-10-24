@@ -126,6 +126,24 @@
         </div>
       </form>
       <p class="muted" style="margin:0;font-size:11px">Gambar &amp; pesan suara dikompres/otomatis dihapus (suara: 3 jam · guru 24 jam · admin permanen). Link video tampil thumbnail.</p>
+      <div class="vc-bar">
+        <button type="button" id="vcOpenBtn" class="btn btn-ghost" title="Video / share screen ruang ini">📹 Video ruang</button>
+      </div>
+      <div id="vcPanel" class="vc-panel" hidden>
+        <div class="vc-head">
+          <strong>Video / Share screen</strong>
+          <span id="vcStatus" class="muted vc-status">Belum terhubung</span>
+          <button type="button" id="vcCloseBtn" class="vc-close" title="Tutup panel">✕</button>
+        </div>
+        <p class="muted vc-hint">Share screen 1 orang (guru) · ditonton peserta di ruang chat yang sama. Cocok kelas kecil–sedang. Butuh izin layar browser.</p>
+        <div id="vcVideos" class="vc-videos"></div>
+        <div class="vc-actions">
+          <button type="button" id="vcJoinBtn" class="btn btn-primary">Gabung sesi</button>
+          <button type="button" id="vcShareBtn" class="btn btn-ghost" disabled>Share screen</button>
+          <button type="button" id="vcStopBtn" class="btn btn-ghost" hidden>Stop share</button>
+          <button type="button" id="vcLeaveBtn" class="btn btn-ghost" hidden>Keluar sesi</button>
+        </div>
+      </div>
       <p id="chatStatus" class="muted" style="margin:0;font-size:12px"></p>
     </div>
     </div>
@@ -139,6 +157,7 @@
 
   <script src="js/chat-float.js"></script>
   <script src="js/voice-kit.js"></script>
+  <script src="js/webrtc-room.js"></script>
   <script src="js/chat.js"></script>
   <script src="js/share.js"></script>
   <script src="js/stats-float.js"></script>

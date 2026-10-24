@@ -1,13 +1,7 @@
-# Ruang Chat custom (admin)
+# Video conference / share screen (nomor 3)
 
-## SQL wajib di Supabase (sekali)
-sql/patch-chat-rooms.sql
+- Tombol Video ruang di chat
+- Gabung sesi + Share screen (WebRTC + Supabase signaling)
+- Tidak mengubah fitur chat lain
 
-## Fitur
-- Admin tab **Ruang Chat**: buat/ubah/hapus ruang
-- Password opsional
-- Batasi angkatan (multi) dan kelas (koma)
-- Di chat: optgroup Ruang khusus + prompt password/akses
-
-## File
-admin.html, js/admin.js, js/db.js, js/chat.js, sql/patch-chat-rooms.sql
+Baca docs/VIDEO-CONFERENCE.md

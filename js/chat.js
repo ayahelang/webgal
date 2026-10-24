@@ -1479,6 +1479,125 @@
     });
   }
 
+  
+
+  function currentVcRoomKey() {
+    try {
+      if (typeof parseRoomValue === "function" && room) {
+        var p = parseRoomValue(room.value);
+        if (p.type === "room") return "room-" + p.id;
+        if (p.type === "angkatan") return "ang-" + p.id;
+      }
+    } catch (e) {}
+    return "global";
+  }
+
+  function renderVcVideos(roster) {
+    var host = $("#vcVideos");
+    if (!host) return;
+    host.innerHTML = "";
+    function tile(stream, label, muted) {
+      var d = document.createElement("div");
+      d.className = "vc-tile";
+      var v = document.createElement("video");
+      v.autoplay = true;
+      v.playsInline = true;
+      v.muted = !!muted;
+      v.srcObject = stream;
+      var lab = document.createElement("span");
+      lab.className = "vc-label";
+      lab.textContent = label;
+      d.appendChild(v);
+      d.appendChild(lab);
+      host.appendChild(d);
+    }
+    if (roster && roster.local) tile(roster.local, "Anda (share)", true);
+    if (roster && roster.remotes) {
+      roster.remotes.forEach(function (r, i) {
+        tile(r.stream, "Peserta " + (i + 1), false);
+      });
+    }
+  }
+
+  function bindVideoConference() {
+    if (!window.SHWebRTC) return;
+    var panel = $("#vcPanel");
+    var openBtn = $("#vcOpenBtn");
+    var closeBtn = $("#vcCloseBtn");
+    var joinBtn = $("#vcJoinBtn");
+    var shareBtn = $("#vcShareBtn");
+    var stopBtn = $("#vcStopBtn");
+    var leaveBtn = $("#vcLeaveBtn");
+    var vcStatus = $("#vcStatus");
+    if (!panel || !openBtn) return;
+
+    function setSt(t) {
+      if (vcStatus) vcStatus.textContent = t || "";
+    }
+    function syncBtns() {
+      var inS = SHWebRTC.isInSession();
+      var sh = SHWebRTC.isSharing();
+      if (joinBtn) joinBtn.hidden = inS;
+      if (leaveBtn) leaveBtn.hidden = !inS;
+      if (shareBtn) {
+        shareBtn.disabled = !inS || sh;
+        shareBtn.hidden = sh;
+      }
+      if (stopBtn) stopBtn.hidden = !sh;
+    }
+
+    openBtn.addEventListener("click", function () {
+      panel.hidden = false;
+      syncBtns();
+    });
+    if (closeBtn)
+      closeBtn.addEventListener("click", function () {
+        panel.hidden = true;
+      });
+    if (joinBtn)
+      joinBtn.addEventListener("click", async function () {
+        var name = resolveAuthorName ? resolveAuthorName() : "Peserta";
+        setSt("Menghubungkan…");
+        var ok = await SHWebRTC.joinSession(currentVcRoomKey(), name, {
+          onStatus: setSt,
+          onRoster: renderVcVideos,
+        });
+        syncBtns();
+        if (!ok) setSt("Gagal gabung sesi");
+      });
+    if (shareBtn)
+      shareBtn.addEventListener("click", async function () {
+        if (!SHWebRTC.isInSession()) return;
+        setSt("Meminta izin layar…");
+        await SHWebRTC.startScreenShare();
+        syncBtns();
+      });
+    if (stopBtn)
+      stopBtn.addEventListener("click", function () {
+        SHWebRTC.stopScreenShare();
+        syncBtns();
+      });
+    if (leaveBtn)
+      leaveBtn.addEventListener("click", function () {
+        SHWebRTC.leaveSession();
+        renderVcVideos({ local: null, remotes: [] });
+        syncBtns();
+      });
+    // ganti ruang → keluar sesi video agar tidak campur
+    if (room) {
+      room.addEventListener("change", function () {
+        if (SHWebRTC.isInSession()) {
+          SHWebRTC.leaveSession();
+          renderVcVideos({ local: null, remotes: [] });
+          setSt("Ruang berubah — gabung sesi lagi bila perlu");
+          syncBtns();
+        }
+      });
+    }
+    syncBtns();
+  }
+
+
   function currentRoomContext() {
     const parsed = parseRoomValue(room && room.value);
     if (parsed.type === "room") return { angkatanId: null, roomId: parsed.id };
@@ -2736,7 +2855,8 @@
   room.addEventListener("change", joinRoom);
 
   resolveSessionContext().then(() => {
-    loadRooms().then(joinRoom);
+    bindVideoConference();
+  loadRooms().then(joinRoom);
   });
 
 
