@@ -4219,8 +4219,8 @@ details[open] > summary::before { content: "▾ "; }
 .amx-backdrop{position:absolute;inset:0;background:rgba(2,8,14,.55)}
 .amx-panel{
   position:relative;z-index:1;
-  width:min(360px,100%);
-  max-height:min(70vh,480px);
+  width:min(400px,100%);
+  max-height:min(78vh,560px);
   overflow:auto;
   padding:10px 12px;
   border-radius:14px;
@@ -4275,3 +4275,45 @@ details[open] > summary::before { content: "▾ "; }
 [data-theme="light"] .amx-track{background:#fff;border-color:rgba(26,143,209,.18)}
 [data-theme="light"] .amx-rec-bar{background:rgba(240,248,255,.9);border-color:rgba(26,143,209,.2)}
 [data-theme="light"] .amx-backdrop{background:rgba(20,40,60,.4)}
+
+/* Audio mixer transport + track progress */
+.amx-transport{
+  display:flex;align-items:center;gap:6px;
+  margin-bottom:6px;padding:4px 0;
+}
+.amx-clock{
+  font-variant-numeric:tabular-nums;font-size:11px;font-weight:700;
+  min-width:34px;color:#9fd9ef;
+}
+.amx-clock-end{text-align:right;color:#8fa7b4;font-weight:600}
+.amx-timeline{
+  position:relative;flex:1;height:14px;border-radius:7px;
+  background:rgba(0,0,0,.35);border:1px solid rgba(125,227,255,.18);
+  cursor:pointer;overflow:hidden;
+}
+.amx-timeline-fill{
+  position:absolute;left:0;top:0;bottom:0;width:0%;
+  background:linear-gradient(90deg,rgba(94,200,255,.35),rgba(94,200,255,.55));
+  pointer-events:none;
+}
+.amx-timeline-head{
+  position:absolute;top:50%;left:0%;
+  width:10px;height:10px;margin:-5px 0 0 -5px;
+  border-radius:50%;background:#7de3ff;
+  box-shadow:0 0 8px rgba(125,227,255,.7);
+  pointer-events:none;
+}
+.amx-track-meta{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.amx-track-bar{
+  height:4px;border-radius:2px;background:rgba(0,0,0,.35);
+  overflow:hidden;margin-top:1px;max-width:160px;
+}
+.amx-track-bar-fill{
+  height:100%;width:0%;
+  background:linear-gradient(90deg,#3db8e8,#7de3ff);
+  transition:width .08s linear;
+}
+.amx-rec-offset{font-size:10px;white-space:nowrap}
+[data-theme="light"] .amx-timeline{background:rgba(26,143,209,.1);border-color:rgba(26,143,209,.22)}
+[data-theme="light"] .amx-clock{color:#1a6f9a}
+[data-theme="light"] .amx-track-bar{background:rgba(26,143,209,.12)}

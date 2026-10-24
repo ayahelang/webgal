@@ -3592,6 +3592,7 @@
         return;
       }
       SHAudioMixer.open({
+        context: "chat",
         onExport: async function (result) {
           if (uploading) return;
           uploading = true;

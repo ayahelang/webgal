@@ -3887,7 +3887,8 @@
     if (!type.startsWith("audio/") && type !== "video/webm") {
       throw new Error("File harus audio");
     }
-    if (blobOrFile.size > 3 * 1024 * 1024) throw new Error("Pesan suara terlalu besar (maks ~3 MB)");
+    // Mix WAV bisa lebih besar; batas 8 MB
+    if (blobOrFile.size > 8 * 1024 * 1024) throw new Error("Pesan suara terlalu besar (maks ~8 MB)");
     let folder = "anon";
     try {
       const sess = await getSession();
@@ -3897,6 +3898,8 @@
     if (/ogg/i.test(type)) ext = "ogg";
     else if (/mp4|m4a|aac/i.test(type)) ext = "m4a";
     else if (/mpeg|mp3/i.test(type)) ext = "mp3";
+    else if (/wav/i.test(type)) ext = "wav";
+    else if (/webm/i.test(type)) ext = "webm";
     const path =
       "voice/" +
       folder +

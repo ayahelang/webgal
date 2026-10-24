@@ -1,5 +1,11 @@
 # Riwayat versi (ringkas)
 
+## v2026.10.24
+- Audio Mixer: master timeline + playhead (durasi = track terpanjang), progress per track
+- Overdub selaras playhead (track baru punya offset); seek klik timeline
+- Tombol **Simpan WAV** (unduh file) + **Kirim ke chat** (onExport)
+- Upload chat audio: dukungan `.wav` + batas 8 MB (mix stereo)
+
 ## v2026.10.09b
 - Absensi siswa: sesi yang **sudah lewat** (tanggal lampau / hari weekday minggu ini sudah lewat) dan siswa **tidak mengisi** → muncul di tab **Terlewat** & **Semua**, dengan pesan “Anda tidak mengisi absen”.
 - Pencocokan nama target sesi lebih robust (normalisasi spasi/case).

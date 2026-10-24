@@ -1,5 +1,8 @@
 /**
- * SHAudioMixer — multi-track (max 8), compact UI + meter + timer saat rekam
+ * SHAudioMixer — multi-track (max 8)
+ * Master timeline (berdasarkan track terpanjang) + playhead,
+ * meter posisi per track, overdub selaras playhead (offset),
+ * Simpan file WAV + Kirim (onExport, konteks chat/pengumuman).
  */
 (function (global) {
   "use strict";
@@ -57,7 +60,18 @@
 
   function open(opts) {
     opts = opts || {};
-    var onExport = opts.onExport || function () {};
+    var onExport = opts.onExport || null;
+    // "chat" | "announce" | "generic" — label tombol kirim
+    var context = opts.context || (onExport ? "chat" : "generic");
+    var sendLabel =
+      context === "announce"
+        ? "Kirim ke pengumuman"
+        : context === "chat"
+          ? "Kirim ke chat"
+          : onExport
+            ? "Kirim hasil mix"
+            : null;
+
     var root = document.getElementById("shAudioMixerRoot");
     if (!root) {
       root = document.createElement("div");
@@ -78,16 +92,26 @@
         '    <button type="button" class="btn btn-ghost amx-sm" data-amx="play">▶</button>' +
         '    <button type="button" class="btn btn-ghost amx-sm" data-amx="stop">■</button>' +
         "  </div>" +
+        '  <div class="amx-transport">' +
+        '    <span class="amx-clock" data-amx="clock">0:00</span>' +
+        '    <div class="amx-timeline" data-amx="timeline" title="Klik untuk seek">' +
+        '      <div class="amx-timeline-fill" data-amx="tfill"></div>' +
+        '      <div class="amx-timeline-head" data-amx="thead"></div>' +
+        "    </div>" +
+        '    <span class="amx-clock amx-clock-end" data-amx="clock-end">0:00</span>' +
+        "  </div>" +
         '  <div class="amx-rec-bar" data-amx="recbar" hidden>' +
         '    <span class="chat-voice-dot amx-dot" aria-hidden="true"></span>' +
         '    <span class="amx-timer" data-amx="timer">00:00</span>' +
         '    <canvas class="amx-meter" data-amx="meter" width="140" height="26" aria-hidden="true"></canvas>' +
+        '    <span class="amx-rec-offset muted" data-amx="recoffset"></span>' +
         "  </div>" +
         '  <div class="amx-status muted" data-amx="status">Rekam / unggah track.</div>' +
         '  <div class="amx-tracks" data-amx="tracks"></div>' +
         '  <footer class="amx-foot">' +
         '    <button type="button" class="btn btn-ghost amx-sm" data-amx="close">Batal</button>' +
-        '    <button type="button" class="btn btn-primary amx-sm" data-amx="export">Mix → kirim WAV</button>' +
+        '    <button type="button" class="btn btn-ghost amx-sm" data-amx="download">⬇ Simpan WAV</button>' +
+        '    <button type="button" class="btn btn-primary amx-sm" data-amx="export" hidden>Kirim</button>' +
         "  </footer>" +
         "</div>";
       document.body.appendChild(root);
@@ -103,15 +127,37 @@
     var listEl = root.querySelector("[data-amx=tracks]");
     var btnRec = root.querySelector('[data-amx="rec"]');
     var btnStopRec = root.querySelector('[data-amx="stop-rec"]');
+    var btnExport = root.querySelector('[data-amx="export"]');
     var recBar = root.querySelector("[data-amx=recbar]");
     var timerEl = root.querySelector("[data-amx=timer]");
+    var recOffsetEl = root.querySelector("[data-amx=recoffset]");
     var canvas = root.querySelector("[data-amx=meter]");
+    var clockEl = root.querySelector("[data-amx=clock]");
+    var clockEndEl = root.querySelector("[data-amx=clock-end]");
+    var timelineEl = root.querySelector("[data-amx=timeline]");
+    var tfillEl = root.querySelector("[data-amx=tfill]");
+    var theadEl = root.querySelector("[data-amx=thead]");
     var meterRaf = 0;
     var meterAnalyser = null;
     var meterSource = null;
-    var meterCtx = null;
     var recTimer = null;
     var recStartedAt = 0;
+    var transportRaf = 0;
+    var playhead = 0;
+    var isPlaying = false;
+    var playStartedAtCtx = 0;
+    var playStartedAtHead = 0;
+    var isRecording = false;
+    var recOffsetSec = 0;
+
+    if (btnExport) {
+      if (sendLabel && onExport) {
+        btnExport.hidden = false;
+        btnExport.textContent = sendLabel;
+      } else {
+        btnExport.hidden = true;
+      }
+    }
 
     function ensureCtx() {
       if (!audioCtx) {
@@ -124,6 +170,16 @@
 
     function setStatus(t) {
       if (statusEl) statusEl.textContent = t;
+    }
+
+    function maxDur() {
+      var m = 0;
+      tracks.forEach(function (t) {
+        if (!t.buffer) return;
+        var end = (t.offset || 0) + t.buffer.duration;
+        if (end > m) m = end;
+      });
+      return m;
     }
 
     function stopMeter() {
@@ -190,7 +246,7 @@
         if (timerEl)
           timerEl.textContent =
             String(m).padStart(2, "0") + ":" + String(r).padStart(2, "0");
-      }, 250);
+      }, 200);
     }
 
     function stopRecTimer() {
@@ -198,29 +254,151 @@
       recTimer = null;
     }
 
-    function stopPlayback() {
+    function currentPlayhead() {
+      if (!isPlaying || !audioCtx) return playhead;
+      var elapsed = audioCtx.currentTime - playStartedAtCtx;
+      return Math.max(0, playStartedAtHead + elapsed);
+    }
+
+    function updateTransportUI() {
+      var total = maxDur();
+      var cur = currentPlayhead();
+      if (total > 0 && cur > total) cur = total;
+      playhead = isPlaying ? cur : playhead;
+      if (clockEl) clockEl.textContent = fmt(playhead);
+      if (clockEndEl) clockEndEl.textContent = fmt(total);
+      var pct = total > 0 ? Math.min(1, playhead / total) : 0;
+      if (tfillEl) tfillEl.style.width = pct * 100 + "%";
+      if (theadEl) theadEl.style.left = pct * 100 + "%";
+
+      var bars = listEl ? listEl.querySelectorAll("[data-amx-prog]") : [];
+      for (var i = 0; i < bars.length; i++) {
+        var el = bars[i];
+        var idx = Number(el.getAttribute("data-amx-prog"));
+        var tr = tracks[idx];
+        if (!tr || !tr.buffer) {
+          el.style.width = "0%";
+          continue;
+        }
+        var off = tr.offset || 0;
+        var local = playhead - off;
+        var p = 0;
+        if (local <= 0) p = 0;
+        else if (local >= tr.buffer.duration) p = 1;
+        else p = local / tr.buffer.duration;
+        el.style.width = p * 100 + "%";
+      }
+    }
+
+    function startTransportLoop() {
+      stopTransportLoop();
+      function tick() {
+        transportRaf = requestAnimationFrame(tick);
+        updateTransportUI();
+        var total = maxDur();
+        if (isPlaying && !isRecording && total > 0 && currentPlayhead() >= total + 0.05) {
+          stopPlayback(true);
+        }
+      }
+      transportRaf = requestAnimationFrame(tick);
+    }
+
+    function stopTransportLoop() {
+      if (transportRaf) cancelAnimationFrame(transportRaf);
+      transportRaf = 0;
+    }
+
+    function stopPlayback(keepHead) {
       playing.forEach(function (n) {
         try {
           n.stop();
         } catch (e) {}
       });
       playing = [];
+      if (isPlaying) {
+        playhead = currentPlayhead();
+        isPlaying = false;
+      }
+      updateTransportUI();
+    }
+
+    function playAll() {
+      if (isRecording) return;
+      stopPlayback(true);
+      if (!tracks.length) {
+        setStatus("Belum ada track.");
+        return;
+      }
+      ensureCtx();
+      var head = playhead;
+      var total = maxDur();
+      if (total <= 0) return;
+      if (head >= total) head = 0;
+      playhead = head;
+      playStartedAtHead = head;
+      playStartedAtCtx = audioCtx.currentTime + 0.03;
+      isPlaying = true;
+
+      tracks.forEach(function (tr) {
+        if (tr.muted || !tr.buffer) return;
+        var off = tr.offset || 0;
+        var bufDur = tr.buffer.duration;
+        if (head >= off + bufDur) return;
+        var when = playStartedAtCtx;
+        var offsetInBuffer = 0;
+        if (head > off) {
+          offsetInBuffer = head - off;
+          when = playStartedAtCtx;
+        } else {
+          when = playStartedAtCtx + (off - head);
+          offsetInBuffer = 0;
+        }
+        var remaining = bufDur - offsetInBuffer;
+        if (remaining <= 0.001) return;
+        var src = audioCtx.createBufferSource();
+        src.buffer = tr.buffer;
+        src.connect(audioCtx.destination);
+        try {
+          src.start(when, offsetInBuffer, remaining);
+        } catch (e) {
+          try {
+            src.start(when, offsetInBuffer);
+          } catch (e2) {}
+        }
+        playing.push(src);
+      });
+      startTransportLoop();
+      setStatus("Play dari " + fmt(head) + " / " + fmt(total));
+    }
+
+    function seekTo(sec) {
+      var total = maxDur();
+      var t = Math.max(0, Math.min(total || 0, sec));
+      var wasPlaying = isPlaying && !isRecording;
+      stopPlayback(true);
+      playhead = t;
+      updateTransportUI();
+      if (wasPlaying) playAll();
     }
 
     function renderTracks() {
       listEl.innerHTML = "";
       if (!tracks.length) {
         listEl.innerHTML = '<p class="muted amx-empty">Belum ada track.</p>';
+        updateTransportUI();
         return;
       }
       tracks.forEach(function (tr, idx) {
         var row = document.createElement("div");
         row.className = "amx-track" + (tr.muted ? " is-muted" : "");
+        var offLabel =
+          tr.offset && tr.offset > 0.05 ? " @" + fmt(tr.offset) : "";
         row.innerHTML =
           '<div class="amx-track-main">' +
           '<span class="amx-track-idx">T' +
           (idx + 1) +
           "</span>" +
+          '<div class="amx-track-meta">' +
           '<span class="amx-track-name" title="' +
           (tr.name || "") +
           '">' +
@@ -228,8 +406,12 @@
           "</span>" +
           '<span class="amx-track-dur">' +
           fmt(tr.buffer ? tr.buffer.duration : 0) +
+          offLabel +
           "</span>" +
-          "</div>" +
+          '<div class="amx-track-bar"><div class="amx-track-bar-fill" data-amx-prog="' +
+          idx +
+          '"></div></div>' +
+          "</div></div>" +
           '<div class="amx-track-acts">' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="mute" data-i="' +
           idx +
@@ -245,18 +427,11 @@
           "</div>";
         listEl.appendChild(row);
       });
-      setStatus(tracks.length + "/" + MAX_TRACKS + " · max " + fmt(maxDur()));
+      setStatus(tracks.length + "/" + MAX_TRACKS + " · total " + fmt(maxDur()));
+      updateTransportUI();
     }
 
-    function maxDur() {
-      var m = 0;
-      tracks.forEach(function (t) {
-        if (t.buffer && t.buffer.duration > m) m = t.buffer.duration;
-      });
-      return m;
-    }
-
-    function addBuffer(buffer, name) {
+    function addBuffer(buffer, name, offsetSec) {
       if (tracks.length >= MAX_TRACKS) {
         setStatus("Maks. " + MAX_TRACKS + " track.");
         return false;
@@ -266,6 +441,7 @@
         name: name || "Track " + (tracks.length + 1),
         buffer: buffer,
         muted: false,
+        offset: Math.max(0, offsetSec || 0),
       });
       renderTracks();
       return true;
@@ -278,31 +454,67 @@
       }
       try {
         ensureCtx();
-        stopPlayback();
+        var headNow = currentPlayhead();
+        stopPlayback(true);
+        playhead = headNow;
+        recOffsetSec = headNow;
+
         mediaStream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: true },
         });
-        var t0 = audioCtx.currentTime + 0.05;
+
+        var t0 = audioCtx.currentTime + 0.08;
+        playStartedAtHead = headNow;
+        playStartedAtCtx = t0;
+        isPlaying = true;
+        isRecording = true;
+
         tracks.forEach(function (tr) {
           if (tr.muted || !tr.buffer) return;
+          var off = tr.offset || 0;
+          var bufDur = tr.buffer.duration;
+          if (headNow >= off + bufDur) return;
+          var when = t0;
+          var offsetInBuffer = 0;
+          if (headNow > off) {
+            offsetInBuffer = headNow - off;
+          } else {
+            when = t0 + (off - headNow);
+            offsetInBuffer = 0;
+          }
+          var remaining = bufDur - offsetInBuffer;
+          if (remaining <= 0.001) return;
           var src = audioCtx.createBufferSource();
           src.buffer = tr.buffer;
           src.connect(audioCtx.destination);
-          src.start(t0);
+          try {
+            src.start(when, offsetInBuffer, remaining);
+          } catch (e) {
+            try {
+              src.start(when, offsetInBuffer);
+            } catch (e2) {}
+          }
           playing.push(src);
         });
+        startTransportLoop();
+
         recChunks = [];
         var mime = "";
         try {
-          if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) mime = "audio/webm;codecs=opus";
+          if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus"))
+            mime = "audio/webm;codecs=opus";
           else if (MediaRecorder.isTypeSupported("audio/webm")) mime = "audio/webm";
         } catch (e) {}
-        mediaRec = mime ? new MediaRecorder(mediaStream, { mimeType: mime }) : new MediaRecorder(mediaStream);
+        mediaRec = mime
+          ? new MediaRecorder(mediaStream, { mimeType: mime })
+          : new MediaRecorder(mediaStream);
         mediaRec.ondataavailable = function (ev) {
           if (ev.data && ev.data.size) recChunks.push(ev.data);
         };
         mediaRec.onstop = async function () {
-          stopPlayback();
+          var savedOffset = recOffsetSec;
+          isRecording = false;
+          stopPlayback(true);
           stopMeter();
           stopRecTimer();
           if (recBar) recBar.hidden = true;
@@ -312,26 +524,48 @@
             });
           } catch (e) {}
           mediaStream = null;
-          var blob = new Blob(recChunks, { type: mediaRec.mimeType || "audio/webm" });
+          var blob = new Blob(recChunks, {
+            type: mediaRec.mimeType || "audio/webm",
+          });
           try {
             var buf = await decodeBlob(ensureCtx(), blob);
-            addBuffer(buf, "Rekam " + (tracks.length + 1));
-            setStatus("Track ditambah.");
+            var label =
+              "Rekam " +
+              (tracks.length + 1) +
+              (savedOffset > 0.05 ? " @" + fmt(savedOffset) : "");
+            addBuffer(buf, label, savedOffset);
+            setStatus(
+              "Track ditambah" +
+                (savedOffset > 0.05
+                  ? " mulai dari " + fmt(savedOffset)
+                  : "") +
+                "."
+            );
           } catch (e) {
             setStatus("Gagal decode: " + (e.message || e));
           }
           btnRec.hidden = false;
           btnStopRec.hidden = true;
           mediaRec = null;
+          if (recOffsetEl) recOffsetEl.textContent = "";
         };
         mediaRec.start(200);
         startMeter(mediaStream);
         startRecTimer();
         if (recBar) recBar.hidden = false;
+        if (recOffsetEl) {
+          recOffsetEl.textContent =
+            recOffsetSec > 0.05 ? "mulai @" + fmt(recOffsetSec) : "mulai @0:00";
+        }
         btnRec.hidden = true;
         btnStopRec.hidden = false;
-        setStatus("Merekam… (headset untuk overdub)");
+        setStatus(
+          "Merekam dari " +
+            fmt(recOffsetSec) +
+            "… (headset untuk overdub)"
+        );
       } catch (e) {
+        isRecording = false;
         setStatus("Mic: " + (e.message || e));
       }
     }
@@ -353,73 +587,97 @@
       try {
         ensureCtx();
         var buf = await decodeBlob(audioCtx, file);
-        addBuffer(buf, file.name || "Upload");
-        setStatus("File: " + (file.name || "audio"));
+        var off = currentPlayhead();
+        addBuffer(buf, file.name || "Upload", off > 0.05 ? off : 0);
+        setStatus(
+          "File: " +
+            (file.name || "audio") +
+            (off > 0.05 ? " @" + fmt(off) : "")
+        );
       } catch (e) {
         setStatus("File gagal: " + (e.message || e));
       }
     }
 
-    function playAll() {
-      stopPlayback();
-      if (!tracks.length) return;
-      ensureCtx();
-      var t0 = audioCtx.currentTime + 0.03;
-      tracks.forEach(function (tr) {
-        if (tr.muted || !tr.buffer) return;
-        var src = audioCtx.createBufferSource();
-        src.buffer = tr.buffer;
-        src.connect(audioCtx.destination);
-        src.start(t0);
-        playing.push(src);
-      });
-      setStatus("Play…");
-    }
-
-    async function doExport() {
+    async function mixToWav() {
       var active = tracks.filter(function (t) {
         return !t.muted && t.buffer;
       });
       if (!active.length) {
         setStatus("Tidak ada track aktif.");
-        return;
+        return null;
       }
       setStatus("Mixing…");
+      ensureCtx();
+      var sr = audioCtx.sampleRate;
+      var dur = maxDur();
+      if (dur <= 0) {
+        setStatus("Durasi kosong.");
+        return null;
+      }
+      var frames = Math.ceil(dur * sr) || 1;
+      var offline = new OfflineAudioContext(2, frames, sr);
+      active.forEach(function (t) {
+        var src = offline.createBufferSource();
+        src.buffer = t.buffer;
+        src.connect(offline.destination);
+        src.start(t.offset || 0);
+      });
+      var rendered = await offline.startRendering();
+      var wav = encodeWav(rendered);
+      return {
+        blob: wav,
+        duration: dur,
+        mime: "audio/wav",
+        filename: "mix-" + Date.now() + ".wav",
+      };
+    }
+
+    async function doDownload() {
       try {
-        ensureCtx();
-        var sr = audioCtx.sampleRate;
-        var dur = 0;
-        active.forEach(function (t) {
-          if (t.buffer.duration > dur) dur = t.buffer.duration;
-        });
-        var frames = Math.ceil(dur * sr) || 1;
-        var offline = new OfflineAudioContext(2, frames, sr);
-        active.forEach(function (t) {
-          var src = offline.createBufferSource();
-          src.buffer = t.buffer;
-          src.connect(offline.destination);
-          src.start(0);
-        });
-        var rendered = await offline.startRendering();
-        var wav = encodeWav(rendered);
-        setStatus("OK " + fmt(dur));
-        close();
-        await onExport({
-          blob: wav,
-          duration: dur,
-          mime: "audio/wav",
-          filename: "mix-" + Date.now() + ".wav",
-        });
+        var result = await mixToWav();
+        if (!result) return;
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(result.blob);
+        a.download = result.filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () {
+          try {
+            URL.revokeObjectURL(a.href);
+          } catch (e) {}
+          a.remove();
+        }, 2000);
+        setStatus("WAV disimpan · " + fmt(result.duration));
       } catch (e) {
-        setStatus("Gagal mix: " + (e.message || e));
+        setStatus("Gagal simpan: " + (e.message || e));
+      }
+    }
+
+    async function doExport() {
+      if (!onExport) {
+        setStatus("Tidak ada target kirim.");
+        return;
+      }
+      try {
+        var result = await mixToWav();
+        if (!result) return;
+        setStatus("Mengirim…");
+        close();
+        await onExport(result);
+      } catch (e) {
+        setStatus("Gagal kirim: " + (e.message || e));
       }
     }
 
     function close() {
       stopRec();
-      stopPlayback();
+      stopPlayback(true);
       stopMeter();
       stopRecTimer();
+      stopTransportLoop();
+      isRecording = false;
+      isPlaying = false;
       try {
         if (mediaStream)
           mediaStream.getTracks().forEach(function (t) {
@@ -428,6 +686,17 @@
       } catch (e) {}
       root.classList.remove("is-open");
       root.onclick = null;
+      if (timelineEl) timelineEl.onpointerdown = null;
+    }
+
+    if (timelineEl) {
+      timelineEl.onpointerdown = function (ev) {
+        if (isRecording) return;
+        var rect = timelineEl.getBoundingClientRect();
+        var x = (ev.clientX - rect.left) / Math.max(1, rect.width);
+        var total = maxDur();
+        seekTo(x * total);
+      };
     }
 
     root.onclick = function (ev) {
@@ -435,16 +704,19 @@
       if (!t) return;
       var amx =
         t.getAttribute("data-amx") ||
-        (t.closest && t.closest("[data-amx]") && t.closest("[data-amx]").getAttribute("data-amx"));
+        (t.closest &&
+          t.closest("[data-amx]") &&
+          t.closest("[data-amx]").getAttribute("data-amx"));
       if (t.matches && t.matches('input[data-amx="file"]')) return;
       if (amx === "close") close();
       else if (amx === "rec") startRec();
       else if (amx === "stop-rec") stopRec();
       else if (amx === "play") playAll();
       else if (amx === "stop") {
-        stopPlayback();
-        setStatus("Stop.");
-      } else if (amx === "export") doExport();
+        stopPlayback(true);
+        setStatus("Stop @ " + fmt(playhead));
+      } else if (amx === "download") doDownload();
+      else if (amx === "export") doExport();
 
       var act = t.getAttribute("data-act");
       if (act === "mute") {
@@ -459,14 +731,21 @@
         renderTracks();
       } else if (act === "solo-play") {
         var k = Number(t.getAttribute("data-i"));
-        stopPlayback();
+        if (isRecording) return;
+        stopPlayback(true);
         if (tracks[k] && tracks[k].buffer) {
           ensureCtx();
+          var tr = tracks[k];
+          playhead = tr.offset || 0;
+          playStartedAtHead = playhead;
+          playStartedAtCtx = audioCtx.currentTime + 0.02;
+          isPlaying = true;
           var src = audioCtx.createBufferSource();
-          src.buffer = tracks[k].buffer;
+          src.buffer = tr.buffer;
           src.connect(audioCtx.destination);
-          src.start(0);
+          src.start(playStartedAtCtx);
           playing.push(src);
+          startTransportLoop();
         }
       }
     };
@@ -482,7 +761,7 @@
 
     renderTracks();
     root.classList.add("is-open");
-    setStatus("Siap · max " + MAX_TRACKS + " track.");
+    setStatus("Siap · max " + MAX_TRACKS + " track · klik timeline untuk seek.");
   }
 
   global.SHAudioMixer = { open: open, MAX_TRACKS: MAX_TRACKS };
