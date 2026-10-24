@@ -1551,53 +1551,69 @@
 
   async function bindClearChatBtn() {
     const btn = $("#chatClearRoom");
-    if (!btn || btn.dataset.bound) return;
+    if (!btn) return;
+    if (btn.dataset.bound === "1") return;
     btn.dataset.bound = "1";
-    btn.addEventListener("click", async function () {
-      if (!currentRoomMeta || !currentRoomMeta.id) {
-        if (window.SHDialog) SHDialog.alert("Pilih ruang chat dulu.");
-        return;
-      }
-      const name = currentRoomMeta.name || "ruang ini";
-      const ok = window.SHDialog
-        ? await SHDialog.confirm(
-            "Hapus SEMUA pesan di \"" + name + "\"?\n\nTidak bisa dibatalkan. Media terkait ikut dibersihkan bila memungkinkan.",
-            "Bersihkan chat"
-          )
-        : confirm("Hapus semua pesan di ruang ini?");
-      if (!ok) return;
-      btn.disabled = true;
-      if (status) status.textContent = "Membersihkan chat…";
+    btn.addEventListener("click", async function (ev) {
       try {
-        const r = await GalleryDB.clearChatMessages({
-          roomId: currentRoomMeta.id,
-          angkatanId: null,
-          legacyGlobal: false,
-        });
-        // juga bersihkan histori legacy yang digabung di tampilan
+        if (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+        }
+        if (!currentRoomMeta || !currentRoomMeta.id) {
+          const msg = "Pilih ruang chat dulu.";
+          if (status) status.textContent = msg;
+          if (window.SHDialog) await SHDialog.alert(msg);
+          return;
+        }
+        const name = currentRoomMeta.name || "ruang ini";
+        const ok = window.SHDialog
+          ? await SHDialog.confirm(
+              "Hapus SEMUA pesan di \"" + name + "\"?\n\nTidak bisa dibatalkan. Media terkait ikut dibersihkan bila memungkinkan.",
+              "Bersihkan chat"
+            )
+          : window.confirm("Hapus semua pesan di ruang ini?");
+        if (!ok) return;
+        btn.disabled = true;
+        if (status) status.textContent = "Membersihkan chat…";
+        var total = 0;
+        try {
+          const r = await GalleryDB.clearChatMessages({
+            roomId: currentRoomMeta.id,
+            messageIds: (allMessages || []).map(function (m) { return m && m.id; }).filter(Boolean),
+          });
+          total += (r && r.removed) || 0;
+        } catch (e1) {
+          console.warn("clear room_id", e1);
+          throw e1;
+        }
         if (currentRoomMeta.legacyAngkatanId) {
           try {
-            await GalleryDB.clearChatMessages({
-              roomId: null,
+            const r2 = await GalleryDB.clearChatMessages({
               angkatanId: currentRoomMeta.legacyAngkatanId,
             });
-          } catch (e) {}
+            total += (r2 && r2.removed) || 0;
+          } catch (e2) {
+            console.warn("clear legacy angkatan", e2);
+          }
         }
         if (currentRoomMeta.legacyGlobal) {
           try {
-            await GalleryDB.clearChatMessages({
-              roomId: null,
-              angkatanId: null,
-              legacyGlobal: true,
-            });
-          } catch (e) {}
+            const r3 = await GalleryDB.clearChatMessages({ legacyGlobal: true });
+            total += (r3 && r3.removed) || 0;
+          } catch (e3) {
+            console.warn("clear global", e3);
+          }
         }
         allMessages = [];
         renderMessages();
-        if (status) status.textContent = "Chat dibersihkan (" + ((r && r.removed) || 0) + " pesan).";
+        if (status) status.textContent = "Chat dibersihkan (" + total + " pesan).";
+        if (window.SHDialog) await SHDialog.alert("Chat dibersihkan (" + total + " pesan).", "Selesai");
       } catch (e) {
-        if (status) status.textContent = e.message || String(e);
-        if (window.SHDialog) SHDialog.alert(e.message || String(e));
+        const msg = e.message || String(e);
+        if (status) status.textContent = msg;
+        if (window.SHDialog) await SHDialog.alert(msg, "Gagal bersihkan chat");
+        else window.alert(msg);
       }
       btn.disabled = false;
     });
@@ -3381,6 +3397,8 @@
 
   resolveSessionContext().then(() => {
     bindVideoConference();
+  bindChatImageLightbox();
+  bindClearChatBtn();
   loadRooms().then(joinRoom);
   });
 

@@ -1526,7 +1526,7 @@
   }
 
 
-  async function clearChatMessages({ roomId, angkatanId, legacyGlobal }) {
+  async function clearChatMessages({ roomId, angkatanId, legacyGlobal, messageIds }) {
     const sb = client();
     if (!sb) throw new Error("Database belum dikonfigurasi");
     const session = await getSession();
@@ -1549,39 +1549,87 @@
     }
     if (!allowed) throw new Error("Hanya admin atau pemilik ruang yang bisa membersihkan chat");
 
-    // Ambil URL media dulu (opsional hapus storage), lalu hapus baris
-    let q = sb.from("gallery_chat").select("id,body");
-    if (roomId) q = q.eq("room_id", roomId);
-    else if (angkatanId) q = q.eq("angkatan_id", angkatanId);
-    else if (legacyGlobal) q = q.is("angkatan_id", null);
-    else throw new Error("Ruang tidak valid");
+    let list = [];
+    if (roomId || angkatanId || legacyGlobal) {
+      let q = sb.from("gallery_chat").select("id,body");
+      if (roomId) q = q.eq("room_id", roomId);
+      else if (angkatanId) q = q.eq("angkatan_id", angkatanId);
+      else q = q.is("angkatan_id", null);
+      const { data: rows, error: e1 } = await q.limit(5000);
+      if (e1) throw e1;
+      list = rows || [];
+    }
+    // gabung id yang tampil di UI (histori digabung)
+    if (messageIds && messageIds.length) {
+      const have = Object.create(null);
+      list.forEach(function (r) { if (r && r.id) have[r.id] = true; });
+      messageIds.forEach(function (id) {
+        if (id && !have[id]) list.push({ id: id, body: "" });
+      });
+    }
+    if (!list.length) return { removed: 0 };
 
-    const { data: rows, error: e1 } = await q.limit(5000);
-    if (e1) throw e1;
-    const list = rows || [];
-    // best-effort hapus file storage dari body
+    // best-effort storage
     for (const row of list) {
       try {
         const body = String(row.body || "");
         const urls = body.match(/https?:\/\/[^\s|"']+/g) || [];
         for (const u of urls) {
           if (/chat-images|chat-voice|voice\//i.test(u)) {
-            try {
-              await deleteChatStorageByPublicUrl(u);
-            } catch (e) {}
+            try { await deleteChatStorageByPublicUrl(u); } catch (e) {}
           }
         }
       } catch (e) {}
     }
 
-    let del = sb.from("gallery_chat").delete();
-    if (roomId) del = del.eq("room_id", roomId);
-    else if (angkatanId) del = del.eq("angkatan_id", angkatanId);
-    else del = del.is("angkatan_id", null);
-    // Supabase butuh filter; untuk global legacy juga hapus yang room_id null saja bila kolom ada
-    const { error: e2 } = await del;
-    if (e2) throw e2;
-    return { removed: list.length };
+    // hapus massal per filter, fallback per-id
+    let removed = 0;
+    if (roomId) {
+      const { error: e2, count } = await sb.from("gallery_chat").delete({ count: "exact" }).eq("room_id", roomId);
+      if (e2) {
+        // fallback per id
+        for (const row of list) {
+          const { error } = await sb.from("gallery_chat").delete().eq("id", row.id);
+          if (!error) removed++;
+        }
+      } else {
+        removed = typeof count === "number" ? count : list.length;
+      }
+    } else if (angkatanId) {
+      const { error: e2, count } = await sb.from("gallery_chat").delete({ count: "exact" }).eq("angkatan_id", angkatanId);
+      if (e2) {
+        for (const row of list) {
+          const { error } = await sb.from("gallery_chat").delete().eq("id", row.id);
+          if (!error) removed++;
+        }
+      } else {
+        removed = typeof count === "number" ? count : list.length;
+      }
+    } else if (legacyGlobal) {
+      const { error: e2, count } = await sb.from("gallery_chat").delete({ count: "exact" }).is("angkatan_id", null);
+      if (e2) {
+        for (const row of list) {
+          const { error } = await sb.from("gallery_chat").delete().eq("id", row.id);
+          if (!error) removed++;
+        }
+      } else {
+        removed = typeof count === "number" ? count : list.length;
+      }
+    } else {
+      for (const row of list) {
+        const { error } = await sb.from("gallery_chat").delete().eq("id", row.id);
+        if (!error) removed++;
+      }
+    }
+    // pastikan id dari messageIds ikut terhapus
+    if (messageIds && messageIds.length) {
+      for (const id of messageIds) {
+        try {
+          await sb.from("gallery_chat").delete().eq("id", id);
+        } catch (e) {}
+      }
+    }
+    return { removed: removed || list.length };
   }
 
   async function deleteChat({ id }) {
