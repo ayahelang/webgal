@@ -1380,6 +1380,18 @@
     }
 
     try {
+      var angByYear = Object.create(null);
+      try {
+        var angs = await GalleryDB.listAngkatan({ mainOnly: false });
+        (angs || []).forEach(function (a) {
+          var label = String(a.label || a.label_norm || "");
+          var m = label.match(/20\d{2}/);
+          if (m) angByYear[m[0]] = a.id;
+          angByYear[label.toLowerCase()] = a.id;
+          if (a.label_norm) angByYear[String(a.label_norm).toLowerCase()] = a.id;
+        });
+      } catch (e) {}
+
       const custom = await GalleryDB.listChatRooms({ activeOnly: true });
       if (!custom || !custom.length) {
         const o = document.createElement("option");
@@ -1389,21 +1401,30 @@
         room.appendChild(o);
         return;
       }
-      // hanya gallery_chat_rooms (tanpa angkatan terpisah / tanpa global hardcoded)
-      custom.forEach((r) => {
+      custom.forEach(function (r) {
         const opt = document.createElement("option");
         opt.value = "r:" + r.id;
         opt.textContent = (r.needs_password ? "🔐 " : "") + (r.name || "Ruang");
         opt.dataset.needsPassword = r.needs_password ? "1" : "";
-        if (r.allowed_angkatan_ids && r.allowed_angkatan_ids.length === 1) {
-          opt.dataset.sourceAngkatan = r.allowed_angkatan_ids[0];
+
+        var src = r.source_angkatan_id || null;
+        if (!src && r.allowed_angkatan_ids && r.allowed_angkatan_ids.length === 1) {
+          src = r.allowed_angkatan_ids[0];
+        }
+        if (!src) {
+          var nm = String(r.name || "");
+          var ym = nm.match(/20\d{2}/);
+          if (ym && angByYear[ym[0]]) src = angByYear[ym[0]];
+          else if (angByYear[nm.toLowerCase()]) src = angByYear[nm.toLowerCase()];
+        }
+        if (src) opt.dataset.sourceAngkatan = src;
+
+        if (/global|lintas/i.test(String(r.name || "")) || /global|lintas/i.test(String(r.description || ""))) {
+          opt.dataset.legacyGlobal = "1";
         }
         room.appendChild(opt);
       });
-      // pilih ruang pertama agar chat langsung bisa dipakai
-      if (room.options.length > 1) {
-        room.selectedIndex = 1;
-      }
+      if (room.options.length > 1) room.selectedIndex = 1;
     } catch (e) {
       const o = document.createElement("option");
       o.value = "";
@@ -1709,9 +1730,9 @@
       status.textContent = "Pilih ruang chat dulu";
       return;
     }
+    const opt = room && room.selectedOptions && room.selectedOptions[0];
     if (parsed.type === "room") {
       roomId = parsed.id;
-      const opt = room && room.selectedOptions && room.selectedOptions[0];
       const needsPw = opt && opt.dataset.needsPassword === "1";
       const allowed = await ensureRoomAccess(roomId, needsPw);
       if (!allowed) {
@@ -1722,57 +1743,117 @@
     } else if (parsed.type === "angkatan") {
       angkatanId = parsed.id;
     }
-    // Ruang migrasi dari angkatan: tetap tampilkan pesan lama (angkatan_id) + pesan baru (room_id)
-    let legacyAngkatanId = null;
-    try {
-      const opt = room && room.selectedOptions && room.selectedOptions[0];
-      if (opt && opt.dataset.sourceAngkatan) legacyAngkatanId = opt.dataset.sourceAngkatan;
-    } catch (e) {}
+
+    let legacyAngkatanId = (opt && opt.dataset.sourceAngkatan) || null;
+    let legacyGlobal = !!(opt && opt.dataset.legacyGlobal === "1");
+    if (!legacyAngkatanId && !legacyGlobal && opt) {
+      try {
+        const nm = String(opt.textContent || "");
+        const ym = nm.match(/20\d{2}/);
+        if (ym) {
+          const angs = await GalleryDB.listAngkatan({ mainOnly: false });
+          const hit = (angs || []).find(function (a) {
+            return String(a.label || "").indexOf(ym[0]) >= 0 || String(a.label_norm || "").indexOf(ym[0]) >= 0;
+          });
+          if (hit) legacyAngkatanId = hit.id;
+        }
+        if (/global|lintas/i.test(nm)) legacyGlobal = true;
+      } catch (e) {}
+    }
 
     status.textContent = "Memuat pesan...";
     try {
-      let rows = await GalleryDB.listChat({ angkatanId, roomId, limit: 150 });
+      function mergeRows(listA, listB) {
+        const map = Object.create(null);
+        (listA || []).concat(listB || []).forEach(function (m) {
+          if (m && m.id) map[m.id] = m;
+        });
+        return Object.keys(map)
+          .map(function (k) { return map[k]; })
+          .sort(function (a, b) {
+            return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+          });
+      }
+
+      let rows = [];
+      if (roomId) {
+        rows = await GalleryDB.listChat({ roomId: roomId, limit: 200 });
+      } else if (angkatanId) {
+        rows = await GalleryDB.listChat({ angkatanId: angkatanId, limit: 200 });
+      }
+
       if (roomId && legacyAngkatanId) {
         try {
-          const legacy = await GalleryDB.listChat({ angkatanId: legacyAngkatanId, roomId: null, limit: 150 });
-          const map = Object.create(null);
-          (rows || []).concat(legacy || []).forEach(function (m) {
-            if (m && m.id) map[m.id] = m;
-          });
-          rows = Object.keys(map)
-            .map(function (k) { return map[k]; })
-            .sort(function (a, b) {
-              return new Date(a.created_at || 0) - new Date(b.created_at || 0);
-            });
+          const legacy = await GalleryDB.listChat({ angkatanId: legacyAngkatanId, limit: 200 });
+          rows = mergeRows(rows, legacy);
         } catch (e) {}
       }
+      if (roomId && legacyGlobal) {
+        try {
+          const legacy = await GalleryDB.listChat({ angkatanId: null, roomId: null, limit: 200 });
+          const onlyGlobal = (legacy || []).filter(function (m) {
+            return !m.room_id || String(m.room_id) === String(roomId);
+          });
+          rows = mergeRows(rows, onlyGlobal);
+        } catch (e) {}
+      }
+
       allMessages = rows || [];
       renderMessages();
-      if (roomId) status.textContent = "Ruang chat · realtime aktif";
-      else if (angkatanId) status.textContent = "Ruang angkatan · realtime aktif";
-      else status.textContent = "Pilih ruang chat dulu";
-      unsub = GalleryDB.subscribeChat({
-        angkatanId: roomId ? null : angkatanId,
-        roomId,
-        onInsert: addMsg,
-        onUpdate: onUpdateMsg,
-        onDelete: onDeleteMsg,
-      });
-      // juga pantau pesan legacy angkatan bila ada
-      if (roomId && legacyAngkatanId) {
-        const unsub2 = GalleryDB.subscribeChat({
-          angkatanId: legacyAngkatanId,
-          roomId: null,
-          onInsert: addMsg,
-          onUpdate: onUpdateMsg,
-          onDelete: onDeleteMsg,
-        });
-        const prev = unsub;
-        unsub = function () {
-          try { prev && prev(); } catch (e) {}
-          try { unsub2 && unsub2(); } catch (e) {}
-        };
+      status.textContent = allMessages.length
+        ? "Ruang chat · " + allMessages.length + " pesan · realtime"
+        : "Ruang chat · belum ada pesan (histori lama belum tertaut?)";
+
+      const unsubs = [];
+      if (roomId) {
+        unsubs.push(
+          GalleryDB.subscribeChat({
+            roomId: roomId,
+            onInsert: addMsg,
+            onUpdate: onUpdateMsg,
+            onDelete: onDeleteMsg,
+          })
+        );
       }
+      if (legacyAngkatanId) {
+        unsubs.push(
+          GalleryDB.subscribeChat({
+            angkatanId: legacyAngkatanId,
+            onInsert: addMsg,
+            onUpdate: onUpdateMsg,
+            onDelete: onDeleteMsg,
+          })
+        );
+      }
+      if (legacyGlobal) {
+        unsubs.push(
+          GalleryDB.subscribeChat({
+            angkatanId: null,
+            onInsert: function (m) {
+              if (m && (!m.room_id || String(m.room_id) === String(roomId))) addMsg(m);
+            },
+            onUpdate: onUpdateMsg,
+            onDelete: onDeleteMsg,
+          })
+        );
+      }
+      if (!unsubs.length && angkatanId) {
+        unsubs.push(
+          GalleryDB.subscribeChat({
+            angkatanId: angkatanId,
+            onInsert: addMsg,
+            onUpdate: onUpdateMsg,
+            onDelete: onDeleteMsg,
+          })
+        );
+      }
+      unsub = function () {
+        unsubs.forEach(function (u) {
+          try {
+            u && u();
+          } catch (e) {}
+        });
+      };
       bindTyping();
     } catch (e) {
       status.textContent = "Gagal: " + (e.message || e);

@@ -1354,9 +1354,11 @@
       if (roomId) {
         q = q.eq("room_id", roomId);
       } else if (angkatanId) {
-        q = q.eq("angkatan_id", angkatanId).is("room_id", null);
+        // pesan lama angkatan (abaikan room_id agar histori tidak hilang)
+        q = q.eq("angkatan_id", angkatanId);
       } else {
-        q = q.is("angkatan_id", null).is("room_id", null);
+        // global lama: angkatan_id null
+        q = q.is("angkatan_id", null);
       }
       return q;
     }
@@ -1575,6 +1577,7 @@
     if (!sb) return [];
     // Ambil SEMUA baris yang bisa dibaca; admin memakai activeOnly:false
     const colSets = [
+      "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,allowed_students,is_active,sort_order,created_at,source_angkatan_id",
       "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,allowed_students,is_active,sort_order,created_at",
       "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,is_active,sort_order,created_at",
       "id,name,description,access_password,is_active,sort_order,created_at",
@@ -1635,6 +1638,7 @@
         is_active: r.is_active === false ? false : true,
         sort_order: r.sort_order != null ? Number(r.sort_order) : 0,
         created_at: r.created_at || null,
+        source_angkatan_id: r.source_angkatan_id || null,
         _password: r.access_password || "",
       };
     });
