@@ -35,7 +35,7 @@
       </div>`;
     const btn = $("#btnReturn");
     if (btn) {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         try {
           sessionStorage.removeItem("sh_return");
         } catch (e) {}
@@ -125,11 +125,11 @@
       fillNames($("#angkatanYear").value, e.target.value);
     });
 
-    $("#btnLogin").onclick = () => {
+    $("#btnLogin").onclick = async () => {
       GalleryDB.signInWithGoogle({
         redirectTo: location.origin + location.pathname.replace(/[^/]+$/, "") + "profile.html",
         returnTo: returnTarget() !== "index.html" ? returnTarget() : sessionStorage.getItem("sh_return") || location.href,
-      }).catch((e) => alert(e.message || e));
+      }).catch((e) => (window.SHDialog ? SHDialog.alert(e.message || e) : alert(e.message || e)));
     };
     $("#btnOut").onclick = async () => {
       await GalleryDB.signOut();
@@ -234,7 +234,7 @@
     const unlinkBtn = $("#btnUnlinkSelf");
     if (unlinkBtn) {
       unlinkBtn.onclick = async () => {
-        if (!confirm("Lepas tautan nama siswa dari akun Google ini?")) return;
+        if (window.SHDialog) { if (!(await SHDialog.confirm("Lepas tautan nama siswa dari akun Google ini?"))) return; } else if (!confirm("Lepas tautan nama siswa dari akun Google ini?")) return;
         try {
           await GalleryDB.unlinkMyProfile();
           $("#linkMsg").textContent = "Tautan dilepas. Silakan tautkan ulang jika perlu.";
@@ -247,7 +247,7 @@
     const revBtn = $("#btnRevokeOthers");
     if (revBtn) {
       revBtn.onclick = async () => {
-        if (!confirm("Cabut tautan akun Google lain yang memakai nama siswa yang sama dengan Anda?")) return;
+        if (window.SHDialog) { if (!(await SHDialog.confirm("Cabut tautan akun Google lain yang memakai nama siswa yang sama dengan Anda?"))) return; } else if (!confirm("Cabut tautan akun Google lain yang memakai nama siswa yang sama dengan Anda?")) return;
         try {
           const r = await GalleryDB.revokeOtherLinksOnMyStudent();
           $("#linkMsg").textContent = "Dilepas: " + (r.removed || 0) + " akun lain.";
@@ -406,7 +406,7 @@
       });
 
     host.querySelectorAll(".pt-toggle").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
+      btn.addEventListener("click", async (e) => {
         e.preventDefault();
         const id = btn.dataset.toggle;
         const kids = host.querySelector('.pt-children[data-parent="' + id + '"]');

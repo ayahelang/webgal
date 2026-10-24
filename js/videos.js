@@ -202,7 +202,7 @@
 
   function bindPlay(root) {
     (root || document).querySelectorAll("button.video-thumb-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         const embed = btn.getAttribute("data-embed") || "";
         const mode = btn.getAttribute("data-play") || "iframe";
         const srcUrl = btn.getAttribute("data-src-url") || "";
@@ -259,7 +259,7 @@
         </form>
       </div>`;
     document.body.appendChild(m);
-    m.addEventListener("click", (ev) => {
+    m.addEventListener("click", async (ev) => {
       if (ev.target && ev.target.getAttribute("data-close") === "1") closeAdminModal();
     });
     // Panel bisa digeser lewat header
@@ -390,7 +390,7 @@
           return;
         }
         if (act === "del") {
-          if (!confirm("Hapus video \"" + (v.title || id) + "\"?")) return;
+          if (window.SHDialog) { if (!(await SHDialog.confirm("Hapus video \"" + ((v && v.title) || id) + "\"?"))) return; } else if (!confirm("Hapus video \"" + ((v && v.title) || id) + "\"?")) return;
           try {
             if (iAmAdmin) {
               await GalleryDB.deleteVideo(id);
@@ -402,7 +402,7 @@
             all = all.filter((x) => String(x.id) !== String(id));
             render();
           } catch (e) {
-            alert(e.message || String(e));
+            window.SHDialog ? SHDialog.alert(e.message || String(e)) : alert(e.message || String(e));
           }
         }
       });
@@ -457,7 +457,7 @@
         )
         .join("");
     sub.querySelectorAll(".filter").forEach((b) =>
-      b.addEventListener("click", () => {
+      b.addEventListener("click", async () => {
         state.year = b.dataset.y || "";
         state.kelas = b.dataset.k || "";
         buildSubFilters(cats);
@@ -544,7 +544,7 @@
           filters.appendChild(b);
         });
         filters.querySelectorAll(".filter").forEach((b) =>
-          b.addEventListener("click", () => {
+          b.addEventListener("click", async () => {
             filters.querySelectorAll(".filter").forEach((x) => x.classList.remove("active"));
             b.classList.add("active");
             state.cat = b.dataset.cat === "all" ? "all" : b.dataset.cat;

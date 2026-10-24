@@ -100,7 +100,7 @@
       if (title) {
         title.style.cursor = "pointer";
         title.title = "Klik judul: tampilkan/sembunyikan love & komentar";
-        title.addEventListener("click", (e) => {
+        title.addEventListener("click", async (e) => {
           e.preventDefault();
           e.stopPropagation();
           const row = a.closest(".work-row");
@@ -129,12 +129,12 @@
     root.querySelectorAll(".react-mini").forEach((bar) => {
       if (bar.dataset.bound) return;
       bar.dataset.bound = "1";
-      bar.addEventListener("click", (e) => {
+      bar.addEventListener("click", async (e) => {
         e.preventDefault();
         e.stopPropagation();
       });
       bar.querySelectorAll(".rm-btn").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
+        btn.addEventListener("click", async (e) => {
           e.preventDefault();
           e.stopPropagation();
           onAct(bar, btn.dataset.act);
@@ -146,11 +146,11 @@
   async function ensureGuestName() {
     let name = GalleryDB.getGuestName ? GalleryDB.getGuestName() : "";
     if (name && name.length >= 2) return name;
-    name = prompt("Nama kamu (disimpan sekali selama kunjungan ini):");
+    name = window.SHDialog ? await SHDialog.prompt("Nama kamu (disimpan sekali selama kunjungan ini):", "", "Nama tampilan") : prompt("Nama kamu (disimpan sekali selama kunjungan ini):");
     if (name === null) return null;
     name = String(name).trim();
     if (name.length < 2) {
-      alert("Nama terlalu pendek.");
+      (window.SHDialog ? SHDialog.alert("Nama terlalu pendek.") : alert("Nama terlalu pendek."));
       return null;
     }
     if (GalleryDB.setGuestName) GalleryDB.setGuestName(name);
@@ -164,7 +164,7 @@
 
     if (act === "love-red" || act === "love-blue") {
       if (act === "love-blue" && !logged) {
-        if (confirm("Love biru membutuhkan login Google. Buka halaman Profil?")) {
+        if (window.SHDialog ? await SHDialog.confirm("Love biru membutuhkan login Google. Buka halaman Profil?", "Login") : confirm("Love biru membutuhkan login Google. Buka halaman Profil?")) {
           try { sessionStorage.setItem("sh_return", location.href); } catch (e) {}
           location.href = "profile.html?login=1";
         }
@@ -183,13 +183,13 @@
         setCounts(bar, res.counts);
         setLoveOn(bar, res.active, !!res.isRegistered || act === "love-blue");
       } catch (e) {
-        alert(e.message || String(e));
+        window.SHDialog ? SHDialog.alert(e.message || String(e)) : alert(e.message || String(e));
       }
       return;
     }
 
     if (act === "comment-blue" && !logged) {
-      if (confirm("Komentar biru membutuhkan login Google. Buka Profil?")) {
+      if (window.SHDialog ? await SHDialog.confirm("Komentar biru membutuhkan login Google. Buka Profil?", "Login") : confirm("Komentar biru membutuhkan login Google. Buka Profil?")) {
           try { sessionStorage.setItem("sh_return", location.href); } catch (e) {}
           location.href = "profile.html?login=1";
         }
@@ -254,7 +254,7 @@
         panel.querySelector(".cmt-body").value = "";
         await renderCommentPanel(panel, tt, tid, preferBlue);
       } catch (err) {
-        alert(err.message || String(err));
+        window.SHDialog ? SHDialog.alert(err.message || String(err)) : alert(err.message || String(err));
       }
     };
   }

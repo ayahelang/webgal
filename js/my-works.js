@@ -7,7 +7,7 @@
 
   function bindPreviews() {
     const vp = document.getElementById("vidPreview");
-    if (vp) vp.onclick = () => {
+    if (vp) vp.onclick = async () => {
       const f = document.getElementById("vidForm");
       SHPreview.previewVideo({
         title: f.querySelector("[name=title]").value,
@@ -36,7 +36,7 @@
           works,
         });
       } catch (e) {
-        alert(e.message || e);
+        window.SHDialog ? SHDialog.alert(e.message || e) : alert(e.message || e);
       }
     };
   }
@@ -69,7 +69,7 @@
     $("#works").hidden = false;
 
     $$("#tabs .filter").forEach((b) =>
-      b.addEventListener("click", () => {
+      b.addEventListener("click", async () => {
         $$("#tabs .filter").forEach((x) => x.classList.remove("active"));
         b.classList.add("active");
         $$("[data-pane]").forEach((p) => {
@@ -78,11 +78,11 @@
       })
     );
 
-    $("#webReset").onclick = () => {
+    $("#webReset").onclick = async () => {
       $("#webForm").reset();
       $("#webForm [name=id]").value = "";
     };
-    $("#vidReset").onclick = () => {
+    $("#vidReset").onclick = async () => {
       $("#vidForm").reset();
       $("#vidForm [name=id]").value = "";
     };
@@ -128,7 +128,7 @@
     };
 
     $("#desReset") &&
-      ($("#desReset").onclick = () => {
+      ($("#desReset").onclick = async () => {
         $("#desForm").reset();
         $("#desForm [name=id]").value = "";
       });
@@ -170,7 +170,7 @@
         const inp = document.querySelector(sel);
         if (inp && text) { inp.value = text.trim(); inp.dispatchEvent(new Event("input", { bubbles: true })); }
       } catch (e) {
-        alert("Tidak bisa baca clipboard. Izinkan akses clipboard atau tempel manual (Ctrl+V).");
+        (window.SHDialog ? SHDialog.alert("Tidak bisa baca clipboard. Izinkan akses clipboard atau tempel manual (Ctrl+V).") : alert("Tidak bisa baca clipboard. Izinkan akses clipboard atau tempel manual (Ctrl+V)."));
       }
     }
     const pw = document.getElementById("btnPasteWeb");
@@ -244,7 +244,7 @@
           .join("") || "<p class='muted'>Belum ada desain. Tambah lewat hotlink URL gambar.</p>";
 
       $$("#desList [data-edit-des]").forEach((b) =>
-        b.addEventListener("click", () => {
+        b.addEventListener("click", async () => {
           const d = JSON.parse(b.getAttribute("data-edit-des"));
           const form = $("#desForm");
           if (!form) return;
@@ -258,7 +258,7 @@
       );
       $$("#desList [data-del-des]").forEach((b) =>
         b.addEventListener("click", async () => {
-          if (!confirm("Hapus desain ini?")) return;
+          if (window.SHDialog) { if (!(await SHDialog.confirm("Hapus desain ini?"))) return; } else if (!confirm("Hapus desain ini?")) return;
           await GalleryDB.deleteDesign(b.dataset.delDes);
           await loadDes();
         })
@@ -283,7 +283,7 @@
         .join("") || "<p class='muted'>Belum ada website.</p>";
 
     $$("#webList [data-edit-web]").forEach((b) =>
-      b.addEventListener("click", () => {
+      b.addEventListener("click", async () => {
         const w = JSON.parse(b.getAttribute("data-edit-web"));
         try { var __f=document.querySelector("#webForm")||document.querySelector("#vidForm")||document.querySelector("form"); if(__f){var __i=__f.querySelector("input,select,textarea"); if(__i)__i.focus({preventScroll:true});} } catch(e) {}
         const form = document.getElementById("webForm") || document.querySelector("#myWebForm, form");
@@ -296,7 +296,7 @@
     );
     $$("#webList [data-del-web]").forEach((b) =>
       b.addEventListener("click", async () => {
-        if (!confirm("Hapus website ini?")) return;
+        if (window.SHDialog) { if (!(await SHDialog.confirm("Hapus website ini?"))) return; } else if (!confirm("Hapus website ini?")) return;
         await GalleryDB.deleteMyWebsite(b.dataset.delWeb);
         await loadWeb();
       })
@@ -320,7 +320,7 @@
         .join("") || "<p class='muted'>Belum ada video.</p>";
 
     $$("#vidList [data-edit-vid]").forEach((b) =>
-      b.addEventListener("click", () => {
+      b.addEventListener("click", async () => {
         const v = JSON.parse(b.getAttribute("data-edit-vid"));
         try { var __f=document.querySelector("#webForm")||document.querySelector("#vidForm")||document.querySelector("form"); if(__f){var __i=__f.querySelector("input,select,textarea"); if(__i)__i.focus({preventScroll:true});} } catch(e) {}
         $("#vidForm [name=id]").value = v.id;
@@ -331,7 +331,7 @@
     );
     $$("#vidList [data-del-vid]").forEach((b) =>
       b.addEventListener("click", async () => {
-        if (!confirm("Hapus video ini?")) return;
+        if (window.SHDialog) { if (!(await SHDialog.confirm("Hapus video ini?"))) return; } else if (!confirm("Hapus video ini?")) return;
         await GalleryDB.deleteMyVideo(b.dataset.delVid);
         await loadVid();
       })

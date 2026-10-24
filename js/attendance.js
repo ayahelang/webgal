@@ -497,7 +497,7 @@
           );
           await reload();
         } catch (e) {
-          alert(e.message || e);
+          window.SHDialog ? SHDialog.alert(e.message || e) : alert(e.message || e);
           b.disabled = false;
         }
       })
@@ -514,7 +514,7 @@
           showTeacherPopup("Check-out berhasil", messageForCheckout(sess), false);
           await reload();
         } catch (e) {
-          alert(e.message || e);
+          window.SHDialog ? SHDialog.alert(e.message || e) : alert(e.message || e);
           b.disabled = false;
         }
       })
@@ -538,7 +538,7 @@
     const app = $("#attApp");
     $("#attBtnLogin") &&
       ($("#attBtnLogin").onclick = () =>
-        GalleryDB.signInWithGoogle({ redirectTo: location.href }).catch((e) => alert(e.message || e)));
+        GalleryDB.signInWithGoogle({ redirectTo: location.href }).catch((e) => window.SHDialog ? SHDialog.alert(e.message || e) : alert(e.message || e)));
 
     const sess = await GalleryDB.getSession();
     if (!sess) {

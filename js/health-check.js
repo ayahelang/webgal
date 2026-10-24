@@ -281,7 +281,7 @@
         log.hidden = false;
         log.textContent = lastReport;
       }
-      alert("Salin manual dari kotak teks di bawah.");
+      (window.SHDialog ? SHDialog.alert("Salin manual dari kotak teks di bawah.") : alert("Salin manual dari kotak teks di bawah."));
     }
     // animasi ke atas panel status
     if (panel) {
