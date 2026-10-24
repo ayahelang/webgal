@@ -4539,3 +4539,21 @@ button.chat-author-name:hover{
   box-shadow:0 0 0 2px rgba(125,227,255,.12);
 }
 
+/* Waktu pesan: klik = histori edit */
+button.chat-msg-time{
+  appearance:none;border:0;background:transparent;
+  font:inherit;font-size:11px;color:#8aa3ae;
+  padding:0 2px;margin:0;cursor:pointer;
+  border-radius:4px;
+}
+button.chat-msg-time.is-edited{
+  color:#7db8ff;
+  text-decoration:underline;
+  text-decoration-style:dotted;
+  text-underline-offset:2px;
+}
+button.chat-msg-time.is-edited:hover{
+  color:#b8f0ff;
+}
+small.chat-msg-time{font-size:11px;color:#8aa3ae}
+

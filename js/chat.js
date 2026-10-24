@@ -1206,12 +1206,17 @@
     if (m.reply_to) div.dataset.replyTo = m.reply_to;
     const t = m.created_at ? new Date(m.created_at).toLocaleString("id-ID") : "";
     const ec = editCountOf(m);
-    const edited =
-      ec > 0 || (m.updated_at && m.created_at && String(m.updated_at) !== String(m.created_at))
-        ? ' <button type="button" class="chat-edited-btn" data-act="hist" title="Lihat histori edit">(diedit' +
-          (ec ? " " + ec + "×" : "") +
-          ")</button>"
-        : "";
+    const hasHist =
+      editCountOf(m) > 0 ||
+      (m.edit_history && m.edit_history.length) ||
+      (m.updated_at && m.created_at && String(m.updated_at) !== String(m.created_at));
+    // Tanggal/jam jadi tombol histori (tombol Histori lama dihapus)
+    const timeHtml = hasHist
+      ? '<button type="button" class="chat-msg-time is-edited" data-act="hist" title="Lihat histori edit">' +
+        esc(t) +
+        (ec ? " · diedit " + ec + "×" : " · diedit") +
+        "</button>"
+      : '<small class="chat-msg-time">' + esc(t) + "</small>";
     const av = m.avatar_emoji || "💬";
     const parts = parseMessageParts(m.body);
     let bodyHtml = "";
@@ -1261,15 +1266,8 @@
       actions +=
         '<button type="button" class="chat-act chat-act-del" data-act="del" title="Hapus">Hapus</button>';
     }
-    // Histori bisa dilihat SEMUA orang (termasuk penerima balasan)
-    if (editCountOf(m) > 0 || (m.edit_history && m.edit_history.length)) {
-      actions +=
-        '<button type="button" class="chat-act chat-act-hist" data-act="hist" title="Lihat versi sebelumnya">Histori (' +
-        editCountOf(m) +
-        ")</button>";
-    }
     actions += "</div>";
-    if (!canReplyTo(m) && !canShowActions(m) && !(editCountOf(m) > 0 || (m.edit_history && m.edit_history.length))) {
+    if (!canReplyTo(m) && !canShowActions(m)) {
       actions = "";
     }
     const nameHtml = q
@@ -1282,10 +1280,8 @@
       "</div>" +
       '<div class="chat-body"><button type="button" class="chat-author-name" data-act="react-open" title="Reaksi emoji">' +
       nameHtml +
-      "</button> <small>" +
-      esc(t) +
-      "</small>" +
-      edited +
+      "</button> " +
+      timeHtml +
       parentHtml +
       '<div class="chat-text' + (hasVoice ? " chat-text-voice" : "") + (parts.images && parts.images.length ? " chat-text-has-img" : "") + '">' +
       bodyHtml +
