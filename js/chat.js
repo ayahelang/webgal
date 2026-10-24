@@ -459,6 +459,9 @@
             '" alt="gambar chat" loading="lazy" data-full="' +
             src +
             '" title="Klik untuk memperbesar" />' +
+            '<button type="button" class="chat-img-dl" data-act="dl-img" data-img-url="' +
+            src +
+            '" title="Unduh gambar" aria-label="Unduh gambar">⬇</button>' +
             delayBtn +
             "</div>"
           );
@@ -1377,6 +1380,44 @@
     btn.hidden = !show || !(currentRoomMeta && currentRoomMeta.id);
   }
 
+
+  function downloadChatImage(url, filename) {
+    if (!url) return;
+    const name = filename || ("chat-image-" + Date.now() + ".jpg");
+    // Coba fetch blob agar force download (bukan buka tab)
+    fetch(url, { mode: "cors", credentials: "omit" })
+      .then(function (res) {
+        if (!res.ok) throw new Error("fetch fail");
+        return res.blob();
+      })
+      .then(function (blob) {
+        const a = document.createElement("a");
+        const obj = URL.createObjectURL(blob);
+        a.href = obj;
+        a.download = name;
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () {
+          try {
+            URL.revokeObjectURL(obj);
+          } catch (e) {}
+        }, 2000);
+      })
+      .catch(function () {
+        // fallback: buka di tab baru (user bisa simpan manual)
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      });
+  }
+
   function openImageLightbox(src) {
     if (!src) return;
     let root = document.getElementById("chatImgLightbox");
@@ -1391,6 +1432,7 @@
         '    <button type="button" class="btn btn-ghost chat-lb-btn" data-lb="zoom-out" title="Perkecil">−</button>' +
         '    <button type="button" class="btn btn-ghost chat-lb-btn" data-lb="zoom-in" title="Perbesar">+</button>' +
         '    <button type="button" class="btn btn-ghost chat-lb-btn" data-lb="reset" title="Reset">1:1</button>' +
+        '    <button type="button" class="btn btn-ghost chat-lb-btn" data-lb="download" title="Unduh gambar">⬇ Unduh</button>' +
         '    <button type="button" class="btn btn-ghost chat-lb-btn" data-lb="close" title="Tutup">✕</button>' +
         "  </div>" +
         '  <div class="chat-lb-stage">' +
@@ -1435,6 +1477,7 @@
       apply();
     };
     img.src = src;
+    root.dataset.imgSrc = src;
     root.classList.add("is-open");
     document.addEventListener("keydown", onKey);
 
@@ -1452,6 +1495,8 @@
         x = 0;
         y = 0;
         apply();
+      } else if (act === "download") {
+        downloadChatImage(root.dataset.imgSrc || src, "chat-image-" + Date.now() + ".jpg");
       }
     };
     stage.onwheel = function (ev) {
@@ -1485,6 +1530,14 @@
     if (!log || log.dataset.lbBound) return;
     log.dataset.lbBound = "1";
     log.addEventListener("click", function (ev) {
+      const dlBtn = ev.target && ev.target.closest && ev.target.closest("button.chat-img-dl, button[data-act=\"dl-img\"]");
+      if (dlBtn) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const u = dlBtn.getAttribute("data-img-url") || "";
+        downloadChatImage(u, "chat-image-" + Date.now() + ".jpg");
+        return;
+      }
       const img = ev.target && ev.target.closest && ev.target.closest("img.chat-mix-img, img.chat-img, img[data-full]");
       if (!img) return;
       if (ev.target.closest && ev.target.closest("button")) return;
