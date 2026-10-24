@@ -1573,13 +1573,28 @@
   async function listChatRooms({ activeOnly } = { activeOnly: true }) {
     const sb = client();
     if (!sb) return [];
-    let q = sb.from("gallery_chat_rooms").select(
-      "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,allowed_students,is_active,sort_order,created_at"
-    ).order("sort_order").order("name");
-    if (activeOnly !== false) q = q.eq("is_active", true);
-    const { data, error } = await q;
+    const colsFull =
+      "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,allowed_students,is_active,sort_order,created_at";
+    const colsBasic =
+      "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,is_active,sort_order,created_at";
+    const colsMin = "id,name,description,access_password,is_active,sort_order,created_at";
+    async function run(cols) {
+      let q = sb.from("gallery_chat_rooms").select(cols).order("sort_order").order("name");
+      if (activeOnly !== false) q = q.eq("is_active", true);
+      return q;
+    }
+    let { data, error } = await run(colsFull);
+    if (error && /allowed_students|schema cache|column/i.test(String(error.message || ""))) {
+      const r2 = await run(colsBasic);
+      data = r2.data;
+      error = r2.error;
+    }
+    if (error && /allowed_|schema cache|column/i.test(String(error.message || ""))) {
+      const r3 = await run(colsMin);
+      data = r3.data;
+      error = r3.error;
+    }
     if (error) {
-      // tabel belum ada
       if (/does not exist|relation/i.test(String(error.message || ""))) return [];
       throw error;
     }
@@ -1591,11 +1606,10 @@
         needs_password: !!(r.access_password && String(r.access_password).trim()),
         allowed_angkatan_ids: r.allowed_angkatan_ids || [],
         allowed_class_codes: r.allowed_class_codes || [],
-        allowed_students: Array.isArray(r.allowed_students) ? r.allowed_students : (r.allowed_students || []),
+        allowed_students: Array.isArray(r.allowed_students) ? r.allowed_students : [],
         is_active: r.is_active !== false,
         sort_order: r.sort_order || 0,
         created_at: r.created_at,
-        // password hanya untuk admin edit (jangan diekspos di UI publik)
         _password: r.access_password || "",
       };
     });
@@ -1620,12 +1634,37 @@
       created_by: payload.created_by || "",
     };
     if (!row.name) throw new Error("Nama ruang wajib");
-    if (payload.id) {
-      const { data, error } = await sb.from("gallery_chat_rooms").update(row).eq("id", payload.id).select("*").single();
-      if (error) throw error;
-      return data;
+    async function write(body) {
+      if (payload.id) {
+        return sb.from("gallery_chat_rooms").update(body).eq("id", payload.id).select("*").single();
+      }
+      return sb.from("gallery_chat_rooms").insert(body).select("*").single();
     }
-    const { data, error } = await sb.from("gallery_chat_rooms").insert(row).select("*").single();
+    let { data, error } = await write(row);
+    // Kolom allowed_students belum ada di DB — simpan tanpa kolom itu dulu
+    if (error && /allowed_students|schema cache/i.test(String(error.message || ""))) {
+      const slim = Object.assign({}, row);
+      delete slim.allowed_students;
+      const r2 = await write(slim);
+      data = r2.data;
+      error = r2.error;
+      if (!error) {
+        console.warn("[chat-rooms] allowed_students belum di DB — jalankan sql/patch-chat-rooms-allowed-students.sql");
+      }
+    }
+    if (error && /allowed_angkatan|allowed_class|schema cache/i.test(String(error.message || ""))) {
+      const minimal = {
+        name: row.name,
+        description: row.description,
+        access_password: row.access_password,
+        is_active: row.is_active,
+        sort_order: row.sort_order,
+        created_by: row.created_by,
+      };
+      const r3 = await write(minimal);
+      data = r3.data;
+      error = r3.error;
+    }
     if (error) throw error;
     return data;
   }

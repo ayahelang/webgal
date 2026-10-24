@@ -1042,7 +1042,11 @@
           setTreeStudentTargets($("#chatRoomStudentTree"), []);
           await refreshChatRooms();
         } catch (e) {
-          if (st) st.textContent = e.message || String(e);
+          var msg = e.message || String(e);
+          if (/allowed_students|schema cache/i.test(msg)) {
+            msg += " — Jalankan SQL: sql/patch-chat-rooms-allowed-students.sql di Supabase SQL Editor, lalu refresh.";
+          }
+          if (st) st.textContent = msg;
         }
       };
     refreshChatRooms();
