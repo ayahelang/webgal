@@ -1,6 +1,19 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => [...document.querySelectorAll(s)];
+  async function shAlert(msg, title) {
+    if (window.SHDialog) return SHDialog.alert(String(msg), title);
+    window.alert(String(msg));
+  }
+  async function shConfirm(msg, title) {
+    if (window.SHDialog) return SHDialog.confirm(String(msg), title);
+    return window.confirm(String(msg));
+  }
+  async function shPrompt(msg, def, title) {
+    if (window.SHDialog) return SHDialog.prompt(String(msg), def, title);
+    return window.prompt(String(msg), def);
+  }
+
   let selectedUser = null;
   let alumniCache = [];
   let alumniAllCache = [];
@@ -757,7 +770,7 @@
       bindListSearch("#annSearch", "#annList");
       $$("#annList [data-del-ann]").forEach((b) =>
         b.addEventListener("click", async () => {
-          if (!confirm("Hapus pengumuman?")) return;
+          if (!(await shConfirm("Hapus pengumuman?"))) return;
           await GalleryDB.deleteAnnouncement(b.dataset.delAnn);
           await refreshAnnouncements();
         })
@@ -970,7 +983,7 @@
       );
       host.querySelectorAll("[data-del-room]").forEach((b) =>
         b.addEventListener("click", async () => {
-          if (!confirm("Hapus ruang ini?")) return;
+          if (!(await shConfirm("Hapus ruang ini?"))) return;
           try {
             await GalleryDB.deleteChatRoom(b.dataset.delRoom);
             if (st) st.textContent = "Ruang dihapus.";
@@ -1111,17 +1124,17 @@
     }
     const btnImg = $("#annInsertImg");
     if (btnImg)
-      btnImg.onclick = () => {
-        const url = prompt("URL gambar (https://...)");
+      btnImg.onclick = async () => {
+        const url = await shPrompt("URL gambar (https://...)");
         if (!url) return;
         document.execCommand("insertHTML", false, '<p><img src="' + url.replace(/"/g, "") + '" alt=""></p>');
       };
     const btnLink = $("#annInsertLink");
     if (btnLink)
-      btnLink.onclick = () => {
-        const url = prompt("URL link");
+      btnLink.onclick = async () => {
+        const url = await shPrompt("URL link");
         if (!url) return;
-        const label = prompt("Teks link", url) || url;
+        const label = (await shPrompt("Teks link", url)) || url;
         document.execCommand(
           "insertHTML",
           false,
@@ -2020,7 +2033,7 @@
 
       $$("#attSessList [data-del-att]").forEach((b) =>
         b.addEventListener("click", async () => {
-          if (!confirm("Hapus sesi absensi?")) return;
+          if (!(await shConfirm("Hapus sesi absensi?"))) return;
           await GalleryDB.deleteAttendanceSession(b.dataset.delAtt);
           await refreshAttendance();
         })
@@ -2102,7 +2115,7 @@
             const safe = String((r && r.title) || "sesi").replace(/[^\w\-]+/g, "_").slice(0, 40);
             downloadAttCsv("absensi-" + safe + ".csv", recs);
           } catch (e) {
-            alert(e.message || String(e));
+            void shAlert(e.message || String(e));
           }
           b.textContent = "Unduh CSV";
         })
@@ -2248,7 +2261,7 @@
           msg.style.color = "#ff8a8a";
           msg.textContent = "Gagal simpan: " + detail;
         }
-        try { alert("Gagal simpan sesi absensi:\n" + detail); } catch (_) {}
+        try { void shAlert("Gagal simpan sesi absensi:\n" + detail); } catch (_) {}
       } finally {
         save.disabled = false;
         save.textContent = prevLabel;
@@ -2287,7 +2300,7 @@
       });
     $("#attRecCsv") &&
       ($("#attRecCsv").onclick = () => {
-        if (!attRecCache.length) return alert("Muat rekap dulu");
+        if (!attRecCache.length) return void shAlert("Muat rekap dulu");
         const lines = [
           ["student_name", "class", "year", "email", "session", "checkin_at", "checkin_note", "checkout_at", "checkout_note"].join(","),
         ];
@@ -2568,7 +2581,7 @@
       GalleryDB.signInWithGoogle({
         redirectTo: location.origin + location.pathname.replace(/[^/]+$/, "") + "admin.html",
         returnTo: location.href,
-      }).catch((e) => alert(e.message || e));
+      }).catch((e) => void shAlert(e.message || e));
     $("#btnLogout").onclick = async () => {
       await GalleryDB.signOut();
       location.href = "admin.html";
@@ -2790,13 +2803,13 @@
       };
     }
     $("#btnAddCat").onclick = async () => {
-      const name = prompt("Nama kategori baru:");
+      const name = await shPrompt("Nama kategori baru:");
       if (!name) return;
       try {
         await GalleryDB.addVideoCategory(name.trim());
         await refreshCats();
       } catch (e) {
-        alert(e.message || e);
+        void shAlert(e.message || e);
       }
     };
 
@@ -2893,21 +2906,21 @@
       });
       try {
         await GalleryDB.setUserAdmin(selectedUser.id, { isAdmin: true, permissions });
-        alert("Admin tambahan disimpan.");
+        void shAlert("Admin tambahan disimpan.");
         await refreshUsers();
       } catch (e) {
-        alert(e.message || e);
+        void shAlert(e.message || e);
       }
     };
     ($("#btnRevokeAdmin")||{}).onclick = async () => {
       if (!selectedUser) return;
-      if (!confirm("Cabut hak admin user ini?")) return;
+      if (!(await shConfirm("Cabut hak admin user ini?"))) return;
       try {
         await GalleryDB.setUserAdmin(selectedUser.id, { isAdmin: false, permissions: {} });
         $("#permBox").hidden = true;
         await refreshUsers();
       } catch (e) {
-        alert(e.message || e);
+        void shAlert(e.message || e);
       }
     };
     const btnDel = $("#btnDeleteUser");
@@ -2915,23 +2928,23 @@
       btnDel.onclick = async () => {
         if (!selectedUser) return;
         if (selectedUser.is_admin) {
-          alert("Tidak dapat menghapus user yang berstatus admin.");
+          void shAlert("Tidak dapat menghapus user yang berstatus admin.");
           return;
         }
         const mainEmails = (window.GALLERY_SUPABASE && GALLERY_SUPABASE.adminEmails) || [];
         if (mainEmails.map((e) => String(e).toLowerCase()).includes(String(selectedUser.email || "").toLowerCase())) {
-          alert("Tidak dapat menghapus email admin utama.");
+          void shAlert("Tidak dapat menghapus email admin utama.");
           return;
         }
-        if (!confirm("Hapus profil user ini dari daftar terdaftar?")) return;
+        if (!(await shConfirm("Hapus profil user ini dari daftar terdaftar?"))) return;
         try {
           await GalleryDB.adminDeleteUserProfile(selectedUser.id);
           $("#permBox").hidden = true;
           selectedUser = null;
           await refreshUsers();
-          alert("User dihapus dari daftar.");
+          void shAlert("User dihapus dari daftar.");
         } catch (e) {
-          alert(e.message || e);
+          void shAlert(e.message || e);
         }
       };
     }
@@ -3073,12 +3086,12 @@
     bindListSearch("#vidSearch", "#vidList");
     $$("#vidList [data-del-vid]").forEach((b) =>
       b.addEventListener("click", async () => {
-        if (!confirm("Hapus video?")) return;
+        if (!(await shConfirm("Hapus video?"))) return;
         try {
           await GalleryDB.deleteVideo(b.dataset.delVid);
           await refreshVideos();
         } catch (e) {
-          alert(e.message || e);
+          void shAlert(e.message || e);
         }
       })
     );
@@ -3354,12 +3367,12 @@
     bindListSearch("#webSearch", "#webList");
     $$("#webList [data-del-web]").forEach((b) =>
       b.addEventListener("click", async () => {
-        if (!confirm("Hapus website?")) return;
+        if (!(await shConfirm("Hapus website?"))) return;
         try {
           await GalleryDB.adminDeleteWebsite(b.dataset.delWeb);
           await refreshWebs();
         } catch (e) {
-          alert(e.message || e);
+          void shAlert(e.message || e);
         }
       })
     );
@@ -3561,13 +3574,13 @@
       b.addEventListener("click", async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!confirm("Hapus user ini beserta website terkait?")) return;
+        if (!(await shConfirm("Hapus user ini beserta website terkait?"))) return;
         try {
           await GalleryDB.adminDeleteAlumni(b.dataset.delAl);
           await refreshAlumni();
           await refreshWebs();
         } catch (err) {
-          alert(err.message || err);
+          void shAlert(err.message || err);
         }
       })
     );
@@ -3631,12 +3644,12 @@
     bindListSearch("#angSearch", "#angList");
     $$("#angList [data-del-ang]").forEach((b) =>
       b.addEventListener("click", async () => {
-        if (!confirm("Hapus angkatan?")) return;
+        if (!(await shConfirm("Hapus angkatan?"))) return;
         try {
           await GalleryDB.adminDeleteAngkatan(b.dataset.delAng);
           await refreshAngkatan();
         } catch (e) {
-          alert(e.message || e);
+          void shAlert(e.message || e);
         }
       })
     );
@@ -3733,7 +3746,7 @@
       bindListSearch("#linkSearch", "#linkTree");
       host.querySelectorAll("[data-unlink]").forEach((b) =>
         b.addEventListener("click", async () => {
-          if (!confirm("Lepas tautan akun ini?")) return;
+          if (!(await shConfirm("Lepas tautan akun ini?"))) return;
           try {
             await GalleryDB.adminUnlinkProfile(b.dataset.unlink);
             if (msg) msg.textContent = "Tautan dilepas.";
@@ -3764,14 +3777,14 @@
           const year = (host.querySelector('[data-link-year="' + id + '"]') || {}).value;
           const kelas = (host.querySelector('[data-link-class="' + id + '"]') || {}).value;
           const name = ((host.querySelector('[data-link-name="' + id + '"]') || {}).value || "").trim();
-          if (!name) return alert("Pilih nama siswa");
+          if (!name) return void shAlert("Pilih nama siswa");
           try {
             await GalleryDB.adminForceLinkProfile(id, { studentName: name, angkatanYear: year, classCode: kelas });
             if (msg) msg.textContent = "Tautan diperbarui.";
             await refreshLinks();
             if (typeof refreshUsers === "function") await refreshUsers();
           } catch (e) {
-            alert(e.message || e);
+            void shAlert(e.message || e);
           }
         })
       );
@@ -3848,14 +3861,14 @@
               const year = (box.querySelector('[data-link-year="' + id + '"]') || {}).value;
               const kelas = (box.querySelector('[data-link-class="' + id + '"]') || {}).value;
               const name = ((box.querySelector('[data-link-name="' + id + '"]') || {}).value || "").trim();
-              if (!name) return alert("Pilih nama siswa");
+              if (!name) return void shAlert("Pilih nama siswa");
               try {
                 await GalleryDB.adminForceLinkProfile(id, { studentName: name, angkatanYear: year, classCode: kelas });
                 if (msg) msg.textContent = "Tautan disimpan.";
                 await refreshLinks();
                 if (typeof refreshUsers === "function") await refreshUsers();
               } catch (e) {
-                alert(e.message || e);
+                void shAlert(e.message || e);
               }
             })
           );
@@ -3887,7 +3900,7 @@
           if (msg) msg.textContent = "Centang dulu akun yang akan dihapus.";
           return;
         }
-        if (!confirm("Hapus " + ids.length + " akun belum disetujui dari database profil?")) return;
+        if (!(await shConfirm("Hapus " + ids.length + " akun belum disetujui dari database profil?"))) return;
         try {
           const r = await GalleryDB.deleteUserProfiles(ids);
           if (msg) msg.textContent = "Dihapus: " + (r.removed || 0) + " akun.";
@@ -4038,12 +4051,12 @@
     bindListSearch("#desSearch", "#designList");
     $$("#designList [data-del-design]").forEach((b) =>
       b.addEventListener("click", async () => {
-        if (!confirm("Hapus karya ini?")) return;
+        if (!(await shConfirm("Hapus karya ini?"))) return;
         try {
           await GalleryDB.deleteDesign(b.dataset.delDesign);
           await refreshDesigns();
         } catch (e) {
-          alert(e.message || e);
+          void shAlert(e.message || e);
         }
       })
     );
@@ -4114,7 +4127,7 @@
     if (addCat && !addCat.dataset.bound) {
       addCat.dataset.bound = "1";
       addCat.onclick = async () => {
-        const name = prompt("Nama kategori desain baru:");
+        const name = await shPrompt("Nama kategori desain baru:");
         if (!name || !name.trim()) return;
         await refreshDesignCategories([name.trim()]);
         const sel = $("#desCat");
@@ -4292,10 +4305,10 @@
           const roleEl = panel.querySelector("[data-role]:checked") || panel.querySelector("input[data-role]:checked");
           const role = roleEl ? roleEl.getAttribute("data-role") || "" : "";
           await GalleryDB.setUserAdmin(id, { isAdmin, permissions, role });
-          alert("Hak akses disimpan.");
+          void shAlert("Hak akses disimpan.");
           await refreshUsers();
         } catch (err) {
-          alert(err.message || err);
+          void shAlert(err.message || err);
         }
       })
     );
@@ -4307,16 +4320,16 @@
         const kelas = ($("#userList").querySelector('[data-link-class="' + id + '"]') || {}).value;
         const name = (($("#userList").querySelector('[data-link-name="' + id + '"]') || {}).value || "").trim();
         if (!name) {
-          alert("Isi nama siswa.");
+          void shAlert("Isi nama siswa.");
           return;
         }
         try {
           await GalleryDB.adminForceLinkProfile(id, { studentName: name, angkatanYear: year, classCode: kelas });
-          alert("Tautan disimpan.");
+          void shAlert("Tautan disimpan.");
           await refreshUsers();
           if (typeof refreshLinks === "function") await refreshLinks();
         } catch (err) {
-          alert(err.message || err);
+          void shAlert(err.message || err);
         }
       })
     );

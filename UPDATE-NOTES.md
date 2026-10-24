@@ -1,3 +1,1 @@
-# Histori chat di ruang
-
-Deploy js + jalankan sql/patch-chat-rooms-link-legacy.sql
+# Password hanya jika needs_password; modal SHDialog custom

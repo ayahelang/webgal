@@ -1485,13 +1485,21 @@
       });
     }
     let ok = await tryVerify(null);
-    if (!ok && (needsPasswordHint || true)) {
-      password = prompt("Ruang ini dilindungi. Masukkan password (kosongkan jika hanya batasan angkatan/kelas):");
-      if (password === null) return false; // cancel
+    // Hanya minta password jika ruang memang berpassword
+    if (!ok && needsPasswordHint) {
+      var pwMsg = "Ruang ini memakai password. Masukkan password untuk masuk:";
+      if (window.SHDialog && SHDialog.prompt) {
+        password = await SHDialog.prompt(pwMsg, "", "Password ruang");
+      } else {
+        password = window.prompt(pwMsg);
+      }
+      if (password === null) return false;
       ok = await tryVerify(password);
     }
     if (!ok) {
-      status.textContent = "Akses ditolak: password salah atau Anda tidak termasuk angkatan/kelas yang diizinkan.";
+      status.textContent = needsPasswordHint
+        ? "Akses ditolak: password salah atau Anda tidak diizinkan."
+        : "Akses ditolak: Anda tidak termasuk peserta yang diizinkan di ruang ini.";
       return false;
     }
     try {
@@ -2108,7 +2116,9 @@
   }
 
   async function handleDelete(msg) {
-    if (!window.confirm("Hapus pesan ini?")) return;
+    if (window.SHDialog && SHDialog.confirm) {
+      if (!(await SHDialog.confirm("Hapus pesan ini?", "Hapus pesan"))) return;
+    } else if (!window.confirm("Hapus pesan ini?")) return;
     status.textContent = "Menghapus…";
     try {
       await GalleryDB.deleteChat({ id: msg.id });
