@@ -3802,10 +3802,20 @@ body.chat-embed .chat-fields{
 .chat-f-avatar .chat-avatar-toggle-label{display:none}
 .chat-f-avatar .chat-avatar-picker{
   position:absolute;left:0;top:calc(100% + 4px);z-index:30;
-  min-width:200px;max-width:min(280px,70vw);
+  /* 4 kolom: 4*40 + 3*6 gap + padding 16 ≈ 200 → min 220 */
+  width:max-content;
+  min-width:220px;
+  max-width:min(320px,92vw);
   background:rgba(8,18,28,.93);
   border:1px solid rgba(125,227,255,.28);
   box-shadow:0 8px 22px rgba(0,0,0,.45);
+  display:grid;
+  grid-template-columns:repeat(4, 40px);
+  gap:6px;
+  justify-content:start;
+  padding:10px;
+  max-height:220px;
+  overflow:auto;
 }
 .chat-fields-row .field{margin:0;min-width:0}
 .chat-fields-row .field > span{
@@ -4518,8 +4528,8 @@ button.chat-author-name:hover{
 .chat-react-sec-row{display:flex;flex-wrap:wrap;gap:4px}
 .chat-react-picker{max-width:min(320px,92vw)}
 /* Avatar picker: lebih banyak opsi karakter */
-#chatAvatarPicker, .chat-avatar-picker{
-  max-height:160px;overflow:auto;
+#chatAvatarPicker.chat-avatar-picker{
+  max-height:220px;overflow:auto;
 }
-.chat-av-btn{font-size:22px;min-width:40px;min-height:40px}
+.chat-av-btn{font-size:20px;width:40px;height:40px;min-width:40px;min-height:40px;box-sizing:border-box}
 
