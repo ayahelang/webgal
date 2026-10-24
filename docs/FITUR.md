@@ -1,5 +1,11 @@
 # Riwayat versi (ringkas)
 
+## v2026.10.24c
+- Audio Mixer: navigasi playhead (awal/−5s/+5s/akhir), nav per track, Mute all / Unmute, **Solo** per track
+- Volume default rekaman mic 135%, file upload 85% (mic tidak tenggelam)
+- Export **MP3** (lamejs LGPL, `js/vendor/lame.min.js`) + WAV + WebM
+- Pesan suara (mixer & rekaman biasa): tanya **nama suara**; unduhan memakai nama + ekstensi
+
 ## v2026.10.24b
 - Audio Mixer: volume + reverb per track; panel bisa digeser; tinggi panel muat 8 track di desktop
 - Simpan **WAV** + **WebM** (kompres); kirim ke chat memakai WebM (perbaikan gagal kirim WAV)

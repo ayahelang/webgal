@@ -218,8 +218,13 @@
     var dur = opts.duration != null && isFinite(Number(opts.duration)) ? Number(opts.duration) : 0;
     var ttl = opts.ttlLabel ? String(opts.ttlLabel) : "";
     var showDl = opts.downloadable !== false;
+    var name = String(opts.name || "pesan-suara")
+      .replace(/[\\/:*?"<>|]+/g, "-")
+      .replace(/"/g, "")
+      .slice(0, 80) || "pesan-suara";
+    var nameAttr = name.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
     return (
-      '<div class="sh-ap" data-src="' + url + '" data-dur="' + (dur || "") + '">' +
+      '<div class="sh-ap" data-src="' + url + '" data-dur="' + (dur || "") + '" data-name="' + nameAttr + '">' +
       '<button type="button" class="sh-ap-play" aria-label="Putar">▶</button>' +
       '<button type="button" class="sh-ap-stop" aria-label="Stop">■</button>' +
       '<div class="sh-ap-body">' +
@@ -496,15 +501,32 @@
     function download() {
       var u = src || audio.src;
       if (!u) return;
+      var base =
+        el.getAttribute("data-name") ||
+        (el.closest && el.closest("[data-name]") && el.closest("[data-name]").getAttribute("data-name")) ||
+        "pesan-suara";
+      base = String(base).replace(/[\\/:*?"<>|]+/g, "-").trim() || "pesan-suara";
       fetch(u, { mode: "cors" })
         .then(function (r) {
           return r.blob();
         })
         .then(function (blob) {
+          var type = (blob && blob.type) || "";
+          var ext = "webm";
+          if (/mpeg|mp3/i.test(type)) ext = "mp3";
+          else if (/wav/i.test(type)) ext = "wav";
+          else if (/ogg/i.test(type)) ext = "ogg";
+          else if (/mp4|m4a/i.test(type)) ext = "m4a";
+          else if (/webm/i.test(type)) ext = "webm";
+          else {
+            // tebak dari URL
+            var m = String(u).match(/\.([a-z0-9]{2,4})(?:\?|$)/i);
+            if (m) ext = m[1].toLowerCase();
+          }
           var a = document.createElement("a");
           var obj = URL.createObjectURL(blob);
           a.href = obj;
-          a.download = "pesan-suara.webm";
+          a.download = base + "." + ext;
           document.body.appendChild(a);
           a.click();
           a.remove();

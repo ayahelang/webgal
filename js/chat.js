@@ -124,8 +124,8 @@
 
 
   const VOICE_PREFIX = "__voice__";
-  // __voice__|ttl=3h|url  ATAU  __voice__|ttl=3h|dur=12.5|url
-  const VOICE_RE = /^__voice__\|ttl=(3h|24h|forever)(?:\|dur=([\d.]+))?(?:\|holduntil=([^|]+))?\|(deleted|https?:\/\/\S+|\S+)$/i;
+  // __voice__|ttl=3h|dur=12.5|name=Judul|https://...  (name opsional, legacy tanpa name tetap valid)
+  const VOICE_RE = /^__voice__\|ttl=(3h|24h|forever)(?:\|dur=([\d.]+))?(?:\|holduntil=([^|]+))?(?:\|name=([^|]*))?\|(deleted|https?:\/\/\S+|\S+)$/i;
 
   function parseVoiceBody(body) {
     const s = String(body || "").trim();
@@ -133,12 +133,20 @@
     if (!m) return null;
     const dur = m[2] != null && m[2] !== "" ? parseFloat(m[2]) : NaN;
     const hold = m[3] ? Date.parse(m[3]) : null;
-    const tail = m[4];
+    let name = "";
+    try {
+      name = m[4] ? decodeURIComponent(String(m[4]).replace(/\+/g, " ")) : "";
+    } catch (e) {
+      name = m[4] || "";
+    }
+    name = String(name || "").trim().slice(0, 80);
+    const tail = m[5];
     if (String(tail).toLowerCase() === "deleted") {
       return {
         ttl: m[1].toLowerCase(),
         duration: isFinite(dur) ? dur : null,
         holdUntil: hold && isFinite(hold) ? hold : null,
+        name: name,
         url: "",
         deleted: true,
         deletedReason: "expired",
@@ -148,6 +156,7 @@
       ttl: m[1].toLowerCase(),
       duration: isFinite(dur) ? dur : null,
       holdUntil: hold && isFinite(hold) ? hold : null,
+      name: name,
       url: tail,
       deleted: false,
     };
@@ -270,7 +279,7 @@
     return "3h";
   }
 
-  function encodeVoiceBody(url, ttl, durationSec, holdUntil) {
+  function encodeVoiceBody(url, ttl, durationSec, holdUntil, name) {
     if (!url || url === "deleted") {
       let s = VOICE_PREFIX + "|ttl=" + (ttl || "3h");
       if (durationSec != null && isFinite(durationSec) && durationSec > 0) {
@@ -286,8 +295,29 @@
     if (holdUntil && isFinite(holdUntil)) {
       s += "|holduntil=" + new Date(holdUntil).toISOString();
     }
+    const nm = String(name || "").trim().slice(0, 80);
+    if (nm) {
+      s += "|name=" + encodeURIComponent(nm);
+    }
     s += "|" + String(url || "").trim();
     return s;
+  }
+
+  function askSoundName(defaultName) {
+    const def = String(defaultName || "pesan-suara").slice(0, 60);
+    let n = null;
+    try {
+      n = window.prompt("Nama suara (untuk unduhan nanti):", def);
+    } catch (e) {
+      n = def;
+    }
+    if (n == null) return null; // batal
+    n = String(n)
+      .trim()
+      .replace(/[\\/:*?"<>|]+/g, "-")
+      .replace(/\s+/g, " ")
+      .slice(0, 80);
+    return n || "pesan-suara";
   }
 
   function parseMessageParts(body) {
@@ -339,7 +369,7 @@
     const hasVoice = !!(voice && (voice.url || voice.deleted));
     if (!hasImg && !hasVoice) return text;
     if (!text && !hasImg && hasVoice) {
-      return encodeVoiceBody(voice.deleted ? "deleted" : voice.url, voice.ttl || myVoiceTtl(), voice.duration, voice.holdUntil);
+      return encodeVoiceBody(voice.deleted ? "deleted" : voice.url, voice.ttl || myVoiceTtl(), voice.duration, voice.holdUntil, voice.name);
     }
 
     let out = "__mix__";
@@ -348,7 +378,7 @@
       out += "\n" + encodeImageToken(im);
     });
     if (hasVoice) {
-      out += "\n" + encodeVoiceBody(voice.deleted ? "deleted" : voice.url, voice.ttl || myVoiceTtl(), voice.duration, voice.holdUntil);
+      out += "\n" + encodeVoiceBody(voice.deleted ? "deleted" : voice.url, voice.ttl || myVoiceTtl(), voice.duration, voice.holdUntil, voice.name);
     }
     return out;
   }
@@ -380,14 +410,18 @@
       delayBtn =
         '<button type="button" class="chat-delay-btn" data-act="delay-voice" title="Tunda penghapusan 1 hari">⏱ Tunda 1 hari</button>';
     }
+    const voiceName = (voice.name && String(voice.name).trim()) || "pesan-suara";
+    const nameAttr = esc(voiceName).replace(/"/g, "&quot;");
     if (window.SHVoice && SHVoice.playerHtml) {
       return (
         '<div class="chat-voice-msg">' +
+        (voice.name ? '<div class="chat-voice-title">' + esc(voice.name) + "</div>" : "") +
         SHVoice.playerHtml({
           url: voice.url,
           duration: voice.duration,
           ttlLabel: ttl,
           downloadable: true,
+          name: voiceName,
         }) +
         delayBtn +
         "</div>"
@@ -397,18 +431,19 @@
     const durLabel = knownDur != null ? fmtVoiceClock(knownDur) : "--:--";
     return (
       '<div class="chat-voice-msg">' +
+      (voice.name ? '<div class="chat-voice-title">' + esc(voice.name) + "</div>" : "") +
       '<div class="chat-voice-player sh-voice-player"' +
       (knownDur != null ? ' data-duration="' + knownDur + '"' : "") +
       ' data-voice-url="' +
       esc(voice.url).replace(/"/g, "&quot;") +
-      '">' +
+      '" data-name="' + nameAttr + '">' +
       '<button type="button" class="chat-voice-play sh-voice-play" data-voice-play title="Putar/jeda">▶</button>' +
       '<div class="sh-voice-track"><span class="chat-voice-time sh-voice-time" data-voice-time>00:00 / ' +
       durLabel +
       '</span><input type="range" class="sh-voice-seek" min="0" max="1000" value="0" step="1" /></div>' +
       '<a class="sh-voice-dl" href="' +
       esc(voice.url).replace(/"/g, "&quot;") +
-      '" download="pesan-suara" title="Unduh">⬇</a>' +
+      '" download="' + nameAttr + '" title="Unduh">⬇</a>' +
       '<audio class="chat-voice-audio sh-voice-audio" preload="metadata" src="' +
       esc(voice.url).replace(/"/g, "&quot;") +
       '"></audio>' +
@@ -3004,9 +3039,14 @@
   }
 
 
-  async function sendVoiceBlob(blob, durSec) {
+  async function sendVoiceBlob(blob, durSec, soundName) {
     if (!blob || blob.size < 400) throw new Error("Audio terlalu pendek");
     if (!GalleryDB.enabled() || !GalleryDB.uploadChatAudio) throw new Error("Upload suara belum tersedia");
+    let nm = soundName;
+    if (nm == null || nm === "") {
+      nm = askSoundName("mix-" + new Date().toISOString().slice(0, 10));
+      if (nm == null) throw new Error("Dibatalkan (nama suara)");
+    }
     const url = await GalleryDB.uploadChatAudio(blob);
     if (!url) throw new Error("Upload gagal");
     let d = durSec;
@@ -3029,7 +3069,7 @@
     const body = encodeMessageParts({
       text: typed.slice(0, CHAT_BODY_MAX),
       images: [],
-      voice: { url: url, ttl: myVoiceTtl(), duration: d },
+      voice: { url: url, ttl: myVoiceTtl(), duration: d, name: nm },
     });
     const row = await GalleryDB.sendChat({
       angkatanId: currentRoomContext().angkatanId,
@@ -3310,11 +3350,16 @@
         URL.revokeObjectURL(obj);
       } catch (e) {}
       if (durSec == null && recordedMs > 300) durSec = recordedMs / 1000;
+      const nm = askSoundName("pesan-suara");
+      if (nm == null) {
+        status.textContent = "Dibatalkan (nama suara)";
+        return;
+      }
       const typed = chatInput ? String(chatInput.value || "").trim() : "";
       const body = encodeMessageParts({
         text: typed.slice(0, CHAT_BODY_MAX),
         images: [],
-        voice: { url: url, ttl: myVoiceTtl(), duration: durSec },
+        voice: { url: url, ttl: myVoiceTtl(), duration: durSec, name: nm },
       });
       const row = await GalleryDB.sendChat({
         angkatanId: currentRoomContext().angkatanId, roomId: currentRoomContext().roomId,
@@ -3599,7 +3644,7 @@
           if (status) status.textContent = "Mengunggah hasil mix…";
           try {
             if (!result || !result.blob) throw new Error("Tidak ada hasil mix");
-            await sendVoiceBlob(result.blob, result.duration);
+            await sendVoiceBlob(result.blob, result.duration, result.name || null);
             if (status) status.textContent = "Hasil mix terkirim sebagai pesan suara";
           } catch (e) {
             var msg = (e && e.message) || String(e);

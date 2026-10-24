@@ -4349,3 +4349,9 @@ details[open] > summary::before { content: "▾ "; }
   .amx-panel{max-height:min(96vh,920px);overflow:auto}
 }
 
+.amx-nav{font-size:12px!important;padding:2px 6px!important;min-height:26px;min-width:28px}
+.amx-track.is-solo{border-color:rgba(255,200,80,.55);box-shadow:0 0 0 1px rgba(255,200,80,.2)}
+.amx-track-acts .is-solo,.amx-xs.is-solo{color:#ffc850;font-weight:800}
+.chat-voice-title{font-size:12px;font-weight:700;color:#9fd9ef;margin:0 0 4px 2px}
+[data-theme="light"] .chat-voice-title{color:#1a6f9a}
+

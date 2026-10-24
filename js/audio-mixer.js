@@ -66,6 +66,48 @@
     return impulse;
   }
 
+
+  function floatTo16(ch) {
+    var out = new Int16Array(ch.length);
+    for (var i = 0; i < ch.length; i++) {
+      var s = Math.max(-1, Math.min(1, ch[i]));
+      out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+    }
+    return out;
+  }
+
+  /** Encode AudioBuffer → MP3 via lamejs (vendor/lame.min.js) */
+  function encodeMp3(audioBuffer, kbps) {
+    if (typeof lamejs === "undefined" || !lamejs.Mp3Encoder) {
+      throw new Error("lamejs belum dimuat — muat js/vendor/lame.min.js");
+    }
+    kbps = kbps || 128;
+    var numCh = audioBuffer.numberOfChannels >= 2 ? 2 : 1;
+    var sr = audioBuffer.sampleRate;
+    var enc = new lamejs.Mp3Encoder(numCh, sr, kbps);
+    var left = floatTo16(audioBuffer.getChannelData(0));
+    var right =
+      numCh > 1
+        ? floatTo16(audioBuffer.getChannelData(1))
+        : null;
+    var block = 1152;
+    var parts = [];
+    for (var i = 0; i < left.length; i += block) {
+      var l = left.subarray(i, i + block);
+      var buf;
+      if (numCh === 1) {
+        buf = enc.encodeBuffer(l);
+      } else {
+        var r = right.subarray(i, i + block);
+        buf = enc.encodeBuffer(l, r);
+      }
+      if (buf && buf.length) parts.push(buf);
+    }
+    var end = enc.flush();
+    if (end && end.length) parts.push(end);
+    return new Blob(parts, { type: "audio/mpeg" });
+  }
+
   /**
    * Render AudioBuffer → WebM/Opus lewat MediaRecorder (cocok untuk chat, jauh lebih kecil dari WAV).
    * Browser tidak punya encoder MP3 native tanpa library.
@@ -179,10 +221,16 @@
       '    <button type="button" class="btn btn-primary amx-sm" data-amx="rec">● Rekam</button>' +
       '    <button type="button" class="btn btn-ghost amx-sm" data-amx="stop-rec" hidden>■ Stop</button>' +
       '    <label class="btn btn-ghost amx-sm amx-upload">⬆ File<input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.webm" hidden data-amx="file"></label>' +
-      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="play">▶</button>' +
-      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="stop">■</button>' +
+      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="mute-all" title="Mute semua">Mute all</button>' +
+      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="unmute-all" title="Unmute semua">Unmute</button>' +
       "  </div>" +
       '  <div class="amx-transport">' +
+      '    <button type="button" class="btn btn-ghost amx-nav" data-amx="to-start" title="Awal">⏮</button>' +
+      '    <button type="button" class="btn btn-ghost amx-nav" data-amx="skip-back" title="-5 dtk">⏪</button>' +
+      '    <button type="button" class="btn btn-ghost amx-nav" data-amx="play" title="Play">▶</button>' +
+      '    <button type="button" class="btn btn-ghost amx-nav" data-amx="stop" title="Stop">■</button>' +
+      '    <button type="button" class="btn btn-ghost amx-nav" data-amx="skip-fwd" title="+5 dtk">⏩</button>' +
+      '    <button type="button" class="btn btn-ghost amx-nav" data-amx="to-end" title="Akhir">⏭</button>' +
       '    <span class="amx-clock" data-amx="clock">0:00</span>' +
       '    <div class="amx-timeline" data-amx="timeline" title="Klik untuk seek">' +
       '      <div class="amx-timeline-fill" data-amx="tfill"></div>' +
@@ -201,7 +249,8 @@
       '  <footer class="amx-foot">' +
       '    <button type="button" class="btn btn-ghost amx-sm" data-amx="close">Batal</button>' +
       '    <button type="button" class="btn btn-ghost amx-sm" data-amx="download-wav" title="Kualitas penuh">⬇ WAV</button>' +
-      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="download-webm" title="Kompres (bukan MP3 native — browser tidak encode MP3 tanpa library)">⬇ WebM</button>' +
+      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="download-mp3" title="MP3 128kbps (lamejs)">⬇ MP3</button>' +
+      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="download-webm" title="WebM/Opus kompres">⬇ WebM</button>' +
       '    <button type="button" class="btn btn-primary amx-sm" data-amx="export" hidden>Kirim</button>' +
       "  </footer>" +
       "</div>";
@@ -285,6 +334,21 @@
         if (end > m) m = end;
       });
       return m;
+    }
+
+    function anySolo() {
+      for (var i = 0; i < tracks.length; i++) {
+        if (tracks[i].solo) return true;
+      }
+      return false;
+    }
+
+    /** Track aktif untuk play/mix: hormati mute + solo */
+    function isTrackActive(tr) {
+      if (!tr || !tr.buffer) return false;
+      if (tr.muted) return false;
+      if (anySolo()) return !!tr.solo;
+      return true;
     }
 
     function stopMeter() {
@@ -461,7 +525,7 @@
     }
 
     function scheduleTrack(tr, head, t0) {
-      if (tr.muted || !tr.buffer) return null;
+      if (!isTrackActive(tr)) return null;
       var off = tr.offset || 0;
       var bufDur = tr.buffer.duration;
       if (head >= off + bufDur) return null;
@@ -532,7 +596,7 @@
       }
       tracks.forEach(function (tr, idx) {
         var row = document.createElement("div");
-        row.className = "amx-track" + (tr.muted ? " is-muted" : "");
+        row.className = "amx-track" + (tr.muted ? " is-muted" : "") + (tr.solo ? " is-solo" : "");
         var offLabel =
           tr.offset && tr.offset > 0.05 ? " @" + fmt(tr.offset) : "";
         var vol = typeof tr.volume === "number" ? tr.volume : 1;
@@ -577,6 +641,19 @@
           "</div>" +
           "</div></div>" +
           '<div class="amx-track-acts">' +
+          '<button type="button" class="btn btn-ghost amx-xs" data-act="trk-start" data-i="' +
+          idx +
+          '" title="Awal track">⏮</button>' +
+          '<button type="button" class="btn btn-ghost amx-xs" data-act="trk-end" data-i="' +
+          idx +
+          '" title="Akhir track">⏭</button>' +
+          '<button type="button" class="btn btn-ghost amx-xs' +
+          (tr.solo ? " is-solo" : "") +
+          '" data-act="solo" data-i="' +
+          idx +
+          '" title="Solo (track lain di-mute di play/mix)">' +
+          (tr.solo ? "S●" : "S") +
+          "</button>" +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="mute" data-i="' +
           idx +
           '">' +
@@ -584,7 +661,7 @@
           "</button>" +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="solo-play" data-i="' +
           idx +
-          '">▶</button>' +
+          '" title="Putar track ini saja">▶</button>' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="del" data-i="' +
           idx +
           '">✕</button>' +
@@ -605,6 +682,7 @@
         name: name || "Track " + (tracks.length + 1),
         buffer: buffer,
         muted: false,
+        solo: false,
         offset: Math.max(0, offsetSec || 0),
         volume: 1,
         reverb: 0,
@@ -676,13 +754,18 @@
               "Rekam " +
               (tracks.length + 1) +
               (savedOffset > 0.05 ? " @" + fmt(savedOffset) : "");
-            addBuffer(buf, label, savedOffset);
+            var ok = addBuffer(buf, label, savedOffset);
+            if (ok && tracks.length) {
+              // Rekaman mic biasanya lebih pelan dari file upload — boost default
+              tracks[tracks.length - 1].volume = 1.35;
+              renderTracks();
+            }
             setStatus(
               "Track ditambah" +
                 (savedOffset > 0.05
                   ? " mulai dari " + fmt(savedOffset)
                   : "") +
-                "."
+                " · vol mic 135%."
             );
           } catch (e) {
             setStatus("Gagal decode: " + (e.message || e));
@@ -729,11 +812,16 @@
         ensureCtx();
         var buf = await decodeBlob(audioCtx, file);
         var off = currentPlayhead();
-        addBuffer(buf, file.name || "Upload", off > 0.05 ? off : 0);
+        var ok = addBuffer(buf, file.name || "Upload", off > 0.05 ? off : 0);
+        if (ok && tracks.length) {
+          tracks[tracks.length - 1].volume = 0.85;
+          renderTracks();
+        }
         setStatus(
           "File: " +
             (file.name || "audio") +
-            (off > 0.05 ? " @" + fmt(off) : "")
+            (off > 0.05 ? " @" + fmt(off) : "") +
+            " · vol 85% (atur slider bila perlu)"
         );
       } catch (e) {
         setStatus("File gagal: " + (e.message || e));
@@ -743,7 +831,7 @@
     /** Offline mix dengan volume + reverb per track */
     async function mixToBuffer() {
       var active = tracks.filter(function (t) {
-        return !t.muted && t.buffer;
+        return isTrackActive(t);
       });
       if (!active.length) {
         setStatus("Tidak ada track aktif.");
@@ -839,6 +927,37 @@
         );
       } catch (e) {
         setStatus("Gagal simpan WAV: " + (e.message || e));
+      }
+    }
+
+    async function doDownloadMp3() {
+      try {
+        var rendered = await mixToBuffer();
+        if (!rendered) return;
+        setStatus("Encode MP3…");
+        var blob = encodeMp3(rendered, 128);
+        var name = "mix-" + Date.now();
+        try {
+          var asked = window.prompt("Nama file MP3 (tanpa ekstensi):", name);
+          if (asked == null) {
+            setStatus("Unduh MP3 dibatalkan.");
+            return;
+          }
+          name = String(asked).trim().replace(/[\\/:*?"<>|]+/g, "-") || name;
+        } catch (e) {}
+        triggerDownload({
+          blob: blob,
+          filename: name + ".mp3",
+        });
+        setStatus(
+          "MP3 disimpan · " +
+            fmt(rendered.duration) +
+            " · " +
+            Math.round(blob.size / 1024) +
+            " KB"
+        );
+      } catch (e) {
+        setStatus("Gagal MP3: " + (e.message || e));
       }
     }
 
@@ -987,8 +1106,27 @@
         stopPlayback(true);
         setStatus("Stop @ " + fmt(playhead));
       } else if (amx === "download-wav") doDownloadWav();
+      else if (amx === "download-mp3") doDownloadMp3();
       else if (amx === "download-webm") doDownloadWebm();
       else if (amx === "export") doExport();
+      else if (amx === "to-start") seekTo(0);
+      else if (amx === "to-end") seekTo(maxDur());
+      else if (amx === "skip-back") seekTo(Math.max(0, currentPlayhead() - 5));
+      else if (amx === "skip-fwd") seekTo(Math.min(maxDur(), currentPlayhead() + 5));
+      else if (amx === "mute-all") {
+        tracks.forEach(function (tr) {
+          tr.muted = true;
+        });
+        renderTracks();
+        setStatus("Semua di-mute.");
+      } else if (amx === "unmute-all") {
+        tracks.forEach(function (tr) {
+          tr.muted = false;
+          tr.solo = false;
+        });
+        renderTracks();
+        setStatus("Semua unmute · solo dibersihkan.");
+      }
 
       var act = t.getAttribute("data-act");
       if (act === "mute") {
@@ -996,6 +1134,26 @@
         if (tracks[i]) {
           tracks[i].muted = !tracks[i].muted;
           renderTracks();
+        }
+      } else if (act === "solo") {
+        var si = Number(t.getAttribute("data-i"));
+        if (tracks[si]) {
+          tracks[si].solo = !tracks[si].solo;
+          if (tracks[si].solo) tracks[si].muted = false;
+          renderTracks();
+          setStatus(
+            tracks[si].solo
+              ? "Solo T" + (si + 1) + " — track lain diabaikan di play/mix"
+              : "Solo off T" + (si + 1)
+          );
+        }
+      } else if (act === "trk-start") {
+        var ti = Number(t.getAttribute("data-i"));
+        if (tracks[ti]) seekTo(tracks[ti].offset || 0);
+      } else if (act === "trk-end") {
+        var te = Number(t.getAttribute("data-i"));
+        if (tracks[te] && tracks[te].buffer) {
+          seekTo((tracks[te].offset || 0) + tracks[te].buffer.duration);
         }
       } else if (act === "del") {
         var j = Number(t.getAttribute("data-i"));
