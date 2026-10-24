@@ -23,6 +23,8 @@
   let typingCtl = null;
   let typingTimer = null;
   let allMessages = [];
+  let chatReactionsMap = {}; // messageId -> [{id,emoji,author_name,author_user_id}]
+  const CHAT_REACT_EMOJIS = ["👍","❤️","😂","😮","😢","🙏","🔥","👏","🎉","✅"];
   let selectedAvatar = "💬";
   let loginDisplayName = "";
   let myUserId = null;
@@ -1009,6 +1011,156 @@
     });
   }
 
+
+  function aggregateReactions(list) {
+    const counts = {};
+    const who = {};
+    (list || []).forEach(function (r) {
+      const e = r.emoji || "";
+      if (!e) return;
+      counts[e] = (counts[e] || 0) + 1;
+      if (!who[e]) who[e] = [];
+      who[e].push(r.author_name || "Anonim");
+    });
+    return { counts: counts, who: who };
+  }
+
+  function myReactionEmoji(messageId) {
+    const list = chatReactionsMap[messageId] || [];
+    const myName = (resolveAuthorName() || "").toLowerCase();
+    for (var i = 0; i < list.length; i++) {
+      const r = list[i];
+      if (myName && String(r.author_name || "").toLowerCase() === myName) return r.emoji;
+    }
+    return null;
+  }
+
+  function reactionsHtml(messageId) {
+    const list = chatReactionsMap[messageId] || [];
+    if (!list.length) return "";
+    const agg = aggregateReactions(list);
+    const mine = myReactionEmoji(messageId);
+    const keys = Object.keys(agg.counts).sort(function (a, b) {
+      return agg.counts[b] - agg.counts[a];
+    });
+    let html = '<div class="chat-reacts" data-msg-reacts="' + esc(messageId) + '">';
+    keys.forEach(function (em) {
+      const n = agg.counts[em];
+      const tip = (agg.who[em] || []).slice(0, 8).join(", ");
+      html +=
+        '<button type="button" class="chat-react-chip' +
+        (mine === em ? " is-mine" : "") +
+        '" data-act="react-toggle" data-emoji="' +
+        esc(em) +
+        '" title="' +
+        esc(tip) +
+        '"><span class="chat-react-em">' +
+        em +
+        '</span><span class="chat-react-n">' +
+        n +
+        "</span></button>";
+    });
+    html += "</div>";
+    return html;
+  }
+
+  function closeReactPicker() {
+    document.querySelectorAll(".chat-react-picker").forEach(function (el) {
+      el.remove();
+    });
+  }
+
+  function openReactPicker(anchorEl, messageId) {
+    closeReactPicker();
+    const bubble = anchorEl.closest(".chat-bubble");
+    if (!bubble) return;
+    const picker = document.createElement("div");
+    picker.className = "chat-react-picker";
+    picker.setAttribute("role", "dialog");
+    picker.setAttribute("aria-label", "Reaksi");
+    let html = "";
+    const mine = myReactionEmoji(messageId);
+    CHAT_REACT_EMOJIS.forEach(function (em) {
+      html +=
+        '<button type="button" class="chat-react-pick' +
+        (mine === em ? " is-active" : "") +
+        '" data-act="react-pick" data-emoji="' +
+        em +
+        '" title="' +
+        em +
+        '">' +
+        em +
+        "</button>";
+    });
+    picker.innerHTML = html;
+    const body = bubble.querySelector(".chat-body") || bubble;
+    body.appendChild(picker);
+    // outside click closes
+    setTimeout(function () {
+      function onDoc(ev) {
+        if (!picker.contains(ev.target) && ev.target !== anchorEl && !anchorEl.contains(ev.target)) {
+          closeReactPicker();
+          document.removeEventListener("mousedown", onDoc, true);
+        }
+      }
+      document.addEventListener("mousedown", onDoc, true);
+    }, 0);
+  }
+
+  async function applyReaction(messageId, emoji) {
+    if (!window.GalleryDB || !GalleryDB.toggleChatReaction) {
+      if (status) status.textContent = "Fitur reaksi belum siap (DB).";
+      return;
+    }
+    try {
+      if (status) status.textContent = "Menyimpan reaksi…";
+      const list = await GalleryDB.toggleChatReaction(messageId, emoji, resolveAuthorName());
+      chatReactionsMap[messageId] = list || [];
+      // update only this bubble's reacts strip
+      const bubble = log && log.querySelector('.chat-bubble[data-id="' + messageId + '"]');
+      if (bubble) {
+        let strip = bubble.querySelector(".chat-reacts");
+        const html = reactionsHtml(messageId);
+        if (strip) {
+          if (html) strip.outerHTML = html;
+          else strip.remove();
+        } else if (html) {
+          const text = bubble.querySelector(".chat-text");
+          if (text) text.insertAdjacentHTML("afterend", html);
+          else {
+            const body = bubble.querySelector(".chat-body");
+            if (body) body.insertAdjacentHTML("beforeend", html);
+          }
+        }
+      }
+      closeReactPicker();
+      if (status) status.textContent = "";
+    } catch (e) {
+      const msg = (e && e.message) || String(e);
+      if (/relation|does not exist|42P01/i.test(msg)) {
+        if (status)
+          status.textContent =
+            "Tabel reaksi belum ada — jalankan sql/patch-chat-reactions.sql di Supabase.";
+      } else {
+        if (status) status.textContent = "Reaksi gagal: " + msg;
+      }
+    }
+  }
+
+  async function refreshChatReactions() {
+    if (!window.GalleryDB || !GalleryDB.listChatReactions) return;
+    const ids = (allMessages || []).map(function (m) { return m && m.id; }).filter(Boolean);
+    if (!ids.length) {
+      chatReactionsMap = {};
+      return;
+    }
+    try {
+      chatReactionsMap = await GalleryDB.listChatReactions(ids);
+    } catch (e) {
+      console.warn("refreshChatReactions", e);
+    }
+  }
+
   function appendBubble(m, q, depth) {
     const div = document.createElement("div");
     div.className = "chat-bubble" + (depth ? " chat-depth-" + Math.min(depth, 2) : "");
@@ -1085,13 +1237,14 @@
     const nameHtml = q
       ? highlight(esc(m.author_name || ""), q)
       : esc(m.author_name || "");
+    const reacts = reactionsHtml(m.id);
     div.innerHTML =
       '<div class="chat-av">' +
       esc(av) +
       "</div>" +
-      '<div class="chat-body"><strong class="chat-author-name">' +
+      '<div class="chat-body"><button type="button" class="chat-author-name" data-act="react-open" title="Reaksi emoji">' +
       nameHtml +
-      "</strong> <small>" +
+      "</button> <small>" +
       esc(t) +
       "</small>" +
       edited +
@@ -1099,6 +1252,7 @@
       '<div class="chat-text' + (hasVoice ? " chat-text-voice" : "") + (parts.images && parts.images.length ? " chat-text-has-img" : "") + '">' +
       bodyHtml +
       "</div>" +
+      reacts +
       actions +
       '<button type="button" class="chat-copy-btn" data-act="copy" title="Salin pesan" aria-label="Salin pesan">⧉</button>' +
       "</div>";
@@ -2103,6 +2257,7 @@
       }
 
       allMessages = rows || [];
+      await refreshChatReactions();
       renderMessages();
       status.textContent = allMessages.length
         ? "Ruang chat · " + allMessages.length + " pesan · realtime"
@@ -2900,6 +3055,15 @@
       const id = bubble.dataset.id;
       const msg = allMessages.find((m) => m.id === id);
       if (!msg) return;
+      if (btn.dataset.act === "react-open") {
+        openReactPicker(btn, id);
+        return;
+      }
+      if (btn.dataset.act === "react-pick" || btn.dataset.act === "react-toggle") {
+        const em = btn.dataset.emoji;
+        if (em) applyReaction(id, em);
+        return;
+      }
       if (btn.dataset.act === "copy") {
         const text = plainTextFromMessage(msg);
         const done = function () {

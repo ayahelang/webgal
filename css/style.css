@@ -4449,3 +4449,63 @@ details[open] > summary::before { content: "▾ "; }
 .amx-handle-out{left:100%}
 .amx-region-label{font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}
 
+/* ===== Chat emoji reactions (WA-style) ===== */
+button.chat-author-name{
+  display:inline;background:none;border:none;padding:0;margin:0;
+  font:inherit;font-weight:700;color:inherit;cursor:pointer;
+  border-radius:4px;
+}
+button.chat-author-name:hover{
+  color:#7de3ff;
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+.chat-reacts{
+  display:flex;flex-wrap:wrap;gap:4px;
+  margin:6px 0 2px;
+}
+.chat-react-chip{
+  display:inline-flex;align-items:center;gap:3px;
+  border:1px solid rgba(125,227,255,.28);
+  background:rgba(0,0,0,.28);
+  border-radius:999px;
+  padding:2px 8px 2px 6px;
+  font-size:13px;line-height:1.3;
+  cursor:pointer;color:#d7e8ef;
+}
+.chat-react-chip:hover{border-color:#7de3ff;background:rgba(94,200,255,.12)}
+.chat-react-chip.is-mine{
+  border-color:rgba(125,227,255,.7);
+  background:rgba(94,200,255,.18);
+  box-shadow:0 0 0 1px rgba(125,227,255,.25);
+}
+.chat-react-n{font-size:11px;font-weight:700;opacity:.9}
+.chat-react-picker{
+  display:flex;flex-wrap:wrap;gap:4px;
+  margin:8px 0 4px;padding:6px 8px;
+  border-radius:14px;
+  background:rgba(12,20,28,.96);
+  border:1px solid rgba(125,227,255,.3);
+  box-shadow:0 8px 24px rgba(0,0,0,.45);
+  width:max-content;max-width:100%;
+  z-index:5;position:relative;
+}
+.chat-react-pick{
+  width:36px;height:36px;border:none;border-radius:10px;
+  background:transparent;font-size:20px;cursor:pointer;
+  line-height:1;
+}
+.chat-react-pick:hover{background:rgba(94,200,255,.15);transform:scale(1.12)}
+.chat-react-pick.is-active{
+  background:rgba(94,200,255,.22);
+  box-shadow:inset 0 0 0 1px rgba(125,227,255,.5);
+}
+[data-theme="light"] .chat-react-picker{
+  background:#fff;border-color:rgba(26,143,209,.25);
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+}
+[data-theme="light"] .chat-react-chip{
+  background:rgba(26,143,209,.08);border-color:rgba(26,143,209,.25);color:#1a3a4a;
+}
+[data-theme="light"] button.chat-author-name:hover{color:#1a8fd1}
+

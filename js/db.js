@@ -4360,7 +4360,98 @@
         errors.push((it.title || "") + ": " + (e.message || e));
       }
     }
-    return { ok, total: items.length, errors };
+  
+  /* ===== Chat message emoji reactions (WA-style) ===== */
+  async function listChatReactions(messageIds) {
+    const sb = client();
+    if (!sb || !messageIds || !messageIds.length) return {};
+    const ids = messageIds.filter(Boolean).slice(0, 300);
+    const map = {};
+    ids.forEach(function (id) { map[id] = []; });
+    try {
+      const { data, error } = await sb
+        .from("gallery_chat_reactions")
+        .select("id,message_id,emoji,author_name,author_user_id,created_at")
+        .in("message_id", ids);
+      if (error) throw error;
+      (data || []).forEach(function (r) {
+        if (!map[r.message_id]) map[r.message_id] = [];
+        map[r.message_id].push(r);
+      });
+    } catch (e) {
+      console.warn("listChatReactions", e);
+    }
+    return map;
+  }
+
+  /**
+   * Toggle reaksi: jika user sudah pakai emoji yang sama → hapus;
+   * jika emoji lain → update; jika belum → insert.
+   * Returns { reactions: [...], mine: emoji|null }
+   */
+  async function toggleChatReaction(messageId, emoji, authorName) {
+    const sb = client();
+    if (!sb) throw new Error("Supabase belum siap");
+    if (!messageId) throw new Error("Pesan tidak valid");
+    const em = String(emoji || "").trim().slice(0, 16);
+    if (!em) throw new Error("Emoji kosong");
+    let uid = null;
+    try {
+      const session = await getSession();
+      if (session && session.user) uid = session.user.id;
+    } catch (e) {}
+    const name = String(authorName || getGuestName() || "Anonim").slice(0, 80);
+
+    // Cari reaksi milik saya pada pesan ini
+    let mine = null;
+    try {
+      let q = sb
+        .from("gallery_chat_reactions")
+        .select("id,emoji,author_name,author_user_id")
+        .eq("message_id", messageId);
+      if (uid) q = q.eq("author_user_id", uid);
+      else q = q.is("author_user_id", null).eq("author_name", name);
+      const { data, error } = await q.maybeSingle();
+      if (!error && data) mine = data;
+      // maybeSingle may fail if multiple — fallback
+    } catch (e) {
+      try {
+        let q2 = sb
+          .from("gallery_chat_reactions")
+          .select("id,emoji")
+          .eq("message_id", messageId);
+        if (uid) q2 = q2.eq("author_user_id", uid);
+        else q2 = q2.is("author_user_id", null).eq("author_name", name);
+        const { data: rows } = await q2.limit(1);
+        if (rows && rows[0]) mine = rows[0];
+      } catch (e2) {}
+    }
+
+    if (mine && mine.emoji === em) {
+      // toggle off
+      await sb.from("gallery_chat_reactions").delete().eq("id", mine.id);
+    } else if (mine) {
+      // change emoji
+      await sb
+        .from("gallery_chat_reactions")
+        .update({ emoji: em, author_name: name })
+        .eq("id", mine.id);
+    } else {
+      const row = {
+        message_id: messageId,
+        emoji: em,
+        author_name: name,
+        author_user_id: uid || null,
+      };
+      const { error } = await sb.from("gallery_chat_reactions").insert(row);
+      if (error) throw error;
+    }
+
+    const map = await listChatReactions([messageId]);
+    return map[messageId] || [];
+  }
+
+  return { ok, total: items.length, errors };
   }
 
 
@@ -4509,5 +4600,7 @@
     sessionId,
     getStatsTimeseries,
     sumReactionsForUrls,
+    listChatReactions,
+    toggleChatReaction,
   };
 })(window);

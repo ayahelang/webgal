@@ -1,5 +1,9 @@
 # Riwayat versi (ringkas)
 
+## v2026.10.24e
+- Chat: reaksi emoji gaya WhatsApp — klik **nama pengirim** → pilih emoji; chip di bawah pesan; klik chip lagi untuk batal
+- SQL: `sql/patch-chat-reactions.sql` (wajib di-run di Supabase)
+
 ## v2026.10.24d
 - Audio Mixer: **Mark In / Mark Out** di timeline (region export) + pegangan geser
 - Kirim chat: encode **MP3 offline** mono 22.05kHz 48kbps (cepat, bukan MediaRecorder real-time); region max ~120 dtk
