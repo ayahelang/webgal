@@ -231,18 +231,29 @@
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="stop" title="Stop">■</button>' +
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="skip-fwd" title="+5 dtk">⏩</button>' +
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="to-end" title="Akhir">⏭</button>' +
+      '    <div class="amx-rec-compact" data-amx="recbar" hidden title="Level mic saat rekam">' +
+      '      <span class="chat-voice-dot amx-dot" aria-hidden="true"></span>' +
+      '      <span class="amx-timer" data-amx="timer">00:00</span>' +
+      '      <canvas class="amx-meter" data-amx="meter" width="72" height="18" aria-hidden="true"></canvas>' +
+      '      <span class="amx-rec-offset muted" data-amx="recoffset"></span>' +
+      "    </div>" +
+      "  </div>" +
+      '  <div class="amx-region-tools">' +
+      '    <button type="button" class="btn btn-ghost amx-xs" data-amx="mark-in" title="Set titik awal export di playhead">Mark In</button>' +
+      '    <button type="button" class="btn btn-ghost amx-xs" data-amx="mark-out" title="Set titik akhir export di playhead">Mark Out</button>' +
+      '    <button type="button" class="btn btn-ghost amx-xs" data-amx="region-reset" title="Reset region ke seluruh durasi">Reset</button>' +
+      '    <span class="muted amx-region-label" data-amx="region-label">Region: penuh</span>' +
+      "  </div>" +
+      '  <div class="amx-scrub-row">' +
       '    <span class="amx-clock" data-amx="clock">0:00</span>' +
-      '    <div class="amx-timeline" data-amx="timeline" title="Klik untuk seek">' +
+      '    <div class="amx-timeline amx-timeline-wide" data-amx="timeline" title="Klik/geser seek · tarik pegangan In/Out">' +
+      '      <div class="amx-region" data-amx="region"></div>' +
       '      <div class="amx-timeline-fill" data-amx="tfill"></div>' +
+      '      <div class="amx-handle amx-handle-in" data-amx="handle-in" title="Awal region"></div>' +
+      '      <div class="amx-handle amx-handle-out" data-amx="handle-out" title="Akhir region"></div>' +
       '      <div class="amx-timeline-head" data-amx="thead"></div>' +
       "    </div>" +
       '    <span class="amx-clock amx-clock-end" data-amx="clock-end">0:00</span>' +
-      "  </div>" +
-      '  <div class="amx-rec-bar" data-amx="recbar" hidden>' +
-      '    <span class="chat-voice-dot amx-dot" aria-hidden="true"></span>' +
-      '    <span class="amx-timer" data-amx="timer">00:00</span>' +
-      '    <canvas class="amx-meter" data-amx="meter" width="140" height="26" aria-hidden="true"></canvas>' +
-      '    <span class="amx-rec-offset muted" data-amx="recoffset"></span>' +
       "  </div>" +
       '  <div class="amx-status muted" data-amx="status">Rekam / unggah track.</div>' +
       '  <div class="amx-tracks" data-amx="tracks"></div>' +
@@ -278,6 +289,10 @@
     var tfillEl = root.querySelector("[data-amx=tfill]");
     var theadEl = root.querySelector("[data-amx=thead]");
     var panelEl = root.querySelector("[data-amx-panel]");
+    regionLabelEl = root.querySelector("[data-amx=region-label]");
+    regionEl = root.querySelector("[data-amx=region]");
+    handleInEl = root.querySelector("[data-amx=handle-in]");
+    handleOutEl = root.querySelector("[data-amx=handle-out]");
     var meterRaf = 0;
     var meterAnalyser = null;
     var meterSource = null;
@@ -290,6 +305,18 @@
     var playStartedAtHead = 0;
     var isRecording = false;
     var recOffsetSec = 0;
+    // Region export (In/Out) — default seluruh durasi
+    var regionIn = 0;
+    var regionOut = null; // null = maxDur()
+    var regionLabelEl = null;
+    var regionEl = null;
+    var handleInEl = null;
+    var handleOutEl = null;
+    // Chat: target kecil & encode offline cepat (bukan MediaRecorder real-time)
+    var CHAT_SR = 22050;
+    var CHAT_KBPS = 48;
+    var CHAT_MAX_SEC = 120; // ~48kbps mono ≈ 0.7 MB / 2 mnt
+    var CHAT_MAX_BYTES = 1.8 * 1024 * 1024;
     var sharedConvolver = null;
     var sharedImpulse = null;
 
@@ -429,6 +456,21 @@
       return Math.max(0, playStartedAtHead + elapsed);
     }
 
+    function getRegion() {
+      var total = maxDur();
+      var a = Math.max(0, regionIn || 0);
+      var b = regionOut == null ? total : regionOut;
+      if (b == null || !isFinite(b) || b <= 0) b = total;
+      if (b > total) b = total;
+      if (a > b) {
+        var t = a;
+        a = b;
+        b = t;
+      }
+      if (b - a < 0.05 && total > 0.05) b = Math.min(total, a + 0.05);
+      return { start: a, end: b, dur: Math.max(0, b - a), total: total };
+    }
+
     function updateTransportUI() {
       var total = maxDur();
       var cur = currentPlayhead();
@@ -439,6 +481,22 @@
       var pct = total > 0 ? Math.min(1, playhead / total) : 0;
       if (tfillEl) tfillEl.style.width = pct * 100 + "%";
       if (theadEl) theadEl.style.left = pct * 100 + "%";
+      // region overlay
+      var reg = getRegion();
+      if (total > 0 && regionEl) {
+        regionEl.style.left = (reg.start / total) * 100 + "%";
+        regionEl.style.width = (reg.dur / total) * 100 + "%";
+      }
+      if (total > 0 && handleInEl) handleInEl.style.left = (reg.start / total) * 100 + "%";
+      if (total > 0 && handleOutEl) handleOutEl.style.left = (reg.end / total) * 100 + "%";
+      if (regionLabelEl) {
+        if (reg.dur >= reg.total - 0.05) {
+          regionLabelEl.textContent = "Region: penuh (" + fmt(reg.total) + ")";
+        } else {
+          regionLabelEl.textContent =
+            "Region: " + fmt(reg.start) + " → " + fmt(reg.end) + " (" + fmt(reg.dur) + ")";
+        }
+      }
 
       var bars = listEl ? listEl.querySelectorAll("[data-amx-prog]") : [];
       for (var i = 0; i < bars.length; i++) {
@@ -828,8 +886,17 @@
       }
     }
 
-    /** Offline mix dengan volume + reverb per track */
-    async function mixToBuffer() {
+    /**
+     * Offline mix. opts:
+     *  - region: gunakan Mark In/Out (default true)
+     *  - mono: 1 channel
+     *  - sampleRate: target rate (downsample via OfflineAudioContext)
+     *  - tail: reverb tail detik
+     *  - maxSec: potong durasi region
+     */
+    async function mixToBuffer(opts) {
+      opts = opts || {};
+      var useRegion = opts.region !== false;
       var active = tracks.filter(function (t) {
         return isTrackActive(t);
       });
@@ -839,22 +906,38 @@
       }
       setStatus("Mixing…");
       ensureCtx();
-      var sr = audioCtx.sampleRate;
-      var dur = maxDur();
-      if (dur <= 0) {
-        setStatus("Durasi kosong.");
-        return null;
+      var reg = useRegion ? getRegion() : { start: 0, end: maxDur(), dur: maxDur(), total: maxDur() };
+      var start = reg.start;
+      var end = reg.end;
+      if (opts.maxSec && end - start > opts.maxSec) {
+        end = start + opts.maxSec;
       }
-      // + tail reverb
-      var tail = 1.5;
+      var dur = Math.max(0.05, end - start);
+      var sr = opts.sampleRate || audioCtx.sampleRate;
+      var ch = opts.mono ? 1 : 2;
+      var tail = opts.tail != null ? opts.tail : opts.mono ? 0.3 : 1.2;
       var frames = Math.ceil((dur + tail) * sr) || 1;
-      var offline = new OfflineAudioContext(2, frames, sr);
-      var impulse = makeImpulse(offline, 1.6, 2.4);
-      var conv = offline.createConvolver();
-      conv.buffer = impulse;
-      conv.connect(offline.destination);
+      var offline = new OfflineAudioContext(ch, frames, sr);
+      var conv = null;
+      if (!opts.mono && tail > 0.2) {
+        var impulse = makeImpulse(offline, 1.4, 2.4);
+        conv = offline.createConvolver();
+        conv.buffer = impulse;
+        conv.connect(offline.destination);
+      }
 
       active.forEach(function (t) {
+        var off = t.offset || 0;
+        var bufDur = t.buffer.duration;
+        var trackStart = off;
+        var trackEnd = off + bufDur;
+        // irisan dengan [start, end]
+        var playStart = Math.max(trackStart, start);
+        var playEnd = Math.min(trackEnd, end);
+        if (playEnd - playStart < 0.01) return;
+        var when = playStart - start; // posisi di buffer offline
+        var offsetInBuffer = playStart - off;
+        var len = playEnd - playStart;
         var src = offline.createBufferSource();
         src.buffer = t.buffer;
         var vol = typeof t.volume === "number" ? t.volume : 1;
@@ -863,15 +946,51 @@
         dry.gain.value = vol;
         src.connect(dry);
         dry.connect(offline.destination);
-        if (rev > 0.01) {
+        if (conv && rev > 0.01) {
           var wet = offline.createGain();
           wet.gain.value = vol * rev;
           src.connect(wet);
           wet.connect(conv);
         }
-        src.start(t.offset || 0);
+        try {
+          src.start(when, offsetInBuffer, len);
+        } catch (e) {
+          try {
+            src.start(when, offsetInBuffer);
+          } catch (e2) {}
+        }
       });
       return await offline.startRendering();
+    }
+
+    /** Mix khusus chat: mono 22.05kHz → MP3 48kbps (offline, cepat, kecil) */
+    async function mixToChatBlob() {
+      var reg = getRegion();
+      if (reg.dur > CHAT_MAX_SEC) {
+        setStatus(
+          "Region " +
+            fmt(reg.dur) +
+            " > " +
+            CHAT_MAX_SEC +
+            " dtk — dipotong otomatis dari Mark In. Perpendek region bila perlu."
+        );
+      }
+      var rendered = await mixToBuffer({
+        region: true,
+        mono: true,
+        sampleRate: CHAT_SR,
+        tail: 0.25,
+        maxSec: CHAT_MAX_SEC,
+      });
+      if (!rendered) return null;
+      setStatus("Encode MP3 chat (offline, cepat)…");
+      var blob = encodeMp3(rendered, CHAT_KBPS);
+      return {
+        blob: blob,
+        duration: rendered.duration,
+        mime: "audio/mpeg",
+        filename: "mix-" + Date.now() + ".mp3",
+      };
     }
 
     async function mixToWav() {
@@ -984,27 +1103,41 @@
         return;
       }
       try {
-        // Kirim format terkompresi (WebM) — WAV sering gagal (ukuran/MIME storage)
-        setStatus("Mixing & kompres untuk chat…");
-        var result = await mixToCompressed();
+        setStatus("Mix region → MP3 mono 48kbps (offline)…");
+        var result = await mixToChatBlob();
         if (!result) return;
         if (result.blob.size < 400) {
           setStatus("Hasil mix terlalu pendek.");
           return;
         }
-        if (result.blob.size > 8 * 1024 * 1024) {
+        if (result.blob.size > CHAT_MAX_BYTES) {
           setStatus(
-            "Hasil masih >8 MB setelah kompres. Perpendek durasi atau kurangi track."
+            "Masih " +
+              Math.round(result.blob.size / 1024) +
+              " KB (batas ~" +
+              Math.round(CHAT_MAX_BYTES / 1024) +
+              " KB). Pendekkan region (Mark In/Out)."
           );
           return;
         }
-        setStatus("Mengirim ke chat… (" + Math.round(result.blob.size / 1024) + " KB)");
-        // Jangan tutup dulu — tutup setelah sukses
+        setStatus(
+          "Mengirim… " +
+            Math.round(result.blob.size / 1024) +
+            " KB · " +
+            fmt(result.duration)
+        );
         await onExport(result);
         setStatus("Terkirim.");
         close();
       } catch (e) {
-        setStatus("Gagal kirim: " + (e.message || e));
+        var msg = (e && e.message) || String(e);
+        if (/maximum allowed size|exceeded|413|payload/i.test(msg)) {
+          setStatus(
+            "Storage menolak (file terlalu besar). Pendekkan region Mark In/Out, lalu kirim lagi."
+          );
+        } else {
+          setStatus("Gagal kirim: " + msg);
+        }
       }
     }
 
@@ -1079,13 +1212,63 @@
     })();
 
     if (timelineEl) {
-      timelineEl.onpointerdown = function (ev) {
-        if (isRecording) return;
+      var scrubbing = false;
+      var dragHandle = null; // "in" | "out" | null
+      function posFromEvent(ev) {
         var rect = timelineEl.getBoundingClientRect();
         var x = (ev.clientX - rect.left) / Math.max(1, rect.width);
+        return Math.max(0, Math.min(1, x));
+      }
+      function scrubFromEvent(ev) {
+        seekTo(posFromEvent(ev) * maxDur());
+      }
+      function applyHandle(ev) {
         var total = maxDur();
-        seekTo(x * total);
-      };
+        if (total <= 0) return;
+        var t = posFromEvent(ev) * total;
+        if (dragHandle === "in") {
+          regionIn = t;
+          if (regionOut != null && regionIn > regionOut) regionOut = regionIn;
+        } else if (dragHandle === "out") {
+          regionOut = t;
+          if (regionOut < regionIn) regionIn = regionOut;
+        }
+        updateTransportUI();
+      }
+      timelineEl.addEventListener("pointerdown", function (ev) {
+        if (isRecording) return;
+        var t = ev.target;
+        if (t && t.getAttribute) {
+          var h = t.getAttribute("data-amx");
+          if (h === "handle-in") dragHandle = "in";
+          else if (h === "handle-out") dragHandle = "out";
+          else dragHandle = null;
+        } else dragHandle = null;
+        scrubbing = true;
+        timelineEl.classList.add("is-scrubbing");
+        try {
+          timelineEl.setPointerCapture(ev.pointerId);
+        } catch (e) {}
+        if (dragHandle) applyHandle(ev);
+        else scrubFromEvent(ev);
+        ev.preventDefault();
+      });
+      timelineEl.addEventListener("pointermove", function (ev) {
+        if (!scrubbing) return;
+        if (dragHandle) applyHandle(ev);
+        else scrubFromEvent(ev);
+      });
+      function endScrub(ev) {
+        if (!scrubbing) return;
+        scrubbing = false;
+        dragHandle = null;
+        timelineEl.classList.remove("is-scrubbing");
+        try {
+          timelineEl.releasePointerCapture(ev.pointerId);
+        } catch (e) {}
+      }
+      timelineEl.addEventListener("pointerup", endScrub);
+      timelineEl.addEventListener("pointercancel", endScrub);
     }
 
     root.onclick = function (ev) {
@@ -1126,6 +1309,23 @@
         });
         renderTracks();
         setStatus("Semua unmute · solo dibersihkan.");
+      } else if (amx === "mark-in") {
+        regionIn = currentPlayhead();
+        if (regionOut != null && regionIn > regionOut) regionOut = null;
+        updateTransportUI();
+        setStatus("Mark In @ " + fmt(regionIn));
+      } else if (amx === "mark-out") {
+        regionOut = currentPlayhead();
+        if (regionOut < regionIn) {
+          regionIn = 0;
+        }
+        updateTransportUI();
+        setStatus("Mark Out @ " + fmt(regionOut));
+      } else if (amx === "region-reset") {
+        regionIn = 0;
+        regionOut = null;
+        updateTransportUI();
+        setStatus("Region direset ke penuh.");
       }
 
       var act = t.getAttribute("data-act");

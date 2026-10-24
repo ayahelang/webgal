@@ -1,5 +1,10 @@
 # Riwayat versi (ringkas)
 
+## v2026.10.24d
+- Audio Mixer: **Mark In / Mark Out** di timeline (region export) + pegangan geser
+- Kirim chat: encode **MP3 offline** mono 22.05kHz 48kbps (cepat, bukan MediaRecorder real-time); region max ~120 dtk
+- Error storage "maximum allowed size" → minta perpendek region
+
 ## v2026.10.24c
 - Audio Mixer: navigasi playhead (awal/−5s/+5s/akhir), nav per track, Mute all / Unmute, **Solo** per track
 - Volume default rekaman mic 135%, file upload 85% (mic tidak tenggelam)
