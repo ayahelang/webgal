@@ -61,9 +61,12 @@
 
   // Karakter manusia, profesi, & makhluk hidup (bisa jalan / bersuara)
   const AVATARS = [
-    // Manusia & emosi
+    // Manusia
     "👨", "👩", "🧑", "👦", "👧", "👴", "👵", "🧔", "👱", "🧒",
-    // Profesi
+    // Wanita, gadis, berhijab
+    "🧕", "👩‍🦰", "👩‍🦱", "👩‍🦳", "👱‍♀️", "👸", "👰", "💃",
+    "👩‍🎓", "👩‍💼", "👩‍🔬", "👩‍🎤", "👩‍🎨", "👩‍✈️", "👩‍🚒", "🦸‍♀️",
+    // Profesi (campuran)
     "👨‍⚕️", "👩‍⚕️", "👨‍🏫", "👩‍🏫", "👨‍💻", "👩‍💻", "👨‍🍳", "👩‍🍳",
     "👮", "💂", "👷", "🕵️", "👨‍🚀", "👩‍🚀", "🧑‍🎤", "🧑‍🎨",
     // Makhluk hidup / hewan
