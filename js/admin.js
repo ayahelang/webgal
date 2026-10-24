@@ -903,6 +903,147 @@
     });
   }
 
+
+
+  async function refreshChatRooms() {
+    const host = $("#chatRoomList");
+    const st = $("#chatRoomStatus");
+    if (!host) return;
+    try {
+      const rooms = await GalleryDB.listChatRooms({ activeOnly: false });
+      const ang = await GalleryDB.listAngkatan({ mainOnly: false }).catch(() => []);
+      const angMap = Object.create(null);
+      (ang || []).forEach((a) => { angMap[a.id] = a.label || a.label_norm || a.id; });
+      host.innerHTML =
+        (rooms || [])
+          .map((r) => {
+            const angLabel = (r.allowed_angkatan_ids || [])
+              .map((id) => angMap[id] || String(id).slice(0, 8))
+              .join(", ") || "Semua angkatan";
+            const cls = (r.allowed_class_codes || []).join(", ") || "Semua kelas";
+            const pw = r.needs_password ? "🔐 Password" : "Terbuka";
+            return (
+              '<div class="admin-row">' +
+              "<div><strong>" +
+              esc(r.name) +
+              "</strong> " +
+              (r.is_active ? "" : '<small class="muted">(nonaktif)</small>') +
+              "<br><small class=\"muted\">" +
+              esc(pw) +
+              " · " +
+              esc(angLabel) +
+              " · Kelas: " +
+              esc(cls) +
+              "</small></div>" +
+              '<div class="row-actions">' +
+              '<button type="button" class="btn btn-ghost btn-xs" data-edit-room="' +
+              r.id +
+              '">Ubah</button> ' +
+              '<button type="button" class="btn btn-ghost btn-xs" data-del-room="' +
+              r.id +
+              '">Hapus</button>' +
+              "</div></div>"
+            );
+          })
+          .join("") || "<p class='muted'>Belum ada ruang custom.</p>";
+
+      // isi select angkatan di form
+      const sel = $("#chatRoomAngkatan");
+      if (sel && !sel.dataset.filled) {
+        sel.innerHTML = (ang || [])
+          .map((a) => '<option value="' + a.id + '">' + esc(a.label || a.label_norm || a.id) + "</option>")
+          .join("");
+        sel.dataset.filled = "1";
+      }
+
+      host.querySelectorAll("[data-edit-room]").forEach((b) =>
+        b.addEventListener("click", () => {
+          const r = rooms.find((x) => String(x.id) === String(b.dataset.editRoom));
+          if (!r) return;
+          const f = $("#chatRoomForm");
+          if (!f) return;
+          f.querySelector("[name=id]").value = r.id;
+          f.querySelector("[name=name]").value = r.name || "";
+          f.querySelector("[name=description]").value = r.description || "";
+          f.querySelector("[name=access_password]").value = r._password || "";
+          f.querySelector("[name=sort_order]").value = r.sort_order || 0;
+          f.querySelector("[name=allowed_class_codes]").value = (r.allowed_class_codes || []).join(", ");
+          f.querySelector("[name=is_active]").checked = r.is_active !== false;
+          const s = $("#chatRoomAngkatan");
+          if (s) {
+            Array.from(s.options).forEach((o) => {
+              o.selected = (r.allowed_angkatan_ids || []).indexOf(o.value) >= 0;
+            });
+          }
+          if (st) st.textContent = "Mode edit: " + (r.name || "");
+          f.scrollIntoView({ behavior: "smooth", block: "start" });
+        })
+      );
+      host.querySelectorAll("[data-del-room]").forEach((b) =>
+        b.addEventListener("click", async () => {
+          if (!confirm("Hapus ruang ini?")) return;
+          try {
+            await GalleryDB.deleteChatRoom(b.dataset.delRoom);
+            if (st) st.textContent = "Ruang dihapus.";
+            await refreshChatRooms();
+          } catch (e) {
+            if (st) st.textContent = e.message || String(e);
+          }
+        })
+      );
+    } catch (e) {
+      host.innerHTML = "<p class='muted'>" + esc(e.message || e) + "</p>";
+    }
+  }
+
+  function bindChatRooms() {
+    const f = $("#chatRoomForm");
+    if (!f) return;
+    const st = $("#chatRoomStatus");
+    const save = $("#chatRoomSave");
+    const reset = $("#chatRoomReset");
+    if (reset)
+      reset.onclick = () => {
+        f.reset();
+        f.querySelector("[name=id]").value = "";
+        f.querySelector("[name=is_active]").checked = true;
+        if (st) st.textContent = "";
+      };
+    if (save)
+      save.onclick = async () => {
+        const id = f.querySelector("[name=id]").value || null;
+        const angSel = $("#chatRoomAngkatan");
+        const angIds = angSel
+          ? Array.from(angSel.selectedOptions).map((o) => o.value).filter(Boolean)
+          : [];
+        const clsRaw = String(f.querySelector("[name=allowed_class_codes]").value || "");
+        const classes = clsRaw
+          .split(/[,;]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        try {
+          await GalleryDB.upsertChatRoom({
+            id,
+            name: f.querySelector("[name=name]").value,
+            description: f.querySelector("[name=description]").value,
+            access_password: f.querySelector("[name=access_password]").value,
+            sort_order: f.querySelector("[name=sort_order]").value,
+            allowed_angkatan_ids: angIds,
+            allowed_class_codes: classes,
+            is_active: f.querySelector("[name=is_active]").checked,
+          });
+          if (st) st.textContent = "Ruang disimpan.";
+          f.reset();
+          f.querySelector("[name=id]").value = "";
+          f.querySelector("[name=is_active]").checked = true;
+          await refreshChatRooms();
+        } catch (e) {
+          if (st) st.textContent = e.message || String(e);
+        }
+      };
+    refreshChatRooms();
+  }
+
   function bindAnnouncementForm() {
     const f = $("#annForm");
     if (!f) return;

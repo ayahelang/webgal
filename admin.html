@@ -71,6 +71,7 @@
         <button class="filter" data-tab="users">Roles</button>
         <button class="filter" data-tab="attendance">Absensi</button>
         <button class="filter" data-tab="announce">Pengumuman</button>
+        <button class="filter" data-tab="chatrooms">Ruang Chat</button>
         <button class="filter" data-tab="sync">Sync Docs</button>
       </div>
 
@@ -333,6 +334,43 @@
           <a class="btn btn-ghost" href="absensi.html" target="_blank" style="display:inline-flex;align-items:center">Buka halaman siswa</a>
         </div>
         <div id="attRecList" class="admin-list" style="margin-top:12px"></div>
+      </section>
+
+      
+      <section data-panel="chatrooms" class="summary-card admin-pane" hidden>
+        <h3>Ruang Chat</h3>
+        <p class="muted" style="font-size:13px;margin-top:0">Buat ruang khusus (opsional password, batasan angkatan/kelas). Ruang default global &amp; per angkatan tetap ada.</p>
+        <form id="chatRoomForm" class="ann-form" method="post" action="javascript:void(0)" onsubmit="return false;">
+          <input type="hidden" name="id" value="">
+          <label class="field"><span>Nama ruang</span>
+            <input name="name" maxlength="80" placeholder="mis. Konsultasi Kls 51" required>
+          </label>
+          <label class="field" style="grid-column:1/-1"><span>Deskripsi (opsional)</span>
+            <input name="description" maxlength="300" placeholder="Keterangan singkat">
+          </label>
+          <label class="field"><span>Password masuk (kosong = tanpa password)</span>
+            <input name="access_password" maxlength="80" placeholder="Opsional" autocomplete="new-password">
+          </label>
+          <label class="field"><span>Urutan</span>
+            <input name="sort_order" type="number" value="0" step="1">
+          </label>
+          <label class="field" style="grid-column:1/-1"><span>Batasi angkatan (kosong = semua)</span>
+            <select name="allowed_angkatan_ids" id="chatRoomAngkatan" multiple size="4" style="min-height:88px"></select>
+            <small class="muted">Ctrl/Cmd+klik untuk pilih beberapa</small>
+          </label>
+          <label class="field" style="grid-column:1/-1"><span>Batasi kelas (pisah koma, kosong = semua)</span>
+            <input name="allowed_class_codes" placeholder="mis. 51, 52">
+          </label>
+          <label class="check" style="grid-column:1/-1">
+            <input type="checkbox" name="is_active" checked> Aktif
+          </label>
+          <div class="row-actions" style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+            <button class="btn btn-primary" type="button" id="chatRoomSave">Simpan ruang</button>
+            <button class="btn btn-ghost" type="button" id="chatRoomReset">Batal</button>
+          </div>
+        </form>
+        <p id="chatRoomStatus" class="muted" style="font-size:13px"></p>
+        <div id="chatRoomList" class="admin-list" style="margin-top:12px"></div>
       </section>
 
       <section data-panel="announce" class="summary-card admin-pane" hidden>

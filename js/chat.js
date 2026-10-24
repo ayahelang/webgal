@@ -1293,7 +1293,7 @@
         voice: null,
       });
       const row = await GalleryDB.sendChat({
-        angkatanId: room.value || null,
+        angkatanId: currentRoomContext().angkatanId, roomId: currentRoomContext().roomId,
         authorName: resolveAuthorName(),
         body,
         avatarEmoji: selectedAvatar,
@@ -1362,27 +1362,103 @@
 
   async function loadRooms() {
     room.innerHTML = '<option value="">Lintas angkatan (global)</option>';
-    if (!GalleryDB.enabled()) {
-      status.textContent = "Database belum dikonfigurasi.";
-      return;
-    }
     try {
-      const list = await GalleryDB.listAngkatan();
-      list.forEach((a) => {
+      const rows = await GalleryDB.listAngkatan({ mainOnly: false });
+      (rows || []).forEach((a) => {
         const opt = document.createElement("option");
-        opt.value = a.id;
-        opt.textContent = a.label;
+        opt.value = "a:" + a.id;
+        opt.textContent = a.label || a.label_norm || "Angkatan";
         room.appendChild(opt);
       });
-    } catch (e) {
-      status.textContent = e.message || String(e);
+    } catch (e) {}
+    try {
+      const custom = await GalleryDB.listChatRooms({ activeOnly: true });
+      if (custom && custom.length) {
+        const grp = document.createElement("optgroup");
+        grp.label = "Ruang khusus";
+        custom.forEach((r) => {
+          const opt = document.createElement("option");
+          opt.value = "r:" + r.id;
+          opt.textContent = (r.needs_password ? "🔐 " : "") + (r.name || "Ruang");
+          opt.dataset.needsPassword = r.needs_password ? "1" : "";
+          grp.appendChild(opt);
+        });
+        room.appendChild(grp);
+      }
+    } catch (e) {}
+  }
+
+  function parseRoomValue(val) {
+    val = String(val || "");
+    if (val.indexOf("r:") === 0) return { type: "room", id: val.slice(2) };
+    if (val.indexOf("a:") === 0) return { type: "angkatan", id: val.slice(2) };
+    // legacy: plain uuid angkatan
+    if (val && val.indexOf(":") < 0) return { type: "angkatan", id: val };
+    return { type: "global", id: null };
+  }
+
+  function roomSessionKey(roomId) {
+    return "sh_chat_room_ok_" + roomId;
+  }
+
+  async function ensureRoomAccess(roomId, needsPasswordHint) {
+    if (!roomId || !GalleryDB.verifyChatRoomAccess) return true;
+    if (sessionStorage.getItem(roomSessionKey(roomId)) === "1") return true;
+    let password = null;
+    // selalu cek server-side (batasan angkatan/kelas + password)
+    let prof = null;
+    try {
+      const session = await GalleryDB.getSession();
+      if (session) prof = await GalleryDB.getMyProfile();
+    } catch (e) {}
+    const angkatanId = prof && (prof.linked_angkatan_id || null);
+    // map year → id if only year stored
+    let aid = angkatanId;
+    if (!aid && prof && prof.linked_angkatan_year) {
+      try {
+        const rows = await GalleryDB.listAngkatan({ mainOnly: false });
+        const y = String(prof.linked_angkatan_year);
+        const hit = (rows || []).find(function (a) {
+          return String(a.label || "").indexOf(y) >= 0 || String(a.label_norm || "").indexOf(y) >= 0;
+        });
+        if (hit) aid = hit.id;
+      } catch (e) {}
     }
+    const classCode = (prof && (prof.linked_class_code || "")) || "";
+    // password prompt if needed — unknown until fail; prompt when hint or after fail
+    async function tryVerify(pw) {
+      return GalleryDB.verifyChatRoomAccess({
+        roomId: roomId,
+        password: pw,
+        angkatanId: aid || null,
+        classCode: classCode || null,
+      });
+    }
+    let ok = await tryVerify(null);
+    if (!ok && (needsPasswordHint || true)) {
+      password = prompt("Ruang ini dilindungi. Masukkan password (kosongkan jika hanya batasan angkatan/kelas):");
+      if (password === null) return false; // cancel
+      ok = await tryVerify(password);
+    }
+    if (!ok) {
+      status.textContent = "Akses ditolak: password salah atau Anda tidak termasuk angkatan/kelas yang diizinkan.";
+      return false;
+    }
+    try {
+      sessionStorage.setItem(roomSessionKey(roomId), "1");
+    } catch (e) {}
+    return true;
   }
 
   function bindTyping() {
     if (typingCtl) typingCtl.leave();
-    const angkatanId = room.value || null;
-    const roomKey = angkatanId || "global";
+    const parsedT = parseRoomValue(room && room.value);
+    const roomKey =
+      parsedT.type === "room"
+        ? "room-" + parsedT.id
+        : parsedT.type === "angkatan"
+          ? parsedT.id
+          : "global";
     typingCtl = GalleryDB.joinTypingChannel({
       roomKey,
       userName: resolveAuthorName(),
@@ -1403,6 +1479,13 @@
     });
   }
 
+  function currentRoomContext() {
+    const parsed = parseRoomValue(room && room.value);
+    if (parsed.type === "room") return { angkatanId: null, roomId: parsed.id };
+    if (parsed.type === "angkatan") return { angkatanId: parsed.id, roomId: null };
+    return { angkatanId: null, roomId: null };
+  }
+
   async function joinRoom() {
     if (unsub) unsub();
     allMessages = [];
@@ -1410,15 +1493,32 @@
     typingLine.textContent = "";
     if (searchInput) searchInput.value = "";
     if (!GalleryDB.enabled()) return;
-    const angkatanId = room.value || null;
+    const parsed = parseRoomValue(room && room.value);
+    let angkatanId = null;
+    let roomId = null;
+    if (parsed.type === "room") {
+      roomId = parsed.id;
+      const opt = room && room.selectedOptions && room.selectedOptions[0];
+      const needsPw = opt && opt.dataset.needsPassword === "1";
+      const allowed = await ensureRoomAccess(roomId, needsPw);
+      if (!allowed) {
+        room.value = "";
+        return joinRoom();
+      }
+    } else if (parsed.type === "angkatan") {
+      angkatanId = parsed.id;
+    }
     status.textContent = "Memuat pesan...";
     try {
-      const rows = await GalleryDB.listChat({ angkatanId, limit: 150 });
+      const rows = await GalleryDB.listChat({ angkatanId, roomId, limit: 150 });
       allMessages = rows || [];
       renderMessages();
-      status.textContent = angkatanId ? "Ruang angkatan" : "Ruang lintas angkatan · realtime aktif";
+      if (roomId) status.textContent = "Ruang khusus · realtime aktif";
+      else if (angkatanId) status.textContent = "Ruang angkatan · realtime aktif";
+      else status.textContent = "Ruang lintas angkatan · realtime aktif";
       unsub = GalleryDB.subscribeChat({
         angkatanId,
+        roomId,
         onInsert: addMsg,
         onUpdate: onUpdateMsg,
         onDelete: onDeleteMsg,
@@ -1944,7 +2044,7 @@
           voice: attach.voice,
         });
         const row = await GalleryDB.sendChat({
-          angkatanId: room.value || null,
+          angkatanId: currentRoomContext().angkatanId, roomId: currentRoomContext().roomId,
           authorName: resolveAuthorName(),
           body: body,
           avatarEmoji: selectedAvatar,
@@ -2557,7 +2657,7 @@
         voice: { url: url, ttl: myVoiceTtl(), duration: durSec },
       });
       const row = await GalleryDB.sendChat({
-        angkatanId: room.value || null,
+        angkatanId: currentRoomContext().angkatanId, roomId: currentRoomContext().roomId,
         authorName: resolveAuthorName(),
         body,
         avatarEmoji: selectedAvatar,
@@ -2614,7 +2714,7 @@
       if (!String(body || "").trim()) return;
       try {
         const row = await GalleryDB.sendChat({
-          angkatanId: room.value || null,
+          angkatanId: currentRoomContext().angkatanId, roomId: currentRoomContext().roomId,
           authorName: resolveAuthorName(),
           body,
           avatarEmoji: selectedAvatar,

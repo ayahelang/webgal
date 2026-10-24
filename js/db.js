@@ -1340,26 +1340,45 @@
     return depth;
   }
 
-  async function listChat({ angkatanId, limit }) {
+  async function listChat({ angkatanId, roomId, limit }) {
     const sb = client();
-    if (!sb) return [];
-    const colsFull =
-      "id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered,updated_at,reply_to,edit_count,edit_history";
-    const colsNoUpdated =
-      "id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered,reply_to,edit_count,edit_history";
-    const colsMinimal =
-      "id,angkatan_id,author_name,avatar_emoji,body,created_at,user_id,is_registered";
+    const colsFull = "id,author_name,body,created_at,updated_at,avatar_emoji,user_id,is_registered,angkatan_id,room_id,reply_to,edit_count,edit_history";
+    const colsNoUpdated = "id,author_name,body,created_at,avatar_emoji,user_id,is_registered,angkatan_id,room_id,reply_to";
+    const colsMinimal = "id,author_name,body,created_at,avatar_emoji,user_id,is_registered,angkatan_id";
     async function run(cols) {
       let q = sb
         .from("gallery_chat")
         .select(cols)
         .order("created_at", { ascending: true })
         .limit(limit || 100);
-      if (angkatanId) q = q.eq("angkatan_id", angkatanId);
-      else q = q.is("angkatan_id", null);
+      if (roomId) {
+        q = q.eq("room_id", roomId);
+      } else if (angkatanId) {
+        q = q.eq("angkatan_id", angkatanId).is("room_id", null);
+      } else {
+        q = q.is("angkatan_id", null).is("room_id", null);
+      }
       return q;
     }
     let { data, error } = await run(colsFull);
+    if (error && /room_id/i.test(String(error.message || ""))) {
+      // kolom room_id belum ada — fallback lama
+      async function runLegacy(cols) {
+        let q = sb.from("gallery_chat").select(cols).order("created_at", { ascending: true }).limit(limit || 100);
+        if (angkatanId) q = q.eq("angkatan_id", angkatanId);
+        else q = q.is("angkatan_id", null);
+        return q;
+      }
+      let r = await runLegacy(colsFull.replace(",room_id", ""));
+      if (r.error && /reply_to|updated_at/i.test(String(r.error.message || ""))) {
+        r = await runLegacy(colsNoUpdated.replace(",room_id", ""));
+        if (r.error && /reply_to/i.test(String(r.error.message || ""))) {
+          r = await runLegacy(colsMinimal);
+        }
+      }
+      if (r.error) throw r.error;
+      return r.data || [];
+    }
     if (error && /reply_to|updated_at/i.test(String(error.message || ""))) {
       const r2 = await run(colsNoUpdated);
       if (r2.error && /reply_to/i.test(String(r2.error.message || ""))) {
@@ -1374,7 +1393,7 @@
     if (error) throw error;
     return data || [];
   }
-  async function sendChat({ angkatanId, authorName, body, avatarEmoji, replyTo }) {
+  async function sendChat({ angkatanId, roomId, authorName, body, avatarEmoji, replyTo }) {
     const sb = client();
     let userId = null;
     let isReg = false;
@@ -1395,13 +1414,20 @@
     const payload = {
       author_name: String(authorName || "Anonim").slice(0, 60),
       body: String(body || "").trim().slice(0, 8000),
-      angkatan_id: angkatanId || null,
+      angkatan_id: roomId ? null : (angkatanId || null),
       avatar_emoji: (avatarEmoji || "💬").slice(0, 8),
       user_id: userId,
       is_registered: isReg,
     };
+    if (roomId) payload.room_id = roomId;
     if (replyId) payload.reply_to = replyId;
     let { data, error } = await sb.from("gallery_chat").insert(payload).select("*").single();
+    if (error && roomId && /room_id/i.test(String(error.message || ""))) {
+      delete payload.room_id;
+      const r0 = await sb.from("gallery_chat").insert(payload).select("*").single();
+      data = r0.data;
+      error = r0.error;
+    }
     if (error && replyId && /reply_to/i.test(String(error.message || ""))) {
       delete payload.reply_to;
       const r2 = await sb.from("gallery_chat").insert(payload).select("*").single();
@@ -1516,12 +1542,23 @@
     return { ok: true, id: msgId };
   }
 
-  function subscribeChat({ angkatanId, onInsert, onUpdate, onDelete }) {
+  function subscribeChat({ angkatanId, roomId, onInsert, onUpdate, onDelete }) {
     const sb = client();
     if (!sb) return () => {};
-    const filter = angkatanId ? `angkatan_id=eq.${angkatanId}` : "angkatan_id=is.null";
+    let filter;
+    let chName;
+    if (roomId) {
+      filter = `room_id=eq.${roomId}`;
+      chName = "gallery-chat-room-" + roomId;
+    } else if (angkatanId) {
+      filter = `angkatan_id=eq.${angkatanId}`;
+      chName = "gallery-chat-" + angkatanId;
+    } else {
+      filter = "angkatan_id=is.null";
+      chName = "gallery-chat-global";
+    }
     const channel = sb
-      .channel("gallery-chat-" + (angkatanId || "global"))
+      .channel(chName)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "gallery_chat", filter }, (payload) => onInsert && onInsert(payload.new))
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "gallery_chat", filter }, (payload) => onUpdate && onUpdate(payload.new))
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "gallery_chat", filter }, (payload) => onDelete && onDelete(payload.old))
@@ -1531,6 +1568,104 @@
         sb.removeChannel(channel);
       } catch (_) {}
     };
+  }
+
+  async function listChatRooms({ activeOnly } = { activeOnly: true }) {
+    const sb = client();
+    if (!sb) return [];
+    let q = sb.from("gallery_chat_rooms").select(
+      "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,is_active,sort_order,created_at"
+    ).order("sort_order").order("name");
+    if (activeOnly !== false) q = q.eq("is_active", true);
+    const { data, error } = await q;
+    if (error) {
+      // tabel belum ada
+      if (/does not exist|relation/i.test(String(error.message || ""))) return [];
+      throw error;
+    }
+    return (data || []).map(function (r) {
+      return {
+        id: r.id,
+        name: r.name,
+        description: r.description || "",
+        needs_password: !!(r.access_password && String(r.access_password).trim()),
+        allowed_angkatan_ids: r.allowed_angkatan_ids || [],
+        allowed_class_codes: r.allowed_class_codes || [],
+        is_active: r.is_active !== false,
+        sort_order: r.sort_order || 0,
+        created_at: r.created_at,
+        // password hanya untuk admin edit (jangan diekspos di UI publik)
+        _password: r.access_password || "",
+      };
+    });
+  }
+
+  async function upsertChatRoom(payload) {
+    if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
+    const sb = client();
+    const row = {
+      name: String(payload.name || "").trim().slice(0, 80),
+      description: String(payload.description || "").trim().slice(0, 300),
+      access_password: payload.access_password != null && String(payload.access_password).trim()
+        ? String(payload.access_password).trim().slice(0, 80)
+        : null,
+      allowed_angkatan_ids: Array.isArray(payload.allowed_angkatan_ids) ? payload.allowed_angkatan_ids : [],
+      allowed_class_codes: Array.isArray(payload.allowed_class_codes)
+        ? payload.allowed_class_codes.map(function (c) { return String(c).trim(); }).filter(Boolean)
+        : [],
+      is_active: payload.is_active !== false,
+      sort_order: Number(payload.sort_order) || 0,
+      created_by: payload.created_by || "",
+    };
+    if (!row.name) throw new Error("Nama ruang wajib");
+    if (payload.id) {
+      const { data, error } = await sb.from("gallery_chat_rooms").update(row).eq("id", payload.id).select("*").single();
+      if (error) throw error;
+      return data;
+    }
+    const { data, error } = await sb.from("gallery_chat_rooms").insert(row).select("*").single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function deleteChatRoom(id) {
+    if (!(await isCurrentUserAdmin())) throw new Error("Admin only");
+    const sb = client();
+    const { error } = await sb.from("gallery_chat_rooms").delete().eq("id", id);
+    if (error) throw error;
+  }
+
+  async function verifyChatRoomAccess({ roomId, password, angkatanId, classCode }) {
+    const sb = client();
+    if (!sb || !roomId) return false;
+    try {
+      const { data, error } = await sb.rpc("verify_chat_room_access", {
+        p_room_id: roomId,
+        p_password: password || null,
+        p_angkatan_id: angkatanId || null,
+        p_class_code: classCode || null,
+      });
+      if (error) throw error;
+      return !!data;
+    } catch (e) {
+      // fallback client-side jika RPC belum ada (kurang aman, sementara)
+      const rooms = await listChatRooms({ activeOnly: false });
+      const r = rooms.find(function (x) { return String(x.id) === String(roomId); });
+      if (!r || !r.is_active) return false;
+      if (r.needs_password) {
+        const full = await sb.from("gallery_chat_rooms").select("access_password").eq("id", roomId).maybeSingle();
+        const pw = full.data && full.data.access_password;
+        if (pw && String(pw).trim() && String(pw).trim() !== String(password || "").trim()) return false;
+      }
+      if (r.allowed_angkatan_ids && r.allowed_angkatan_ids.length) {
+        if (!angkatanId || r.allowed_angkatan_ids.indexOf(angkatanId) < 0) return false;
+      }
+      if (r.allowed_class_codes && r.allowed_class_codes.length) {
+        const cls = String(classCode || "").trim().toLowerCase();
+        if (!cls || !r.allowed_class_codes.some(function (c) { return String(c).trim().toLowerCase() === cls; })) return false;
+      }
+      return true;
+    }
   }
   function joinTypingChannel({ roomKey, userName, avatarEmoji, onSync }) {
     const sb = client();
@@ -4118,6 +4253,10 @@
     runAiDocsSync,
     loadAiSkills,
 
+    listChatRooms,
+    upsertChatRoom,
+    deleteChatRoom,
+    verifyChatRoomAccess,
     listAnnouncementsAdmin,
     upsertAnnouncement,
     deleteAnnouncement,
