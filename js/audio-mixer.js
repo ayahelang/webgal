@@ -1,6 +1,5 @@
 /**
- * SHAudioMixer — multi-track audio mixer (max 8 tracks)
- * Rekam / unggah track, mute, play barengan, mixdown WAV → kirim ke chat/pengumuman
+ * SHAudioMixer — multi-track (max 8), compact UI + meter + timer saat rekam
  */
 (function (global) {
   "use strict";
@@ -69,21 +68,26 @@
         '<div class="amx-panel" role="dialog" aria-label="Audio Mixer">' +
         '  <header class="amx-head">' +
         "    <strong>Audio Mixer</strong>" +
-        '    <span class="muted amx-sub">Maks. 8 track · pakai headset saat overdub</span>' +
-        '    <button type="button" class="btn btn-ghost" data-amx="close" title="Tutup">✕</button>' +
+        '    <span class="muted amx-sub">Max 8 · headset saat overdub</span>' +
+        '    <button type="button" class="btn btn-ghost amx-x" data-amx="close" title="Tutup">✕</button>' +
         "  </header>" +
         '  <div class="amx-toolbar">' +
-        '    <button type="button" class="btn btn-primary" data-amx="rec">● Rekam track</button>' +
-        '    <button type="button" class="btn btn-ghost" data-amx="stop-rec" hidden>Stop rekam</button>' +
-        '    <label class="btn btn-ghost amx-upload">⬆ Unggah audio<input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.webm" hidden data-amx="file"></label>' +
-        '    <button type="button" class="btn btn-ghost" data-amx="play">▶ Play semua</button>' +
-        '    <button type="button" class="btn btn-ghost" data-amx="stop">■ Stop</button>' +
+        '    <button type="button" class="btn btn-primary amx-sm" data-amx="rec">● Rekam</button>' +
+        '    <button type="button" class="btn btn-ghost amx-sm" data-amx="stop-rec" hidden>■ Stop</button>' +
+        '    <label class="btn btn-ghost amx-sm amx-upload">⬆ File<input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.webm" hidden data-amx="file"></label>' +
+        '    <button type="button" class="btn btn-ghost amx-sm" data-amx="play">▶</button>' +
+        '    <button type="button" class="btn btn-ghost amx-sm" data-amx="stop">■</button>' +
         "  </div>" +
-        '  <div class="amx-status muted" data-amx="status">Belum ada track. Rekam atau unggah (WAV/MP3/OGG/M4A/WebM).</div>' +
+        '  <div class="amx-rec-bar" data-amx="recbar" hidden>' +
+        '    <span class="chat-voice-dot amx-dot" aria-hidden="true"></span>' +
+        '    <span class="amx-timer" data-amx="timer">00:00</span>' +
+        '    <canvas class="amx-meter" data-amx="meter" width="140" height="26" aria-hidden="true"></canvas>' +
+        "  </div>" +
+        '  <div class="amx-status muted" data-amx="status">Rekam / unggah track.</div>' +
         '  <div class="amx-tracks" data-amx="tracks"></div>' +
         '  <footer class="amx-foot">' +
-        '    <button type="button" class="btn btn-ghost" data-amx="close">Batal</button>' +
-        '    <button type="button" class="btn btn-primary" data-amx="export">Mix &amp; pakai (WAV)</button>' +
+        '    <button type="button" class="btn btn-ghost amx-sm" data-amx="close">Batal</button>' +
+        '    <button type="button" class="btn btn-primary amx-sm" data-amx="export">Mix → kirim WAV</button>' +
         "  </footer>" +
         "</div>";
       document.body.appendChild(root);
@@ -99,6 +103,15 @@
     var listEl = root.querySelector("[data-amx=tracks]");
     var btnRec = root.querySelector('[data-amx="rec"]');
     var btnStopRec = root.querySelector('[data-amx="stop-rec"]');
+    var recBar = root.querySelector("[data-amx=recbar]");
+    var timerEl = root.querySelector("[data-amx=timer]");
+    var canvas = root.querySelector("[data-amx=meter]");
+    var meterRaf = 0;
+    var meterAnalyser = null;
+    var meterSource = null;
+    var meterCtx = null;
+    var recTimer = null;
+    var recStartedAt = 0;
 
     function ensureCtx() {
       if (!audioCtx) {
@@ -111,6 +124,78 @@
 
     function setStatus(t) {
       if (statusEl) statusEl.textContent = t;
+    }
+
+    function stopMeter() {
+      if (meterRaf) cancelAnimationFrame(meterRaf);
+      meterRaf = 0;
+      try {
+        if (meterSource) meterSource.disconnect();
+      } catch (e) {}
+      meterSource = null;
+      meterAnalyser = null;
+      if (canvas) {
+        try {
+          var c = canvas.getContext("2d");
+          if (c) c.clearRect(0, 0, canvas.width, canvas.height);
+        } catch (e) {}
+      }
+    }
+
+    function startMeter(stream) {
+      stopMeter();
+      if (!canvas || !stream) return;
+      try {
+        var ctx = ensureCtx();
+        meterSource = ctx.createMediaStreamSource(stream);
+        meterAnalyser = ctx.createAnalyser();
+        meterAnalyser.fftSize = 256;
+        meterAnalyser.smoothingTimeConstant = 0.75;
+        meterSource.connect(meterAnalyser);
+        var data = new Uint8Array(meterAnalyser.frequencyBinCount);
+        var g = canvas.getContext("2d");
+        var bars = 22;
+        function draw() {
+          meterRaf = requestAnimationFrame(draw);
+          if (!meterAnalyser || !g) return;
+          meterAnalyser.getByteFrequencyData(data);
+          var w = canvas.width;
+          var h = canvas.height;
+          g.clearRect(0, 0, w, h);
+          var gap = 2;
+          var bw = (w - gap * (bars - 1)) / bars;
+          for (var i = 0; i < bars; i++) {
+            var idx = Math.floor((i / bars) * data.length);
+            var v = data[idx] / 255;
+            var bh = Math.max(2, v * (h - 2));
+            var x = i * (bw + gap);
+            var y = (h - bh) / 2;
+            g.fillStyle = "rgba(94,200,255," + (0.35 + v * 0.65) + ")";
+            g.fillRect(x, y, bw, bh);
+          }
+        }
+        draw();
+      } catch (e) {}
+    }
+
+    function startRecTimer() {
+      stopRecTimer();
+      recStartedAt = Date.now();
+      if (timerEl) timerEl.textContent = "00:00";
+      recTimer = setInterval(function () {
+        var ms = Date.now() - recStartedAt;
+        var s = Math.floor(ms / 1000);
+        var m = Math.floor(s / 60);
+        var r = s % 60;
+        if (timerEl)
+          timerEl.textContent =
+            String(m).padStart(2, "0") + ":" + String(r).padStart(2, "0");
+      }, 250);
+    }
+
+    function stopRecTimer() {
+      if (recTimer) clearInterval(recTimer);
+      recTimer = null;
     }
 
     function stopPlayback() {
@@ -146,21 +231,21 @@
           "</span>" +
           "</div>" +
           '<div class="amx-track-acts">' +
-          '<button type="button" class="btn btn-ghost btn-xs" data-act="mute" data-i="' +
+          '<button type="button" class="btn btn-ghost amx-xs" data-act="mute" data-i="' +
           idx +
           '">' +
           (tr.muted ? "Unmute" : "Mute") +
           "</button>" +
-          '<button type="button" class="btn btn-ghost btn-xs" data-act="solo-play" data-i="' +
+          '<button type="button" class="btn btn-ghost amx-xs" data-act="solo-play" data-i="' +
           idx +
           '">▶</button>' +
-          '<button type="button" class="btn btn-ghost btn-xs" data-act="del" data-i="' +
+          '<button type="button" class="btn btn-ghost amx-xs" data-act="del" data-i="' +
           idx +
-          '">Hapus</button>' +
+          '">✕</button>' +
           "</div>";
         listEl.appendChild(row);
       });
-      setStatus(tracks.length + " / " + MAX_TRACKS + " track · durasi max ~" + fmt(maxDur()) + " (mix)");
+      setStatus(tracks.length + "/" + MAX_TRACKS + " · max " + fmt(maxDur()));
     }
 
     function maxDur() {
@@ -173,7 +258,7 @@
 
     function addBuffer(buffer, name) {
       if (tracks.length >= MAX_TRACKS) {
-        setStatus("Maksimal " + MAX_TRACKS + " track.");
+        setStatus("Maks. " + MAX_TRACKS + " track.");
         return false;
       }
       tracks.push({
@@ -188,13 +273,12 @@
 
     async function startRec() {
       if (tracks.length >= MAX_TRACKS) {
-        setStatus("Maksimal " + MAX_TRACKS + " track.");
+        setStatus("Maks. " + MAX_TRACKS + " track.");
         return;
       }
       try {
         ensureCtx();
         stopPlayback();
-        // Play unmuted tracks while recording (overdub) — user should use headset
         mediaStream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: true },
         });
@@ -219,6 +303,9 @@
         };
         mediaRec.onstop = async function () {
           stopPlayback();
+          stopMeter();
+          stopRecTimer();
+          if (recBar) recBar.hidden = true;
           try {
             mediaStream.getTracks().forEach(function (t) {
               t.stop();
@@ -229,20 +316,23 @@
           try {
             var buf = await decodeBlob(ensureCtx(), blob);
             addBuffer(buf, "Rekam " + (tracks.length + 1));
-            setStatus("Track rekaman ditambahkan.");
+            setStatus("Track ditambah.");
           } catch (e) {
-            setStatus("Gagal decode rekaman: " + (e.message || e));
+            setStatus("Gagal decode: " + (e.message || e));
           }
           btnRec.hidden = false;
           btnStopRec.hidden = true;
           mediaRec = null;
         };
         mediaRec.start(200);
+        startMeter(mediaStream);
+        startRecTimer();
+        if (recBar) recBar.hidden = false;
         btnRec.hidden = true;
         btnStopRec.hidden = false;
-        setStatus("Merekam… track lain yang tidak di-mute ikut diputar (pakai headset).");
+        setStatus("Merekam… (headset untuk overdub)");
       } catch (e) {
-        setStatus("Mikrofon: " + (e.message || e));
+        setStatus("Mic: " + (e.message || e));
       }
     }
 
@@ -257,16 +347,16 @@
     async function addFile(file) {
       if (!file) return;
       if (tracks.length >= MAX_TRACKS) {
-        setStatus("Maksimal " + MAX_TRACKS + " track.");
+        setStatus("Maks. " + MAX_TRACKS + " track.");
         return;
       }
       try {
         ensureCtx();
         var buf = await decodeBlob(audioCtx, file);
         addBuffer(buf, file.name || "Upload");
-        setStatus("File ditambahkan: " + (file.name || "audio"));
+        setStatus("File: " + (file.name || "audio"));
       } catch (e) {
-        setStatus("File tidak bisa dibaca (format?): " + (e.message || e));
+        setStatus("File gagal: " + (e.message || e));
       }
     }
 
@@ -283,7 +373,7 @@
         src.start(t0);
         playing.push(src);
       });
-      setStatus("Memutar track aktif…");
+      setStatus("Play…");
     }
 
     async function doExport() {
@@ -291,7 +381,7 @@
         return !t.muted && t.buffer;
       });
       if (!active.length) {
-        setStatus("Tidak ada track aktif untuk di-mix.");
+        setStatus("Tidak ada track aktif.");
         return;
       }
       setStatus("Mixing…");
@@ -312,7 +402,7 @@
         });
         var rendered = await offline.startRendering();
         var wav = encodeWav(rendered);
-        setStatus("Mix selesai (" + fmt(dur) + "). Mengirim…");
+        setStatus("OK " + fmt(dur));
         close();
         await onExport({
           blob: wav,
@@ -328,10 +418,13 @@
     function close() {
       stopRec();
       stopPlayback();
+      stopMeter();
+      stopRecTimer();
       try {
-        if (mediaStream) mediaStream.getTracks().forEach(function (t) {
-          t.stop();
-        });
+        if (mediaStream)
+          mediaStream.getTracks().forEach(function (t) {
+            t.stop();
+          });
       } catch (e) {}
       root.classList.remove("is-open");
       root.onclick = null;
@@ -340,7 +433,9 @@
     root.onclick = function (ev) {
       var t = ev.target;
       if (!t) return;
-      var amx = t.getAttribute("data-amx") || (t.closest && t.closest("[data-amx]") && t.closest("[data-amx]").getAttribute("data-amx"));
+      var amx =
+        t.getAttribute("data-amx") ||
+        (t.closest && t.closest("[data-amx]") && t.closest("[data-amx]").getAttribute("data-amx"));
       if (t.matches && t.matches('input[data-amx="file"]')) return;
       if (amx === "close") close();
       else if (amx === "rec") startRec();
@@ -387,7 +482,7 @@
 
     renderTracks();
     root.classList.add("is-open");
-    setStatus("Siap · maks. " + MAX_TRACKS + " track (rekam + unggah).");
+    setStatus("Siap · max " + MAX_TRACKS + " track.");
   }
 
   global.SHAudioMixer = { open: open, MAX_TRACKS: MAX_TRACKS };

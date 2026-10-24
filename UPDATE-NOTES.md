@@ -1,1 +1,1 @@
-# Fix clear chat + rename Video conference
+# Mixer: meter+timer+compact
