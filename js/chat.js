@@ -24,8 +24,21 @@
   let typingTimer = null;
   let allMessages = [];
   let chatReactionsMap = {}; // messageId -> [{id,emoji,author_name,author_user_id}]
-  const CHAT_REACT_EMOJIS = ["👍","❤️","😂","😮","😢","🙏","🔥","👏","🎉","✅"];
-  let selectedAvatar = "💬";
+  const CHAT_REACT_POSITIVE = ["👍", "❤️", "😂", "😮", "🙏", "🔥", "👏", "🎉", "✅", "💯", "😍", "🤩"];
+  const CHAT_REACT_NEGATIVE = ["👎", "😡", "🤬", "😢", "😭", "🤮", "💩", "👎", "😒", "😤", "🤢", "☠️"];
+  // unique order for picker (pos then neg)
+  const CHAT_REACT_EMOJIS = (function () {
+    const seen = {};
+    const out = [];
+    CHAT_REACT_POSITIVE.concat(CHAT_REACT_NEGATIVE).forEach(function (e) {
+      if (!seen[e]) {
+        seen[e] = 1;
+        out.push(e);
+      }
+    });
+    return out;
+  })();
+  let selectedAvatar = "🧑";
   let loginDisplayName = "";
   let myUserId = null;
   let iAmStaff = false;
@@ -46,7 +59,18 @@
   let replyToMeta = null; // { author_name, body, depth }
 
 
-  const AVATARS = ["🎓", "💬", "🌟", "🦋", "🌸", "🚀", "💜", "🌙", "🔥", "✨", "🦊", "🍀"];
+  // Karakter manusia, profesi, & makhluk hidup (bisa jalan / bersuara)
+  const AVATARS = [
+    // Manusia & emosi
+    "👨", "👩", "🧑", "👦", "👧", "👴", "👵", "🧔", "👱", "🧒",
+    // Profesi
+    "👨‍⚕️", "👩‍⚕️", "👨‍🏫", "👩‍🏫", "👨‍💻", "👩‍💻", "👨‍🍳", "👩‍🍳",
+    "👮", "💂", "👷", "🕵️", "👨‍🚀", "👩‍🚀", "🧑‍🎤", "🧑‍🎨",
+    // Makhluk hidup / hewan
+    "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯",
+    "🦁", "🐮", "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🦉", "🐺",
+    "🐴", "🦄", "🐝", "🦋", "🐢", "🐍", "🦖", "🦕"
+  ];
   const LS_NAME = "sh_chat_name";
   const LS_AV = "sh_chat_avatar";
   const staffByUser = Object.create(null);
@@ -1078,21 +1102,31 @@
     picker.className = "chat-react-picker";
     picker.setAttribute("role", "dialog");
     picker.setAttribute("aria-label", "Reaksi");
-    let html = "";
     const mine = myReactionEmoji(messageId);
-    CHAT_REACT_EMOJIS.forEach(function (em) {
-      html +=
-        '<button type="button" class="chat-react-pick' +
-        (mine === em ? " is-active" : "") +
-        '" data-act="react-pick" data-emoji="' +
-        em +
-        '" title="' +
-        em +
-        '">' +
-        em +
-        "</button>";
-    });
-    picker.innerHTML = html;
+    function picks(list) {
+      return list
+        .map(function (em) {
+          return (
+            '<button type="button" class="chat-react-pick' +
+            (mine === em ? " is-active" : "") +
+            '" data-act="react-pick" data-emoji="' +
+            em +
+            '" title="' +
+            em +
+            '">' +
+            em +
+            "</button>"
+          );
+        })
+        .join("");
+    }
+    picker.innerHTML =
+      '<div class="chat-react-sec"><span class="chat-react-sec-lab">Positif</span><div class="chat-react-sec-row">' +
+      picks(CHAT_REACT_POSITIVE) +
+      '</div></div>' +
+      '<div class="chat-react-sec"><span class="chat-react-sec-lab chat-react-sec-neg">Negatif</span><div class="chat-react-sec-row">' +
+      picks(CHAT_REACT_NEGATIVE.filter(function (e, i, a) { return a.indexOf(e) === i; })) +
+      "</div></div>";
     const body = bubble.querySelector(".chat-body") || bubble;
     body.appendChild(picker);
     // outside click closes
@@ -1376,7 +1410,7 @@
   }
 
   function setAvatar(emoji, opts) {
-    selectedAvatar = emoji || "💬";
+    selectedAvatar = emoji || "🧑";
     if (avatarPicker) {
       avatarPicker.querySelectorAll(".chat-av-btn").forEach((btn) => {
         btn.classList.toggle("is-selected", btn.dataset.emoji === selectedAvatar);

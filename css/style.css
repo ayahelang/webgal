@@ -4509,3 +4509,17 @@ button.chat-author-name:hover{
 }
 [data-theme="light"] button.chat-author-name:hover{color:#1a8fd1}
 
+.chat-react-sec{margin:2px 0 4px}
+.chat-react-sec-lab{
+  display:block;font-size:10px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:#8fa7b4;margin:0 0 4px 2px;
+}
+.chat-react-sec-neg{color:#e88a9a}
+.chat-react-sec-row{display:flex;flex-wrap:wrap;gap:4px}
+.chat-react-picker{max-width:min(320px,92vw)}
+/* Avatar picker: lebih banyak opsi karakter */
+#chatAvatarPicker, .chat-avatar-picker{
+  max-height:160px;overflow:auto;
+}
+.chat-av-btn{font-size:22px;min-width:40px;min-height:40px}
+
