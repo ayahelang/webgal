@@ -1525,6 +1525,65 @@
     return data;
   }
 
+
+  async function clearChatMessages({ roomId, angkatanId, legacyGlobal }) {
+    const sb = client();
+    if (!sb) throw new Error("Database belum dikonfigurasi");
+    const session = await getSession();
+    if (!session || !session.user) throw new Error("Login dulu");
+    const email = String(session.user.email || "").toLowerCase();
+    const isAdmin = await isCurrentUserAdmin();
+    let allowed = isAdmin;
+    if (!allowed && roomId) {
+      try {
+        const { data: room } = await sb
+          .from("gallery_chat_rooms")
+          .select("id,created_by,name")
+          .eq("id", roomId)
+          .maybeSingle();
+        const owner = String((room && room.created_by) || "").toLowerCase();
+        if (owner && (owner === email || owner === String(session.user.id || "").toLowerCase())) {
+          allowed = true;
+        }
+      } catch (e) {}
+    }
+    if (!allowed) throw new Error("Hanya admin atau pemilik ruang yang bisa membersihkan chat");
+
+    // Ambil URL media dulu (opsional hapus storage), lalu hapus baris
+    let q = sb.from("gallery_chat").select("id,body");
+    if (roomId) q = q.eq("room_id", roomId);
+    else if (angkatanId) q = q.eq("angkatan_id", angkatanId);
+    else if (legacyGlobal) q = q.is("angkatan_id", null);
+    else throw new Error("Ruang tidak valid");
+
+    const { data: rows, error: e1 } = await q.limit(5000);
+    if (e1) throw e1;
+    const list = rows || [];
+    // best-effort hapus file storage dari body
+    for (const row of list) {
+      try {
+        const body = String(row.body || "");
+        const urls = body.match(/https?:\/\/[^\s|"']+/g) || [];
+        for (const u of urls) {
+          if (/chat-images|chat-voice|voice\//i.test(u)) {
+            try {
+              await deleteChatStorageByPublicUrl(u);
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+    }
+
+    let del = sb.from("gallery_chat").delete();
+    if (roomId) del = del.eq("room_id", roomId);
+    else if (angkatanId) del = del.eq("angkatan_id", angkatanId);
+    else del = del.is("angkatan_id", null);
+    // Supabase butuh filter; untuk global legacy juga hapus yang room_id null saja bila kolom ada
+    const { error: e2 } = await del;
+    if (e2) throw e2;
+    return { removed: list.length };
+  }
+
   async function deleteChat({ id }) {
     const sb = client();
     if (!sb) throw new Error("Database belum dikonfigurasi");
@@ -1577,7 +1636,7 @@
     if (!sb) return [];
     // Ambil SEMUA baris yang bisa dibaca; admin memakai activeOnly:false
     const colSets = [
-      "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,allowed_students,is_active,sort_order,created_at,source_angkatan_id",
+      "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,allowed_students,is_active,sort_order,created_at,source_angkatan_id,created_by",
       "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,allowed_students,is_active,sort_order,created_at",
       "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,is_active,sort_order,created_at",
       "id,name,description,access_password,is_active,sort_order,created_at",
@@ -1639,6 +1698,7 @@
         sort_order: r.sort_order != null ? Number(r.sort_order) : 0,
         created_at: r.created_at || null,
         source_angkatan_id: r.source_angkatan_id || null,
+        created_by: r.created_by || "",
         _password: r.access_password || "",
       };
     });
@@ -4346,6 +4406,7 @@
     listChatRooms,
     upsertChatRoom,
     deleteChatRoom,
+    clearChatMessages,
     verifyChatRoomAccess,
     listAnnouncementsAdmin,
     upsertAnnouncement,

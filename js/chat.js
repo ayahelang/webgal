@@ -28,6 +28,8 @@
   let myUserId = null;
   let iAmStaff = false;
   let iAmAdmin = false;
+  let currentRoomMeta = null; // { id, created_by, name }
+  let myEmail = "";
   let uploading = false;
   let mediaRecorder = null;
   let mediaChunks = [];
@@ -454,7 +456,9 @@
             '<div class="chat-mix-img-wrap">' +
             '<img class="chat-mix-img" src="' +
             src +
-            '" alt="gambar chat" loading="lazy" />' +
+            '" alt="gambar chat" loading="lazy" data-full="' +
+            src +
+            '" title="Klik untuk memperbesar" />' +
             delayBtn +
             "</div>"
           );
@@ -1360,6 +1364,192 @@
     } catch (e) {}
   }
 
+
+  function updateClearChatBtn() {
+    const btn = $("#chatClearRoom");
+    if (!btn) return;
+    let show = false;
+    if (iAmAdmin) show = true;
+    else if (currentRoomMeta && currentRoomMeta.created_by && myEmail) {
+      const owner = String(currentRoomMeta.created_by).toLowerCase();
+      if (owner === myEmail) show = true;
+    }
+    btn.hidden = !show || !(currentRoomMeta && currentRoomMeta.id);
+  }
+
+  function openImageLightbox(src) {
+    if (!src) return;
+    let root = document.getElementById("chatImgLightbox");
+    if (!root) {
+      root = document.createElement("div");
+      root.id = "chatImgLightbox";
+      root.className = "chat-lb-root";
+      root.innerHTML =
+        '<div class="chat-lb-backdrop" data-lb="close"></div>' +
+        '<div class="chat-lb-panel">' +
+        '  <div class="chat-lb-toolbar">' +
+        '    <button type="button" class="btn btn-ghost chat-lb-btn" data-lb="zoom-out" title="Perkecil">−</button>' +
+        '    <button type="button" class="btn btn-ghost chat-lb-btn" data-lb="zoom-in" title="Perbesar">+</button>' +
+        '    <button type="button" class="btn btn-ghost chat-lb-btn" data-lb="reset" title="Reset">1:1</button>' +
+        '    <button type="button" class="btn btn-ghost chat-lb-btn" data-lb="close" title="Tutup">✕</button>' +
+        "  </div>" +
+        '  <div class="chat-lb-stage">' +
+        '    <img class="chat-lb-img" alt="Pratinjau gambar" draggable="false" />' +
+        "  </div>" +
+        '  <p class="muted chat-lb-hint">Scroll / tombol ± untuk zoom · seret untuk geser · klik luar / Esc tutup</p>' +
+        "</div>";
+      document.body.appendChild(root);
+    }
+    const img = root.querySelector(".chat-lb-img");
+    const stage = root.querySelector(".chat-lb-stage");
+    let scale = 1;
+    let x = 0;
+    let y = 0;
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    function apply() {
+      img.style.transform = "translate(" + x + "px," + y + "px) scale(" + scale + ")";
+    }
+    function close() {
+      root.classList.remove("is-open");
+      document.removeEventListener("keydown", onKey);
+    }
+    function onKey(ev) {
+      if (ev.key === "Escape") close();
+      if (ev.key === "+" || ev.key === "=") {
+        scale = Math.min(5, scale + 0.2);
+        apply();
+      }
+      if (ev.key === "-") {
+        scale = Math.max(0.4, scale - 0.2);
+        apply();
+      }
+    }
+
+    img.onload = function () {
+      scale = 1;
+      x = 0;
+      y = 0;
+      apply();
+    };
+    img.src = src;
+    root.classList.add("is-open");
+    document.addEventListener("keydown", onKey);
+
+    root.onclick = function (ev) {
+      const act = ev.target && ev.target.getAttribute("data-lb");
+      if (act === "close") close();
+      else if (act === "zoom-in") {
+        scale = Math.min(5, scale + 0.25);
+        apply();
+      } else if (act === "zoom-out") {
+        scale = Math.max(0.4, scale - 0.25);
+        apply();
+      } else if (act === "reset") {
+        scale = 1;
+        x = 0;
+        y = 0;
+        apply();
+      }
+    };
+    stage.onwheel = function (ev) {
+      ev.preventDefault();
+      const d = ev.deltaY > 0 ? -0.12 : 0.12;
+      scale = Math.min(5, Math.max(0.4, scale + d));
+      apply();
+    };
+    img.onpointerdown = function (ev) {
+      dragging = true;
+      lastX = ev.clientX;
+      lastY = ev.clientY;
+      try {
+        img.setPointerCapture(ev.pointerId);
+      } catch (e) {}
+    };
+    img.onpointermove = function (ev) {
+      if (!dragging) return;
+      x += ev.clientX - lastX;
+      y += ev.clientY - lastY;
+      lastX = ev.clientX;
+      lastY = ev.clientY;
+      apply();
+    };
+    img.onpointerup = img.onpointercancel = function () {
+      dragging = false;
+    };
+  }
+
+  function bindChatImageLightbox() {
+    if (!log || log.dataset.lbBound) return;
+    log.dataset.lbBound = "1";
+    log.addEventListener("click", function (ev) {
+      const img = ev.target && ev.target.closest && ev.target.closest("img.chat-mix-img, img.chat-img, img[data-full]");
+      if (!img) return;
+      if (ev.target.closest && ev.target.closest("button")) return;
+      const src = img.getAttribute("data-full") || img.currentSrc || img.src;
+      if (src) {
+        ev.preventDefault();
+        openImageLightbox(src);
+      }
+    });
+  }
+
+  async function bindClearChatBtn() {
+    const btn = $("#chatClearRoom");
+    if (!btn || btn.dataset.bound) return;
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", async function () {
+      if (!currentRoomMeta || !currentRoomMeta.id) {
+        if (window.SHDialog) SHDialog.alert("Pilih ruang chat dulu.");
+        return;
+      }
+      const name = currentRoomMeta.name || "ruang ini";
+      const ok = window.SHDialog
+        ? await SHDialog.confirm(
+            "Hapus SEMUA pesan di \"" + name + "\"?\n\nTidak bisa dibatalkan. Media terkait ikut dibersihkan bila memungkinkan.",
+            "Bersihkan chat"
+          )
+        : confirm("Hapus semua pesan di ruang ini?");
+      if (!ok) return;
+      btn.disabled = true;
+      if (status) status.textContent = "Membersihkan chat…";
+      try {
+        const r = await GalleryDB.clearChatMessages({
+          roomId: currentRoomMeta.id,
+          angkatanId: null,
+          legacyGlobal: false,
+        });
+        // juga bersihkan histori legacy yang digabung di tampilan
+        if (currentRoomMeta.legacyAngkatanId) {
+          try {
+            await GalleryDB.clearChatMessages({
+              roomId: null,
+              angkatanId: currentRoomMeta.legacyAngkatanId,
+            });
+          } catch (e) {}
+        }
+        if (currentRoomMeta.legacyGlobal) {
+          try {
+            await GalleryDB.clearChatMessages({
+              roomId: null,
+              angkatanId: null,
+              legacyGlobal: true,
+            });
+          } catch (e) {}
+        }
+        allMessages = [];
+        renderMessages();
+        if (status) status.textContent = "Chat dibersihkan (" + ((r && r.removed) || 0) + " pesan).";
+      } catch (e) {
+        if (status) status.textContent = e.message || String(e);
+        if (window.SHDialog) SHDialog.alert(e.message || String(e));
+      }
+      btn.disabled = false;
+    });
+  }
+
   async function loadRooms() {
     if (!room) return;
     room.innerHTML = "";
@@ -1422,6 +1612,8 @@
         if (/global|lintas/i.test(String(r.name || "")) || /global|lintas/i.test(String(r.description || ""))) {
           opt.dataset.legacyGlobal = "1";
         }
+        if (r.created_by) opt.dataset.createdBy = String(r.created_by);
+        opt.dataset.roomName = String(r.name || "");
         room.appendChild(opt);
       });
       if (room.options.length > 1) room.selectedIndex = 1;
@@ -1811,6 +2003,21 @@
       status.textContent = allMessages.length
         ? "Ruang chat · " + allMessages.length + " pesan · realtime"
         : "Ruang chat · belum ada pesan (histori lama belum tertaut?)";
+
+      // meta ruang untuk clear chat
+      currentRoomMeta = null;
+      try {
+        if (opt) {
+          currentRoomMeta = {
+            id: roomId,
+            created_by: opt.dataset.createdBy || "",
+            name: opt.dataset.roomName || opt.textContent || "",
+            legacyAngkatanId: legacyAngkatanId,
+            legacyGlobal: legacyGlobal,
+          };
+        }
+      } catch (e) {}
+      updateClearChatBtn();
 
       const unsubs = [];
       if (roomId) {
