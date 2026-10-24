@@ -2987,6 +2987,49 @@
     });
   }
 
+
+  async function sendVoiceBlob(blob, durSec) {
+    if (!blob || blob.size < 400) throw new Error("Audio terlalu pendek");
+    if (!GalleryDB.enabled() || !GalleryDB.uploadChatAudio) throw new Error("Upload suara belum tersedia");
+    const url = await GalleryDB.uploadChatAudio(blob);
+    if (!url) throw new Error("Upload gagal");
+    let d = durSec;
+    if (d == null || !isFinite(d)) {
+      try {
+        const tmp = document.createElement("audio");
+        tmp.preload = "metadata";
+        const obj = URL.createObjectURL(blob);
+        tmp.src = obj;
+        await new Promise(function (res) {
+          tmp.onloadedmetadata = function () { res(); };
+          tmp.onerror = function () { res(); };
+          setTimeout(res, 2000);
+        });
+        if (isFinite(tmp.duration) && tmp.duration > 0 && tmp.duration !== Infinity) d = tmp.duration;
+        URL.revokeObjectURL(obj);
+      } catch (e) {}
+    }
+    const typed = chatInput ? String(chatInput.value || "").trim() : "";
+    const body = encodeMessageParts({
+      text: typed.slice(0, CHAT_BODY_MAX),
+      images: [],
+      voice: { url: url, ttl: myVoiceTtl(), duration: d },
+    });
+    const row = await GalleryDB.sendChat({
+      angkatanId: currentRoomContext().angkatanId,
+      roomId: currentRoomContext().roomId,
+      authorName: resolveAuthorName(),
+      body: body,
+      avatarEmoji: selectedAvatar,
+      replyTo: replyToId,
+    });
+    if (chatInput) chatInput.value = "";
+    clearReplyTarget();
+    if (typingCtl) typingCtl.setTyping(false);
+    if (row && row.id && !allMessages.some(function (m) { return m.id === row.id; })) addMsg(row);
+    return row;
+  }
+
   // --- Voice messages (quality + live meter) ---
   function formatVoiceTime(ms) {
     const s = Math.floor(ms / 1000);
@@ -3518,6 +3561,33 @@
         }
       });
     }
+  })();
+
+
+  (function bindMixerBtn() {
+    var mixerBtn = document.querySelector("#chatMixerBtn");
+    if (!mixerBtn || mixerBtn.dataset.bound) return;
+    mixerBtn.dataset.bound = "1";
+    mixerBtn.addEventListener("click", function () {
+      if (!window.SHAudioMixer) {
+        if (status) status.textContent = "Audio Mixer belum dimuat";
+        return;
+      }
+      SHAudioMixer.open({
+        onExport: async function (result) {
+          if (uploading) return;
+          uploading = true;
+          if (status) status.textContent = "Mengunggah hasil mix…";
+          try {
+            await sendVoiceBlob(result.blob, result.duration);
+            if (status) status.textContent = "Hasil mix terkirim sebagai pesan suara";
+          } catch (e) {
+            if (status) status.textContent = e.message || String(e);
+          }
+          uploading = false;
+        },
+      });
+    });
   })();
 
 })();

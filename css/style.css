@@ -4197,3 +4197,52 @@ details[open] > summary::before { content: "▾ "; }
 [data-theme="light"] .chat-img-dl{
   background:rgba(255,255,255,.92);color:#0c2433;border-color:rgba(26,143,209,.35);
 }
+
+
+/* ===== Audio Mixer ===== */
+.chat-mixer-btn{font-size:16px}
+.amx-root{
+  position:fixed;inset:0;z-index:10070;
+  display:none;align-items:center;justify-content:center;
+  padding:12px;
+}
+.amx-root.is-open{display:flex}
+.amx-backdrop{position:absolute;inset:0;background:rgba(2,8,14,.72);backdrop-filter:blur(5px)}
+.amx-panel{
+  position:relative;z-index:1;
+  width:min(520px,100%);
+  max-height:min(90vh,720px);
+  overflow:auto;
+  padding:14px 16px;
+  border-radius:16px;
+  border:1px solid rgba(125,227,255,.3);
+  background:linear-gradient(180deg,rgba(14,24,34,.98),rgba(8,16,24,.98));
+  box-shadow:0 24px 80px rgba(0,0,0,.5);
+  color:var(--text,#eef7fb);
+}
+.amx-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.amx-head strong{font-size:16px}
+.amx-sub{flex:1;font-size:11px}
+.amx-toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.amx-upload{display:inline-flex;align-items:center;cursor:pointer;margin:0}
+.amx-status{font-size:12px;margin-bottom:8px;min-height:1.2em}
+.amx-tracks{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.amx-track{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+  padding:8px 10px;border-radius:10px;
+  border:1px solid rgba(125,227,255,.18);background:rgba(0,0,0,.2);
+}
+.amx-track.is-muted{opacity:.55}
+.amx-track-main{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.amx-track-idx{font-weight:800;color:#7de3ff;font-size:12px}
+.amx-track-name{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.amx-track-dur{font-size:11px;color:#8fa7b4}
+.amx-track-acts{display:flex;gap:4px;flex-wrap:wrap}
+.amx-foot{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.amx-empty{margin:8px 0}
+[data-theme="light"] .amx-panel{
+  background:linear-gradient(180deg,#fff,#f4f8fc);
+  border-color:rgba(26,143,209,.28);color:#0c2433;
+}
+[data-theme="light"] .amx-track{background:#fff;border-color:rgba(26,143,209,.2)}
+[data-theme="light"] .amx-backdrop{background:rgba(20,40,60,.45)}
