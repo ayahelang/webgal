@@ -289,10 +289,10 @@
     var tfillEl = root.querySelector("[data-amx=tfill]");
     var theadEl = root.querySelector("[data-amx=thead]");
     var panelEl = root.querySelector("[data-amx-panel]");
-    regionLabelEl = root.querySelector("[data-amx=region-label]");
-    regionEl = root.querySelector("[data-amx=region]");
-    handleInEl = root.querySelector("[data-amx=handle-in]");
-    handleOutEl = root.querySelector("[data-amx=handle-out]");
+    var regionLabelEl = root.querySelector("[data-amx=region-label]");
+    var regionEl = root.querySelector("[data-amx=region]");
+    var handleInEl = root.querySelector("[data-amx=handle-in]");
+    var handleOutEl = root.querySelector("[data-amx=handle-out]");
     var meterRaf = 0;
     var meterAnalyser = null;
     var meterSource = null;
@@ -306,12 +306,9 @@
     var isRecording = false;
     var recOffsetSec = 0;
     // Region export (In/Out) — default seluruh durasi
+    // (regionLabelEl / regionEl / handle* sudah di-query di atas)
     var regionIn = 0;
     var regionOut = null; // null = maxDur()
-    var regionLabelEl = null;
-    var regionEl = null;
-    var handleInEl = null;
-    var handleOutEl = null;
     // Chat: target kecil & encode offline cepat (bukan MediaRecorder real-time)
     var CHAT_SR = 22050;
     var CHAT_KBPS = 48;
@@ -328,6 +325,13 @@
         btnExport.hidden = true;
       }
     }
+    // Indikator rekam harus diam sampai user tekan Rekam
+    if (recBar) {
+      recBar.hidden = true;
+      recBar.setAttribute("hidden", "");
+    }
+    if (btnStopRec) btnStopRec.hidden = true;
+    if (btnRec) btnRec.hidden = false;
 
     function ensureCtx() {
       if (!audioCtx) {
@@ -490,12 +494,14 @@
       if (total > 0 && handleInEl) handleInEl.style.left = (reg.start / total) * 100 + "%";
       if (total > 0 && handleOutEl) handleOutEl.style.left = (reg.end / total) * 100 + "%";
       if (regionLabelEl) {
-        if (reg.dur >= reg.total - 0.05) {
-          regionLabelEl.textContent = "Region: penuh (" + fmt(reg.total) + ")";
-        } else {
-          regionLabelEl.textContent =
-            "Region: " + fmt(reg.start) + " → " + fmt(reg.end) + " (" + fmt(reg.dur) + ")";
-        }
+        regionLabelEl.textContent =
+          "In " +
+          fmt(reg.start) +
+          " · Out " +
+          fmt(reg.end) +
+          " · " +
+          fmt(reg.dur) +
+          (reg.dur >= reg.total - 0.05 ? " (penuh)" : "");
       }
 
       var bars = listEl ? listEl.querySelectorAll("[data-amx-prog]") : [];
@@ -792,11 +798,10 @@
         };
         mediaRec.onstop = async function () {
           var savedOffset = recOffsetSec;
-          isRecording = false;
           stopPlayback(true);
           stopMeter();
           stopRecTimer();
-          if (recBar) recBar.hidden = true;
+          setRecUi(false);
           try {
             mediaStream.getTracks().forEach(function (t) {
               t.stop();
@@ -828,28 +833,43 @@
           } catch (e) {
             setStatus("Gagal decode: " + (e.message || e));
           }
-          btnRec.hidden = false;
-          btnStopRec.hidden = true;
+          setRecUi(false);
           mediaRec = null;
           if (recOffsetEl) recOffsetEl.textContent = "";
         };
         mediaRec.start(200);
         startMeter(mediaStream);
         startRecTimer();
-        if (recBar) recBar.hidden = false;
+        setRecUi(true);
         if (recOffsetEl) {
           recOffsetEl.textContent =
             recOffsetSec > 0.05 ? "mulai @" + fmt(recOffsetSec) : "mulai @0:00";
         }
-        btnRec.hidden = true;
-        btnStopRec.hidden = false;
         setStatus(
           "Merekam dari " + fmt(recOffsetSec) + "… (headset untuk overdub)"
         );
       } catch (e) {
-        isRecording = false;
+        setRecUi(false);
         setStatus("Mic: " + (e.message || e));
       }
+    }
+
+    function setRecUi(on) {
+      isRecording = !!on;
+      if (recBar) {
+        if (on) {
+          recBar.hidden = false;
+          recBar.removeAttribute("hidden");
+          recBar.setAttribute("aria-hidden", "false");
+        } else {
+          recBar.hidden = true;
+          recBar.setAttribute("hidden", "");
+          recBar.setAttribute("aria-hidden", "true");
+        }
+      }
+      if (btnRec) btnRec.hidden = !!on;
+      if (btnStopRec) btnStopRec.hidden = !on;
+      if (!on && timerEl) timerEl.textContent = "00:00";
     }
 
     function stopRec() {
@@ -858,6 +878,9 @@
           mediaRec.stop();
         } catch (e) {}
       }
+      // Paksa UI diam meskipun onstop belum jalan
+      stopRecTimer();
+      setRecUi(false);
     }
 
     async function addFile(file) {
@@ -1238,12 +1261,13 @@
       timelineEl.addEventListener("pointerdown", function (ev) {
         if (isRecording) return;
         var t = ev.target;
-        if (t && t.getAttribute) {
-          var h = t.getAttribute("data-amx");
-          if (h === "handle-in") dragHandle = "in";
-          else if (h === "handle-out") dragHandle = "out";
-          else dragHandle = null;
-        } else dragHandle = null;
+        var hEl = t && t.closest ? t.closest("[data-amx^=handle-]") : null;
+        if (hEl) {
+          var h = hEl.getAttribute("data-amx");
+          dragHandle = h === "handle-in" ? "in" : h === "handle-out" ? "out" : null;
+        } else {
+          dragHandle = null;
+        }
         scrubbing = true;
         timelineEl.classList.add("is-scrubbing");
         try {
@@ -1252,6 +1276,7 @@
         if (dragHandle) applyHandle(ev);
         else scrubFromEvent(ev);
         ev.preventDefault();
+        ev.stopPropagation();
       });
       timelineEl.addEventListener("pointermove", function (ev) {
         if (!scrubbing) return;
@@ -1310,22 +1335,24 @@
         renderTracks();
         setStatus("Semua unmute · solo dibersihkan.");
       } else if (amx === "mark-in") {
-        regionIn = currentPlayhead();
-        if (regionOut != null && regionIn > regionOut) regionOut = null;
-        updateTransportUI();
-        setStatus("Mark In @ " + fmt(regionIn));
-      } else if (amx === "mark-out") {
-        regionOut = currentPlayhead();
-        if (regionOut < regionIn) {
-          regionIn = 0;
+        regionIn = Math.max(0, currentPlayhead());
+        if (regionOut != null && regionIn > regionOut) {
+          regionOut = Math.min(maxDur(), regionIn + 0.5);
         }
         updateTransportUI();
-        setStatus("Mark Out @ " + fmt(regionOut));
+        setStatus("Mark In @ " + fmt(regionIn) + " (Out tetap " + fmt(getRegion().end) + ")");
+      } else if (amx === "mark-out") {
+        regionOut = Math.max(0, currentPlayhead());
+        if (regionOut < regionIn) {
+          regionIn = Math.max(0, regionOut - 0.5);
+        }
+        updateTransportUI();
+        setStatus("Mark Out @ " + fmt(regionOut) + " (In tetap " + fmt(regionIn) + ")");
       } else if (amx === "region-reset") {
         regionIn = 0;
         regionOut = null;
         updateTransportUI();
-        setStatus("Region direset ke penuh.");
+        setStatus("Region direset · In 0:00 · Out " + fmt(maxDur()));
       }
 
       var act = t.getAttribute("data-act");

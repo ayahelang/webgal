@@ -4437,3 +4437,15 @@ details[open] > summary::before { content: "▾ "; }
 .amx-handle-in{background:linear-gradient(180deg,#7dffb0,#3ecf7a)}
 .amx-handle-out{background:linear-gradient(180deg,#ff8a9a,#e04860)}
 
+/* Indikator rekam: display:flex tidak boleh menimpa [hidden] */
+.amx-rec-compact[hidden]{display:none!important}
+.amx-rec-compact:not([hidden]){display:flex}
+/* Pegangan In/Out lebih besar & mudah digeser */
+.amx-handle{
+  width:18px;height:32px;margin:-16px 0 0 -9px;
+  z-index:5;
+}
+.amx-handle-in{left:0}
+.amx-handle-out{left:100%}
+.amx-region-label{font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}
+
