@@ -3824,6 +3824,11 @@ body.chat-embed .chat-fields{
   width:max-content;max-width:100%;
   margin-left:auto;
 }
+/* Default tersembunyi — display:flex di atas tidak boleh menimpa [hidden] */
+.chat-search-nav[hidden],
+.chat-search-nav.is-hidden{
+  display:none !important;
+}
 .chat-search-count{
   font-size:11px;font-weight:700;color:#9ec8d6;
   font-variant-numeric:tabular-nums;padding:0 4px;white-space:nowrap;

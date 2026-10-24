@@ -1,3 +1,5 @@
-# Player suara pengumuman = identik chat
+# Chat search nav: default hidden
 
-Sekali desain: tombol 34px, seek 3px, layout flex seperti screenshot chat.
+Navigasi hanya muncul saat kotak Cari berisi teks.
+CSS [hidden]/is-hidden memakai display:none !important.
+Basis: zip webgal-main-2 yang diupload user.

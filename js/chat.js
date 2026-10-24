@@ -808,15 +808,26 @@
     }
   }
 
+  function setSearchNavVisible(on) {
+    if (!searchNav) return;
+    if (on) {
+      searchNav.hidden = false;
+      searchNav.classList.remove("is-hidden");
+    } else {
+      searchNav.hidden = true;
+      searchNav.classList.add("is-hidden");
+    }
+  }
+
   function updateSearchNav(q, kwTotal, msgTotal) {
     if (!searchNav) return;
     q = String(q || "").trim();
     // Default tersembunyi; hanya muncul jika kotak cari berisi teks
     if (!q) {
-      searchNav.hidden = true;
+      setSearchNavVisible(false);
       return;
     }
-    searchNav.hidden = false;
+    setSearchNavVisible(true);
     const kt = kwTotal || 0;
     const mt = msgTotal || 0;
     const kc = kt ? searchKwIndex + 1 : 0;
@@ -2178,6 +2189,7 @@
   const savedAv = localStorage.getItem(LS_AV);
   if (savedAv && AVATARS.includes(savedAv)) selectedAvatar = savedAv;
   buildAvatarPicker();
+  setSearchNavVisible(false);
 
   if (searchInput) {
     let searchTimer = null;
@@ -2186,7 +2198,8 @@
       searchKwIndex = 0;
       searchMsgIndex = 0;
       const qNow = (searchInput.value || "").trim();
-      if (!qNow && searchNav) searchNav.hidden = true;
+      // Muncul segera saat ada teks; hilang saat dikosongkan (termasuk X native)
+      setSearchNavVisible(!!qNow);
       searchTimer = setTimeout(renderMessages, 120);
     });
     searchInput.addEventListener("keydown", function (ev) {
