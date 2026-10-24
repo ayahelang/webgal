@@ -1,5 +1,10 @@
 # Riwayat versi (ringkas)
 
+## v2026.10.24b
+- Audio Mixer: volume + reverb per track; panel bisa digeser; tinggi panel muat 8 track di desktop
+- Simpan **WAV** + **WebM** (kompres); kirim ke chat memakai WebM (perbaikan gagal kirim WAV)
+- Mix offline menghormati volume, reverb, offset
+
 ## v2026.10.24
 - Audio Mixer: master timeline + playhead (durasi = track terpanjang), progress per track
 - Overdub selaras playhead (track baru punya offset); seek klik timeline

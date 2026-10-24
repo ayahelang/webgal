@@ -1,8 +1,7 @@
 /**
  * SHAudioMixer — multi-track (max 8)
- * Master timeline (berdasarkan track terpanjang) + playhead,
- * meter posisi per track, overdub selaras playhead (offset),
- * Simpan file WAV + Kirim (onExport, konteks chat/pengumuman).
+ * Master timeline + playhead, volume & reverb per track,
+ * overdub offset, panel draggable, Simpan WAV/WebM + Kirim (WebM ke chat).
  */
 (function (global) {
   "use strict";
@@ -52,6 +51,93 @@
     return new Blob([buffer], { type: "audio/wav" });
   }
 
+  /** Impulse response sederhana untuk reverb (tanpa file eksternal) */
+  function makeImpulse(ctx, seconds, decay) {
+    var rate = ctx.sampleRate;
+    var len = Math.floor(rate * (seconds || 1.8));
+    var impulse = ctx.createBuffer(2, len, rate);
+    decay = decay || 2.2;
+    for (var c = 0; c < 2; c++) {
+      var data = impulse.getChannelData(c);
+      for (var i = 0; i < len; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+      }
+    }
+    return impulse;
+  }
+
+  /**
+   * Render AudioBuffer → WebM/Opus lewat MediaRecorder (cocok untuk chat, jauh lebih kecil dari WAV).
+   * Browser tidak punya encoder MP3 native tanpa library.
+   */
+  function bufferToCompressed(audioBuffer) {
+    return new Promise(function (resolve, reject) {
+      try {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        var ctx = new AC();
+        var dest = ctx.createMediaStreamDestination();
+        var src = ctx.createBufferSource();
+        src.buffer = audioBuffer;
+        src.connect(dest);
+        // beberapa browser butuh juga ke destination agar clock jalan
+        var silent = ctx.createGain();
+        silent.gain.value = 0;
+        src.connect(silent);
+        silent.connect(ctx.destination);
+
+        var mime = "";
+        var candidates = [
+          "audio/webm;codecs=opus",
+          "audio/webm",
+          "audio/mp4",
+          "audio/ogg;codecs=opus",
+        ];
+        for (var i = 0; i < candidates.length; i++) {
+          try {
+            if (MediaRecorder.isTypeSupported(candidates[i])) {
+              mime = candidates[i];
+              break;
+            }
+          } catch (e) {}
+        }
+        var chunks = [];
+        var rec = mime
+          ? new MediaRecorder(dest.stream, { mimeType: mime, audioBitsPerSecond: 128000 })
+          : new MediaRecorder(dest.stream);
+        rec.ondataavailable = function (ev) {
+          if (ev.data && ev.data.size) chunks.push(ev.data);
+        };
+        rec.onerror = function (e) {
+          try {
+            ctx.close();
+          } catch (err) {}
+          reject(e.error || e);
+        };
+        rec.onstop = function () {
+          var type = rec.mimeType || mime || "audio/webm";
+          var blob = new Blob(chunks, { type: type });
+          try {
+            ctx.close();
+          } catch (err) {}
+          var ext = /mp4|m4a/i.test(type) ? "m4a" : /ogg/i.test(type) ? "ogg" : "webm";
+          resolve({ blob: blob, mime: type, ext: ext });
+        };
+        rec.start(200);
+        src.start(0);
+        var durMs = Math.ceil(audioBuffer.duration * 1000) + 120;
+        setTimeout(function () {
+          try {
+            if (rec.state !== "inactive") rec.stop();
+          } catch (e) {
+            reject(e);
+          }
+        }, durMs);
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
   function decodeBlob(ctx, blob) {
     return blob.arrayBuffer().then(function (ab) {
       return ctx.decodeAudioData(ab.slice(0));
@@ -61,7 +147,6 @@
   function open(opts) {
     opts = opts || {};
     var onExport = opts.onExport || null;
-    // "chat" | "announce" | "generic" — label tombol kirim
     var context = opts.context || (onExport ? "chat" : "generic");
     var sendLabel =
       context === "announce"
@@ -73,53 +158,59 @@
             : null;
 
     var root = document.getElementById("shAudioMixerRoot");
-    if (!root) {
-      root = document.createElement("div");
-      root.id = "shAudioMixerRoot";
-      root.className = "amx-root";
-      root.innerHTML =
-        '<div class="amx-backdrop" data-amx="close"></div>' +
-        '<div class="amx-panel" role="dialog" aria-label="Audio Mixer">' +
-        '  <header class="amx-head">' +
-        "    <strong>Audio Mixer</strong>" +
-        '    <span class="muted amx-sub">Max 8 · headset saat overdub</span>' +
-        '    <button type="button" class="btn btn-ghost amx-x" data-amx="close" title="Tutup">✕</button>' +
-        "  </header>" +
-        '  <div class="amx-toolbar">' +
-        '    <button type="button" class="btn btn-primary amx-sm" data-amx="rec">● Rekam</button>' +
-        '    <button type="button" class="btn btn-ghost amx-sm" data-amx="stop-rec" hidden>■ Stop</button>' +
-        '    <label class="btn btn-ghost amx-sm amx-upload">⬆ File<input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.webm" hidden data-amx="file"></label>' +
-        '    <button type="button" class="btn btn-ghost amx-sm" data-amx="play">▶</button>' +
-        '    <button type="button" class="btn btn-ghost amx-sm" data-amx="stop">■</button>' +
-        "  </div>" +
-        '  <div class="amx-transport">' +
-        '    <span class="amx-clock" data-amx="clock">0:00</span>' +
-        '    <div class="amx-timeline" data-amx="timeline" title="Klik untuk seek">' +
-        '      <div class="amx-timeline-fill" data-amx="tfill"></div>' +
-        '      <div class="amx-timeline-head" data-amx="thead"></div>' +
-        "    </div>" +
-        '    <span class="amx-clock amx-clock-end" data-amx="clock-end">0:00</span>' +
-        "  </div>" +
-        '  <div class="amx-rec-bar" data-amx="recbar" hidden>' +
-        '    <span class="chat-voice-dot amx-dot" aria-hidden="true"></span>' +
-        '    <span class="amx-timer" data-amx="timer">00:00</span>' +
-        '    <canvas class="amx-meter" data-amx="meter" width="140" height="26" aria-hidden="true"></canvas>' +
-        '    <span class="amx-rec-offset muted" data-amx="recoffset"></span>' +
-        "  </div>" +
-        '  <div class="amx-status muted" data-amx="status">Rekam / unggah track.</div>' +
-        '  <div class="amx-tracks" data-amx="tracks"></div>' +
-        '  <footer class="amx-foot">' +
-        '    <button type="button" class="btn btn-ghost amx-sm" data-amx="close">Batal</button>' +
-        '    <button type="button" class="btn btn-ghost amx-sm" data-amx="download">⬇ Simpan WAV</button>' +
-        '    <button type="button" class="btn btn-primary amx-sm" data-amx="export" hidden>Kirim</button>' +
-        "  </footer>" +
-        "</div>";
-      document.body.appendChild(root);
+    if (root) {
+      try {
+        root.remove();
+      } catch (e) {}
+      root = null;
     }
+    root = document.createElement("div");
+    root.id = "shAudioMixerRoot";
+    root.className = "amx-root";
+    root.innerHTML =
+      '<div class="amx-backdrop" data-amx="close"></div>' +
+      '<div class="amx-panel" data-amx-panel role="dialog" aria-label="Audio Mixer">' +
+      '  <header class="amx-head amx-drag" data-amx-drag>' +
+      "    <strong>Audio Mixer</strong>" +
+      '    <span class="muted amx-sub">Max 8 · geser judul untuk pindah</span>' +
+      '    <button type="button" class="btn btn-ghost amx-x" data-amx="close" title="Tutup">✕</button>' +
+      "  </header>" +
+      '  <div class="amx-toolbar">' +
+      '    <button type="button" class="btn btn-primary amx-sm" data-amx="rec">● Rekam</button>' +
+      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="stop-rec" hidden>■ Stop</button>' +
+      '    <label class="btn btn-ghost amx-sm amx-upload">⬆ File<input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.webm" hidden data-amx="file"></label>' +
+      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="play">▶</button>' +
+      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="stop">■</button>' +
+      "  </div>" +
+      '  <div class="amx-transport">' +
+      '    <span class="amx-clock" data-amx="clock">0:00</span>' +
+      '    <div class="amx-timeline" data-amx="timeline" title="Klik untuk seek">' +
+      '      <div class="amx-timeline-fill" data-amx="tfill"></div>' +
+      '      <div class="amx-timeline-head" data-amx="thead"></div>' +
+      "    </div>" +
+      '    <span class="amx-clock amx-clock-end" data-amx="clock-end">0:00</span>' +
+      "  </div>" +
+      '  <div class="amx-rec-bar" data-amx="recbar" hidden>' +
+      '    <span class="chat-voice-dot amx-dot" aria-hidden="true"></span>' +
+      '    <span class="amx-timer" data-amx="timer">00:00</span>' +
+      '    <canvas class="amx-meter" data-amx="meter" width="140" height="26" aria-hidden="true"></canvas>' +
+      '    <span class="amx-rec-offset muted" data-amx="recoffset"></span>' +
+      "  </div>" +
+      '  <div class="amx-status muted" data-amx="status">Rekam / unggah track.</div>' +
+      '  <div class="amx-tracks" data-amx="tracks"></div>' +
+      '  <footer class="amx-foot">' +
+      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="close">Batal</button>' +
+      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="download-wav" title="Kualitas penuh">⬇ WAV</button>' +
+      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="download-webm" title="Kompres (bukan MP3 native — browser tidak encode MP3 tanpa library)">⬇ WebM</button>' +
+      '    <button type="button" class="btn btn-primary amx-sm" data-amx="export" hidden>Kirim</button>' +
+      "  </footer>" +
+      "</div>";
+    document.body.appendChild(root);
 
     var tracks = [];
     var audioCtx = null;
     var playing = [];
+    var liveGains = []; // {gain, wetGain?} for live volume while playing
     var mediaRec = null;
     var mediaStream = null;
     var recChunks = [];
@@ -137,6 +228,7 @@
     var timelineEl = root.querySelector("[data-amx=timeline]");
     var tfillEl = root.querySelector("[data-amx=tfill]");
     var theadEl = root.querySelector("[data-amx=thead]");
+    var panelEl = root.querySelector("[data-amx-panel]");
     var meterRaf = 0;
     var meterAnalyser = null;
     var meterSource = null;
@@ -149,6 +241,8 @@
     var playStartedAtHead = 0;
     var isRecording = false;
     var recOffsetSec = 0;
+    var sharedConvolver = null;
+    var sharedImpulse = null;
 
     if (btnExport) {
       if (sendLabel && onExport) {
@@ -166,6 +260,17 @@
       }
       if (audioCtx.state === "suspended") audioCtx.resume();
       return audioCtx;
+    }
+
+    function ensureReverb() {
+      ensureCtx();
+      if (!sharedConvolver) {
+        sharedConvolver = audioCtx.createConvolver();
+        sharedImpulse = makeImpulse(audioCtx, 1.6, 2.4);
+        sharedConvolver.buffer = sharedImpulse;
+        sharedConvolver.connect(audioCtx.destination);
+      }
+      return sharedConvolver;
     }
 
     function setStatus(t) {
@@ -315,11 +420,72 @@
         } catch (e) {}
       });
       playing = [];
+      liveGains = [];
       if (isPlaying) {
         playhead = currentPlayhead();
         isPlaying = false;
       }
       updateTransportUI();
+    }
+
+    /** Hubungkan buffer source dengan gain + reverb send */
+    function connectTrackLive(src, tr) {
+      ensureCtx();
+      var vol = typeof tr.volume === "number" ? tr.volume : 1;
+      var rev = typeof tr.reverb === "number" ? tr.reverb : 0;
+      var dry = audioCtx.createGain();
+      dry.gain.value = vol;
+      src.connect(dry);
+      dry.connect(audioCtx.destination);
+      var wetGain = null;
+      if (rev > 0.01) {
+        ensureReverb();
+        wetGain = audioCtx.createGain();
+        wetGain.gain.value = vol * rev;
+        src.connect(wetGain);
+        wetGain.connect(sharedConvolver);
+      }
+      liveGains.push({ dry: dry, wet: wetGain, track: tr });
+    }
+
+    function applyLiveVolumes() {
+      liveGains.forEach(function (g) {
+        if (!g.track) return;
+        var vol = typeof g.track.volume === "number" ? g.track.volume : 1;
+        var rev = typeof g.track.reverb === "number" ? g.track.reverb : 0;
+        try {
+          if (g.dry) g.dry.gain.value = vol;
+          if (g.wet) g.wet.gain.value = vol * rev;
+        } catch (e) {}
+      });
+    }
+
+    function scheduleTrack(tr, head, t0) {
+      if (tr.muted || !tr.buffer) return null;
+      var off = tr.offset || 0;
+      var bufDur = tr.buffer.duration;
+      if (head >= off + bufDur) return null;
+      var when = t0;
+      var offsetInBuffer = 0;
+      if (head > off) {
+        offsetInBuffer = head - off;
+      } else {
+        when = t0 + (off - head);
+        offsetInBuffer = 0;
+      }
+      var remaining = bufDur - offsetInBuffer;
+      if (remaining <= 0.001) return null;
+      var src = audioCtx.createBufferSource();
+      src.buffer = tr.buffer;
+      connectTrackLive(src, tr);
+      try {
+        src.start(when, offsetInBuffer, remaining);
+      } catch (e) {
+        try {
+          src.start(when, offsetInBuffer);
+        } catch (e2) {}
+      }
+      return src;
     }
 
     function playAll() {
@@ -340,32 +506,8 @@
       isPlaying = true;
 
       tracks.forEach(function (tr) {
-        if (tr.muted || !tr.buffer) return;
-        var off = tr.offset || 0;
-        var bufDur = tr.buffer.duration;
-        if (head >= off + bufDur) return;
-        var when = playStartedAtCtx;
-        var offsetInBuffer = 0;
-        if (head > off) {
-          offsetInBuffer = head - off;
-          when = playStartedAtCtx;
-        } else {
-          when = playStartedAtCtx + (off - head);
-          offsetInBuffer = 0;
-        }
-        var remaining = bufDur - offsetInBuffer;
-        if (remaining <= 0.001) return;
-        var src = audioCtx.createBufferSource();
-        src.buffer = tr.buffer;
-        src.connect(audioCtx.destination);
-        try {
-          src.start(when, offsetInBuffer, remaining);
-        } catch (e) {
-          try {
-            src.start(when, offsetInBuffer);
-          } catch (e2) {}
-        }
-        playing.push(src);
+        var src = scheduleTrack(tr, head, playStartedAtCtx);
+        if (src) playing.push(src);
       });
       startTransportLoop();
       setStatus("Play dari " + fmt(head) + " / " + fmt(total));
@@ -393,6 +535,8 @@
         row.className = "amx-track" + (tr.muted ? " is-muted" : "");
         var offLabel =
           tr.offset && tr.offset > 0.05 ? " @" + fmt(tr.offset) : "";
+        var vol = typeof tr.volume === "number" ? tr.volume : 1;
+        var rev = typeof tr.reverb === "number" ? tr.reverb : 0;
         row.innerHTML =
           '<div class="amx-track-main">' +
           '<span class="amx-track-idx">T' +
@@ -411,6 +555,26 @@
           '<div class="amx-track-bar"><div class="amx-track-bar-fill" data-amx-prog="' +
           idx +
           '"></div></div>' +
+          '<div class="amx-sliders">' +
+          '<label class="amx-slider-lab" title="Volume">Vol <input type="range" min="0" max="150" value="' +
+          Math.round(vol * 100) +
+          '" data-act="vol" data-i="' +
+          idx +
+          '"><span data-amx-volval="' +
+          idx +
+          '">' +
+          Math.round(vol * 100) +
+          "%</span></label>" +
+          '<label class="amx-slider-lab" title="Reverb">Rev <input type="range" min="0" max="100" value="' +
+          Math.round(rev * 100) +
+          '" data-act="rev" data-i="' +
+          idx +
+          '"><span data-amx-revval="' +
+          idx +
+          '">' +
+          Math.round(rev * 100) +
+          "%</span></label>" +
+          "</div>" +
           "</div></div>" +
           '<div class="amx-track-acts">' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="mute" data-i="' +
@@ -442,6 +606,8 @@
         buffer: buffer,
         muted: false,
         offset: Math.max(0, offsetSec || 0),
+        volume: 1,
+        reverb: 0,
       });
       renderTracks();
       return true;
@@ -470,31 +636,8 @@
         isRecording = true;
 
         tracks.forEach(function (tr) {
-          if (tr.muted || !tr.buffer) return;
-          var off = tr.offset || 0;
-          var bufDur = tr.buffer.duration;
-          if (headNow >= off + bufDur) return;
-          var when = t0;
-          var offsetInBuffer = 0;
-          if (headNow > off) {
-            offsetInBuffer = headNow - off;
-          } else {
-            when = t0 + (off - headNow);
-            offsetInBuffer = 0;
-          }
-          var remaining = bufDur - offsetInBuffer;
-          if (remaining <= 0.001) return;
-          var src = audioCtx.createBufferSource();
-          src.buffer = tr.buffer;
-          src.connect(audioCtx.destination);
-          try {
-            src.start(when, offsetInBuffer, remaining);
-          } catch (e) {
-            try {
-              src.start(when, offsetInBuffer);
-            } catch (e2) {}
-          }
-          playing.push(src);
+          var src = scheduleTrack(tr, headNow, t0);
+          if (src) playing.push(src);
         });
         startTransportLoop();
 
@@ -560,9 +703,7 @@
         btnRec.hidden = true;
         btnStopRec.hidden = false;
         setStatus(
-          "Merekam dari " +
-            fmt(recOffsetSec) +
-            "… (headset untuk overdub)"
+          "Merekam dari " + fmt(recOffsetSec) + "… (headset untuk overdub)"
         );
       } catch (e) {
         isRecording = false;
@@ -599,7 +740,8 @@
       }
     }
 
-    async function mixToWav() {
+    /** Offline mix dengan volume + reverb per track */
+    async function mixToBuffer() {
       var active = tracks.filter(function (t) {
         return !t.muted && t.buffer;
       });
@@ -615,42 +757,105 @@
         setStatus("Durasi kosong.");
         return null;
       }
-      var frames = Math.ceil(dur * sr) || 1;
+      // + tail reverb
+      var tail = 1.5;
+      var frames = Math.ceil((dur + tail) * sr) || 1;
       var offline = new OfflineAudioContext(2, frames, sr);
+      var impulse = makeImpulse(offline, 1.6, 2.4);
+      var conv = offline.createConvolver();
+      conv.buffer = impulse;
+      conv.connect(offline.destination);
+
       active.forEach(function (t) {
         var src = offline.createBufferSource();
         src.buffer = t.buffer;
-        src.connect(offline.destination);
+        var vol = typeof t.volume === "number" ? t.volume : 1;
+        var rev = typeof t.reverb === "number" ? t.reverb : 0;
+        var dry = offline.createGain();
+        dry.gain.value = vol;
+        src.connect(dry);
+        dry.connect(offline.destination);
+        if (rev > 0.01) {
+          var wet = offline.createGain();
+          wet.gain.value = vol * rev;
+          src.connect(wet);
+          wet.connect(conv);
+        }
         src.start(t.offset || 0);
       });
-      var rendered = await offline.startRendering();
+      return await offline.startRendering();
+    }
+
+    async function mixToWav() {
+      var rendered = await mixToBuffer();
+      if (!rendered) return null;
       var wav = encodeWav(rendered);
       return {
         blob: wav,
-        duration: dur,
+        duration: rendered.duration,
         mime: "audio/wav",
         filename: "mix-" + Date.now() + ".wav",
       };
     }
 
-    async function doDownload() {
+    async function mixToCompressed() {
+      var rendered = await mixToBuffer();
+      if (!rendered) return null;
+      setStatus("Kompres audio…");
+      var comp = await bufferToCompressed(rendered);
+      return {
+        blob: comp.blob,
+        duration: rendered.duration,
+        mime: comp.mime,
+        filename: "mix-" + Date.now() + "." + comp.ext,
+      };
+    }
+
+    function triggerDownload(result) {
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(result.blob);
+      a.download = result.filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () {
+        try {
+          URL.revokeObjectURL(a.href);
+        } catch (e) {}
+        a.remove();
+      }, 2000);
+    }
+
+    async function doDownloadWav() {
       try {
         var result = await mixToWav();
         if (!result) return;
-        var a = document.createElement("a");
-        a.href = URL.createObjectURL(result.blob);
-        a.download = result.filename;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(function () {
-          try {
-            URL.revokeObjectURL(a.href);
-          } catch (e) {}
-          a.remove();
-        }, 2000);
-        setStatus("WAV disimpan · " + fmt(result.duration));
+        triggerDownload(result);
+        setStatus(
+          "WAV disimpan · " +
+            fmt(result.duration) +
+            " · " +
+            Math.round(result.blob.size / 1024) +
+            " KB"
+        );
       } catch (e) {
-        setStatus("Gagal simpan: " + (e.message || e));
+        setStatus("Gagal simpan WAV: " + (e.message || e));
+      }
+    }
+
+    async function doDownloadWebm() {
+      try {
+        var result = await mixToCompressed();
+        if (!result) return;
+        triggerDownload(result);
+        setStatus(
+          "WebM disimpan · " +
+            fmt(result.duration) +
+            " · " +
+            Math.round(result.blob.size / 1024) +
+            " KB (kompres; MP3 butuh library ekstra)"
+        );
+      } catch (e) {
+        setStatus("Gagal simpan WebM: " + (e.message || e));
       }
     }
 
@@ -660,11 +865,25 @@
         return;
       }
       try {
-        var result = await mixToWav();
+        // Kirim format terkompresi (WebM) — WAV sering gagal (ukuran/MIME storage)
+        setStatus("Mixing & kompres untuk chat…");
+        var result = await mixToCompressed();
         if (!result) return;
-        setStatus("Mengirim…");
-        close();
+        if (result.blob.size < 400) {
+          setStatus("Hasil mix terlalu pendek.");
+          return;
+        }
+        if (result.blob.size > 8 * 1024 * 1024) {
+          setStatus(
+            "Hasil masih >8 MB setelah kompres. Perpendek durasi atau kurangi track."
+          );
+          return;
+        }
+        setStatus("Mengirim ke chat… (" + Math.round(result.blob.size / 1024) + " KB)");
+        // Jangan tutup dulu — tutup setelah sukses
         await onExport(result);
+        setStatus("Terkirim.");
+        close();
       } catch (e) {
         setStatus("Gagal kirim: " + (e.message || e));
       }
@@ -685,9 +904,60 @@
           });
       } catch (e) {}
       root.classList.remove("is-open");
-      root.onclick = null;
-      if (timelineEl) timelineEl.onpointerdown = null;
+      try {
+        root.remove();
+      } catch (e) {}
     }
+
+    // --- Drag panel ---
+    (function bindDrag() {
+      var handle = root.querySelector("[data-amx-drag]");
+      if (!handle || !panelEl) return;
+      var dragging = false;
+      var ox = 0;
+      var oy = 0;
+      handle.addEventListener("pointerdown", function (ev) {
+        if (ev.target && ev.target.closest && ev.target.closest("[data-amx=close]"))
+          return;
+        dragging = true;
+        panelEl.classList.add("is-dragging");
+        var rect = panelEl.getBoundingClientRect();
+        // switch to fixed left/top positioning
+        panelEl.style.position = "fixed";
+        panelEl.style.left = rect.left + "px";
+        panelEl.style.top = rect.top + "px";
+        panelEl.style.right = "auto";
+        panelEl.style.bottom = "auto";
+        panelEl.style.margin = "0";
+        ox = ev.clientX - rect.left;
+        oy = ev.clientY - rect.top;
+        try {
+          handle.setPointerCapture(ev.pointerId);
+        } catch (e) {}
+        ev.preventDefault();
+      });
+      handle.addEventListener("pointermove", function (ev) {
+        if (!dragging) return;
+        var x = ev.clientX - ox;
+        var y = ev.clientY - oy;
+        var maxX = window.innerWidth - panelEl.offsetWidth - 4;
+        var maxY = window.innerHeight - 40;
+        x = Math.max(4, Math.min(maxX, x));
+        y = Math.max(4, Math.min(maxY, y));
+        panelEl.style.left = x + "px";
+        panelEl.style.top = y + "px";
+      });
+      function endDrag(ev) {
+        if (!dragging) return;
+        dragging = false;
+        panelEl.classList.remove("is-dragging");
+        try {
+          handle.releasePointerCapture(ev.pointerId);
+        } catch (e) {}
+      }
+      handle.addEventListener("pointerup", endDrag);
+      handle.addEventListener("pointercancel", endDrag);
+    })();
 
     if (timelineEl) {
       timelineEl.onpointerdown = function (ev) {
@@ -708,6 +978,7 @@
           t.closest("[data-amx]") &&
           t.closest("[data-amx]").getAttribute("data-amx"));
       if (t.matches && t.matches('input[data-amx="file"]')) return;
+      if (t.matches && t.matches('input[type="range"]')) return;
       if (amx === "close") close();
       else if (amx === "rec") startRec();
       else if (amx === "stop-rec") stopRec();
@@ -715,7 +986,8 @@
       else if (amx === "stop") {
         stopPlayback(true);
         setStatus("Stop @ " + fmt(playhead));
-      } else if (amx === "download") doDownload();
+      } else if (amx === "download-wav") doDownloadWav();
+      else if (amx === "download-webm") doDownloadWebm();
       else if (amx === "export") doExport();
 
       var act = t.getAttribute("data-act");
@@ -742,13 +1014,40 @@
           isPlaying = true;
           var src = audioCtx.createBufferSource();
           src.buffer = tr.buffer;
-          src.connect(audioCtx.destination);
+          connectTrackLive(src, tr);
           src.start(playStartedAtCtx);
           playing.push(src);
           startTransportLoop();
         }
       }
     };
+
+    // Volume / reverb sliders (input event — live)
+    root.addEventListener("input", function (ev) {
+      var t = ev.target;
+      if (!t || !t.getAttribute) return;
+      var act = t.getAttribute("data-act");
+      var i = Number(t.getAttribute("data-i"));
+      if (!tracks[i]) return;
+      if (act === "vol") {
+        tracks[i].volume = Number(t.value) / 100;
+        var lab = root.querySelector('[data-amx-volval="' + i + '"]');
+        if (lab) lab.textContent = Math.round(tracks[i].volume * 100) + "%";
+        applyLiveVolumes();
+      } else if (act === "rev") {
+        tracks[i].reverb = Number(t.value) / 100;
+        var lab2 = root.querySelector('[data-amx-revval="' + i + '"]');
+        if (lab2) lab2.textContent = Math.round(tracks[i].reverb * 100) + "%";
+        applyLiveVolumes();
+        // jika reverb baru diaktifkan saat play, live graph mungkin belum punya wet — restart play
+        if (isPlaying && !isRecording && tracks[i].reverb > 0.01) {
+          var head = currentPlayhead();
+          stopPlayback(true);
+          playhead = head;
+          playAll();
+        }
+      }
+    });
 
     var fileInput = root.querySelector('input[data-amx="file"]');
     if (fileInput) {
@@ -761,7 +1060,7 @@
 
     renderTracks();
     root.classList.add("is-open");
-    setStatus("Siap · max " + MAX_TRACKS + " track · klik timeline untuk seek.");
+    setStatus("Siap · max " + MAX_TRACKS + " · vol/reverb per track · geser judul.");
   }
 
   global.SHAudioMixer = { open: open, MAX_TRACKS: MAX_TRACKS };

@@ -3594,16 +3594,20 @@
       SHAudioMixer.open({
         context: "chat",
         onExport: async function (result) {
-          if (uploading) return;
+          if (uploading) throw new Error("Upload sedang berjalan");
           uploading = true;
           if (status) status.textContent = "Mengunggah hasil mix…";
           try {
+            if (!result || !result.blob) throw new Error("Tidak ada hasil mix");
             await sendVoiceBlob(result.blob, result.duration);
             if (status) status.textContent = "Hasil mix terkirim sebagai pesan suara";
           } catch (e) {
-            if (status) status.textContent = e.message || String(e);
+            var msg = (e && e.message) || String(e);
+            if (status) status.textContent = "Gagal kirim mix: " + msg;
+            throw e;
+          } finally {
+            uploading = false;
           }
-          uploading = false;
         },
       });
     });
