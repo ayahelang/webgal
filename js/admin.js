@@ -946,6 +946,10 @@
           })
           .join("") || "<p class='muted'>Belum ada ruang custom.</p>";
 
+      if (st && rooms && rooms.length) {
+        st.textContent = "Total " + rooms.length + " ruang (termasuk yang lama & nonaktif).";
+      }
+
       host.querySelectorAll("[data-edit-room]").forEach((b) =>
         b.addEventListener("click", async () => {
           const r = rooms.find((x) => String(x.id) === String(b.dataset.editRoom));

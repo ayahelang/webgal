@@ -1573,32 +1573,57 @@
   async function listChatRooms({ activeOnly } = { activeOnly: true }) {
     const sb = client();
     if (!sb) return [];
-    const colsFull =
-      "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,allowed_students,is_active,sort_order,created_at";
-    const colsBasic =
-      "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,is_active,sort_order,created_at";
-    const colsMin = "id,name,description,access_password,is_active,sort_order,created_at";
-    async function run(cols) {
-      let q = sb.from("gallery_chat_rooms").select(cols).order("sort_order").order("name");
-      if (activeOnly !== false) q = q.eq("is_active", true);
-      return q;
-    }
-    let { data, error } = await run(colsFull);
-    if (error && /allowed_students|schema cache|column/i.test(String(error.message || ""))) {
-      const r2 = await run(colsBasic);
-      data = r2.data;
-      error = r2.error;
-    }
-    if (error && /allowed_|schema cache|column/i.test(String(error.message || ""))) {
-      const r3 = await run(colsMin);
-      data = r3.data;
-      error = r3.error;
+    // Ambil SEMUA baris yang bisa dibaca; admin memakai activeOnly:false
+    const colSets = [
+      "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,allowed_students,is_active,sort_order,created_at",
+      "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,is_active,sort_order,created_at",
+      "id,name,description,access_password,is_active,sort_order,created_at",
+      "id,name,description,access_password,is_active,created_at",
+      "*",
+    ];
+    let data = null;
+    let error = null;
+    for (var i = 0; i < colSets.length; i++) {
+      var cols = colSets[i];
+      var q = sb.from("gallery_chat_rooms").select(cols);
+      // Jangan filter is_active di admin (activeOnly:false)
+      if (activeOnly !== false) {
+        q = q.or("is_active.eq.true,is_active.is.null");
+      }
+      // Urut: terbaru dulu supaya ruang lama tetap terlihat di bawah/atas konsisten
+      var r = await q.order("created_at", { ascending: false, nullsFirst: false });
+      if (r.error && /created_at|order/i.test(String(r.error.message || ""))) {
+        r = await q.order("name");
+      }
+      data = r.data;
+      error = r.error;
+      if (!error) break;
+      if (!/column|schema cache|does not exist/i.test(String(error.message || ""))) break;
     }
     if (error) {
       if (/does not exist|relation/i.test(String(error.message || ""))) return [];
       throw error;
     }
-    return (data || []).map(function (r) {
+    var rows = data || [];
+    // sort stabil: sort_order lalu nama (setelah fetch)
+    rows = rows.slice().sort(function (a, b) {
+      var sa = a.sort_order != null ? Number(a.sort_order) : 0;
+      var sb_ = b.sort_order != null ? Number(b.sort_order) : 0;
+      if (sa !== sb_) return sa - sb_;
+      var ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+      var tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (ta !== tb) return ta - tb; // lama dulu
+      return String(a.name || "").localeCompare(String(b.name || ""), "id");
+    });
+    return rows.map(function (r) {
+      var stu = r.allowed_students;
+      if (typeof stu === "string") {
+        try {
+          stu = JSON.parse(stu);
+        } catch (e) {
+          stu = [];
+        }
+      }
       return {
         id: r.id,
         name: r.name,
@@ -1606,10 +1631,10 @@
         needs_password: !!(r.access_password && String(r.access_password).trim()),
         allowed_angkatan_ids: r.allowed_angkatan_ids || [],
         allowed_class_codes: r.allowed_class_codes || [],
-        allowed_students: Array.isArray(r.allowed_students) ? r.allowed_students : [],
-        is_active: r.is_active !== false,
-        sort_order: r.sort_order || 0,
-        created_at: r.created_at,
+        allowed_students: Array.isArray(stu) ? stu : [],
+        is_active: r.is_active === false ? false : true,
+        sort_order: r.sort_order != null ? Number(r.sort_order) : 0,
+        created_at: r.created_at || null,
         _password: r.access_password || "",
       };
     });

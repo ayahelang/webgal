@@ -1,6 +1,4 @@
-# Fix: kolom allowed_students + list ruang chat
+# List semua ruang chat (termasuk lama)
 
-1. Buka Supabase → SQL Editor
-2. Jalankan isi file sql/patch-chat-rooms-allowed-students.sql
-3. Deploy js/db.js + js/admin.js
-4. Hard refresh admin → tab Ruang Chat
+Admin memuat semua baris gallery_chat_rooms tanpa filter ketat is_active.
+Jika ruang lama tetap tidak muncul, cek di Supabase Table Editor apakah barisnya ada.
