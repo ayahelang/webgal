@@ -2153,10 +2153,14 @@
         const done = function () {
           btn.classList.add("is-copied");
           btn.title = "Tersalin";
+          if (status) status.textContent = "Pesan telah disalin ke papan klip";
           setTimeout(function () {
             btn.classList.remove("is-copied");
             btn.title = "Salin pesan";
-          }, 1200);
+            if (status && /disalin/i.test(status.textContent || "")) {
+              status.textContent = "";
+            }
+          }, 2000);
         };
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(done).catch(function () {
@@ -2169,11 +2173,21 @@
               ta.remove();
               done();
             } catch (e) {
-              status.textContent = "Gagal menyalin";
+              if (status) status.textContent = "Gagal menyalin";
             }
           });
         } else {
-          status.textContent = "Salin tidak didukung browser ini";
+          try {
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            ta.remove();
+            done();
+          } catch (e) {
+            if (status) status.textContent = "Salin tidak didukung browser ini";
+          }
         }
         return;
       }
