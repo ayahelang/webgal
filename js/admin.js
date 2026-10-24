@@ -993,15 +993,19 @@
     buildStudentCheckTree("#chatRoomStudentTree");
     if (master && treeHost) {
       const syncTreeVis = () => {
-        if (master.checked) {
-          treeHost.style.display = "block";
-          treeHost.classList.remove("is-collapsed");
-        } else {
-          treeHost.style.display = "none";
-          treeHost.classList.add("is-collapsed");
-        }
+        const on = !!master.checked;
+        treeHost.classList.toggle("is-collapsed", !on);
+        treeHost.hidden = !on;
+        treeHost.style.display = on ? "block" : "none";
       };
-      master.addEventListener("change", syncTreeVis);
+      if (master.dataset.treeVisBound !== "1") {
+        master.dataset.treeVisBound = "1";
+        master.addEventListener("change", syncTreeVis);
+        master.addEventListener("click", function () {
+          // beberapa browser admin theme: pastikan sync setelah state checkbox berubah
+          setTimeout(syncTreeVis, 0);
+        });
+      }
       syncTreeVis();
     }
 
@@ -2621,12 +2625,29 @@
           refreshDesigns().catch(console.warn);
         }
         if (tab === "announce") refreshAnnouncements().catch(console.warn);
+        if (tab === "chatrooms") {
+          refreshChatRooms().catch(console.warn);
+          buildStudentCheckTree("#chatRoomStudentTree").then(function () {
+            var master = $("#chatRoomShowTree");
+            var treeHost = $("#chatRoomStudentTree");
+            if (master && treeHost) {
+              if (master.checked) {
+                treeHost.style.display = "block";
+                treeHost.classList.remove("is-collapsed");
+              } else {
+                treeHost.style.display = "none";
+                treeHost.classList.add("is-collapsed");
+              }
+            }
+          }).catch(console.warn);
+        }
         if (tab === "attendance") { refreshAttendance().catch(console.warn); buildStudentCheckTree("#attStudentTree"); }
       })
     );
 
     bindForms(session);
     bindAnnouncementForm();
+    bindChatRooms();
     bindAttendanceAdmin();
     try {
       if (window.GalleryDB && GalleryDB.subscribeAttendanceLive && !window.__attAdminLive) {

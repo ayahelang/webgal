@@ -1480,9 +1480,12 @@ body.page-skills .skills-main{
   margin-top:8px;
 }
 .att-student-tree.is-collapsed,
-.ann-student-tree.is-collapsed{
+.ann-student-tree.is-collapsed,
+#chatRoomStudentTree.is-collapsed{
   display:none !important;
 }
+#chatRoomStudentTree[hidden]{display:none !important}
+
 /* Tree list items full width, left aligned */
 .sh-cb-tree{
   width:100%;
