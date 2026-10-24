@@ -1,11 +1,14 @@
 /**
- * SHWebRTC — video conference / share screen untuk ruang chat
- * Signaling: Supabase Realtime Broadcast
- * Media: WebRTC (1 presenter → banyak penonton, P2P per penonton)
- * Catatan: cocok kelas kecil–sedang. Banyak penonton → lebih baik pakai SFU (LiveKit dll).
+ * SHWebRTC — Video / share screen per ruang chat
+ * Strategi cerdas:
+ *  - peserta ≤ THRESHOLD → WebRTC P2P (gratis, ringan)
+ *  - peserta > THRESHOLD → SFU gratis (default: Jitsi Meet, tanpa API key)
+ *  - opsional: Daily / LiveKit jika diisi di GALLERY_VC
  */
 (function (global) {
+  var THRESHOLD = 12;
   var ICE = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }];
+
   var state = {
     roomKey: null,
     channel: null,
@@ -13,11 +16,25 @@
     name: "Peserta",
     isPresenter: false,
     localStream: null,
-    peers: Object.create(null), // peerId -> RTCPeerConnection
+    peers: Object.create(null),
     remoteStreams: Object.create(null),
+    presenceCount: 1,
+    mode: "p2p", // p2p | sfu
+    sfuProvider: "jitsi",
     onStatus: null,
     onRoster: null,
+    onMode: null,
+    onPresence: null,
   };
+
+  function cfg() {
+    return global.GALLERY_VC || {};
+  }
+
+  function threshold() {
+    var n = Number(cfg().p2pMax);
+    return isFinite(n) && n > 1 ? n : THRESHOLD;
+  }
 
   function sb() {
     if (global.__gallerySb) return global.__gallerySb;
@@ -35,6 +52,10 @@
     if (state.onStatus) state.onStatus(msg);
   }
 
+  function emitPresence() {
+    if (state.onPresence) state.onPresence(state.presenceCount, state.mode);
+  }
+
   function emitRoster() {
     if (!state.onRoster) return;
     var list = [];
@@ -45,7 +66,44 @@
       local: state.localStream,
       isPresenter: state.isPresenter,
       remotes: list,
+      mode: state.mode,
+      presenceCount: state.presenceCount,
     });
+  }
+
+  function emitMode() {
+    if (state.onMode) state.onMode(state.mode, state.sfuProvider, state.presenceCount);
+  }
+
+  /** Pilih strategi berdasarkan jumlah peserta + config */
+  function pickStrategy(count) {
+    var max = threshold();
+    if (count <= max) {
+      return { mode: "p2p", provider: null };
+    }
+    var c = cfg();
+    // SFU berbayar/API opsional
+    if (c.dailyDomain && c.dailyApiKey) {
+      return { mode: "sfu", provider: "daily" };
+    }
+    if (c.livekitUrl && c.livekitTokenUrl) {
+      return { mode: "sfu", provider: "livekit" };
+    }
+    // Default gratis tanpa kunci: Jitsi public SFU
+    return { mode: "sfu", provider: "jitsi" };
+  }
+
+  function safeRoomSlug(key) {
+    return String(key || "global")
+      .replace(/[^a-zA-Z0-9_-]/g, "")
+      .slice(0, 48) || "global";
+  }
+
+  function jitsiUrl(roomKey) {
+    var slug = "WebGal" + safeRoomSlug(roomKey);
+    var c = cfg();
+    var base = (c.jitsiDomain || "meet.jit.si").replace(/\/$/, "");
+    return "https://" + base + "/" + slug;
   }
 
   async function send(event, payload) {
@@ -81,32 +139,18 @@
     if (state.peers[remoteId]) return state.peers[remoteId];
     var pc = new RTCPeerConnection({ iceServers: ICE });
     state.peers[remoteId] = pc;
-
     pc.onicecandidate = function (ev) {
-      if (ev.candidate) {
-        send("ice", { to: remoteId, candidate: ev.candidate });
-      }
+      if (ev.candidate) send("ice", { to: remoteId, candidate: ev.candidate });
     };
-
     pc.ontrack = function (ev) {
-      var stream = ev.streams && ev.streams[0];
-      if (!stream) {
-        stream = new MediaStream([ev.track]);
-      }
+      var stream = (ev.streams && ev.streams[0]) || new MediaStream([ev.track]);
       state.remoteStreams[remoteId] = stream;
       emitRoster();
-      status("Menerima stream dari " + remoteId.slice(0, 8));
     };
-
     pc.onconnectionstatechange = function () {
       var s = pc.connectionState;
-      if (s === "failed" || s === "closed" || s === "disconnected") {
-        // jangan langsung hapus saat disconnected singkat
-        if (s === "failed" || s === "closed") closePeer(remoteId);
-      }
+      if (s === "failed" || s === "closed") closePeer(remoteId);
     };
-
-    // jika kita presenter, tambahkan track lokal
     if (state.localStream) {
       state.localStream.getTracks().forEach(function (t) {
         try {
@@ -114,32 +158,30 @@
         } catch (e) {}
       });
     }
-
     return pc;
   }
 
   async function createOfferTo(remoteId) {
+    if (state.mode !== "p2p") return;
     var pc = makePc(remoteId);
     try {
       var offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       await send("offer", { to: remoteId, sdp: pc.localDescription });
     } catch (e) {
-      console.warn("[SHWebRTC] offer", e);
-      status("Gagal buat offer: " + (e.message || e));
+      status("Gagal offer: " + (e.message || e));
     }
   }
 
   async function handleOffer(from, sdp) {
+    if (state.mode !== "p2p") return;
     var pc = makePc(from);
     try {
       await pc.setRemoteDescription(sdp);
       var answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       await send("answer", { to: from, sdp: pc.localDescription });
-    } catch (e) {
-      console.warn("[SHWebRTC] answer", e);
-    }
+    } catch (e) {}
   }
 
   async function handleAnswer(from, sdp) {
@@ -147,18 +189,43 @@
     if (!pc) return;
     try {
       await pc.setRemoteDescription(sdp);
-    } catch (e) {
-      console.warn("[SHWebRTC] setRemote answer", e);
-    }
+    } catch (e) {}
   }
 
   async function handleIce(from, candidate) {
     var pc = state.peers[from] || makePc(from);
     try {
       if (candidate) await pc.addIceCandidate(candidate);
-    } catch (e) {
-      /* ignore early ICE */
+    } catch (e) {}
+  }
+
+  function applyStrategy(count) {
+    var prev = state.mode;
+    var pick = pickStrategy(count);
+    state.mode = pick.mode;
+    state.sfuProvider = pick.provider || "jitsi";
+    if (prev !== state.mode) {
+      if (state.mode === "sfu") {
+        // lepas P2P media — SFU mengambil alih
+        if (state.isPresenter) stopScreenShare(true);
+        closeAllPeers();
+        status(
+          "Peserta " +
+            count +
+            " > " +
+            threshold() +
+            " → mode SFU (" +
+            state.sfuProvider +
+            ") agar lebih lancar"
+        );
+      } else {
+        status("Peserta " + count + " → mode WebRTC P2P");
+      }
+      emitMode();
+    } else {
+      emitMode();
     }
+    emitPresence();
   }
 
   async function joinSession(roomKey, userName, handlers) {
@@ -168,29 +235,41 @@
       status("Supabase belum siap");
       return false;
     }
-    if (!global.RTCPeerConnection) {
-      status("Browser tidak mendukung WebRTC");
-      return false;
-    }
     state.roomKey = String(roomKey || "global");
     state.peerId = uid();
     state.name = userName || "Peserta";
     state.onStatus = handlers && handlers.onStatus;
     state.onRoster = handlers && handlers.onRoster;
+    state.onMode = handlers && handlers.onMode;
+    state.onPresence = handlers && handlers.onPresence;
+    state.presenceCount = 1;
+    state.mode = "p2p";
 
     var chName = "webrtc-" + state.roomKey;
-    var channel = client.channel(chName, { config: { broadcast: { self: false } } });
+    var channel = client.channel(chName, {
+      config: {
+        broadcast: { self: false },
+        presence: { key: state.peerId },
+      },
+    });
     state.channel = channel;
 
     channel
+      .on("presence", { event: "sync" }, function () {
+        var stateMap = channel.presenceState();
+        var n = 0;
+        Object.keys(stateMap).forEach(function (k) {
+          n += (stateMap[k] || []).length;
+        });
+        state.presenceCount = Math.max(1, n);
+        applyStrategy(state.presenceCount);
+      })
       .on("broadcast", { event: "peer-join" }, function (payload) {
         var p = payload.payload || {};
         if (!p.from || p.from === state.peerId) return;
-        // Jika kita presenter, tawarkan stream ke pendatang baru
-        if (state.isPresenter && state.localStream) {
+        if (state.mode === "p2p" && state.isPresenter && state.localStream) {
           createOfferTo(p.from);
         }
-        status((p.name || "Peserta") + " bergabung");
       })
       .on("broadcast", { event: "peer-leave" }, function (payload) {
         var p = payload.payload || {};
@@ -199,18 +278,18 @@
       .on("broadcast", { event: "presenter-start" }, function (payload) {
         var p = payload.payload || {};
         if (p.from === state.peerId) return;
-        status((p.name || "Seseorang") + " mulai share screen — menunggu stream…");
-        // minta presenter mengirim offer ke kita
-        send("need-offer", { to: p.from });
+        if (state.mode === "p2p") {
+          status((p.name || "Seseorang") + " mulai share — menunggu…");
+          send("need-offer", { to: p.from });
+        }
       })
       .on("broadcast", { event: "presenter-stop" }, function (payload) {
         var p = payload.payload || {};
         if (p.from) closePeer(p.from);
-        status("Share screen dihentikan");
       })
       .on("broadcast", { event: "need-offer" }, function (payload) {
         var p = payload.payload || {};
-        if (!state.isPresenter || !state.localStream) return;
+        if (state.mode !== "p2p" || !state.isPresenter || !state.localStream) return;
         if (p.from) createOfferTo(p.from);
       })
       .on("broadcast", { event: "offer" }, function (payload) {
@@ -230,13 +309,23 @@
       });
 
     await new Promise(function (resolve) {
-      channel.subscribe(function (status) {
-        if (status === "SUBSCRIBED") resolve();
+      channel.subscribe(async function (st) {
+        if (st === "SUBSCRIBED") {
+          try {
+            await channel.track({
+              peerId: state.peerId,
+              name: state.name,
+              at: Date.now(),
+            });
+          } catch (e) {}
+          resolve();
+        }
       });
     });
 
     await send("peer-join", {});
-    status("Terhubung ke sesi video ruang ini");
+    applyStrategy(state.presenceCount);
+    status("Terhubung · ruang " + state.roomKey + " · " + state.presenceCount + " peserta");
     return true;
   }
 
@@ -244,6 +333,12 @@
     if (!state.channel) {
       status("Gabung sesi dulu");
       return false;
+    }
+    // Mode SFU: arahkan ke provider (Jitsi punya tombol share sendiri)
+    if (state.mode === "sfu") {
+      status("Mode SFU aktif — gunakan tombol share di jendela " + (state.sfuProvider || "SFU"));
+      emitMode();
+      return true;
     }
     try {
       var stream = await navigator.mediaDevices.getDisplayMedia({
@@ -257,19 +352,18 @@
           stopScreenShare();
         };
       });
-      // tutup peer lama lalu tawarkan ulang
       closeAllPeers();
       await send("presenter-start", {});
       emitRoster();
-      status("Share screen aktif — penonton akan menerima stream");
+      status("Share screen P2P aktif (" + state.presenceCount + " di ruang)");
       return true;
     } catch (e) {
-      status("Gagal share screen: " + (e.message || e));
+      status("Gagal share: " + (e.message || e));
       return false;
     }
   }
 
-  function stopScreenShare() {
+  function stopScreenShare(silent) {
     if (state.localStream) {
       state.localStream.getTracks().forEach(function (t) {
         try {
@@ -280,16 +374,16 @@
     }
     state.isPresenter = false;
     closeAllPeers();
-    send("presenter-stop", {});
+    if (!silent) send("presenter-stop", {});
     emitRoster();
-    status("Share screen dihentikan");
+    if (!silent) status("Share dihentikan");
   }
 
   function leaveSession() {
     try {
       send("peer-leave", {});
     } catch (e) {}
-    stopScreenShare();
+    stopScreenShare(true);
     if (state.channel) {
       try {
         var client = sb();
@@ -299,15 +393,19 @@
     state.channel = null;
     state.roomKey = null;
     state.peerId = null;
-    status("Keluar dari sesi video");
+    state.presenceCount = 0;
+    state.mode = "p2p";
+    status("Keluar sesi video");
+    emitPresence();
+    emitMode();
   }
 
-  function isInSession() {
-    return !!state.channel;
-  }
-
-  function isSharing() {
-    return !!state.isPresenter && !!state.localStream;
+  function getSfuJoinUrl() {
+    if (!state.roomKey) return "";
+    if (state.sfuProvider === "daily" && cfg().dailyDomain) {
+      return "https://" + String(cfg().dailyDomain).replace(/\/$/, "") + "/webgal-" + safeRoomSlug(state.roomKey);
+    }
+    return jitsiUrl(state.roomKey);
   }
 
   global.SHWebRTC = {
@@ -315,7 +413,23 @@
     leaveSession: leaveSession,
     startScreenShare: startScreenShare,
     stopScreenShare: stopScreenShare,
-    isInSession: isInSession,
-    isSharing: isSharing,
+    isInSession: function () {
+      return !!state.channel;
+    },
+    isSharing: function () {
+      return !!state.isPresenter && !!state.localStream;
+    },
+    getMode: function () {
+      return state.mode;
+    },
+    getProvider: function () {
+      return state.sfuProvider;
+    },
+    getPresenceCount: function () {
+      return state.presenceCount;
+    },
+    getThreshold: threshold,
+    getSfuJoinUrl: getSfuJoinUrl,
+    jitsiUrl: jitsiUrl,
   };
 })(typeof window !== "undefined" ? window : this);

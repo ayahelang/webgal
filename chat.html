@@ -131,16 +131,22 @@
       </div>
       <div id="vcPanel" class="vc-panel" hidden>
         <div class="vc-head">
-          <strong>Video / Share screen</strong>
+          <strong>Video ruang</strong>
+          <span id="vcMeta" class="vc-meta muted">—</span>
           <span id="vcStatus" class="muted vc-status">Belum terhubung</span>
           <button type="button" id="vcCloseBtn" class="vc-close" title="Tutup panel">✕</button>
         </div>
-        <p class="muted vc-hint">Share screen 1 orang (guru) · ditonton peserta di ruang chat yang sama. Cocok kelas kecil–sedang. Butuh izin layar browser.</p>
+        <p class="muted vc-hint">Terikat pada <b>ruang chat</b> yang dipilih. Sistem menghitung peserta lalu memilih: WebRTC P2P (sedikit orang) atau SFU gratis / Jitsi (banyak orang).</p>
         <div id="vcVideos" class="vc-videos"></div>
+        <div id="vcSfuWrap" class="vc-sfu-wrap" hidden>
+          <iframe id="vcSfuFrame" class="vc-sfu-frame" allow="camera; microphone; display-capture; autoplay; clipboard-write" allowfullscreen></iframe>
+          <p class="muted" style="font-size:11px;margin:6px 0 0">Mode SFU · share screen lewat tombol di dalam jendela konferensi.</p>
+        </div>
         <div class="vc-actions">
           <button type="button" id="vcJoinBtn" class="btn btn-primary">Gabung sesi</button>
-          <button type="button" id="vcShareBtn" class="btn btn-ghost" disabled>Share screen</button>
+          <button type="button" id="vcShareBtn" class="btn btn-ghost" disabled>Share screen (P2P)</button>
           <button type="button" id="vcStopBtn" class="btn btn-ghost" hidden>Stop share</button>
+          <button type="button" id="vcOpenSfuBtn" class="btn btn-ghost" hidden>Buka SFU fullscreen</button>
           <button type="button" id="vcLeaveBtn" class="btn btn-ghost" hidden>Keluar sesi</button>
         </div>
       </div>

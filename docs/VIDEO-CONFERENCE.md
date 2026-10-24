@@ -1,37 +1,15 @@
-# Video / Share screen di ruang chat
+# Video conference per ruang chat
 
-## Cara kerja
-- **Signaling**: Supabase Realtime Broadcast (kuota kecil)
-- **Media**: WebRTC peer-to-peer (tidak lewat database Supabase)
-- **Model**: 1 orang share screen → banyak penonton di ruang yang sama
+## Perilaku
+- Tombol **Video ruang** di halaman chat, terikat **ruang chat** yang dipilih.
+- Menghitung peserta (Supabase Presence) di sesi video ruang itu.
+- **≤ p2pMax (default 12)** → WebRTC **P2P** (share screen native).
+- **> p2pMax** → **SFU**:
+  - default **Jitsi Meet** (gratis, tanpa API key)
+  - opsional Daily / LiveKit jika diisi `GALLERY_VC`
 
-## Cara pakai
-1. Buka Chat → pilih ruang
-2. Klik **Video ruang**
-3. **Gabung sesi**
-4. Guru: **Share screen** (izin browser)
-5. Siswa: otomatis menerima stream (tetap di sesi yang sama)
-
-## Kuota Supabase free
-- Hanya sinyal (join/offer/ice) — sangat ringan
-- Video **tidak** memakai Storage/DB
-- Bottleneck: perangkat & jaringan peserta, bukan Supabase
-
-## Batas
-- Kelas kecil–sedang (perkiraan < ~15 penonton stabil)
-- Firewall ketat mungkin perlu TURN server (belum disertakan)
-- Untuk ratusan penonton: gunakan SFU (LiveKit / Daily / Agora)
+## Config (opsional)
+Lihat `data/vc-config.example.js`.
 
 ## File
-- `js/webrtc-room.js`
-- `chat.html`, `js/chat.js`, `css/style.css`
-
-
-## Strategi peserta (rencana)
-
-| Jumlah penonton | Strategi | Biaya |
-|-----------------|----------|--------|
-| Kecil (≤ ~12–15) | WebRTC P2P (saat ini) | Gratis (STUN publik) |
-| Sedang–besar | SFU: LiveKit Cloud / Daily / Agora free tier | Gratis terbatas, lalu berbayar |
-
-Kode bisa nanti memilih otomatis: di bawah ambang → P2P; di atas → SFU bila API key diset.
+- `js/webrtc-room.js`, `js/chat.js`, `chat.html`, `css/style.css`

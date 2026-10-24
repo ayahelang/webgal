@@ -4030,3 +4030,8 @@ mark.chat-hit.chat-search-kw-current{
   background:rgba(255,255,255,.96);border-color:rgba(26,143,209,.25);
 }
 [data-theme="light"] .vc-head strong{color:#0c2433}
+
+.vc-meta{font-size:11px;font-weight:700;color:#7de3ff;padding:2px 8px;border-radius:999px;background:rgba(125,227,255,.1);border:1px solid rgba(125,227,255,.25)}
+.vc-sfu-wrap{margin:8px 0;border-radius:12px;overflow:hidden;border:1px solid rgba(125,227,255,.25);background:#000}
+.vc-sfu-frame{display:block;width:100%;min-height:min(52vh,420px);height:52vh;border:0;background:#111}
+@media (max-width:640px){.vc-sfu-frame{min-height:40vh;height:40vh}}

@@ -1500,6 +1500,11 @@
     var host = $("#vcVideos");
     if (!host) return;
     host.innerHTML = "";
+    if (roster && roster.mode === "sfu") {
+      host.hidden = true;
+      return;
+    }
+    host.hidden = false;
     function tile(stream, label, muted) {
       var d = document.createElement("div");
       d.className = "vc-tile";
@@ -1532,22 +1537,63 @@
     var shareBtn = $("#vcShareBtn");
     var stopBtn = $("#vcStopBtn");
     var leaveBtn = $("#vcLeaveBtn");
+    var openSfuBtn = $("#vcOpenSfuBtn");
     var vcStatus = $("#vcStatus");
+    var vcMeta = $("#vcMeta");
+    var sfuWrap = $("#vcSfuWrap");
+    var sfuFrame = $("#vcSfuFrame");
     if (!panel || !openBtn) return;
 
     function setSt(t) {
       if (vcStatus) vcStatus.textContent = t || "";
     }
+    function setMeta(count, mode, provider) {
+      if (!vcMeta) return;
+      var th = SHWebRTC.getThreshold ? SHWebRTC.getThreshold() : 12;
+      var modeLabel = mode === "sfu" ? "SFU/" + (provider || "jitsi") : "P2P";
+      vcMeta.textContent = (count || 0) + " peserta · " + modeLabel + " (batas P2P " + th + ")";
+    }
+    function applySfuUi(mode, provider) {
+      if (mode === "sfu") {
+        if (sfuWrap) sfuWrap.hidden = false;
+        if ($("#vcVideos")) $("#vcVideos").hidden = true;
+        if (shareBtn) {
+          shareBtn.disabled = true;
+          shareBtn.hidden = true;
+        }
+        if (openSfuBtn) openSfuBtn.hidden = false;
+        var url = SHWebRTC.getSfuJoinUrl && SHWebRTC.getSfuJoinUrl();
+        if (sfuFrame && url && sfuFrame.dataset.src !== url) {
+          sfuFrame.dataset.src = url;
+          sfuFrame.src = url;
+        }
+      } else {
+        if (sfuWrap) sfuWrap.hidden = true;
+        if (sfuFrame) {
+          sfuFrame.removeAttribute("src");
+          delete sfuFrame.dataset.src;
+        }
+        if ($("#vcVideos")) $("#vcVideos").hidden = false;
+        if (openSfuBtn) openSfuBtn.hidden = true;
+      }
+    }
     function syncBtns() {
       var inS = SHWebRTC.isInSession();
       var sh = SHWebRTC.isSharing();
+      var mode = SHWebRTC.getMode ? SHWebRTC.getMode() : "p2p";
       if (joinBtn) joinBtn.hidden = inS;
       if (leaveBtn) leaveBtn.hidden = !inS;
       if (shareBtn) {
-        shareBtn.disabled = !inS || sh;
-        shareBtn.hidden = sh;
+        shareBtn.disabled = !inS || sh || mode === "sfu";
+        shareBtn.hidden = !inS || mode === "sfu" || sh;
       }
       if (stopBtn) stopBtn.hidden = !sh;
+      applySfuUi(mode, SHWebRTC.getProvider && SHWebRTC.getProvider());
+      setMeta(
+        SHWebRTC.getPresenceCount ? SHWebRTC.getPresenceCount() : 0,
+        mode,
+        SHWebRTC.getProvider && SHWebRTC.getProvider()
+      );
     }
 
     openBtn.addEventListener("click", function () {
@@ -1561,10 +1607,18 @@
     if (joinBtn)
       joinBtn.addEventListener("click", async function () {
         var name = resolveAuthorName ? resolveAuthorName() : "Peserta";
-        setSt("Menghubungkan…");
+        setSt("Menghubungkan ke ruang…");
         var ok = await SHWebRTC.joinSession(currentVcRoomKey(), name, {
           onStatus: setSt,
           onRoster: renderVcVideos,
+          onMode: function (mode, provider, count) {
+            setMeta(count, mode, provider);
+            applySfuUi(mode, provider);
+            syncBtns();
+          },
+          onPresence: function (count, mode) {
+            setMeta(count, mode, SHWebRTC.getProvider && SHWebRTC.getProvider());
+          },
         });
         syncBtns();
         if (!ok) setSt("Gagal gabung sesi");
@@ -1581,25 +1635,32 @@
         SHWebRTC.stopScreenShare();
         syncBtns();
       });
+    if (openSfuBtn)
+      openSfuBtn.addEventListener("click", function () {
+        var url = SHWebRTC.getSfuJoinUrl && SHWebRTC.getSfuJoinUrl();
+        if (url) window.open(url, "_blank", "noopener");
+      });
     if (leaveBtn)
       leaveBtn.addEventListener("click", function () {
         SHWebRTC.leaveSession();
-        renderVcVideos({ local: null, remotes: [] });
+        renderVcVideos({ local: null, remotes: [], mode: "p2p" });
+        applySfuUi("p2p", null);
         syncBtns();
       });
-    // ganti ruang → keluar sesi video agar tidak campur
     if (room) {
       room.addEventListener("change", function () {
         if (SHWebRTC.isInSession()) {
           SHWebRTC.leaveSession();
-          renderVcVideos({ local: null, remotes: [] });
-          setSt("Ruang berubah — gabung sesi lagi bila perlu");
+          renderVcVideos({ local: null, remotes: [], mode: "p2p" });
+          applySfuUi("p2p", null);
+          setSt("Ruang chat berubah — gabung sesi video lagi di ruang ini");
           syncBtns();
         }
       });
     }
     syncBtns();
   }
+
 
 
   function currentRoomContext() {
