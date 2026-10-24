@@ -1,4 +1,6 @@
-# List semua ruang chat (termasuk lama)
+# Migrasi angkatan → gallery_chat_rooms
 
-Admin memuat semua baris gallery_chat_rooms tanpa filter ketat is_active.
-Jika ruang lama tetap tidak muncul, cek di Supabase Table Editor apakah barisnya ada.
+Sumber dropdown chat (selain global hardcoded & ruang custom):
+- gallery_angkatan
+
+Jalankan: sql/migrate-angkatan-to-chat-rooms.sql di Supabase SQL Editor
