@@ -1,7 +1,6 @@
-# Video conference / share screen (nomor 3)
+# Ruang chat: tree penerima seperti absensi
 
-- Tombol Video ruang di chat
-- Gabung sesi + Share screen (WebRTC + Supabase signaling)
-- Tidak mengubah fitur chat lain
+- Admin Ruang Chat memakai tree Angkatan → Kelas → Siswa
+- Jalankan ulang sql/patch-chat-rooms.sql (kolom allowed_students + RPC v2)
 
-Baca docs/VIDEO-CONFERENCE.md
+Video: catatan strategi P2P vs SFU di docs/VIDEO-CONFERENCE.md (implementasi auto nanti)

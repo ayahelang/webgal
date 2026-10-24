@@ -25,3 +25,13 @@
 ## File
 - `js/webrtc-room.js`
 - `chat.html`, `js/chat.js`, `css/style.css`
+
+
+## Strategi peserta (rencana)
+
+| Jumlah penonton | Strategi | Biaya |
+|-----------------|----------|--------|
+| Kecil (≤ ~12–15) | WebRTC P2P (saat ini) | Gratis (STUN publik) |
+| Sedang–besar | SFU: LiveKit Cloud / Daily / Agora free tier | Gratis terbatas, lalu berbayar |
+
+Kode bisa nanti memilih otomatis: di bawah ambang → P2P; di atas → SFU bila API key diset.

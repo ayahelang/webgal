@@ -1426,12 +1426,16 @@
     }
     const classCode = (prof && (prof.linked_class_code || "")) || "";
     // password prompt if needed — unknown until fail; prompt when hint or after fail
+    const studentName = (prof && (prof.linked_student_name || prof.display_name || "")) || "";
+    const angkatanYear = (prof && (prof.linked_angkatan_year || "")) || "";
     async function tryVerify(pw) {
       return GalleryDB.verifyChatRoomAccess({
         roomId: roomId,
         password: pw,
         angkatanId: aid || null,
         classCode: classCode || null,
+        studentName: studentName || null,
+        angkatanYear: angkatanYear || null,
       });
     }
     let ok = await tryVerify(null);

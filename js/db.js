@@ -1574,7 +1574,7 @@
     const sb = client();
     if (!sb) return [];
     let q = sb.from("gallery_chat_rooms").select(
-      "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,is_active,sort_order,created_at"
+      "id,name,description,access_password,allowed_angkatan_ids,allowed_class_codes,allowed_students,is_active,sort_order,created_at"
     ).order("sort_order").order("name");
     if (activeOnly !== false) q = q.eq("is_active", true);
     const { data, error } = await q;
@@ -1591,6 +1591,7 @@
         needs_password: !!(r.access_password && String(r.access_password).trim()),
         allowed_angkatan_ids: r.allowed_angkatan_ids || [],
         allowed_class_codes: r.allowed_class_codes || [],
+        allowed_students: Array.isArray(r.allowed_students) ? r.allowed_students : (r.allowed_students || []),
         is_active: r.is_active !== false,
         sort_order: r.sort_order || 0,
         created_at: r.created_at,
@@ -1613,6 +1614,7 @@
       allowed_class_codes: Array.isArray(payload.allowed_class_codes)
         ? payload.allowed_class_codes.map(function (c) { return String(c).trim(); }).filter(Boolean)
         : [],
+      allowed_students: Array.isArray(payload.allowed_students) ? payload.allowed_students : [],
       is_active: payload.is_active !== false,
       sort_order: Number(payload.sort_order) || 0,
       created_by: payload.created_by || "",
@@ -1635,34 +1637,54 @@
     if (error) throw error;
   }
 
-  async function verifyChatRoomAccess({ roomId, password, angkatanId, classCode }) {
+  async function verifyChatRoomAccess({ roomId, password, angkatanId, classCode, studentName, angkatanYear }) {
     const sb = client();
     if (!sb || !roomId) return false;
     try {
-      const { data, error } = await sb.rpc("verify_chat_room_access", {
+      const { data, error } = await sb.rpc("verify_chat_room_access_v2", {
+        p_room_id: roomId,
+        p_password: password || null,
+        p_angkatan_id: angkatanId || null,
+        p_class_code: classCode || null,
+        p_student_name: studentName || null,
+        p_angkatan_year: angkatanYear || null,
+      });
+      if (!error) return !!data;
+      // fallback RPC v1
+      const r1 = await sb.rpc("verify_chat_room_access", {
         p_room_id: roomId,
         p_password: password || null,
         p_angkatan_id: angkatanId || null,
         p_class_code: classCode || null,
       });
-      if (error) throw error;
-      return !!data;
+      if (!r1.error) return !!r1.data;
+      throw error || r1.error;
     } catch (e) {
-      // fallback client-side jika RPC belum ada (kurang aman, sementara)
       const rooms = await listChatRooms({ activeOnly: false });
       const r = rooms.find(function (x) { return String(x.id) === String(roomId); });
       if (!r || !r.is_active) return false;
       if (r.needs_password) {
-        const full = await sb.from("gallery_chat_rooms").select("access_password").eq("id", roomId).maybeSingle();
+        const full = await sb.from("gallery_chat_rooms").select("access_password,allowed_students").eq("id", roomId).maybeSingle();
         const pw = full.data && full.data.access_password;
         if (pw && String(pw).trim() && String(pw).trim() !== String(password || "").trim()) return false;
-      }
-      if (r.allowed_angkatan_ids && r.allowed_angkatan_ids.length) {
-        if (!angkatanId || r.allowed_angkatan_ids.indexOf(angkatanId) < 0) return false;
+        if (full.data && full.data.allowed_students) r.allowed_students = full.data.allowed_students;
       }
       if (r.allowed_class_codes && r.allowed_class_codes.length) {
         const cls = String(classCode || "").trim().toLowerCase();
         if (!cls || !r.allowed_class_codes.some(function (c) { return String(c).trim().toLowerCase() === cls; })) return false;
+      }
+      const stu = r.allowed_students || [];
+      if (stu.length) {
+        const nm = String(studentName || "").trim().toLowerCase();
+        const yr = String(angkatanYear || "").trim();
+        const cls = String(classCode || "").trim().toLowerCase();
+        if (!nm) return false;
+        const ok = stu.some(function (t) {
+          return String(t.name || "").trim().toLowerCase() === nm
+            && (!t.class || String(t.class).trim().toLowerCase() === cls)
+            && (!t.year || String(t.year).trim() === yr);
+        });
+        if (!ok) return false;
       }
       return true;
     }

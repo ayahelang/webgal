@@ -354,13 +354,14 @@
           <label class="field"><span>Urutan</span>
             <input name="sort_order" type="number" value="0" step="1">
           </label>
-          <label class="field" style="grid-column:1/-1"><span>Batasi angkatan (kosong = semua)</span>
-            <select name="allowed_angkatan_ids" id="chatRoomAngkatan" multiple size="4" style="min-height:88px"></select>
-            <small class="muted">Ctrl/Cmd+klik untuk pilih beberapa</small>
-          </label>
-          <label class="field" style="grid-column:1/-1"><span>Batasi kelas (pisah koma, kosong = semua)</span>
-            <input name="allowed_class_codes" placeholder="mis. 51, 52">
-          </label>
+          <fieldset class="ann-fieldset" style="grid-column:1/-1;margin:0">
+            <legend>Siapa yang boleh masuk (opsional)</legend>
+            <p class="muted" style="font-size:12px;margin:0 0 6px">Sama seperti absensi: centang <b>Angkatan → Kelas → Siswa</b>. Kosong = semua boleh (tetap tunduk password bila diisi).</p>
+            <label class="check" style="margin-bottom:6px">
+              <input type="checkbox" id="chatRoomShowTree" checked> Tampilkan tree penerima
+            </label>
+            <div id="chatRoomStudentTree" class="privacy-tree sh-cb-tree att-student-tree" style="max-height:320px;overflow:auto;width:100%"></div>
+          </fieldset>
           <label class="check" style="grid-column:1/-1">
             <input type="checkbox" name="is_active" checked> Aktif
           </label>

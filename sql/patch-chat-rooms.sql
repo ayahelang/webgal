@@ -6,6 +6,7 @@ create table if not exists gallery_chat_rooms (
   access_password text default null,
   allowed_angkatan_ids uuid[] default '{}',
   allowed_class_codes text[] default '{}',
+  allowed_students jsonb default '[]'::jsonb,
   is_active boolean not null default true,
   sort_order int default 0,
   created_at timestamptz not null default now(),
@@ -80,8 +81,89 @@ begin
     end if;
   end if;
 
+  -- Batasan siswa spesifik (jsonb array of {year,class,name})
+  -- Dipakai lewat RPC terpisah di client bila perlu; di sini hanya password/angkatan/kelas.
   return true;
 end;
 $$;
+
+-- Verifikasi termasuk daftar siswa (nama) dari tree admin
+create or replace function public.verify_chat_room_access_v2(
+  p_room_id uuid,
+  p_password text default null,
+  p_angkatan_id uuid default null,
+  p_class_code text default null,
+  p_student_name text default null,
+  p_angkatan_year text default null
+) returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r gallery_chat_rooms%rowtype;
+  cls text;
+  nm text;
+  yr text;
+  stu jsonb;
+  ok_stu boolean := false;
+  elem jsonb;
+begin
+  select * into r from gallery_chat_rooms where id = p_room_id and is_active = true;
+  if not found then return false; end if;
+
+  if r.access_password is not null and length(trim(r.access_password)) > 0 then
+    if p_password is null or trim(p_password) <> trim(r.access_password) then
+      return false;
+    end if;
+  end if;
+
+  if r.allowed_angkatan_ids is not null and coalesce(array_length(r.allowed_angkatan_ids, 1), 0) > 0 then
+    if p_angkatan_id is null or not (p_angkatan_id = any (r.allowed_angkatan_ids)) then
+      return false;
+    end if;
+  end if;
+
+  if r.allowed_class_codes is not null and coalesce(array_length(r.allowed_class_codes, 1), 0) > 0 then
+    cls := lower(trim(coalesce(p_class_code, '')));
+    if cls = '' or not exists (
+      select 1 from unnest(r.allowed_class_codes) as c(code)
+      where lower(trim(c.code)) = cls
+    ) then
+      return false;
+    end if;
+  end if;
+
+  stu := coalesce(r.allowed_students, '[]'::jsonb);
+  if jsonb_typeof(stu) = 'array' and jsonb_array_length(stu) > 0 then
+    nm := lower(trim(coalesce(p_student_name, '')));
+    yr := trim(coalesce(p_angkatan_year, ''));
+    cls := lower(trim(coalesce(p_class_code, '')));
+    if nm = '' then return false; end if;
+    for elem in select * from jsonb_array_elements(stu)
+    loop
+      if lower(trim(coalesce(elem->>'name', ''))) = nm
+         and (
+           coalesce(elem->>'class', '') = ''
+           or lower(trim(elem->>'class')) = cls
+         )
+         and (
+           coalesce(elem->>'year', '') = ''
+           or trim(elem->>'year') = yr
+         )
+      then
+        ok_stu := true;
+        exit;
+      end if;
+    end loop;
+    if not ok_stu then return false; end if;
+  end if;
+
+  return true;
+end;
+$$;
+
+grant execute on function public.verify_chat_room_access_v2(uuid, text, uuid, text, text, text) to anon, authenticated;
+
 
 grant execute on function public.verify_chat_room_access(uuid, text, uuid, text) to anon, authenticated;
