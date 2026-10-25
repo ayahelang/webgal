@@ -5193,3 +5193,30 @@ input.amx-region-time{
   height:11px!important;
   z-index:3!important;
 }
+
+/* Progress row per track: waktu kiri | bar | durasi | reset */
+.amx-track-ph-row{
+  display:flex;align-items:center;gap:6px;
+  margin:2px 0 8px;min-width:0;
+}
+.amx-track-ph-row .amx-track-playhead{
+  flex:1 1 auto;min-width:0;margin:0;
+}
+.amx-track-ph-cur,
+.amx-track-ph-dur{
+  flex:0 0 auto;
+  font-size:11px;font-weight:700;
+  font-variant-numeric:tabular-nums;
+  min-width:2.6em;
+  color:#9fd9ef;
+  white-space:nowrap;
+}
+.amx-track-ph-cur{text-align:right;color:#7de3ff}
+.amx-track-ph-dur{text-align:left;opacity:.85}
+.amx-trk-region-reset{
+  flex:0 0 auto;
+  font-size:10px!important;
+  padding:1px 6px!important;
+  min-height:22px;
+  white-space:nowrap;
+}

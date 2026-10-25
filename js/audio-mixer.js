@@ -796,6 +796,12 @@
         var toutLab = listEl.querySelector('[data-amx-mark-out-t="' + idx + '"]');
         if (tinLab && document.activeElement !== tinLab) tinLab.value = fmt(tIn);
         if (toutLab && document.activeElement !== toutLab) toutLab.value = fmt(tOut);
+        // posisi playhead (lokal di track) & durasi
+        var curLab = listEl.querySelector('[data-amx-ph-cur="' + idx + '"]');
+        var durLab = listEl.querySelector('[data-amx-ph-dur="' + idx + '"]');
+        var localSec = Math.max(0, Math.min(tr.buffer.duration, playhead - off));
+        if (curLab) curLab.textContent = fmt(localSec);
+        if (durLab) durLab.textContent = fmt(tr.buffer.duration);
       }
     }
 
@@ -1268,7 +1274,11 @@
           (tr.expanded ? "⊟" : "⊞") +
           "</button>" +
           "</div>" +
-          '<div class="amx-track-playhead amx-detail-block" data-act="trk-scrub" data-i="' +
+          '<div class="amx-track-ph-row amx-detail-block">' +
+          '<span class="amx-track-ph-cur" data-amx-ph-cur="' +
+          idx +
+          '" title="Posisi playhead di track">0:00</span>' +
+          '<div class="amx-track-playhead" data-act="trk-scrub" data-i="' +
           idx +
           '" title="Playhead track — klik seek · geser knob hijau/merah untuk potong ujung">' +
           '<div class="amx-track-trim-reg" data-amx-trim-reg="' +
@@ -1290,6 +1300,15 @@
           '" data-act="trk-trim-out" data-i="' +
           idx +
           '" title="Mark Out track · dobel-klik → playhead"></div>' +
+          "</div>" +
+          '<span class="amx-track-ph-dur" data-amx-ph-dur="' +
+          idx +
+          '" title="Durasi total track">' +
+          fmt(tr.buffer ? tr.buffer.duration : 0) +
+          "</span>" +
+          '<button type="button" class="btn btn-ghost amx-xs amx-trk-region-reset" data-act="trk-region-reset" data-i="' +
+          idx +
+          '" title="Reset region track ke full (Mark In 0 · Mark Out akhir)">Reset</button>' +
           "</div>" +
           '<div class="amx-track-grid amx-detail-block">' +
           '<div class="amx-track-col-l">' +
@@ -2253,6 +2272,23 @@
 
       var act = t.getAttribute("data-act");
       if (act === "rename" || act === "harm" || act === "ref") return;
+      if (act === "trk-region-reset") {
+        var ri = Number(t.getAttribute("data-i"));
+        if (!tracks[ri] || !tracks[ri].buffer) return;
+        pushHistory();
+        tracks[ri].trimIn = 0;
+        tracks[ri].trimOut = null;
+        updateTransportUI();
+        setStatus("T" + (ri + 1) + " region reset (full)");
+        if (isPlaying && !isRecording) {
+          var h = currentPlayhead();
+          stopPlayback(true);
+          playhead = h;
+          if (soloPlayIdx === ri) startSoloTrack(ri, h);
+          else if (soloPlayIdx < 0) playAll();
+        }
+        return;
+      }
       if (act === "trk-mark-in") {
         var mi = Number(t.getAttribute("data-i"));
         var tm = tracks[mi];
