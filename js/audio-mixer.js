@@ -218,7 +218,7 @@
       '    <button type="button" class="btn btn-ghost amx-x" data-amx="close" title="Tutup">✕</button>' +
       "  </header>" +
       '  <div class="amx-toolbar">' +
-      '    <button type="button" class="btn btn-primary amx-sm" data-amx="rec">● Rekam</button>' +
+      '    <button type="button" class="btn amx-sm amx-btn-rec" data-amx="rec" title="Rekam / Stop">● Rekam</button>' +
       '    <button type="button" class="btn btn-ghost amx-sm" data-amx="stop-rec" hidden>■ Stop</button>' +
       '    <label class="btn btn-ghost amx-sm amx-upload">⬆ File<input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.webm" hidden data-amx="file"></label>' +
       '    <button type="button" class="btn btn-ghost amx-sm" data-amx="mute-all" title="Mute semua">Mute all</button>' +
@@ -234,7 +234,7 @@
       '    <div class="amx-rec-compact" data-amx="recbar" hidden title="Level mic saat rekam">' +
       '      <span class="chat-voice-dot amx-dot" aria-hidden="true"></span>' +
       '      <span class="amx-timer" data-amx="timer">00:00</span>' +
-      '      <canvas class="amx-meter" data-amx="meter" width="72" height="18" aria-hidden="true"></canvas>' +
+      '      <canvas class="amx-meter" data-amx="meter" width="56" height="14" aria-hidden="true"></canvas>' +
       '      <span class="amx-rec-offset muted" data-amx="recoffset"></span>' +
       "    </div>" +
       "  </div>" +
@@ -331,7 +331,12 @@
       recBar.setAttribute("hidden", "");
     }
     if (btnStopRec) btnStopRec.hidden = true;
-    if (btnRec) btnRec.hidden = false;
+    if (btnRec) {
+      btnRec.hidden = false;
+      btnRec.textContent = "● Rekam";
+      btnRec.classList.add("amx-btn-rec");
+      btnRec.classList.remove("is-recording");
+    }
 
     function ensureCtx() {
       if (!audioCtx) {
@@ -867,8 +872,21 @@
           recBar.setAttribute("aria-hidden", "true");
         }
       }
-      if (btnRec) btnRec.hidden = !!on;
-      if (btnStopRec) btnStopRec.hidden = !on;
+      // Satu tombol: Rekam (merah) ↔ Stop (kedip merah)
+      if (btnRec) {
+        btnRec.hidden = false;
+        if (on) {
+          btnRec.textContent = "■ Stop";
+          btnRec.classList.add("is-recording");
+          btnRec.setAttribute("title", "Stop rekam");
+        } else {
+          btnRec.textContent = "● Rekam";
+          btnRec.classList.remove("is-recording");
+          btnRec.setAttribute("title", "Rekam");
+        }
+      }
+      // stop-rec tetap ada di DOM (fallback), disembunyikan dari UI
+      if (btnStopRec) btnStopRec.hidden = true;
       if (!on && timerEl) timerEl.textContent = "00:00";
     }
 
@@ -1307,8 +1325,10 @@
       if (t.matches && t.matches('input[data-amx="file"]')) return;
       if (t.matches && t.matches('input[type="range"]')) return;
       if (amx === "close") close();
-      else if (amx === "rec") startRec();
-      else if (amx === "stop-rec") stopRec();
+      else if (amx === "rec") {
+        if (isRecording) stopRec();
+        else startRec();
+      } else if (amx === "stop-rec") stopRec();
       else if (amx === "play") playAll();
       else if (amx === "stop") {
         stopPlayback(true);

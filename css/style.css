@@ -4222,7 +4222,7 @@ details[open] > summary::before { content: "▾ "; }
 .chat-mixer-btn{font-size:15px}
 .amx-root{
   position:fixed;inset:0;z-index:10070;
-  display:none;align-items:flex-end;justify-content:center;
+  display:none;align-items:flex-start;justify-content:center;
   padding:10px;
 }
 .amx-root.is-open{display:flex}
@@ -4246,6 +4246,27 @@ details[open] > summary::before { content: "▾ "; }
 .amx-x{padding:2px 8px!important;min-height:28px}
 .amx-toolbar{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
 .amx-sm{font-size:11px!important;padding:4px 8px!important;min-height:28px}
+/* Tombol Rekam: teks merah; saat recording kedip + jadi Stop */
+.amx-btn-rec{
+  color:#ff3b5c!important;
+  border-color:rgba(255,60,90,.55)!important;
+  background:rgba(255,40,80,.12)!important;
+  font-weight:700!important;
+}
+.amx-btn-rec:hover{
+  background:rgba(255,40,80,.22)!important;
+  border-color:rgba(255,80,110,.8)!important;
+}
+.amx-btn-rec.is-recording{
+  color:#fff!important;
+  background:rgba(220,20,60,.85)!important;
+  border-color:#ff4d6d!important;
+  animation:amxRecBlink 0.85s ease-in-out infinite;
+}
+@keyframes amxRecBlink{
+  0%,100%{ opacity:1; box-shadow:0 0 0 0 rgba(255,60,90,.55); }
+  50%{ opacity:.72; box-shadow:0 0 12px 2px rgba(255,60,90,.45); }
+}
 .amx-xs{font-size:10px!important;padding:2px 6px!important;min-height:24px}
 .amx-upload{display:inline-flex;align-items:center;cursor:pointer;margin:0}
 .amx-rec-bar{
@@ -4393,25 +4414,42 @@ details[open] > summary::before { content: "▾ "; }
 .amx-timeline-wide .amx-timeline-head{
   width:18px;height:18px;margin:-9px 0 0 -9px;
 }
-/* Indikator rekam kompak di kanan tombol transport */
+/* Indikator rekam kompak di kanan tombol transport (muat 1 baris di mobile) */
 .amx-rec-compact{
-  display:flex;align-items:center;gap:5px;
-  margin-left:auto;padding:3px 8px;
+  display:flex;align-items:center;gap:4px;
+  margin-left:auto;padding:2px 6px;
   border-radius:999px;
   border:1px solid rgba(255,92,122,.35);
   background:rgba(255,40,80,.12);
-  max-width:42%;
+  max-width:38%;
+  flex:0 1 auto;
+  min-width:0;
 }
 .amx-rec-compact .amx-meter{
-  flex:1;max-width:80px;height:18px;border-radius:4px;
+  flex:1;max-width:56px;height:14px;border-radius:3px;
   background:rgba(0,0,0,.35);
 }
 .amx-rec-compact .amx-timer{
-  font-size:11px;font-weight:700;min-width:36px;
+  font-size:10px;font-weight:700;min-width:30px;
   font-variant-numeric:tabular-nums;
 }
-.amx-rec-compact .amx-rec-offset{font-size:9px;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.amx-transport{flex-wrap:wrap;gap:4px}
+.amx-rec-compact .amx-rec-offset{font-size:8px;max-width:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.amx-rec-compact .amx-dot{width:6px;height:6px;flex-shrink:0}
+/* Jaga transport + indikator tetap 1 baris; scroll tipis jika sempit */
+.amx-transport{
+  display:flex;align-items:center;gap:4px;
+  margin-bottom:6px;padding:4px 0;
+  flex-wrap:nowrap;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.amx-transport .amx-nav{flex-shrink:0}
+@media (max-width:420px){
+  .amx-rec-compact{max-width:34%;padding:1px 4px;gap:3px}
+  .amx-rec-compact .amx-meter{max-width:44px;height:12px}
+  .amx-rec-compact .amx-timer{font-size:9px;min-width:26px}
+  .amx-rec-compact .amx-rec-offset{display:none}
+}
 [data-theme="light"] .amx-timeline-wide,
 [data-theme="light"] .amx-timeline{
   background:rgba(26,143,209,.12);border-color:rgba(26,143,209,.28);
