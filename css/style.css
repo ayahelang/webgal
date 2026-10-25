@@ -4455,27 +4455,37 @@ details[open] > summary::before { content: "▾ "; }
 .amx-timeline-wide .amx-timeline-head{
   width:18px;height:18px;margin:-9px 0 0 -9px;
 }
-/* Indikator rekam kompak di kanan tombol transport (muat 1 baris di mobile) */
-.amx-rec-compact{
+/* Peak meter (playback) + level mic (rekam) di kanan transport */
+.amx-level-bar{
   display:flex;align-items:center;gap:4px;
   margin-left:auto;padding:2px 6px;
-  border-radius:999px;
-  border:1px solid rgba(255,92,122,.35);
-  background:rgba(255,40,80,.12);
-  max-width:38%;
+  border-radius:8px;
+  border:1px solid rgba(125,227,255,.22);
+  background:rgba(0,0,0,.22);
+  max-width:42%;
   flex:0 1 auto;
   min-width:0;
 }
-.amx-rec-compact .amx-meter{
-  flex:1;max-width:56px;height:14px;border-radius:3px;
-  background:rgba(0,0,0,.35);
+.amx-level-bar.is-rec{
+  border-color:rgba(255,92,122,.4);
+  background:rgba(255,40,80,.1);
 }
-.amx-rec-compact .amx-timer{
+.amx-level-bar.is-play{
+  border-color:rgba(61,220,132,.35);
+  background:rgba(30,80,50,.15);
+}
+.amx-level-bar .amx-meter,
+.amx-peak-canvas{
+  flex:1;min-width:72px;max-width:120px;height:16px;border-radius:3px;
+  background:rgba(0,0,0,.4);
+  display:block;
+}
+.amx-level-bar .amx-timer{
   font-size:10px;font-weight:700;min-width:30px;
   font-variant-numeric:tabular-nums;
 }
-.amx-rec-compact .amx-rec-offset{font-size:8px;max-width:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.amx-rec-compact .amx-dot{width:6px;height:6px;flex-shrink:0}
+.amx-level-bar .amx-rec-offset{font-size:8px;max-width:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.amx-level-bar .amx-dot{width:6px;height:6px;flex-shrink:0}
 /* Jaga transport + indikator tetap 1 baris; scroll tipis jika sempit */
 .amx-transport{
   display:flex;align-items:center;gap:4px;
@@ -4486,17 +4496,23 @@ details[open] > summary::before { content: "▾ "; }
 }
 .amx-transport .amx-nav{flex-shrink:0}
 @media (max-width:420px){
-  .amx-rec-compact{max-width:34%;padding:1px 4px;gap:3px}
-  .amx-rec-compact .amx-meter{max-width:44px;height:12px}
-  .amx-rec-compact .amx-timer{font-size:9px;min-width:26px}
-  .amx-rec-compact .amx-rec-offset{display:none}
+  .amx-level-bar{max-width:34%;padding:1px 4px;gap:3px}
+  .amx-level-bar .amx-meter{max-width:44px;height:12px}
+  .amx-level-bar .amx-timer{font-size:9px;min-width:26px}
+  .amx-level-bar .amx-rec-offset{display:none}
 }
 [data-theme="light"] .amx-timeline-wide,
 [data-theme="light"] .amx-timeline{
   background:rgba(26,143,209,.12);border-color:rgba(26,143,209,.28);
 }
-[data-theme="light"] .amx-rec-compact{
+[data-theme="light"] .amx-level-bar{
+  background:rgba(26,143,209,.08);border-color:rgba(26,143,209,.25);
+}
+[data-theme="light"] .amx-level-bar.is-rec{
   background:rgba(255,80,100,.08);border-color:rgba(220,60,90,.3);
+}
+[data-theme="light"] .amx-level-bar.is-play{
+  background:rgba(40,160,90,.1);border-color:rgba(40,160,90,.3);
 }
 
 .amx-region-tools{
@@ -4527,7 +4543,7 @@ details[open] > summary::before { content: "▾ "; }
 .amx-handle-out{background:linear-gradient(180deg,#ff8a9a,#e04860)}
 
 /* Indikator rekam: display:flex tidak boleh menimpa [hidden] */
-.amx-rec-compact[hidden]{display:none!important}
+.amx-level-bar[hidden]{display:none!important}
 
 /* Transport: warna seragam; play biru */
 .amx-nav{
@@ -4621,7 +4637,7 @@ details[open] > summary::before { content: "▾ "; }
   align-items:center;
 }
 
-.amx-rec-compact:not([hidden]){display:flex}
+.amx-level-bar:not([hidden]){display:flex}
 /* Pegangan In/Out lebih besar & mudah digeser */
 .amx-handle{
   width:18px;height:32px;margin:-16px 0 0 -9px;

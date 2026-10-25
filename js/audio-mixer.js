@@ -254,11 +254,11 @@
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="stop" title="Stop">■</button>' +
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="skip-fwd" title="+5 dtk">⏩</button>' +
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="to-end" title="Akhir">⏭</button>' +
-      '    <div class="amx-rec-compact" data-amx="recbar" hidden title="Level mic saat rekam">' +
-      '      <span class="chat-voice-dot amx-dot" aria-hidden="true"></span>' +
-      '      <span class="amx-timer" data-amx="timer">00:00</span>' +
-      '      <canvas class="amx-meter" data-amx="meter" width="56" height="14" aria-hidden="true"></canvas>' +
-      '      <span class="amx-rec-offset muted" data-amx="recoffset"></span>' +
+      '    <div class="amx-level-bar" data-amx="levelbar" hidden title="Peak meter (hijau aman · kuning hati-hati · merah clipping)">' +
+      '      <span class="chat-voice-dot amx-dot" data-amx="recdot" hidden aria-hidden="true"></span>' +
+      '      <span class="amx-timer" data-amx="timer" hidden>00:00</span>' +
+      '      <canvas class="amx-meter amx-peak-canvas" data-amx="meter" width="110" height="16" aria-hidden="true"></canvas>' +
+      '      <span class="amx-rec-offset muted" data-amx="recoffset" hidden></span>' +
       "    </div>" +
       "  </div>" +
       '  <div class="amx-region-tools">' +
@@ -304,7 +304,8 @@
     var btnRec = root.querySelector('[data-amx="rec"]');
     var btnStopRec = root.querySelector('[data-amx="stop-rec"]');
     var btnExport = root.querySelector('[data-amx="export"]');
-    var recBar = root.querySelector("[data-amx=recbar]");
+    var levelBar = root.querySelector("[data-amx=levelbar]");
+    var recBar = levelBar; // alias kompatibilitas
     var timerEl = root.querySelector("[data-amx=timer]");
     var recOffsetEl = root.querySelector("[data-amx=recoffset]");
     var canvas = root.querySelector("[data-amx=meter]");
@@ -412,6 +413,25 @@
       return true;
     }
 
+    function showLevelBar(mode) {
+      // mode: "play" | "rec" | "off"
+      if (!levelBar) return;
+      if (mode === "off") {
+        levelBar.hidden = true;
+        levelBar.classList.remove("is-rec", "is-play");
+        return;
+      }
+      levelBar.hidden = false;
+      levelBar.classList.toggle("is-rec", mode === "rec");
+      levelBar.classList.toggle("is-play", mode === "play");
+      var dot = root.querySelector("[data-amx=recdot]");
+      var tim = root.querySelector("[data-amx=timer]");
+      var off = root.querySelector("[data-amx=recoffset]");
+      if (dot) dot.hidden = mode !== "rec";
+      if (tim) tim.hidden = mode !== "rec";
+      if (off) off.hidden = mode !== "rec";
+    }
+
     function stopMeter() {
       if (meterRaf) cancelAnimationFrame(meterRaf);
       meterRaf = 0;
@@ -419,13 +439,69 @@
         if (meterSource) meterSource.disconnect();
       } catch (e) {}
       meterSource = null;
+      // Lepas analyser dari master (playback meter) tanpa memutus destination
+      try {
+        if (meterAnalyser && masterGainNode) masterGainNode.disconnect(meterAnalyser);
+      } catch (e) {}
       meterAnalyser = null;
+      drawPeakMeter._smooth = 0;
       if (canvas) {
         try {
           var c = canvas.getContext("2d");
           if (c) c.clearRect(0, 0, canvas.width, canvas.height);
         } catch (e) {}
       }
+      if (!isPlaying && !isRecording) showLevelBar("off");
+    }
+
+    /** Peak horizontal: hijau <60% · kuning 60–85% · merah >85% (risiko clipping) */
+    function drawPeakMeter(analyser, g, w, h, dataTime) {
+      analyser.getByteTimeDomainData(dataTime);
+      var peak = 0;
+      for (var i = 0; i < dataTime.length; i++) {
+        var v = Math.abs(dataTime[i] - 128) / 128;
+        if (v > peak) peak = v;
+      }
+      // sedikit smoothing visual
+      drawPeakMeter._smooth = (drawPeakMeter._smooth || 0) * 0.55 + peak * 0.45;
+      peak = drawPeakMeter._smooth;
+      g.clearRect(0, 0, w, h);
+      // track background
+      g.fillStyle = "rgba(0,0,0,0.35)";
+      g.fillRect(0, 0, w, h);
+      var segments = 24;
+      var gap = 1;
+      var bw = (w - gap * (segments - 1)) / segments;
+      var lit = Math.round(peak * segments);
+      for (var s = 0; s < segments; s++) {
+        var x = s * (bw + gap);
+        var ratio = (s + 1) / segments;
+        var on = s < lit;
+        var col;
+        if (ratio <= 0.6) col = on ? "#3ddc84" : "rgba(61,220,132,0.18)";
+        else if (ratio <= 0.85) col = on ? "#ffc850" : "rgba(255,200,80,0.18)";
+        else col = on ? "#ff4d6d" : "rgba(255,77,109,0.18)";
+        g.fillStyle = col;
+        g.fillRect(x, 2, bw, h - 4);
+      }
+      // clip marker
+      if (peak >= 0.92) {
+        g.fillStyle = "#ff1a3c";
+        g.fillRect(w - 3, 0, 3, h);
+      }
+    }
+
+    function runMeterLoop() {
+      if (!meterAnalyser || !canvas) return;
+      var g = canvas.getContext("2d");
+      if (!g) return;
+      var dataTime = new Uint8Array(meterAnalyser.fftSize);
+      function draw() {
+        meterRaf = requestAnimationFrame(draw);
+        if (!meterAnalyser || !g) return;
+        drawPeakMeter(meterAnalyser, g, canvas.width, canvas.height, dataTime);
+      }
+      draw();
     }
 
     function startMeter(stream) {
@@ -435,32 +511,27 @@
         var ctx = ensureCtx();
         meterSource = ctx.createMediaStreamSource(stream);
         meterAnalyser = ctx.createAnalyser();
-        meterAnalyser.fftSize = 256;
-        meterAnalyser.smoothingTimeConstant = 0.75;
+        meterAnalyser.fftSize = 1024;
+        meterAnalyser.smoothingTimeConstant = 0.3;
         meterSource.connect(meterAnalyser);
-        var data = new Uint8Array(meterAnalyser.frequencyBinCount);
-        var g = canvas.getContext("2d");
-        var bars = 22;
-        function draw() {
-          meterRaf = requestAnimationFrame(draw);
-          if (!meterAnalyser || !g) return;
-          meterAnalyser.getByteFrequencyData(data);
-          var w = canvas.width;
-          var h = canvas.height;
-          g.clearRect(0, 0, w, h);
-          var gap = 2;
-          var bw = (w - gap * (bars - 1)) / bars;
-          for (var i = 0; i < bars; i++) {
-            var idx = Math.floor((i / bars) * data.length);
-            var v = data[idx] / 255;
-            var bh = Math.max(2, v * (h - 2));
-            var x = i * (bw + gap);
-            var y = (h - bh) / 2;
-            g.fillStyle = "rgba(94,200,255," + (0.35 + v * 0.65) + ")";
-            g.fillRect(x, y, bw, bh);
-          }
-        }
-        draw();
+        showLevelBar("rec");
+        runMeterLoop();
+      } catch (e) {}
+    }
+
+    /** Peak meter dari master bus saat playback */
+    function startPlayMeter() {
+      stopMeter();
+      if (!canvas) return;
+      try {
+        var dest = ensureMasterGain();
+        meterAnalyser = audioCtx.createAnalyser();
+        meterAnalyser.fftSize = 1024;
+        meterAnalyser.smoothingTimeConstant = 0.25;
+        dest.connect(meterAnalyser);
+        meterSource = null; // tidak disconnect master
+        showLevelBar("play");
+        runMeterLoop();
       } catch (e) {}
     }
 
@@ -583,6 +654,7 @@
         playhead = currentPlayhead();
         isPlaying = false;
       }
+      if (!isRecording) stopMeter();
       updateTransportUI();
     }
 
@@ -609,31 +681,37 @@
       if (range) range.value = String(Math.round(masterGain * 100));
     }
 
+    /** Volume efektif live: 0 jika mute / tidak solo saat ada solo */
+    function effectiveTrackVol(tr) {
+      if (!tr || !tr.buffer) return 0;
+      if (!isTrackActive(tr)) return 0;
+      return typeof tr.volume === "number" ? tr.volume : 1;
+    }
+
     /** Hubungkan buffer source dengan gain + reverb send → master */
     function connectTrackLive(src, tr) {
       ensureCtx();
       var dest = ensureMasterGain();
-      var vol = typeof tr.volume === "number" ? tr.volume : 1;
+      var vol = effectiveTrackVol(tr);
       var rev = typeof tr.reverb === "number" ? tr.reverb : 0;
       var dry = audioCtx.createGain();
       dry.gain.value = vol;
       src.connect(dry);
       dry.connect(dest);
       var wetGain = null;
-      if (rev > 0.01) {
-        ensureReverb();
-        wetGain = audioCtx.createGain();
-        wetGain.gain.value = vol * rev;
-        src.connect(wetGain);
-        wetGain.connect(sharedConvolver);
-      }
+      // selalu buat wet node agar solo/mute/reverb bisa diubah live
+      ensureReverb();
+      wetGain = audioCtx.createGain();
+      wetGain.gain.value = vol * rev;
+      src.connect(wetGain);
+      wetGain.connect(sharedConvolver);
       liveGains.push({ dry: dry, wet: wetGain, track: tr });
     }
 
     function applyLiveVolumes() {
       liveGains.forEach(function (g) {
         if (!g.track) return;
-        var vol = typeof g.track.volume === "number" ? g.track.volume : 1;
+        var vol = effectiveTrackVol(g.track);
         var rev = typeof g.track.reverb === "number" ? g.track.reverb : 0;
         try {
           if (g.dry) g.dry.gain.value = vol;
@@ -648,7 +726,8 @@
     }
 
     function scheduleTrack(tr, head, t0) {
-      if (!isTrackActive(tr)) return null;
+      // Selalu schedule track yang punya buffer agar mute/unmute/solo live (gain 0/1)
+      if (!tr || !tr.buffer) return null;
       var off = tr.offset || 0;
       var bufDur = tr.buffer.duration;
       if (head >= off + bufDur) return null;
@@ -697,6 +776,7 @@
         if (src) playing.push(src);
       });
       startTransportLoop();
+      startPlayMeter();
       setStatus("Play dari " + fmt(head) + " / " + fmt(total));
     }
 
@@ -939,7 +1019,8 @@
           recBar.hidden = false;
           recBar.removeAttribute("hidden");
           recBar.setAttribute("aria-hidden", "false");
-        } else {
+          showLevelBar("rec");
+        } else if (!isPlaying) {
           recBar.hidden = true;
           recBar.setAttribute("hidden", "");
           recBar.setAttribute("aria-hidden", "true");
@@ -1482,6 +1563,7 @@
         tracks.forEach(function (tr) {
           tr.muted = true;
         });
+        applyLiveVolumes();
         renderTracks();
         setStatus("Semua di-mute.");
       } else if (amx === "unmute-all") {
@@ -1489,6 +1571,7 @@
           tr.muted = false;
           tr.solo = false;
         });
+        applyLiveVolumes();
         renderTracks();
         setStatus("Semua unmute · solo dibersihkan.");
       } else if (amx === "mark-in") {
@@ -1517,6 +1600,7 @@
         var i = Number(t.getAttribute("data-i"));
         if (tracks[i]) {
           tracks[i].muted = !tracks[i].muted;
+          applyLiveVolumes();
           renderTracks();
         }
       } else if (act === "solo") {
@@ -1524,6 +1608,7 @@
         if (tracks[si]) {
           tracks[si].solo = !tracks[si].solo;
           if (tracks[si].solo) tracks[si].muted = false;
+          applyLiveVolumes();
           renderTracks();
           setStatus(
             tracks[si].solo
