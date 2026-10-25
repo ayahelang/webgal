@@ -335,6 +335,7 @@
     var transportRaf = 0;
     var playhead = 0;
     var isPlaying = false;
+    var soloPlayIdx = -1; // track index for per-track play, -1 = mix play
     var playStartedAtCtx = 0;
     var playStartedAtHead = 0;
     var isRecording = false;
@@ -715,6 +716,7 @@
         isPlaying = false;
       }
       if (!isRecording) stopMeter();
+      setTrackMetersVisible(false);
       updateTransportUI();
     }
 
@@ -945,6 +947,7 @@
       playStartedAtHead = head;
       playStartedAtCtx = audioCtx.currentTime + 0.03;
       isPlaying = true;
+      soloPlayIdx = -1;
 
       tracks.forEach(function (tr) {
         var src = scheduleTrack(tr, head, playStartedAtCtx);
@@ -952,6 +955,7 @@
       });
       startTransportLoop();
       startPlayMeter();
+      setTrackMetersVisible(true);
       setStatus("Play dari " + fmt(head) + " / " + fmt(total));
     }
 
@@ -1007,11 +1011,19 @@
             "</option>";
         });
         row.innerHTML =
-          '<div class="amx-track-main">' +
+          '<div class="amx-track-body">' +
+          '<div class="amx-track-left">' +
+          '<div class="amx-track-row1">' +
+          '<button type="button" class="btn btn-ghost amx-xs amx-fold" data-act="fold" data-i="' +
+          idx +
+          '" title="' +
+          (tr.expanded ? "Lipat track" : "Buka detail harmoni") +
+          '">' +
+          (tr.expanded ? "▾" : "▸") +
+          "</button>" +
           '<span class="amx-track-idx">T' +
           (idx + 1) +
           "</span>" +
-          '<div class="amx-track-meta">' +
           '<span class="amx-track-name" contenteditable="true" spellcheck="false" data-act="rename" data-i="' +
           idx +
           '" title="Klik untuk ganti nama track">' +
@@ -1024,10 +1036,11 @@
           fmt(tr.buffer ? tr.buffer.duration : 0) +
           offLabel +
           "</span>" +
+          "</div>" +
           '<div class="amx-track-bar"><div class="amx-track-bar-fill" data-amx-prog="' +
           idx +
           '"></div></div>' +
-          '<div class="amx-sliders">' +
+          '<div class="amx-track-row2">' +
           '<label class="amx-slider-lab amx-offset-lab" title="Waktu mulai track di timeline (geser atau ketik m:ss)">' +
           'Start <input type="range" min="0" max="' +
           offMax +
@@ -1052,7 +1065,7 @@
           Math.round(vol * 100) +
           '%</span><canvas class="amx-track-peak" data-amx-trkmeter="' +
           idx +
-          '" width="56" height="14" title="Peak meter track (saat play)" aria-hidden="true"></canvas></label>' +
+          '" width="56" height="14" hidden title="Peak meter track" aria-hidden="true"></canvas></label>' +
           '<label class="amx-slider-lab" title="Reverb">Rev <input type="range" min="0" max="100" value="' +
           Math.round(rev * 100) +
           '" data-act="rev" data-i="' +
@@ -1062,7 +1075,43 @@
           '">' +
           Math.round(rev * 100) +
           "%</span></label>" +
-          '<label class="amx-slider-lab amx-harm-lab" title="Harmoni / pitch (semitone). S2 ≈ terts paralel; S3 ≈ kwint. Coba +3 atau +4 menyesuaikan kunci lagu.">' +
+          "</div>" +
+          "</div>" +
+          '<div class="amx-track-right">' +
+          '<div class="amx-track-acts">' +
+          '<button type="button" class="btn btn-ghost amx-xs" data-act="trk-start" data-i="' +
+          idx +
+          '" title="Awal track">⏮</button>' +
+          '<button type="button" class="btn btn-ghost amx-xs" data-act="trk-end" data-i="' +
+          idx +
+          '" title="Akhir track">⏭</button>' +
+          '<button type="button" class="btn btn-ghost amx-xs' +
+          (tr.solo ? " is-solo" : "") +
+          '" data-act="solo" data-i="' +
+          idx +
+          '" title="Solo (track lain di-mute di play/mix)">' +
+          (tr.solo ? "S●" : "S") +
+          "</button>" +
+          '<button type="button" class="btn btn-ghost amx-xs" data-act="mute" data-i="' +
+          idx +
+          '" title="' +
+          (tr.muted ? "Unmute" : "Mute") +
+          '">' +
+          (tr.muted ? "M●" : "M") +
+          "</button>" +
+          '<button type="button" class="btn btn-ghost amx-xs amx-trk-play' +
+          (soloPlayIdx === idx && isPlaying ? " is-playing" : "") +
+          '" data-act="solo-play" data-i="' +
+          idx +
+          '" title="Klik: play/pause · tekan lama: stop">' +
+          (soloPlayIdx === idx && isPlaying ? "⏸" : "▶") +
+          "</button>" +
+          '<button type="button" class="btn btn-ghost amx-xs" data-act="del" data-i="' +
+          idx +
+          '">✕</button>' +
+          "</div>" +
+          '<div class="amx-track-harm-panel">' +
+          '<label class="amx-slider-lab amx-harm-lab" title="Harmoni / pitch (semitone)">' +
           'Harm <select class="amx-harm-sel" data-act="harm" data-i="' +
           idx +
           '">' +
@@ -1094,7 +1143,7 @@
           (semi === -12 ? " selected" : "") +
           ">Oktaf ↓</option>" +
           "</select></label>" +
-          '<label class="amx-slider-lab amx-ref-lab" title="Pilih track musik pengiring sebagai patokan kunci">' +
+          '<label class="amx-slider-lab amx-ref-lab" title="Track patokan (musik pengiring)">' +
           'Patokan <select class="amx-ref-sel" data-act="ref" data-i="' +
           idx +
           '">' +
@@ -1103,47 +1152,22 @@
           '<div class="amx-harm-suggest">' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s2up" data-i="' +
           idx +
-          '" title="Saran suara 2 naik dari analisis patokan">S2↑</button>' +
+          '" title="Saran suara 2 naik">S2↑</button>' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s2dn" data-i="' +
           idx +
           '" title="Saran suara 2 turun">S2↓</button>' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s3up" data-i="' +
           idx +
-          '" title="Saran suara 3 naik (kwint)">S3↑</button>' +
+          '" title="Saran suara 3 naik">S3↑</button>' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s3dn" data-i="' +
           idx +
           '" title="Saran suara 3 turun">S3↓</button>' +
           "</div>" +
           "</div>" +
-          "</div></div>" +
-          '<div class="amx-track-acts">' +
-          '<button type="button" class="btn btn-ghost amx-xs" data-act="trk-start" data-i="' +
-          idx +
-          '" title="Awal track">⏮</button>' +
-          '<button type="button" class="btn btn-ghost amx-xs" data-act="trk-end" data-i="' +
-          idx +
-          '" title="Akhir track">⏭</button>' +
-          '<button type="button" class="btn btn-ghost amx-xs' +
-          (tr.solo ? " is-solo" : "") +
-          '" data-act="solo" data-i="' +
-          idx +
-          '" title="Solo (track lain di-mute di play/mix)">' +
-          (tr.solo ? "S●" : "S") +
-          "</button>" +
-          '<button type="button" class="btn btn-ghost amx-xs" data-act="mute" data-i="' +
-          idx +
-          '" title="' +
-          (tr.muted ? "Unmute" : "Mute") +
-          '">' +
-          (tr.muted ? "M●" : "M") +
-          "</button>" +
-          '<button type="button" class="btn btn-ghost amx-xs" data-act="solo-play" data-i="' +
-          idx +
-          '" title="Putar track ini saja">▶</button>' +
-          '<button type="button" class="btn btn-ghost amx-xs" data-act="del" data-i="' +
-          idx +
-          '">✕</button>' +
+          "</div>" +
           "</div>";
+        if (!tr.expanded) row.classList.add("is-collapsed");
+        else row.classList.remove("is-collapsed");
         listEl.appendChild(row);
       });
       setStatus(tracks.length + "/" + MAX_TRACKS + " · total " + fmt(maxDur()));
@@ -1166,6 +1190,7 @@
         reverb: 0,
         semitones: 0,
         refTrack: -1,
+        expanded: false,
       });
       renderTracks();
       return true;
@@ -1905,25 +1930,129 @@
         tracks.splice(j, 1);
         renderTracks();
       } else if (act === "solo-play") {
-        var k = Number(t.getAttribute("data-i"));
-        if (isRecording) return;
-        stopPlayback(true);
-        if (tracks[k] && tracks[k].buffer) {
-          ensureCtx();
-          var tr = tracks[k];
-          playhead = tr.offset || 0;
-          playStartedAtHead = playhead;
-          playStartedAtCtx = audioCtx.currentTime + 0.02;
-          isPlaying = true;
-          var src = audioCtx.createBufferSource();
-          src.buffer = tr.buffer;
-          connectTrackLive(src, tr);
-          src.start(playStartedAtCtx);
-          playing.push(src);
-          startTransportLoop();
+        // handled by pointer handlers (play/pause · long-press stop)
+        return;
+      } else if (act === "fold") {
+        var fi = Number(t.getAttribute("data-i"));
+        if (tracks[fi]) {
+          tracks[fi].expanded = !tracks[fi].expanded;
+          renderTracks();
         }
       }
     };
+
+    function startSoloTrack(k, fromHead) {
+      if (isRecording) return;
+      if (!tracks[k] || !tracks[k].buffer) return;
+      stopPlayback(true);
+      ensureCtx();
+      var tr = tracks[k];
+      var head = fromHead != null ? fromHead : tr.offset || 0;
+      playhead = head;
+      playStartedAtHead = head;
+      playStartedAtCtx = audioCtx.currentTime + 0.02;
+      isPlaying = true;
+      soloPlayIdx = k;
+      var src = audioCtx.createBufferSource();
+      src.buffer = tr.buffer;
+      connectTrackLive(src, tr);
+      var offIn = Math.max(0, head - (tr.offset || 0));
+      try {
+        src.start(playStartedAtCtx, offIn);
+      } catch (e) {
+        try {
+          src.start(playStartedAtCtx);
+        } catch (e2) {}
+      }
+      playing.push(src);
+      startTransportLoop();
+      setTrackMetersVisible(true);
+      renderTracks();
+      setStatus("Play T" + (k + 1) + " @ " + fmt(head));
+    }
+
+    function pauseSoloOrMix() {
+      if (!isPlaying) return;
+      playhead = currentPlayhead();
+      stopPlayback(true);
+      setTrackMetersVisible(false);
+      setStatus("Pause @ " + fmt(playhead));
+      renderTracks();
+    }
+
+    function stopSoloTrack(k) {
+      stopPlayback(true);
+      soloPlayIdx = -1;
+      if (tracks[k]) playhead = tracks[k].offset || 0;
+      setTrackMetersVisible(false);
+      updateTransportUI();
+      renderTracks();
+      setStatus("Stop T" + (k + 1));
+    }
+
+    function setTrackMetersVisible(on) {
+      if (!listEl) return;
+      var cans = listEl.querySelectorAll("[data-amx-trkmeter]");
+      for (var i = 0; i < cans.length; i++) {
+        var c = cans[i];
+        var ti = Number(c.getAttribute("data-amx-trkmeter"));
+        var show = on && (soloPlayIdx < 0 || soloPlayIdx === ti);
+        if (show) {
+          c.hidden = false;
+          c.removeAttribute("hidden");
+        } else {
+          c.hidden = true;
+          c.setAttribute("hidden", "");
+          try {
+            var g = c.getContext("2d");
+            if (g) g.clearRect(0, 0, c.width, c.height);
+          } catch (e) {}
+        }
+      }
+      listEl.classList.toggle("amx-meters-on", !!on);
+    }
+
+    // Play/pause click + long-press stop on per-track ▶
+    (function () {
+      var lpTimer = null;
+      var lpFired = false;
+      root.addEventListener("pointerdown", function (ev) {
+        var btn = ev.target && ev.target.closest && ev.target.closest('[data-act="solo-play"]');
+        if (!btn || !root.contains(btn)) return;
+        lpFired = false;
+        var k = Number(btn.getAttribute("data-i"));
+        lpTimer = setTimeout(function () {
+          lpFired = true;
+          stopSoloTrack(k);
+        }, 550);
+      });
+      function clearLp() {
+        if (lpTimer) clearTimeout(lpTimer);
+        lpTimer = null;
+      }
+      root.addEventListener("pointerup", function (ev) {
+        var btn = ev.target && ev.target.closest && ev.target.closest('[data-act="solo-play"]');
+        clearLp();
+        if (!btn || !root.contains(btn) || lpFired) return;
+        if (isRecording) return;
+        var k = Number(btn.getAttribute("data-i"));
+        if (isPlaying && soloPlayIdx === k) {
+          pauseSoloOrMix();
+        } else if (isPlaying && soloPlayIdx !== k) {
+          // resume from current playhead if same session pause on this track
+          startSoloTrack(k, playhead > (tracks[k].offset || 0) ? playhead : tracks[k].offset || 0);
+        } else if (!isPlaying && soloPlayIdx === k && playhead > (tracks[k].offset || 0)) {
+          startSoloTrack(k, playhead);
+        } else {
+          startSoloTrack(k, tracks[k].offset || 0);
+        }
+      });
+      root.addEventListener("pointercancel", clearLp);
+      root.addEventListener("pointerleave", function (ev) {
+        if (ev.target && ev.target.getAttribute && ev.target.getAttribute("data-act") === "solo-play") clearLp();
+      }, true);
+    })();
+
 
     // Harmoni + patokan
     root.addEventListener("change", function (ev) {

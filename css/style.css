@@ -4819,5 +4819,36 @@ small.chat-msg-time{font-size:11px;color:#8aa3ae}
 .amx-harm-suggest{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
 .amx-harm-suggest .btn{font-size:9px!important;padding:2px 5px!important;min-height:22px}
 .amx-track{align-items:flex-start}
-.amx-track-meta{flex:1 1 0;min-width:0;max-width:none}
+.amx-track-meta{flex:1 1 0;min-width:0;max-width:none} /* legacy */
 .amx-track-acts{flex:0 0 auto;margin-left:4px}
+
+/* Track layout v6: kiri = 2 baris, kanan = acts + harm */
+.amx-track-body{
+  display:flex;align-items:flex-start;gap:8px;width:100%;min-width:0;
+}
+.amx-track-left{flex:1 1 0;min-width:0}
+.amx-track-right{
+  flex:0 0 auto;width:148px;max-width:42%;
+  display:flex;flex-direction:column;align-items:stretch;gap:4px;
+}
+.amx-track-row1{
+  display:flex;align-items:center;gap:4px;min-width:0;
+}
+.amx-track-row1 .amx-track-name{flex:1 1 auto;min-width:0}
+.amx-track-row2{display:flex;flex-direction:column;gap:3px;margin-top:2px}
+.amx-track-harm-panel{
+  display:flex;flex-direction:column;gap:3px;
+  padding:4px;border-radius:8px;
+  border:1px solid rgba(125,227,255,.15);
+  background:rgba(0,0,0,.18);
+}
+.amx-track.is-collapsed .amx-track-harm-panel{display:none}
+.amx-fold{min-width:22px;padding:0 4px!important}
+.amx-track-peak[hidden]{display:none!important}
+.amx-vol-lab input[type=range]{flex:1;min-width:48px}
+.amx-trk-play.is-playing{color:#3db8ff!important;font-weight:700}
+@media (max-width:420px){
+  .amx-track-body{flex-wrap:wrap}
+  .amx-track-right{width:100%;max-width:100%;flex-direction:row;flex-wrap:wrap;align-items:flex-start}
+  .amx-track-harm-panel{flex:1;min-width:140px}
+}
