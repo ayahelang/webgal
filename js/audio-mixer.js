@@ -7,6 +7,14 @@
   "use strict";
   var MAX_TRACKS = 8;
 
+  function escHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
   function fmt(sec) {
     if (!isFinite(sec) || sec < 0) return "0:00";
     sec = Math.floor(sec);
@@ -694,6 +702,11 @@
       var dest = ensureMasterGain();
       var vol = effectiveTrackVol(tr);
       var rev = typeof tr.reverb === "number" ? tr.reverb : 0;
+      var semi = typeof tr.semitones === "number" ? tr.semitones : 0;
+      try {
+        // 100 cent = 1 semitone; durasi tetap (bukan playbackRate)
+        src.detune.value = semi * 100;
+      } catch (e) {}
       var dry = audioCtx.createGain();
       dry.gain.value = vol;
       src.connect(dry);
@@ -705,7 +718,7 @@
       wetGain.gain.value = vol * rev;
       src.connect(wetGain);
       wetGain.connect(sharedConvolver);
-      liveGains.push({ dry: dry, wet: wetGain, track: tr });
+      liveGains.push({ dry: dry, wet: wetGain, track: tr, src: src });
     }
 
     function applyLiveVolumes() {
@@ -713,9 +726,11 @@
         if (!g.track) return;
         var vol = effectiveTrackVol(g.track);
         var rev = typeof g.track.reverb === "number" ? g.track.reverb : 0;
+        var semi = typeof g.track.semitones === "number" ? g.track.semitones : 0;
         try {
           if (g.dry) g.dry.gain.value = vol;
           if (g.wet) g.wet.gain.value = vol * rev;
+          if (g.src && g.src.detune) g.src.detune.value = semi * 100;
         } catch (e) {}
       });
       if (masterGainNode) {
@@ -806,6 +821,7 @@
           offSec > 0.05 ? " @" + fmt(offSec) : "";
         var vol = typeof tr.volume === "number" ? tr.volume : 1;
         var rev = typeof tr.reverb === "number" ? tr.reverb : 0;
+        var semi = typeof tr.semitones === "number" ? tr.semitones : 0;
         // Slider max: at least timeline length, current offset, 60s
         var offMax = Math.max(60, Math.ceil(maxDur() || 0), Math.ceil(offSec) + 30);
         if (offMax < 1) offMax = 60;
@@ -815,11 +831,13 @@
           (idx + 1) +
           "</span>" +
           '<div class="amx-track-meta">' +
-          '<span class="amx-track-name" title="' +
-          (tr.name || "") +
-          '">' +
-          (String(tr.name || "Track " + (idx + 1)).replace(/\s*@\d+:\d{2}\s*$/, "").trim() ||
-            "Track " + (idx + 1)) +
+          '<span class="amx-track-name" contenteditable="true" spellcheck="false" data-act="rename" data-i="' +
+          idx +
+          '" title="Klik untuk ganti nama track">' +
+          escHtml(
+            String(tr.name || "Track " + (idx + 1)).replace(/\s*@\d+:\d{2}\s*$/, "").trim() ||
+              "Track " + (idx + 1)
+          ) +
           "</span>" +
           '<span class="amx-track-dur">' +
           fmt(tr.buffer ? tr.buffer.duration : 0) +
@@ -861,6 +879,38 @@
           '">' +
           Math.round(rev * 100) +
           "%</span></label>" +
+          '<label class="amx-slider-lab amx-harm-lab" title="Harmoni / pitch (semitone). S2 ≈ terts paralel; S3 ≈ kwint. Coba +3 atau +4 menyesuaikan kunci lagu.">' +
+          'Harm <select class="amx-harm-sel" data-act="harm" data-i="' +
+          idx +
+          '">' +
+          '<option value="0"' +
+          (semi === 0 ? " selected" : "") +
+          ">Ori</option>" +
+          '<option value="3"' +
+          (semi === 3 ? " selected" : "") +
+          ">S2 ↑ +3</option>" +
+          '<option value="4"' +
+          (semi === 4 ? " selected" : "") +
+          ">S2 ↑ +4</option>" +
+          '<option value="-3"' +
+          (semi === -3 ? " selected" : "") +
+          ">S2 ↓ −3</option>" +
+          '<option value="-4"' +
+          (semi === -4 ? " selected" : "") +
+          ">S2 ↓ −4</option>" +
+          '<option value="7"' +
+          (semi === 7 ? " selected" : "") +
+          ">S3 ↑ +7</option>" +
+          '<option value="-7"' +
+          (semi === -7 ? " selected" : "") +
+          ">S3 ↓ −7</option>" +
+          '<option value="12"' +
+          (semi === 12 ? " selected" : "") +
+          ">Oktaf ↑</option>" +
+          '<option value="-12"' +
+          (semi === -12 ? " selected" : "") +
+          ">Oktaf ↓</option>" +
+          "</select></label>" +
           "</div>" +
           "</div></div>" +
           '<div class="amx-track-acts">' +
@@ -911,6 +961,7 @@
         offset: Math.max(0, offsetSec || 0),
         volume: 1,
         reverb: 0,
+        semitones: 0,
       });
       renderTracks();
       return true;
@@ -1199,6 +1250,10 @@
         src.buffer = t.buffer;
         var vol = typeof t.volume === "number" ? t.volume : 1;
         var rev = typeof t.reverb === "number" ? t.reverb : 0;
+        var semi = typeof t.semitones === "number" ? t.semitones : 0;
+        try {
+          src.detune.value = semi * 100;
+        } catch (e) {}
         var dry = offline.createGain();
         dry.gain.value = vol;
         src.connect(dry);
@@ -1596,6 +1651,7 @@
       }
 
       var act = t.getAttribute("data-act");
+      if (act === "rename" || act === "harm") return;
       if (act === "mute") {
         var i = Number(t.getAttribute("data-i"));
         if (tracks[i]) {
@@ -1648,6 +1704,47 @@
         }
       }
     };
+
+    // Harmoni (semitone) — live via detune
+    root.addEventListener("change", function (ev) {
+      var t = ev.target;
+      if (!t || !t.getAttribute) return;
+      if (t.getAttribute("data-act") !== "harm") return;
+      var i = Number(t.getAttribute("data-i"));
+      if (!tracks[i]) return;
+      tracks[i].semitones = Number(t.value) || 0;
+      applyLiveVolumes();
+      var lab =
+        tracks[i].semitones === 0
+          ? "Ori"
+          : (tracks[i].semitones > 0 ? "+" : "") + tracks[i].semitones + " st";
+      setStatus("T" + (i + 1) + " harmoni " + lab);
+    });
+
+    // Rename track (contenteditable)
+    root.addEventListener("keydown", function (ev) {
+      var t = ev.target;
+      if (!t || !t.classList || !t.classList.contains("amx-track-name")) return;
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        t.blur();
+      }
+    });
+    root.addEventListener(
+      "blur",
+      function (ev) {
+        var t = ev.target;
+        if (!t || !t.classList || !t.classList.contains("amx-track-name")) return;
+        var i = Number(t.getAttribute("data-i"));
+        if (!tracks[i]) return;
+        var name = (t.textContent || "").replace(/\s+/g, " ").trim();
+        if (!name) name = "Track " + (i + 1);
+        tracks[i].name = name;
+        t.textContent = name;
+        t.setAttribute("title", "Klik untuk ganti nama track");
+      },
+      true
+    );
 
     // Volume / reverb sliders (input event — live)
     root.addEventListener("input", function (ev) {
