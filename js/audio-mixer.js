@@ -824,7 +824,9 @@
         if (handleOutEl) handleOutEl.style.left = (reg.end / total) * 100 + "%";
         if (regionLabelEl) {
           regionLabelEl.textContent =
-            fmt(reg.dur) + (reg.dur >= reg.total - 0.05 ? " (penuh)" : "");
+            reg.dur >= reg.total - 0.05
+              ? fmt(reg.dur) + " · penuh"
+              : fmt(reg.dur);
         }
         if (regionInTextEl && document.activeElement !== regionInTextEl) {
           regionInTextEl.value = fmt(reg.start);
@@ -1261,7 +1263,6 @@
       startTransportLoop();
       startPlayMeter();
       setTrackMetersVisible(true);
-      setStatus("Play dari " + fmt(head) + " / " + fmt(total));
     }
 
     function seekTo(sec) {
@@ -2669,7 +2670,6 @@
       startTransportLoop();
       setTrackMetersVisible(true);
       renderTracks();
-      setStatus("Play T" + (k + 1) + " dari Mark In @ " + fmt(tIn) + " (mix " + fmt(head) + ")");
     }
 
     function pauseSoloOrMix() {

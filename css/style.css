@@ -5257,3 +5257,34 @@ input.amx-region-time{
   flex-wrap:wrap;
   gap:4px 6px;
 }
+
+/* Region tools: satu baris — label di kanan Reset (panah merah) */
+.amx-region-tools{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  gap:4px 6px!important;
+  overflow-x:auto;
+  max-width:100%;
+}
+.amx-region-label{
+  flex:0 0 auto!important;
+  margin-left:4px!important;
+  white-space:nowrap!important;
+  font-size:10px!important;
+  font-variant-numeric:tabular-nums;
+  opacity:.9;
+}
+.amx-region-time,
+input.amx-region-time{
+  width:5.4em!important;
+  min-width:5.2em!important;
+  max-width:6em!important;
+  flex-shrink:0;
+}
+.amx-mark-btn-in,
+.amx-mark-btn-out,
+.amx-region-tools .btn{
+  flex-shrink:0;
+  white-space:nowrap;
+}
