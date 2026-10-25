@@ -4517,6 +4517,75 @@ details[open] > summary::before { content: "▾ "; }
 
 /* Indikator rekam: display:flex tidak boleh menimpa [hidden] */
 .amx-rec-compact[hidden]{display:none!important}
+
+/* Transport: warna seragam; play biru */
+.amx-nav{
+  color:#9fd9ef!important;
+  border-color:rgba(125,227,255,.28)!important;
+}
+.amx-nav:hover{
+  color:#e8f7ff!important;
+  border-color:rgba(125,227,255,.55)!important;
+  background:rgba(94,200,255,.1)!important;
+}
+.amx-nav-play,
+.amx-nav[data-amx="play"]{
+  color:#3db8ff!important;
+  border-color:rgba(61,184,255,.55)!important;
+  background:rgba(61,184,255,.12)!important;
+  font-weight:700!important;
+}
+.amx-nav-play:hover,
+.amx-nav[data-amx="play"]:hover{
+  color:#fff!important;
+  background:rgba(61,184,255,.28)!important;
+}
+/* Master / Gain */
+.amx-master-lab{
+  display:inline-flex;align-items:center;gap:5px;
+  margin-left:4px;padding:2px 8px;
+  border-radius:999px;
+  border:1px solid rgba(125,227,255,.28);
+  background:rgba(0,0,0,.22);
+  font-size:10px;font-weight:700;color:#9fd9ef;
+  white-space:nowrap;
+}
+.amx-master-lab input[type=range]{
+  width:72px;max-width:18vw;height:14px;margin:0;
+  accent-color:#5ec8ff;cursor:pointer;
+}
+.amx-master-lab [data-amx="master-val"]{
+  min-width:34px;text-align:right;
+  font-variant-numeric:tabular-nums;color:#7de3ff;
+}
+[data-theme="light"] .amx-master-lab{
+  background:rgba(240,248,255,.95);
+  border-color:rgba(26,143,209,.25);
+  color:#1a6f9a;
+}
+[data-theme="light"] .amx-master-lab [data-amx="master-val"]{color:#1a6f9a}
+[data-theme="light"] .amx-nav{color:#1a6f9a!important}
+[data-theme="light"] .amx-nav-play,
+[data-theme="light"] .amx-nav[data-amx="play"]{
+  color:#0b7ec8!important;
+  border-color:rgba(11,126,200,.5)!important;
+  background:rgba(11,126,200,.1)!important;
+}
+/* Promo Full Mixer */
+.amx-promo{
+  font-size:10px!important;padding:2px 8px!important;min-height:26px;
+  color:#ffd28a!important;
+  border-color:rgba(255,200,100,.4)!important;
+  background:rgba(255,180,40,.1)!important;
+  text-decoration:none!important;
+  white-space:nowrap;
+}
+.amx-promo:hover{
+  color:#fff!important;
+  background:rgba(255,180,40,.25)!important;
+  border-color:rgba(255,200,100,.7)!important;
+}
+
 .amx-rec-compact:not([hidden]){display:flex}
 /* Pegangan In/Out lebih besar & mudah digeser */
 .amx-handle{

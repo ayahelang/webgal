@@ -232,6 +232,7 @@
       '  <header class="amx-head amx-drag" data-amx-drag>' +
       "    <strong>Audio Mixer</strong>" +
       '    <span class="muted amx-sub">Max 8 · geser judul untuk pindah</span>' +
+      '    <a class="btn btn-ghost amx-sm amx-promo" href="https://mixer.silverhawk.web.id" target="_blank" rel="noopener noreferrer" data-amx="promo" title="Buka Silverhawk Audio Mixer — aplikasi web full (multi-track, efek, export pro). Pengembangan lanjut dari panel ini.">🎛 Full Mixer</a>' +
       '    <button type="button" class="btn btn-ghost amx-x" data-amx="close" title="Tutup">✕</button>' +
       "  </header>" +
       '  <div class="amx-toolbar">' +
@@ -240,11 +241,16 @@
       '    <label class="btn btn-ghost amx-sm amx-upload">⬆ File<input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.webm" hidden data-amx="file"></label>' +
       '    <button type="button" class="btn btn-ghost amx-sm" data-amx="mute-all" title="Mute semua">Mute all</button>' +
       '    <button type="button" class="btn btn-ghost amx-sm" data-amx="unmute-all" title="Unmute semua">Unmute</button>' +
+      '    <label class="amx-master-lab" title="Master / Gain — dorong di atas 100% untuk lebih nyaring">' +
+      '      <span>Master</span>' +
+      '      <input type="range" min="0" max="300" value="100" data-amx="master">' +
+      '      <span data-amx="master-val">100%</span>' +
+      "    </label>" +
       "  </div>" +
       '  <div class="amx-transport">' +
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="to-start" title="Awal">⏮</button>' +
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="skip-back" title="-5 dtk">⏪</button>' +
-      '    <button type="button" class="btn btn-ghost amx-nav" data-amx="play" title="Play">▶</button>' +
+      '    <button type="button" class="btn btn-ghost amx-nav amx-nav-play" data-amx="play" title="Play">▶</button>' +
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="stop" title="Stop">■</button>' +
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="skip-fwd" title="+5 dtk">⏩</button>' +
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="to-end" title="Akhir">⏭</button>' +
@@ -288,6 +294,8 @@
     var audioCtx = null;
     var playing = [];
     var liveGains = []; // {gain, wetGain?} for live volume while playing
+    var masterGainNode = null;
+    var masterGain = 1; // 1 = 100%; boleh >1 (boost/gain)
     var mediaRec = null;
     var mediaStream = null;
     var recChunks = [];
@@ -370,7 +378,7 @@
         sharedConvolver = audioCtx.createConvolver();
         sharedImpulse = makeImpulse(audioCtx, 1.6, 2.4);
         sharedConvolver.buffer = sharedImpulse;
-        sharedConvolver.connect(audioCtx.destination);
+        sharedConvolver.connect(ensureMasterGain());
       }
       return sharedConvolver;
     }
@@ -578,15 +586,39 @@
       updateTransportUI();
     }
 
-    /** Hubungkan buffer source dengan gain + reverb send */
+    function ensureMasterGain() {
+      ensureCtx();
+      if (!masterGainNode) {
+        masterGainNode = audioCtx.createGain();
+        masterGainNode.gain.value = masterGain;
+        masterGainNode.connect(audioCtx.destination);
+      }
+      return masterGainNode;
+    }
+
+    function setMasterGain(v) {
+      masterGain = Math.max(0, Math.min(3, Number(v) || 0));
+      if (masterGainNode) {
+        try {
+          masterGainNode.gain.value = masterGain;
+        } catch (e) {}
+      }
+      var lab = root.querySelector("[data-amx=master-val]");
+      if (lab) lab.textContent = Math.round(masterGain * 100) + "%";
+      var range = root.querySelector("[data-amx=master]");
+      if (range) range.value = String(Math.round(masterGain * 100));
+    }
+
+    /** Hubungkan buffer source dengan gain + reverb send → master */
     function connectTrackLive(src, tr) {
       ensureCtx();
+      var dest = ensureMasterGain();
       var vol = typeof tr.volume === "number" ? tr.volume : 1;
       var rev = typeof tr.reverb === "number" ? tr.reverb : 0;
       var dry = audioCtx.createGain();
       dry.gain.value = vol;
       src.connect(dry);
-      dry.connect(audioCtx.destination);
+      dry.connect(dest);
       var wetGain = null;
       if (rev > 0.01) {
         ensureReverb();
@@ -608,6 +640,11 @@
           if (g.wet) g.wet.gain.value = vol * rev;
         } catch (e) {}
       });
+      if (masterGainNode) {
+        try {
+          masterGainNode.gain.value = masterGain;
+        } catch (e) {}
+      }
     }
 
     function scheduleTrack(tr, head, t0) {
@@ -683,6 +720,7 @@
       tracks.forEach(function (tr, idx) {
         var row = document.createElement("div");
         row.className = "amx-track" + (tr.muted ? " is-muted" : "") + (tr.solo ? " is-solo" : "");
+        row.setAttribute("data-track-i", String(idx));
         var offSec = Math.max(0, tr.offset || 0);
         var offLabel =
           offSec > 0.05 ? " @" + fmt(offSec) : "";
@@ -700,7 +738,8 @@
           '<span class="amx-track-name" title="' +
           (tr.name || "") +
           '">' +
-          (tr.name || "Track " + (idx + 1)) +
+          (String(tr.name || "Track " + (idx + 1)).replace(/\s*@\d+:\d{2}\s*$/, "").trim() ||
+            "Track " + (idx + 1)) +
           "</span>" +
           '<span class="amx-track-dur">' +
           fmt(tr.buffer ? tr.buffer.duration : 0) +
@@ -853,10 +892,7 @@
           });
           try {
             var buf = await decodeBlob(ensureCtx(), blob);
-            var label =
-              "Rekam " +
-              (tracks.length + 1) +
-              (savedOffset > 0.05 ? " @" + fmt(savedOffset) : "");
+            var label = "Rekam " + (tracks.length + 1);
             var ok = addBuffer(buf, label, savedOffset);
             if (ok && tracks.length) {
               // Rekaman mic biasanya lebih pelan dari file upload — boost default
@@ -936,31 +972,55 @@
       setRecUi(false);
     }
 
-    /** Set start offset (detik) untuk track i; update UI + restart play jika perlu */
+    /** Set start offset (detik) untuk track i; sinkronkan label + slider + teks */
     function applyOffset(i, sec, opts) {
       opts = opts || {};
       if (!tracks[i]) return;
       sec = Math.max(0, Number(sec) || 0);
       if (!isFinite(sec)) return;
+      // hindari jitter float
+      sec = Math.round(sec * 10) / 10;
       tracks[i].offset = sec;
-      // Update label & inputs tanpa full re-render (jaga fokus input teks)
-      var durEl = listEl.querySelectorAll(".amx-track-dur")[i];
+
+      var row = listEl.querySelector('.amx-track[data-track-i="' + i + '"]');
+      var durEl = row
+        ? row.querySelector(".amx-track-dur")
+        : listEl.querySelectorAll(".amx-track-dur")[i];
       if (durEl && tracks[i].buffer) {
         var lab = sec > 0.05 ? " @" + fmt(sec) : "";
         durEl.textContent = fmt(tracks[i].buffer.duration) + lab;
       }
-      var range = listEl.querySelector('input[data-act="off"][data-i="' + i + '"]');
+      // Bersihkan @lama di nama rekaman agar tidak bentrok dengan offset baru
+      var nameEl = row ? row.querySelector(".amx-track-name") : null;
+      if (nameEl && tracks[i].name) {
+        var clean = String(tracks[i].name).replace(/\s*@\d+:\d{2}\s*$/, "").trim();
+        if (clean !== tracks[i].name) {
+          tracks[i].name = clean;
+          nameEl.textContent = clean;
+          nameEl.setAttribute("title", clean);
+        }
+      }
+      var range = row
+        ? row.querySelector('input[data-act="off"]')
+        : listEl.querySelector('input[data-act="off"][data-i="' + i + '"]');
       if (range) {
         var mx = Number(range.max) || 60;
-        if (sec > mx) {
-          range.max = String(Math.ceil(sec) + 30);
-        }
-        if (!opts.fromRange) range.value = String(sec.toFixed(1));
+        if (sec > mx) range.max = String(Math.ceil(sec) + 30);
+        if (!opts.fromRange) range.value = String(sec);
+        else range.value = String(sec); // tetap sinkron saat geser
       }
-      var text = listEl.querySelector('input[data-act="off-text"][data-i="' + i + '"]');
-      if (text && !opts.fromText) text.value = fmt(sec);
+      var text = row
+        ? row.querySelector('input[data-act="off-text"]')
+        : listEl.querySelector('input[data-act="off-text"][data-i="' + i + '"]');
+      if (text && document.activeElement !== text) {
+        text.value = fmt(sec);
+      } else if (text && !opts.fromText && document.activeElement !== text) {
+        text.value = fmt(sec);
+      } else if (text && opts.fromRange) {
+        text.value = fmt(sec);
+      }
       updateTransportUI();
-      if (isPlaying && !isRecording) {
+      if (isPlaying && !isRecording && !opts.skipRestart) {
         var head = currentPlayhead();
         stopPlayback(true);
         playhead = head;
@@ -1029,12 +1089,15 @@
       var tail = opts.tail != null ? opts.tail : opts.mono ? 0.3 : 1.2;
       var frames = Math.ceil((dur + tail) * sr) || 1;
       var offline = new OfflineAudioContext(ch, frames, sr);
+      var master = offline.createGain();
+      master.gain.value = masterGain;
+      master.connect(offline.destination);
       var conv = null;
       if (!opts.mono && tail > 0.2) {
         var impulse = makeImpulse(offline, 1.4, 2.4);
         conv = offline.createConvolver();
         conv.buffer = impulse;
-        conv.connect(offline.destination);
+        conv.connect(master);
       }
 
       active.forEach(function (t) {
@@ -1056,7 +1119,7 @@
         var dry = offline.createGain();
         dry.gain.value = vol;
         src.connect(dry);
-        dry.connect(offline.destination);
+        dry.connect(master);
         if (conv && rev > 0.01) {
           var wet = offline.createGain();
           wet.gain.value = vol * rev;
@@ -1395,6 +1458,7 @@
       if (t.matches && t.matches('input[data-amx="file"]')) return;
       if (t.matches && t.matches('input[type="range"]')) return;
       if (t.matches && t.matches('input[type="text"]')) return;
+      if (t.closest && t.closest("[data-amx=promo]")) return;
       if (amx === "close") close();
       else if (amx === "rec") {
         if (isRecording) stopRec();
@@ -1523,9 +1587,32 @@
           playAll();
         }
       } else if (act === "off") {
-        applyOffset(i, Number(t.value), { fromRange: true, status: false });
+        applyOffset(i, Number(t.value), {
+          fromRange: true,
+          status: false,
+          skipRestart: true,
+        });
       }
     });
+
+    // Restart play setelah user selesai geser Start (change)
+    root.addEventListener("change", function (ev) {
+      var t = ev.target;
+      if (!t || !t.getAttribute) return;
+      if (t.getAttribute("data-act") === "off") {
+        var i = Number(t.getAttribute("data-i"));
+        if (!tracks[i]) return;
+        applyOffset(i, Number(t.value), { fromRange: true, status: true });
+      }
+    });
+
+    // Master gain slider
+    var masterRange = root.querySelector("[data-amx=master]");
+    if (masterRange) {
+      masterRange.addEventListener("input", function () {
+        setMasterGain(Number(masterRange.value) / 100);
+      });
+    }
 
     // Offset teks: Enter / blur → parse m:ss
     root.addEventListener("change", function (ev) {
