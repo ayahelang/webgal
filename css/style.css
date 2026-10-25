@@ -5288,3 +5288,27 @@ input.amx-region-time{
   flex-shrink:0;
   white-space:nowrap;
 }
+
+/* Waktu mulai (Start): muat m:ss.mmm */
+.amx-off-input,
+input.amx-off-input{
+  width:6.2em!important;
+  min-width:6em!important;
+  max-width:7.5em!important;
+  flex:0 0 auto!important;
+  font-size:11px!important;
+  font-variant-numeric:tabular-nums!important;
+  box-sizing:border-box;
+}
+.amx-offset-lab{
+  display:flex!important;
+  align-items:center!important;
+  gap:4px!important;
+  flex-wrap:nowrap!important;
+}
+.amx-offset-lab input[type=range],
+.amx-slider-lab.amx-offset-lab input[type=range]{
+  flex:1 1 auto!important;
+  min-width:40px!important;
+  max-width:100%;
+}

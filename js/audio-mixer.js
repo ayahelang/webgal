@@ -2784,6 +2784,72 @@
       }
     });
 
+
+    // Shortcut: Space = play/pause · tekan lama Space = stop
+    (function bindSpaceTransport() {
+      var spaceHoldTimer = null;
+      var spaceLong = false;
+      var spaceDown = false;
+
+      function isTypingTarget(el) {
+        if (!el) return false;
+        var tag = (el.tagName || "").toLowerCase();
+        if (tag === "input" || tag === "textarea" || tag === "select") return true;
+        if (el.isContentEditable) return true;
+        return false;
+      }
+
+      function onKeyDown(ev) {
+        if (ev.code !== "Space" && ev.key !== " ") return;
+        if (isTypingTarget(ev.target)) return;
+        // panel harus terbuka
+        if (!root || !root.classList.contains("is-open")) return;
+        ev.preventDefault();
+        if (spaceDown) return;
+        spaceDown = true;
+        spaceLong = false;
+        spaceHoldTimer = setTimeout(function () {
+          spaceLong = true;
+          if (isRecording) return;
+          stopPlayback(true);
+          soloPlayIdx = -1;
+          setTrackMetersVisible(false);
+          updateTransportUI();
+          renderTracks();
+          setStatus("Stop");
+        }, 450);
+      }
+
+      function onKeyUp(ev) {
+        if (ev.code !== "Space" && ev.key !== " ") return;
+        if (isTypingTarget(ev.target)) return;
+        if (!spaceDown) return;
+        spaceDown = false;
+        if (spaceHoldTimer) {
+          clearTimeout(spaceHoldTimer);
+          spaceHoldTimer = null;
+        }
+        if (spaceLong) {
+          spaceLong = false;
+          return;
+        }
+        // short press: play / pause
+        if (isRecording) return;
+        if (isPlaying) {
+          pauseSoloOrMix();
+        } else {
+          if (soloPlayIdx >= 0 && tracks[soloPlayIdx]) {
+            startSoloTrack(soloPlayIdx, playhead);
+          } else {
+            playAll();
+          }
+        }
+      }
+
+      window.addEventListener("keydown", onKeyDown, true);
+      window.addEventListener("keyup", onKeyUp, true);
+    })();
+
     // Harmoni + patokan
     root.addEventListener("change", function (ev) {
       var t = ev.target;
