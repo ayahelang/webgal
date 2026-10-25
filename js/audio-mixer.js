@@ -541,11 +541,23 @@
       return Math.max(0.05, trackTrimOut(tr) - trackTrimIn(tr));
     }
 
+    /** Posisi playhead di sumbu buffer track [0..duration], analog currentPlayhead di timeline utama */
+    function trackLocalPos(tr) {
+      if (!tr || !tr.buffer) return 0;
+      var dur = tr.buffer.duration;
+      var local = currentPlayhead() - (tr.offset || 0);
+      if (local < 0) return 0;
+      if (local > dur) return dur;
+      return local;
+    }
+
+
     function maxDur() {
       var m = 0;
       tracks.forEach(function (t) {
         if (!t.buffer) return;
-        var end = (t.offset || 0) + trackActiveDur(t);
+        // ujung timeline = offset + trimOut (akhir region aktif)
+        var end = (t.offset || 0) + trackTrimOut(t);
         if (end > m) m = end;
       });
       return m;
@@ -770,22 +782,22 @@
           continue;
         }
         var off = tr.offset || 0;
+        var dur = tr.buffer.duration;
         var tIn = trackTrimIn(tr);
         var tOut = trackTrimOut(tr);
-        // Playhead di bar penuh: independen dari trim (geser region tidak menggeser playhead)
+        // Sumbu bar = [0 .. duration] buffer — sama konsep timeline utama
         var local = playhead - off;
-        var pBar = 0;
-        if (local <= 0) pBar = 0;
-        else if (local >= tr.buffer.duration) pBar = 1;
-        else pBar = local / tr.buffer.duration;
+        if (local < 0) local = 0;
+        if (local > dur) local = dur;
+        var pBar = dur > 0 ? local / dur : 0;
         el.style.width = pBar * 100 + "%";
         var kn = listEl.querySelector('[data-amx-prog-knob="' + idx + '"]');
         if (kn) kn.style.left = pBar * 100 + "%";
         var hin = listEl.querySelector('[data-amx-trim-in="' + idx + '"]');
         var hout = listEl.querySelector('[data-amx-trim-out="' + idx + '"]');
         var reg = listEl.querySelector('[data-amx-trim-reg="' + idx + '"]');
-        var pin = tr.buffer.duration > 0 ? tIn / tr.buffer.duration : 0;
-        var pout = tr.buffer.duration > 0 ? tOut / tr.buffer.duration : 1;
+        var pin = dur > 0 ? tIn / dur : 0;
+        var pout = dur > 0 ? tOut / dur : 1;
         if (hin) hin.style.left = pin * 100 + "%";
         if (hout) hout.style.left = pout * 100 + "%";
         if (reg) {
@@ -796,12 +808,10 @@
         var toutLab = listEl.querySelector('[data-amx-mark-out-t="' + idx + '"]');
         if (tinLab && document.activeElement !== tinLab) tinLab.value = fmt(tIn);
         if (toutLab && document.activeElement !== toutLab) toutLab.value = fmt(tOut);
-        // posisi playhead (lokal di track) & durasi
         var curLab = listEl.querySelector('[data-amx-ph-cur="' + idx + '"]');
         var durLab = listEl.querySelector('[data-amx-ph-dur="' + idx + '"]');
-        var localSec = Math.max(0, Math.min(tr.buffer.duration, playhead - off));
-        if (curLab) curLab.textContent = fmt(localSec);
-        if (durLab) durLab.textContent = fmt(tr.buffer.duration);
+        if (curLab) curLab.textContent = fmt(local);
+        if (durLab) durLab.textContent = fmt(dur);
       }
     }
 
@@ -1106,21 +1116,25 @@
     }
 
     function scheduleTrack(tr, head, t0) {
-      // Selalu schedule track yang punya buffer agar mute/unmute/solo live (gain 0/1)
+      // Sumbu buffer = bar track: mixTime = offset + bufferTime
       if (!tr || !tr.buffer) return null;
       var off = tr.offset || 0;
       var tIn = trackTrimIn(tr);
       var tOut = trackTrimOut(tr);
-      var activeDur = tOut - tIn;
-      if (head >= off + activeDur) return null;
+      // bagian track yang aktif di timeline: [offset+tIn, offset+tOut]
+      var trackStart = off + tIn;
+      var trackEnd = off + tOut;
+      if (head >= trackEnd - 0.001) return null;
       var when = t0;
       var offsetInBuffer = tIn;
-      if (head > off) {
-        offsetInBuffer = tIn + (head - off);
+      if (head > trackStart) {
+        offsetInBuffer = head - off; // absolut di buffer
+        when = t0;
       } else {
-        when = t0 + (off - head);
+        when = t0 + (trackStart - head);
         offsetInBuffer = tIn;
       }
+      if (offsetInBuffer < tIn) offsetInBuffer = tIn;
       if (offsetInBuffer >= tOut - 0.001) return null;
       var remaining = tOut - offsetInBuffer;
       if (remaining <= 0.001) return null;
@@ -1743,15 +1757,14 @@
         var off = t.offset || 0;
         var tIn = trackTrimIn(t);
         var tOut = trackTrimOut(t);
-        var activeDur = tOut - tIn;
-        var trackStart = off;
-        var trackEnd = off + activeDur;
-        // irisan dengan [start, end]
+        // mixTime = offset + bufferTime
+        var trackStart = off + tIn;
+        var trackEnd = off + tOut;
         var playStart = Math.max(trackStart, start);
         var playEnd = Math.min(trackEnd, end);
         if (playEnd - playStart < 0.01) return;
-        var when = playStart - start; // posisi di buffer offline
-        var offsetInBuffer = tIn + (playStart - off);
+        var when = playStart - start;
+        var offsetInBuffer = playStart - off; // absolut buffer
         var len = playEnd - playStart;
         var src = offline.createBufferSource();
         src.buffer = t.buffer;
@@ -2294,11 +2307,8 @@
         var tm = tracks[mi];
         if (!tm || !tm.buffer) return;
         pushHistory();
-        var ad = trackActiveDur(tm);
-        var loc = currentPlayhead() - (tm.offset || 0);
-        loc = Math.max(0, Math.min(ad, loc));
-        var bufPos = trackTrimIn(tm) + loc;
-        if (currentPlayhead() < (tm.offset || 0)) bufPos = trackTrimIn(tm);
+        // Absolute di sumbu buffer (seperti Mark In di timeline utama)
+        var bufPos = trackLocalPos(tm);
         bufPos = Math.max(0, Math.min(trackTrimOut(tm) - 0.05, bufPos));
         tm.trimIn = bufPos;
         updateTransportUI();
@@ -2310,11 +2320,7 @@
         var tmo = tracks[mo];
         if (!tmo || !tmo.buffer) return;
         pushHistory();
-        var ad2 = trackActiveDur(tmo);
-        var loc2 = currentPlayhead() - (tmo.offset || 0);
-        loc2 = Math.max(0, Math.min(ad2, loc2));
-        var bufPos2 = trackTrimIn(tmo) + loc2;
-        if (currentPlayhead() > (tmo.offset || 0) + ad2) bufPos2 = trackTrimOut(tmo);
+        var bufPos2 = trackLocalPos(tmo);
         bufPos2 = Math.max(trackTrimIn(tmo) + 0.05, Math.min(tmo.buffer.duration, bufPos2));
         tmo.trimOut = bufPos2;
         updateTransportUI();
@@ -2386,105 +2392,117 @@
       }
     };
 
-    // Seek + trim handles per track playhead
+    // Seek + trim handles per track — model sama timeline utama (sumbu absolut 0..duration)
     (function bindTrackPlayheads() {
       var drag = null; // { i, mode: "scrub"|"in"|"out" }
+      var lastTap = { key: "", t: 0 };
+
       function posRatio(ev, box) {
         var rect = box.getBoundingClientRect();
         return Math.max(0, Math.min(1, (ev.clientX - rect.left) / Math.max(1, rect.width)));
       }
+
+      function setTrimIn(i, sec) {
+        var tr = tracks[i];
+        if (!tr || !tr.buffer) return;
+        sec = Math.max(0, Math.min(trackTrimOut(tr) - 0.05, sec));
+        tr.trimIn = sec;
+      }
+      function setTrimOut(i, sec) {
+        var tr = tracks[i];
+        if (!tr || !tr.buffer) return;
+        sec = Math.max(trackTrimIn(tr) + 0.05, Math.min(tr.buffer.duration, sec));
+        tr.trimOut = sec;
+      }
+
       function applyDrag(ev) {
         if (!drag || !tracks[drag.i] || !tracks[drag.i].buffer) return;
         var tr = tracks[drag.i];
-        var box = listEl.querySelector(
-          '.amx-track-playhead[data-i="' + drag.i + '"], .amx-track-playhead[data-act=trk-scrub][data-i="' + drag.i + '"]'
-        );
-        // fallback: closest from target
+        var box =
+          listEl &&
+          listEl.querySelector('.amx-track-playhead[data-i="' + drag.i + '"]');
         if (!box && ev.target && ev.target.closest)
           box = ev.target.closest(".amx-track-playhead");
         if (!box) return;
-        var x = posRatio(ev, box);
-        var sec = x * tr.buffer.duration;
+        var sec = posRatio(ev, box) * tr.buffer.duration;
         if (drag.mode === "in") {
-          var out = trackTrimOut(tr);
-          tr.trimIn = Math.max(0, Math.min(out - 0.05, sec));
+          setTrimIn(drag.i, sec);
           updateTransportUI();
         } else if (drag.mode === "out") {
-          var inn = trackTrimIn(tr);
-          tr.trimOut = Math.max(inn + 0.05, Math.min(tr.buffer.duration, sec));
+          setTrimOut(drag.i, sec);
           updateTransportUI();
         } else {
-          // scrub: posisi di full-buffer bar → timeline (offset + sec)
+          // scrub → seek di timeline mix
           seekTo((tr.offset || 0) + sec);
         }
       }
+
       root.addEventListener("pointerdown", function (ev) {
         if (!listEl) return;
         var hin = ev.target.closest && ev.target.closest("[data-amx-trim-in]");
         var hout = ev.target.closest && ev.target.closest("[data-amx-trim-out]");
         var bar = ev.target.closest && ev.target.closest(".amx-track-playhead");
-        if (!bindTrackPlayheads._lastTap) bindTrackPlayheads._lastTap = { key: "", t: 0 };
-        var lt = bindTrackPlayheads._lastTap;
-        function isDbl(key) {
-          var now = Date.now();
-          var ok = lt.key === key && now - lt.t < 380;
-          lt.key = ok ? "" : key;
-          lt.t = ok ? 0 : now;
-          return ok;
-        }
+        if (!hin && !hout && !bar) return;
+
+        var i = -1;
+        var mode = "scrub";
         if (hin) {
-          var ii = Number(hin.getAttribute("data-amx-trim-in"));
-          if (isDbl("in-" + ii) && tracks[ii] && tracks[ii].buffer) {
-            pushHistory();
-            var tm = tracks[ii];
-            var ad = trackActiveDur(tm);
-            var loc = currentPlayhead() - (tm.offset || 0);
-            loc = Math.max(0, Math.min(ad, loc));
-            var bufPos = trackTrimIn(tm) + loc;
-            if (currentPlayhead() < (tm.offset || 0)) bufPos = trackTrimIn(tm);
-            bufPos = Math.max(0, Math.min(trackTrimOut(tm) - 0.05, bufPos));
-            tm.trimIn = bufPos;
-            updateTransportUI();
-            setStatus("T" + (ii + 1) + " Mark In → playhead @ " + fmt(tm.trimIn));
-            ev.preventDefault();
-            return;
-          }
-          pushHistory();
-          drag = { i: ii, mode: "in" };
+          i = Number(hin.getAttribute("data-amx-trim-in"));
+          mode = "in";
         } else if (hout) {
-          var jj = Number(hout.getAttribute("data-amx-trim-out"));
-          if (isDbl("out-" + jj) && tracks[jj] && tracks[jj].buffer) {
+          i = Number(hout.getAttribute("data-amx-trim-out"));
+          mode = "out";
+        } else {
+          i = Number(bar.getAttribute("data-i"));
+          mode = "scrub";
+        }
+        if (!isFinite(i) || !tracks[i] || !tracks[i].buffer) return;
+
+        // Double-tap knob region → set ke trackLocalPos (absolut, tidak stacking)
+        if (mode === "in" || mode === "out") {
+          var key = mode + "-" + i;
+          var now = Date.now();
+          if (lastTap.key === key && now - lastTap.t < 400) {
+            lastTap = { key: "", t: 0 };
             pushHistory();
-            var tmo = tracks[jj];
-            var ad2 = trackActiveDur(tmo);
-            var loc2 = currentPlayhead() - (tmo.offset || 0);
-            loc2 = Math.max(0, Math.min(ad2, loc2));
-            var bufPos2 = trackTrimIn(tmo) + loc2;
-            if (currentPlayhead() > (tmo.offset || 0) + ad2) bufPos2 = trackTrimOut(tmo);
-            bufPos2 = Math.max(trackTrimIn(tmo) + 0.05, Math.min(tmo.buffer.duration, bufPos2));
-            tmo.trimOut = bufPos2;
+            var pos = trackLocalPos(tracks[i]);
+            if (mode === "in") setTrimIn(i, pos);
+            else setTrimOut(i, pos);
             updateTransportUI();
-            setStatus("T" + (jj + 1) + " Mark Out → playhead @ " + fmt(tmo.trimOut));
+            setStatus(
+              "T" +
+                (i + 1) +
+                " Mark " +
+                (mode === "in" ? "In" : "Out") +
+                " → playhead @ " +
+                fmt(pos)
+            );
+            drag = null;
             ev.preventDefault();
+            ev.stopPropagation();
             return;
           }
+          lastTap = { key: key, t: now };
           pushHistory();
-          drag = { i: jj, mode: "out" };
-        } else if (bar) {
-          drag = { i: Number(bar.getAttribute("data-i")), mode: "scrub" };
-        } else return;
+        } else {
+          lastTap = { key: "", t: 0 };
+        }
+
+        drag = { i: i, mode: mode };
         try {
-          bar && bar.setPointerCapture && bar.setPointerCapture(ev.pointerId);
+          if (bar && bar.setPointerCapture) bar.setPointerCapture(ev.pointerId);
         } catch (e) {}
         applyDrag(ev);
         ev.preventDefault();
         ev.stopPropagation();
       });
+
       root.addEventListener("pointermove", function (ev) {
         if (!drag) return;
         applyDrag(ev);
       });
-      function endD(ev) {
+
+      function endD() {
         if (!drag) return;
         var i = drag.i;
         var mode = drag.mode;
@@ -2498,7 +2516,6 @@
               " – " +
               fmt(trackTrimOut(tracks[i]))
           );
-          // restart play if needed so trim applies
           if (isPlaying && !isRecording) {
             var h = currentPlayhead();
             stopPlayback(true);
@@ -2530,7 +2547,9 @@
       connectTrackLive(src, tr);
       var tIn = trackTrimIn(tr);
       var tOut = trackTrimOut(tr);
-      var offIn = tIn + Math.max(0, head - (tr.offset || 0));
+      // buffer pos = head - offset (sumbu sama dengan bar)
+      var offIn = Math.max(0, head - (tr.offset || 0));
+      if (offIn < tIn) offIn = tIn;
       if (offIn >= tOut) offIn = tIn;
       var rem = Math.max(0.05, tOut - offIn);
       try {
