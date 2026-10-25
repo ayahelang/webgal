@@ -4375,6 +4375,36 @@ details[open] > summary::before { content: "▾ "; }
   min-width:32px;text-align:right;font-variant-numeric:tabular-nums;
   color:#9fd9ef;
 }
+/* Start offset per track: slider + input m:ss */
+.amx-offset-lab{
+  flex-wrap:nowrap;
+}
+.amx-off-input{
+  width:42px;min-width:42px;max-width:48px;
+  padding:1px 4px;margin:0;
+  font-size:10px;font-weight:700;
+  font-variant-numeric:tabular-nums;
+  text-align:center;
+  border-radius:4px;
+  border:1px solid rgba(125,227,255,.35);
+  background:rgba(0,0,0,.35);
+  color:#9fd9ef;
+  line-height:1.4;
+}
+.amx-off-input:focus{
+  outline:none;
+  border-color:#7de3ff;
+  box-shadow:0 0 0 2px rgba(125,227,255,.25);
+}
+[data-theme="light"] .amx-off-input{
+  background:#fff;
+  border-color:rgba(26,143,209,.35);
+  color:#1a6f9a;
+}
+.amx-slider-lab.amx-offset-lab input[type=range]{
+  flex:1;min-width:48px;
+}
+
 .amx-foot{flex-wrap:wrap;gap:4px}
 @media (max-height:700px){
   .amx-panel{max-height:min(96vh,920px);overflow:auto}

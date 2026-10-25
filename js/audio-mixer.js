@@ -13,6 +13,23 @@
     return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0");
   }
 
+  /** Parse "m:ss", "mm:ss", "ss", or number → seconds (float). Invalid → NaN */
+  function parseTime(str) {
+    if (str == null) return NaN;
+    str = String(str).trim().replace(",", ".");
+    if (!str) return NaN;
+    if (/^\d+(\.\d+)?$/.test(str)) return Math.max(0, parseFloat(str));
+    var m = str.match(/^(\d+)\s*:\s*(\d{1,2})(?:\s*:\s*(\d{1,2}(?:\.\d+)?))?$/);
+    if (m) {
+      if (m[3] != null) {
+        // h:m:s
+        return Math.max(0, (+m[1]) * 3600 + (+m[2]) * 60 + parseFloat(m[3]));
+      }
+      return Math.max(0, (+m[1]) * 60 + (+m[2]));
+    }
+    return NaN;
+  }
+
   function encodeWav(audioBuffer) {
     var numCh = audioBuffer.numberOfChannels;
     var sampleRate = audioBuffer.sampleRate;
@@ -666,10 +683,14 @@
       tracks.forEach(function (tr, idx) {
         var row = document.createElement("div");
         row.className = "amx-track" + (tr.muted ? " is-muted" : "") + (tr.solo ? " is-solo" : "");
+        var offSec = Math.max(0, tr.offset || 0);
         var offLabel =
-          tr.offset && tr.offset > 0.05 ? " @" + fmt(tr.offset) : "";
+          offSec > 0.05 ? " @" + fmt(offSec) : "";
         var vol = typeof tr.volume === "number" ? tr.volume : 1;
         var rev = typeof tr.reverb === "number" ? tr.reverb : 0;
+        // Slider max: at least timeline length, current offset, 60s
+        var offMax = Math.max(60, Math.ceil(maxDur() || 0), Math.ceil(offSec) + 30);
+        if (offMax < 1) offMax = 60;
         row.innerHTML =
           '<div class="amx-track-main">' +
           '<span class="amx-track-idx">T' +
@@ -689,6 +710,20 @@
           idx +
           '"></div></div>' +
           '<div class="amx-sliders">' +
+          '<label class="amx-slider-lab amx-offset-lab" title="Waktu mulai track di timeline (geser atau ketik m:ss)">' +
+          'Start <input type="range" min="0" max="' +
+          offMax +
+          '" step="0.1" value="' +
+          offSec.toFixed(1) +
+          '" data-act="off" data-i="' +
+          idx +
+          '">' +
+          '<input type="text" class="amx-off-input" data-act="off-text" data-i="' +
+          idx +
+          '" value="' +
+          fmt(offSec) +
+          '" inputmode="numeric" aria-label="Waktu mulai track" title="Ketik m:ss lalu Enter">' +
+          "</label>" +
           '<label class="amx-slider-lab" title="Volume">Vol <input type="range" min="0" max="150" value="' +
           Math.round(vol * 100) +
           '" data-act="vol" data-i="' +
@@ -899,6 +934,41 @@
       // Paksa UI diam meskipun onstop belum jalan
       stopRecTimer();
       setRecUi(false);
+    }
+
+    /** Set start offset (detik) untuk track i; update UI + restart play jika perlu */
+    function applyOffset(i, sec, opts) {
+      opts = opts || {};
+      if (!tracks[i]) return;
+      sec = Math.max(0, Number(sec) || 0);
+      if (!isFinite(sec)) return;
+      tracks[i].offset = sec;
+      // Update label & inputs tanpa full re-render (jaga fokus input teks)
+      var durEl = listEl.querySelectorAll(".amx-track-dur")[i];
+      if (durEl && tracks[i].buffer) {
+        var lab = sec > 0.05 ? " @" + fmt(sec) : "";
+        durEl.textContent = fmt(tracks[i].buffer.duration) + lab;
+      }
+      var range = listEl.querySelector('input[data-act="off"][data-i="' + i + '"]');
+      if (range) {
+        var mx = Number(range.max) || 60;
+        if (sec > mx) {
+          range.max = String(Math.ceil(sec) + 30);
+        }
+        if (!opts.fromRange) range.value = String(sec.toFixed(1));
+      }
+      var text = listEl.querySelector('input[data-act="off-text"][data-i="' + i + '"]');
+      if (text && !opts.fromText) text.value = fmt(sec);
+      updateTransportUI();
+      if (isPlaying && !isRecording) {
+        var head = currentPlayhead();
+        stopPlayback(true);
+        playhead = head;
+        playAll();
+      }
+      if (opts.status !== false) {
+        setStatus("T" + (i + 1) + " mulai @" + fmt(sec));
+      }
     }
 
     async function addFile(file) {
@@ -1324,6 +1394,7 @@
           t.closest("[data-amx]").getAttribute("data-amx"));
       if (t.matches && t.matches('input[data-amx="file"]')) return;
       if (t.matches && t.matches('input[type="range"]')) return;
+      if (t.matches && t.matches('input[type="text"]')) return;
       if (amx === "close") close();
       else if (amx === "rec") {
         if (isRecording) stopRec();
@@ -1433,7 +1504,7 @@
       if (!t || !t.getAttribute) return;
       var act = t.getAttribute("data-act");
       var i = Number(t.getAttribute("data-i"));
-      if (!tracks[i]) return;
+      if (!tracks[i] && act !== "off-text") return;
       if (act === "vol") {
         tracks[i].volume = Number(t.value) / 100;
         var lab = root.querySelector('[data-amx-volval="' + i + '"]');
@@ -1451,6 +1522,33 @@
           playhead = head;
           playAll();
         }
+      } else if (act === "off") {
+        applyOffset(i, Number(t.value), { fromRange: true, status: false });
+      }
+    });
+
+    // Offset teks: Enter / blur → parse m:ss
+    root.addEventListener("change", function (ev) {
+      var t = ev.target;
+      if (!t || !t.getAttribute) return;
+      if (t.getAttribute("data-act") !== "off-text") return;
+      var i = Number(t.getAttribute("data-i"));
+      if (!tracks[i]) return;
+      var sec = parseTime(t.value);
+      if (!isFinite(sec)) {
+        t.value = fmt(tracks[i].offset || 0);
+        setStatus("Format waktu: m:ss atau detik (contoh 0:03 / 3)");
+        return;
+      }
+      applyOffset(i, sec, { fromText: true });
+    });
+    root.addEventListener("keydown", function (ev) {
+      var t = ev.target;
+      if (!t || !t.getAttribute) return;
+      if (t.getAttribute("data-act") !== "off-text") return;
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        t.blur(); // trigger change
       }
     });
 
