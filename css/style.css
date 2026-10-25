@@ -5006,3 +5006,23 @@ small.chat-msg-time{font-size:11px;color:#8aa3ae}
   /* hanya dim — tidak menutup mixer */
   pointer-events:auto;
 }
+
+.amx-del:hover,.amx-del:focus{
+  color:#ff4d6d!important;
+  border-color:rgba(255,77,109,.7)!important;
+  background:rgba(255,40,80,.14)!important;
+}
+.amx-fold{
+  font-size:17px!important;
+  min-width:32px!important;
+  min-height:30px!important;
+  padding:2px 7px!important;
+  line-height:1!important;
+  font-weight:700!important;
+  color:#9fd9ef!important;
+}
+.amx-fold:hover{color:#fff!important;border-color:rgba(125,227,255,.55)!important}
+.amx-hist-btn:disabled{opacity:.4;cursor:not-allowed}
+.amx-foot-spacer{flex:1 1 auto;min-width:8px}
+.amx-foot{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.amx-trk-mark{font-weight:700!important;min-width:28px}

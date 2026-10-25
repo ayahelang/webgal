@@ -289,6 +289,9 @@
       '  <div class="amx-status muted" data-amx="status">Rekam / unggah track.</div>' +
       '  <div class="amx-tracks" data-amx="tracks"></div>' +
       '  <footer class="amx-foot">' +
+      '    <button type="button" class="btn btn-ghost amx-sm amx-hist-btn" data-amx="undo" title="Undo (kosong)" disabled>↶ Undo</button>' +
+      '    <button type="button" class="btn btn-ghost amx-sm amx-hist-btn" data-amx="redo" title="Redo (kosong)" disabled>↷ Redo</button>' +
+      '    <span class="amx-foot-spacer"></span>' +
       '    <button type="button" class="btn btn-ghost amx-sm" data-amx="close">Batal</button>' +
       '    <button type="button" class="btn btn-ghost amx-sm" data-amx="download-wav" title="Kualitas penuh">⬇ WAV</button>' +
       '    <button type="button" class="btn btn-ghost amx-sm" data-amx="download-mp3" title="MP3 128kbps (lamejs)">⬇ MP3</button>' +
@@ -299,6 +302,10 @@
     document.body.appendChild(root);
 
     var tracks = [];
+    var undoStack = [];
+    var redoStack = [];
+    var MAX_HISTORY = 5;
+    var historySuspended = false;
     var audioCtx = null;
     var playing = [];
     var liveGains = []; // {gain, wetGain?} for live volume while playing
@@ -395,6 +402,93 @@
 
     function setStatus(t) {
       if (statusEl) statusEl.textContent = t;
+    }
+
+    function cloneTracksState() {
+      return tracks.map(function (tr) {
+        return {
+          buffer: tr.buffer,
+          name: tr.name,
+          muted: !!tr.muted,
+          solo: !!tr.solo,
+          offset: tr.offset || 0,
+          volume: typeof tr.volume === "number" ? tr.volume : 1,
+          reverb: typeof tr.reverb === "number" ? tr.reverb : 0,
+          semitones: typeof tr.semitones === "number" ? tr.semitones : 0,
+          refTrack: typeof tr.refTrack === "number" ? tr.refTrack : -1,
+          expanded: !!tr.expanded,
+          balance: typeof tr.balance === "number" ? tr.balance : 0,
+          trimIn: typeof tr.trimIn === "number" ? tr.trimIn : 0,
+          trimOut: tr.trimOut == null ? null : tr.trimOut,
+        };
+      });
+    }
+    function pushHistory() {
+      if (historySuspended) return;
+      undoStack.push(cloneTracksState());
+      if (undoStack.length > MAX_HISTORY) undoStack.shift();
+      redoStack = [];
+      updateHistoryButtons();
+    }
+    function restoreTracksState(snap) {
+      historySuspended = true;
+      stopPlayback(true);
+      tracks = snap.map(function (s) {
+        return {
+          buffer: s.buffer,
+          name: s.name,
+          muted: s.muted,
+          solo: s.solo,
+          offset: s.offset,
+          volume: s.volume,
+          reverb: s.reverb,
+          semitones: s.semitones,
+          refTrack: s.refTrack,
+          expanded: s.expanded,
+          balance: s.balance,
+          trimIn: s.trimIn,
+          trimOut: s.trimOut,
+        };
+      });
+      historySuspended = false;
+      renderTracks();
+      updateHistoryButtons();
+    }
+    function undo() {
+      if (!undoStack.length) {
+        setStatus("Tidak ada undo.");
+        return;
+      }
+      redoStack.push(cloneTracksState());
+      if (redoStack.length > MAX_HISTORY) redoStack.shift();
+      restoreTracksState(undoStack.pop());
+      setStatus("Undo · sisa " + undoStack.length);
+    }
+    function redo() {
+      if (!redoStack.length) {
+        setStatus("Tidak ada redo.");
+        return;
+      }
+      undoStack.push(cloneTracksState());
+      if (undoStack.length > MAX_HISTORY) undoStack.shift();
+      restoreTracksState(redoStack.pop());
+      setStatus("Redo · sisa " + redoStack.length);
+    }
+    function updateHistoryButtons() {
+      var u = root.querySelector('[data-amx="undo"]');
+      var r = root.querySelector('[data-amx="redo"]');
+      if (u) {
+        u.disabled = !undoStack.length;
+        u.title = undoStack.length
+          ? "Undo (" + undoStack.length + "/" + MAX_HISTORY + ")"
+          : "Undo (kosong)";
+      }
+      if (r) {
+        r.disabled = !redoStack.length;
+        r.title = redoStack.length
+          ? "Redo (" + redoStack.length + "/" + MAX_HISTORY + ")"
+          : "Redo (kosong)";
+      }
     }
 
     function trackTrimIn(tr) {
@@ -1127,16 +1221,16 @@
           '" title="Klik: play/pause · tekan lama: stop">' +
           (soloPlayIdx === idx && isPlaying ? "⏸" : "▶") +
           "</button>" +
-          '<button type="button" class="btn btn-ghost amx-xs" data-act="del" data-i="' +
+          '<button type="button" class="btn btn-ghost amx-xs amx-del" data-act="del" data-i="' +
           idx +
-          '">✕</button>' +
+          '" title="Hapus track">✕</button>' +
           "</div>" +
-          '<button type="button" class="btn btn-ghost amx-xs amx-fold" data-act="fold" data-i="' +
+          '<button type="button" class="btn btn-ghost amx-fold" data-act="fold" data-i="' +
           idx +
           '" title="' +
-          (tr.expanded ? "Lipat (hanya judul + aksi)" : "Buka detail") +
+          (tr.expanded ? "Ciutkan track" : "Bentangkan track") +
           '">' +
-          (tr.expanded ? "▴" : "▾") +
+          (tr.expanded ? "⊟" : "⊞") +
           "</button>" +
           "</div>" +
           '<div class="amx-track-playhead amx-detail-block" data-act="trk-scrub" data-i="' +
@@ -1251,6 +1345,12 @@
           refOpts +
           "</select></label>" +
           '<div class="amx-harm-suggest">' +
+          '<button type="button" class="btn btn-ghost amx-xs amx-trk-mark" data-act="trk-mark-in" data-i="' +
+          idx +
+          '" title="Mark In di playhead (knob hijau)">In</button>' +
+          '<button type="button" class="btn btn-ghost amx-xs amx-trk-mark" data-act="trk-mark-out" data-i="' +
+          idx +
+          '" title="Mark Out di playhead (knob merah)">Out</button>' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s2up" data-i="' +
           idx +
           '" title="S2 naik">S2↑</button>' +
@@ -1281,6 +1381,7 @@
         setStatus("Maks. " + MAX_TRACKS + " track.");
         return false;
       }
+      pushHistory();
       tracks.push({
         id: "t" + Date.now() + Math.random().toString(36).slice(2, 6),
         name: name || "Track " + (tracks.length + 1),
@@ -1974,6 +2075,8 @@
         return;
       }
       if (amx === "close") close();
+      else if (amx === "undo") undo();
+      else if (amx === "redo") redo();
       else if (amx === "rec") {
         if (isRecording) stopRec();
         else startRec();
@@ -2028,6 +2131,38 @@
 
       var act = t.getAttribute("data-act");
       if (act === "rename" || act === "harm" || act === "ref") return;
+      if (act === "trk-mark-in") {
+        var mi = Number(t.getAttribute("data-i"));
+        var tm = tracks[mi];
+        if (!tm || !tm.buffer) return;
+        pushHistory();
+        var ad = trackActiveDur(tm);
+        var loc = currentPlayhead() - (tm.offset || 0);
+        loc = Math.max(0, Math.min(ad, loc));
+        var bufPos = trackTrimIn(tm) + loc;
+        if (currentPlayhead() < (tm.offset || 0)) bufPos = trackTrimIn(tm);
+        bufPos = Math.max(0, Math.min(trackTrimOut(tm) - 0.05, bufPos));
+        tm.trimIn = bufPos;
+        updateTransportUI();
+        setStatus("T" + (mi + 1) + " Mark In @ " + fmt(tm.trimIn));
+        return;
+      }
+      if (act === "trk-mark-out") {
+        var mo = Number(t.getAttribute("data-i"));
+        var tmo = tracks[mo];
+        if (!tmo || !tmo.buffer) return;
+        pushHistory();
+        var ad2 = trackActiveDur(tmo);
+        var loc2 = currentPlayhead() - (tmo.offset || 0);
+        loc2 = Math.max(0, Math.min(ad2, loc2));
+        var bufPos2 = trackTrimIn(tmo) + loc2;
+        if (currentPlayhead() > (tmo.offset || 0) + ad2) bufPos2 = trackTrimOut(tmo);
+        bufPos2 = Math.max(trackTrimIn(tmo) + 0.05, Math.min(tmo.buffer.duration, bufPos2));
+        tmo.trimOut = bufPos2;
+        updateTransportUI();
+        setStatus("T" + (mo + 1) + " Mark Out @ " + fmt(tmo.trimOut));
+        return;
+      }
       if (act === "harm-s2up") {
         applyHarmonySuggestion(Number(t.getAttribute("data-i")), "s2up");
         return;
@@ -2137,8 +2272,10 @@
         var hout = ev.target.closest && ev.target.closest("[data-amx-trim-out]");
         var bar = ev.target.closest && ev.target.closest(".amx-track-playhead");
         if (hin) {
+          pushHistory();
           drag = { i: Number(hin.getAttribute("data-amx-trim-in")), mode: "in" };
         } else if (hout) {
+          pushHistory();
           drag = { i: Number(hout.getAttribute("data-amx-trim-out")), mode: "out" };
         } else if (bar) {
           drag = { i: Number(bar.getAttribute("data-i")), mode: "scrub" };
