@@ -761,6 +761,10 @@
           reg.style.left = pin * 100 + "%";
           reg.style.width = Math.max(0, (pout - pin) * 100) + "%";
         }
+        var tinLab = listEl.querySelector('[data-amx-mark-in-t="' + idx + '"]');
+        var toutLab = listEl.querySelector('[data-amx-mark-out-t="' + idx + '"]');
+        if (tinLab) tinLab.textContent = fmt(tIn);
+        if (toutLab) toutLab.textContent = fmt(tOut);
       }
     }
 
@@ -1258,6 +1262,24 @@
           "</div>" +
           '<div class="amx-track-grid amx-detail-block">' +
           '<div class="amx-track-col-l">' +
+          '<div class="amx-row-mark">' +
+          '<button type="button" class="btn btn-ghost amx-xs amx-trk-mark amx-trk-mark-in" data-act="trk-mark-in" data-i="' +
+          idx +
+          '" title="Mark In di playhead">In</button>' +
+          '<span class="amx-mark-time amx-mark-time-in" data-amx-mark-in-t="' +
+          idx +
+          '">' +
+          fmt(trackTrimIn(tr)) +
+          "</span>" +
+          '<button type="button" class="btn btn-ghost amx-xs amx-trk-mark amx-trk-mark-out" data-act="trk-mark-out" data-i="' +
+          idx +
+          '" title="Mark Out di playhead">Out</button>' +
+          '<span class="amx-mark-time amx-mark-time-out" data-amx-mark-out-t="' +
+          idx +
+          '">' +
+          fmt(trackTrimOut(tr)) +
+          "</span>" +
+          "</div>" +
           '<div class="amx-row-bal">' +
           '<label class="amx-slider-lab amx-bal-lab" title="Balance kiri/kanan (−100 … +100)">' +
           'Bal <input type="range" min="-100" max="100" value="' +
@@ -1345,12 +1367,6 @@
           refOpts +
           "</select></label>" +
           '<div class="amx-harm-suggest">' +
-          '<button type="button" class="btn btn-ghost amx-xs amx-trk-mark" data-act="trk-mark-in" data-i="' +
-          idx +
-          '" title="Mark In di playhead (knob hijau)">In</button>' +
-          '<button type="button" class="btn btn-ghost amx-xs amx-trk-mark" data-act="trk-mark-out" data-i="' +
-          idx +
-          '" title="Mark Out di playhead (knob merah)">Out</button>' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s2up" data-i="' +
           idx +
           '" title="S2 naik">S2↑</button>' +
@@ -2450,6 +2466,72 @@
       }, true);
     })();
 
+
+
+    // Double-click knob region → pindah ke playhead
+    root.addEventListener("dblclick", function (ev) {
+      var t = ev.target;
+      if (!t || !t.closest) return;
+      // Main timeline handles
+      var hIn = t.closest("[data-amx=handle-in]");
+      var hOut = t.closest("[data-amx=handle-out]");
+      if (hIn) {
+        regionIn = Math.max(0, currentPlayhead());
+        if (regionOut != null && regionIn > regionOut) {
+          regionOut = Math.min(maxDur(), regionIn + 0.5);
+        }
+        updateTransportUI();
+        setStatus("Mark In (dblclick) @ " + fmt(regionIn));
+        ev.preventDefault();
+        return;
+      }
+      if (hOut) {
+        regionOut = Math.max(0, currentPlayhead());
+        if (regionOut < regionIn) {
+          regionIn = Math.max(0, regionOut - 0.5);
+        }
+        updateTransportUI();
+        setStatus("Mark Out (dblclick) @ " + fmt(regionOut));
+        ev.preventDefault();
+        return;
+      }
+      // Per-track trim knobs
+      var tin = t.closest("[data-amx-trim-in]");
+      var tout = t.closest("[data-amx-trim-out]");
+      if (tin) {
+        var i = Number(tin.getAttribute("data-amx-trim-in"));
+        if (!tracks[i] || !tracks[i].buffer) return;
+        pushHistory();
+        var tm = tracks[i];
+        var ad = trackActiveDur(tm);
+        var loc = currentPlayhead() - (tm.offset || 0);
+        loc = Math.max(0, Math.min(ad, loc));
+        var bufPos = trackTrimIn(tm) + loc;
+        if (currentPlayhead() < (tm.offset || 0)) bufPos = trackTrimIn(tm);
+        bufPos = Math.max(0, Math.min(trackTrimOut(tm) - 0.05, bufPos));
+        tm.trimIn = bufPos;
+        updateTransportUI();
+        setStatus("T" + (i + 1) + " In → playhead @ " + fmt(tm.trimIn));
+        ev.preventDefault();
+        return;
+      }
+      if (tout) {
+        var j = Number(tout.getAttribute("data-amx-trim-out"));
+        if (!tracks[j] || !tracks[j].buffer) return;
+        pushHistory();
+        var tmo = tracks[j];
+        var ad2 = trackActiveDur(tmo);
+        var loc2 = currentPlayhead() - (tmo.offset || 0);
+        loc2 = Math.max(0, Math.min(ad2, loc2));
+        var bufPos2 = trackTrimIn(tmo) + loc2;
+        if (currentPlayhead() > (tmo.offset || 0) + ad2) bufPos2 = trackTrimOut(tmo);
+        bufPos2 = Math.max(trackTrimIn(tmo) + 0.05, Math.min(tmo.buffer.duration, bufPos2));
+        tmo.trimOut = bufPos2;
+        updateTransportUI();
+        setStatus("T" + (j + 1) + " Out → playhead @ " + fmt(tmo.trimOut));
+        ev.preventDefault();
+      }
+    });
 
     // Harmoni + patokan
     root.addEventListener("change", function (ev) {

@@ -5026,3 +5026,26 @@ small.chat-msg-time{font-size:11px;color:#8aa3ae}
 .amx-foot-spacer{flex:1 1 auto;min-width:8px}
 .amx-foot{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
 .amx-trk-mark{font-weight:700!important;min-width:28px}
+
+/* Mark In/Out di atas Bal + peak */
+.amx-row-mark{
+  display:flex;align-items:center;gap:4px;
+  margin-bottom:2px;min-width:0;
+}
+.amx-trk-mark{
+  font-weight:700!important;min-width:28px;
+  padding:1px 6px!important;min-height:22px;
+}
+.amx-trk-mark-in{color:#3ddc84!important;border-color:rgba(61,220,132,.4)!important}
+.amx-trk-mark-out{color:#ff8a9a!important;border-color:rgba(255,100,120,.4)!important}
+.amx-mark-time{
+  font-size:10px;font-weight:700;
+  font-variant-numeric:tabular-nums;
+  min-width:32px;color:#9fd9ef;
+}
+.amx-mark-time-in{color:#7dffb0}
+.amx-mark-time-out{color:#ff8a9a}
+.amx-track-trim-in,.amx-track-trim-out,
+.amx-handle-in,.amx-handle-out{
+  /* petunjuk: dobel-klik → playhead */
+}
