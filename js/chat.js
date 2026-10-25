@@ -24,10 +24,7 @@
   let typingTimer = null;
   let allMessages = [];
   let chatReactionsMap = {}; // messageId -> [{id,emoji,author_name,author_user_id}]
-  const CHAT_REACT_POSITIVE = [
-    "👍", "❤️", "😂", "😮", "🙏", "🔥", "👏", "🎉", "✅", "💯", "😍", "🤩",
-    "🥰", "😎", "🤗", "💖", "✨", "🌟", "💪", "🤝", "😊", "🥳"
-  ];
+  const CHAT_REACT_POSITIVE = ["👍", "❤️", "😂", "😮", "🙏", "🔥", "👏", "🎉", "✅", "💯", "😍", "🤩"];
   const CHAT_REACT_NEGATIVE = ["👎", "😡", "🤬", "😢", "😭", "🤮", "💩", "👎", "😒", "😤", "🤢", "☠️"];
   // unique order for picker (pos then neg)
   const CHAT_REACT_EMOJIS = (function () {

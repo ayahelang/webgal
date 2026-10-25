@@ -4557,3 +4557,17 @@ button.chat-msg-time.is-edited:hover{
 }
 small.chat-msg-time{font-size:11px;color:#8aa3ae}
 
+.chat-avatar-picker.is-hint{
+  outline:2px solid rgba(125,227,255,.75);
+  box-shadow:0 0 0 4px rgba(125,227,255,.2),0 8px 22px rgba(0,0,0,.45);
+  animation:avHintPulse .9s ease 2;
+}
+.chat-avatar-toggle.is-hint-pulse{
+  outline:2px solid rgba(125,227,255,.7);
+  box-shadow:0 0 0 3px rgba(125,227,255,.25);
+}
+@keyframes avHintPulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.01)}
+}
+
