@@ -4894,7 +4894,42 @@ small.chat-msg-time{font-size:11px;color:#8aa3ae}
 .amx-track-col-r .amx-slider-lab{width:100%}
 .amx-harm-sel,.amx-ref-sel{width:100%;max-width:100%}
 .amx-harm-suggest{display:flex;flex-wrap:wrap;gap:3px}
-.amx-track.is-collapsed .amx-detail-row{display:none!important}
+/* superseded: collapse hides .amx-detail-block */
 @media (max-width:420px){
   .amx-track-grid{grid-template-columns:1fr}
 }
+
+/* Playhead per-track */
+.amx-track-playhead{
+  position:relative;
+  height:10px;
+  margin:2px 0 8px;
+  border-radius:999px;
+  background:rgba(125,227,255,.12);
+  border:1px solid rgba(125,227,255,.22);
+  cursor:pointer;
+  overflow:visible;
+}
+.amx-track-playhead-fill{
+  position:absolute;left:0;top:0;bottom:0;
+  width:0%;
+  border-radius:999px;
+  background:linear-gradient(90deg,#2ec4ff,#5ee7a0);
+  pointer-events:none;
+}
+.amx-track-playhead-knob{
+  position:absolute;top:50%;left:0%;
+  width:12px;height:12px;
+  margin:-6px 0 0 -6px;
+  border-radius:50%;
+  background:#7de3ff;
+  box-shadow:0 0 0 2px rgba(8,16,24,.85);
+  pointer-events:none;
+  z-index:2;
+}
+/* Minimize: hanya baris title + aksi kanan */
+.amx-track.is-collapsed .amx-detail-block{display:none!important}
+.amx-track.is-collapsed{
+  padding-bottom:6px;
+}
+.amx-track.is-collapsed .amx-track-hd{margin-bottom:0}

@@ -621,6 +621,8 @@
         var tr = tracks[idx];
         if (!tr || !tr.buffer) {
           el.style.width = "0%";
+          var kn0 = listEl.querySelector('[data-amx-prog-knob="' + idx + '"]');
+          if (kn0) kn0.style.left = "0%";
           continue;
         }
         var off = tr.offset || 0;
@@ -630,6 +632,8 @@
         else if (local >= tr.buffer.duration) p = 1;
         else p = local / tr.buffer.duration;
         el.style.width = p * 100 + "%";
+        var kn = listEl.querySelector('[data-amx-prog-knob="' + idx + '"]');
+        if (kn) kn.style.left = p * 100 + "%";
       }
     }
 
@@ -1094,12 +1098,22 @@
           '<button type="button" class="btn btn-ghost amx-xs amx-fold" data-act="fold" data-i="' +
           idx +
           '" title="' +
-          (tr.expanded ? "Lipat" : "Buka detail") +
+          (tr.expanded ? "Lipat (hanya judul + aksi)" : "Buka detail") +
           '">' +
           (tr.expanded ? "▴" : "▾") +
           "</button>" +
           "</div>" +
-          '<div class="amx-track-grid">' +
+          '<div class="amx-track-playhead amx-detail-block" data-act="trk-scrub" data-i="' +
+          idx +
+          '" title="Playhead track — klik/geser untuk seek">' +
+          '<div class="amx-track-playhead-fill" data-amx-prog="' +
+          idx +
+          '"></div>' +
+          '<div class="amx-track-playhead-knob" data-amx-prog-knob="' +
+          idx +
+          '"></div>' +
+          "</div>" +
+          '<div class="amx-track-grid amx-detail-block">' +
           '<div class="amx-track-col-l">' +
           '<div class="amx-row-bal">' +
           '<label class="amx-slider-lab amx-bal-lab" title="Balance kiri/kanan (−100 … +100)">' +
@@ -1125,7 +1139,7 @@
           '">' +
           Math.round(vol * 100) +
           "%</span></label>" +
-          '<label class="amx-slider-lab amx-offset-lab amx-detail-row" title="Waktu mulai">' +
+          '<label class="amx-slider-lab amx-offset-lab" title="Waktu mulai">' +
           '<input type="text" class="amx-off-input" data-act="off-text" data-i="' +
           idx +
           '" value="' +
@@ -1138,7 +1152,7 @@
           '" data-act="off" data-i="' +
           idx +
           '"></label>' +
-          '<label class="amx-slider-lab amx-detail-row" title="Reverb">Rev <input type="range" min="0" max="100" value="' +
+          '<label class="amx-slider-lab" title="Reverb">Rev <input type="range" min="0" max="100" value="' +
           Math.round(rev * 100) +
           '" data-act="rev" data-i="' +
           idx +
@@ -1187,7 +1201,7 @@
           '">' +
           refOpts +
           "</select></label>" +
-          '<div class="amx-harm-suggest amx-detail-row">' +
+          '<div class="amx-harm-suggest">' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s2up" data-i="' +
           idx +
           '" title="S2 naik">S2↑</button>' +
@@ -1986,6 +2000,16 @@
           tracks[fi].expanded = !tracks[fi].expanded;
           renderTracks();
         }
+      } else if (act === "trk-scrub") {
+        var si = Number(t.getAttribute("data-i"));
+        var trs = tracks[si];
+        if (!trs || !trs.buffer) return;
+        var box = t.closest ? t.closest("[data-act=trk-scrub]") || t : t;
+        var rect = box.getBoundingClientRect();
+        var x = (ev.clientX - rect.left) / Math.max(1, rect.width);
+        x = Math.max(0, Math.min(1, x));
+        var abs = (trs.offset || 0) + x * trs.buffer.duration;
+        seekTo(abs);
       }
     };
 
