@@ -291,8 +291,8 @@
       '  <div class="amx-status muted" data-amx="status">Rekam / unggah track.</div>' +
       '  <div class="amx-tracks" data-amx="tracks"></div>' +
       '  <footer class="amx-foot">' +
-      '    <button type="button" class="btn btn-ghost amx-sm amx-hist-btn" data-amx="undo" title="Undo (kosong)" disabled>↶ Undo</button>' +
-      '    <button type="button" class="btn btn-ghost amx-sm amx-hist-btn" data-amx="redo" title="Redo (kosong)" disabled>↷ Redo</button>' +
+      '    <button type="button" class="btn btn-ghost amx-sm amx-hist-btn" data-amx="undo" title="Undo (kosong)" disabled aria-label="Undo">↶</button>' +
+      '    <button type="button" class="btn btn-ghost amx-sm amx-hist-btn" data-amx="redo" title="Redo (kosong)" disabled aria-label="Redo">↷</button>' +
       '    <span class="amx-foot-spacer"></span>' +
       '    <button type="button" class="btn btn-ghost amx-sm" data-amx="close">Batal</button>' +
       '    <button type="button" class="btn btn-ghost amx-sm" data-amx="download-wav" title="Kualitas penuh">⬇ WAV</button>' +
@@ -427,6 +427,35 @@
         };
       });
     }
+
+    function duplicateTrack(i) {
+      if (!tracks[i] || !tracks[i].buffer) return;
+      if (tracks.length >= MAX_TRACKS) {
+        setStatus("Maks " + MAX_TRACKS + " track.");
+        return;
+      }
+      pushHistory();
+      var src = tracks[i];
+      var copy = {
+        buffer: src.buffer,
+        name: (src.name || "Track " + (i + 1)) + " (copy)",
+        muted: !!src.muted,
+        solo: false,
+        offset: src.offset || 0,
+        volume: typeof src.volume === "number" ? src.volume : 1,
+        reverb: typeof src.reverb === "number" ? src.reverb : 0,
+        semitones: typeof src.semitones === "number" ? src.semitones : 0,
+        refTrack: typeof src.refTrack === "number" ? src.refTrack : -1,
+        expanded: !!src.expanded,
+        balance: typeof src.balance === "number" ? src.balance : 0,
+        trimIn: typeof src.trimIn === "number" ? src.trimIn : 0,
+        trimOut: src.trimOut == null ? null : src.trimOut,
+      };
+      tracks.splice(i + 1, 0, copy);
+      renderTracks();
+      setStatus("T" + (i + 1) + " diduplikasi → T" + (i + 2));
+    }
+
     function pushHistory() {
       if (historySuspended) return;
       undoStack.push(cloneTracksState());
@@ -1186,12 +1215,12 @@
         });
         row.innerHTML =
           '<div class="amx-track-hd">' +
-          '<span class="amx-track-idx">T' +
+          '<span class="amx-track-idx" title="Dobel-klik: duplikasi track">T' +
           (idx + 1) +
           "</span>" +
           '<span class="amx-track-name" contenteditable="true" spellcheck="false" data-act="rename" data-i="' +
           idx +
-          '" title="Klik untuk ganti nama track">' +
+          '" title="Klik: ganti nama · dobel-klik: duplikasi track">' +
           escHtml(
             String(tr.name || "Track " + (idx + 1)).replace(/\s*@\d+:\d{2}\s*$/, "").trim() ||
               "Track " + (idx + 1)
