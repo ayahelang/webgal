@@ -5049,3 +5049,57 @@ small.chat-msg-time{font-size:11px;color:#8aa3ae}
 .amx-handle-in,.amx-handle-out{
   /* petunjuk: dobel-klik → playhead */
 }
+
+/* Mark In/Out utama: hijau & merah seperti track */
+.amx-mark-btn-in{
+  color:#3ddc84!important;
+  border-color:rgba(61,220,132,.45)!important;
+  font-weight:700!important;
+}
+.amx-mark-btn-out{
+  color:#ff8a9a!important;
+  border-color:rgba(255,100,120,.45)!important;
+  font-weight:700!important;
+}
+.amx-region-time{
+  width:48px;min-width:44px;
+  font-size:11px;font-weight:700;
+  font-variant-numeric:tabular-nums;
+  text-align:center;
+  padding:2px 4px;
+  border-radius:6px;
+  border:1px solid rgba(125,227,255,.28);
+  background:rgba(0,0,0,.35);
+  color:#cfefff;
+}
+.amx-region-time-in{color:#7dffb0!important;border-color:rgba(61,220,132,.4)!important}
+.amx-region-time-out{color:#ff8a9a!important;border-color:rgba(255,100,120,.4)!important}
+.amx-handle-in{
+  background:linear-gradient(180deg,#9dffc0,#2ecc71)!important;
+  width:12px!important;height:22px!important;
+  margin-left:-6px!important;
+  border-radius:3px!important;
+  z-index:5;
+  box-shadow:0 0 0 1px rgba(0,0,0,.4);
+}
+.amx-handle-out{
+  background:linear-gradient(180deg,#ff9aab,#e04860)!important;
+  width:12px!important;height:22px!important;
+  margin-left:-6px!important;
+  border-radius:3px!important;
+  z-index:5;
+  box-shadow:0 0 0 1px rgba(0,0,0,.4);
+}
+.amx-mark-time{
+  width:44px;min-width:40px;
+  font-size:10px;font-weight:700;
+  font-variant-numeric:tabular-nums;
+  text-align:center;
+  padding:2px 3px;
+  border-radius:5px;
+  border:1px solid rgba(125,227,255,.25);
+  background:rgba(0,0,0,.3);
+}
+.amx-mark-time-in{color:#7dffb0!important;border-color:rgba(61,220,132,.4)!important}
+.amx-mark-time-out{color:#ff8a9a!important;border-color:rgba(255,100,120,.4)!important}
+.amx-trk-mark{font-size:10px!important;padding:1px 5px!important;white-space:nowrap}

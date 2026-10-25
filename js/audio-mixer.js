@@ -270,18 +270,20 @@
       "    </div>" +
       "  </div>" +
       '  <div class="amx-region-tools">' +
-      '    <button type="button" class="btn btn-ghost amx-xs" data-amx="mark-in" title="Set titik awal export di playhead">Mark In</button>' +
-      '    <button type="button" class="btn btn-ghost amx-xs" data-amx="mark-out" title="Set titik akhir export di playhead">Mark Out</button>' +
+      '    <button type="button" class="btn btn-ghost amx-xs amx-mark-btn-in" data-amx="mark-in" title="Set Mark In di playhead">Mark In</button>' +
+      '    <input type="text" class="amx-region-time amx-region-time-in" data-amx="region-in-text" value="0:00" inputmode="numeric" title="Ketik Mark In (m:ss) + Enter">' +
+      '    <button type="button" class="btn btn-ghost amx-xs amx-mark-btn-out" data-amx="mark-out" title="Set Mark Out di playhead">Mark Out</button>' +
+      '    <input type="text" class="amx-region-time amx-region-time-out" data-amx="region-out-text" value="0:00" inputmode="numeric" title="Ketik Mark Out (m:ss) + Enter">' +
       '    <button type="button" class="btn btn-ghost amx-xs" data-amx="region-reset" title="Reset region ke seluruh durasi">Reset</button>' +
-      '    <span class="muted amx-region-label" data-amx="region-label">Region: penuh</span>' +
+      '    <span class="muted amx-region-label" data-amx="region-label"></span>' +
       "  </div>" +
       '  <div class="amx-scrub-row">' +
       '    <span class="amx-clock" data-amx="clock">0:00</span>' +
       '    <div class="amx-timeline amx-timeline-wide" data-amx="timeline" title="Klik/geser seek · tarik pegangan In/Out">' +
       '      <div class="amx-region" data-amx="region"></div>' +
       '      <div class="amx-timeline-fill" data-amx="tfill"></div>' +
-      '      <div class="amx-handle amx-handle-in" data-amx="handle-in" title="Awal region"></div>' +
-      '      <div class="amx-handle amx-handle-out" data-amx="handle-out" title="Akhir region"></div>' +
+      '      <div class="amx-handle amx-handle-in" data-amx="handle-in" title="Mark In · dobel-klik → playhead"></div>' +
+      '      <div class="amx-handle amx-handle-out" data-amx="handle-out" title="Mark Out · dobel-klik → playhead"></div>' +
       '      <div class="amx-timeline-head" data-amx="thead"></div>' +
       "    </div>" +
       '    <span class="amx-clock amx-clock-end" data-amx="clock-end">0:00</span>' +
@@ -334,6 +336,8 @@
     var regionEl = root.querySelector("[data-amx=region]");
     var handleInEl = root.querySelector("[data-amx=handle-in]");
     var handleOutEl = root.querySelector("[data-amx=handle-out]");
+    var regionInTextEl = root.querySelector("[data-amx=region-in-text]");
+    var regionOutTextEl = root.querySelector("[data-amx=region-out-text]");
     var meterRaf = 0;
     var meterAnalyser = null;
     var meterSource = null;
@@ -716,13 +720,13 @@
       if (total > 0 && handleOutEl) handleOutEl.style.left = (reg.end / total) * 100 + "%";
       if (regionLabelEl) {
         regionLabelEl.textContent =
-          "In " +
-          fmt(reg.start) +
-          " · Out " +
-          fmt(reg.end) +
-          " · " +
-          fmt(reg.dur) +
-          (reg.dur >= reg.total - 0.05 ? " (penuh)" : "");
+          fmt(reg.dur) + (reg.dur >= reg.total - 0.05 ? " (penuh)" : "");
+      }
+      if (regionInTextEl && document.activeElement !== regionInTextEl) {
+        regionInTextEl.value = fmt(reg.start);
+      }
+      if (regionOutTextEl && document.activeElement !== regionOutTextEl) {
+        regionOutTextEl.value = fmt(reg.end);
       }
 
       var bars = listEl ? listEl.querySelectorAll("[data-amx-prog]") : [];
@@ -763,8 +767,8 @@
         }
         var tinLab = listEl.querySelector('[data-amx-mark-in-t="' + idx + '"]');
         var toutLab = listEl.querySelector('[data-amx-mark-out-t="' + idx + '"]');
-        if (tinLab) tinLab.textContent = fmt(tIn);
-        if (toutLab) toutLab.textContent = fmt(tOut);
+        if (tinLab && document.activeElement !== tinLab) tinLab.value = fmt(tIn);
+        if (toutLab && document.activeElement !== toutLab) toutLab.value = fmt(tOut);
       }
     }
 
@@ -1253,32 +1257,36 @@
           idx +
           '" data-act="trk-trim-in" data-i="' +
           idx +
-          '" title="Awal region track (buang bagian kotor di depan)"></div>' +
+          '" title="Mark In track · dobel-klik → playhead"></div>' +
           '<div class="amx-track-trim-out" data-amx-trim-out="' +
           idx +
           '" data-act="trk-trim-out" data-i="' +
           idx +
-          '" title="Akhir region track (buang bagian kotor di belakang)"></div>' +
+          '" title="Mark Out track · dobel-klik → playhead"></div>' +
           "</div>" +
           '<div class="amx-track-grid amx-detail-block">' +
           '<div class="amx-track-col-l">' +
           '<div class="amx-row-mark">' +
           '<button type="button" class="btn btn-ghost amx-xs amx-trk-mark amx-trk-mark-in" data-act="trk-mark-in" data-i="' +
           idx +
-          '" title="Mark In di playhead">In</button>' +
-          '<span class="amx-mark-time amx-mark-time-in" data-amx-mark-in-t="' +
+          '" title="Mark In di playhead">Mark In</button>' +
+          '<input type="text" class="amx-mark-time amx-mark-time-in" data-act="trk-mark-in-text" data-i="' +
           idx +
-          '">' +
+          '" data-amx-mark-in-t="' +
+          idx +
+          '" value="' +
           fmt(trackTrimIn(tr)) +
-          "</span>" +
+          '" inputmode="numeric" title="Ketik Mark In (m:ss) + Enter">' +
           '<button type="button" class="btn btn-ghost amx-xs amx-trk-mark amx-trk-mark-out" data-act="trk-mark-out" data-i="' +
           idx +
-          '" title="Mark Out di playhead">Out</button>' +
-          '<span class="amx-mark-time amx-mark-time-out" data-amx-mark-out-t="' +
+          '" title="Mark Out di playhead">Mark Out</button>' +
+          '<input type="text" class="amx-mark-time amx-mark-time-out" data-act="trk-mark-out-text" data-i="' +
           idx +
-          '">' +
+          '" data-amx-mark-out-t="' +
+          idx +
+          '" value="' +
           fmt(trackTrimOut(tr)) +
-          "</span>" +
+          '" inputmode="numeric" title="Ketik Mark Out (m:ss) + Enter">' +
           "</div>" +
           '<div class="amx-row-bal">' +
           '<label class="amx-slider-lab amx-bal-lab" title="Balance kiri/kanan (−100 … +100)">' +
@@ -1988,6 +1996,52 @@
       handle.addEventListener("pointercancel", endDrag);
     })();
 
+
+    function applyRegionInText() {
+      if (!regionInTextEl) return;
+      var sec = parseClock(regionInTextEl.value);
+      if (sec == null) {
+        regionInTextEl.value = fmt(getRegion().start);
+        return;
+      }
+      regionIn = Math.max(0, Math.min(maxDur(), sec));
+      if (regionOut != null && regionIn > regionOut) regionOut = Math.min(maxDur(), regionIn + 0.5);
+      updateTransportUI();
+      setStatus("Mark In @ " + fmt(regionIn));
+    }
+    function applyRegionOutText() {
+      if (!regionOutTextEl) return;
+      var sec = parseClock(regionOutTextEl.value);
+      if (sec == null) {
+        regionOutTextEl.value = fmt(getRegion().end);
+        return;
+      }
+      regionOut = Math.max(0, Math.min(maxDur(), sec));
+      if (regionOut < regionIn) regionIn = Math.max(0, regionOut - 0.5);
+      updateTransportUI();
+      setStatus("Mark Out @ " + fmt(regionOut));
+    }
+    if (regionInTextEl) {
+      regionInTextEl.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          applyRegionInText();
+          regionInTextEl.blur();
+        }
+      });
+      regionInTextEl.addEventListener("change", applyRegionInText);
+    }
+    if (regionOutTextEl) {
+      regionOutTextEl.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          applyRegionOutText();
+          regionOutTextEl.blur();
+        }
+      });
+      regionOutTextEl.addEventListener("change", applyRegionOutText);
+    }
+
     // Full Mixer: pastikan buka tab baru (header drag tidak menelan klik)
     (function bindPromo() {
       var a = root.querySelector("a[data-amx=promo], a.amx-promo");
@@ -2030,6 +2084,7 @@
         }
         updateTransportUI();
       }
+      var lastHandleTap = { key: "", t: 0 };
       timelineEl.addEventListener("pointerdown", function (ev) {
         if (isRecording) return;
         var t = ev.target;
@@ -2037,8 +2092,32 @@
         if (hEl) {
           var h = hEl.getAttribute("data-amx");
           dragHandle = h === "handle-in" ? "in" : h === "handle-out" ? "out" : null;
+          // double-tap detection (dblclick sering gagal karena pointer capture)
+          var now = Date.now();
+          if (dragHandle && lastHandleTap.key === dragHandle && now - lastHandleTap.t < 380) {
+            lastHandleTap = { key: "", t: 0 };
+            if (dragHandle === "in") {
+              regionIn = Math.max(0, currentPlayhead());
+              if (regionOut != null && regionIn > regionOut)
+                regionOut = Math.min(maxDur(), regionIn + 0.5);
+              updateTransportUI();
+              setStatus("Mark In → playhead @ " + fmt(regionIn));
+            } else if (dragHandle === "out") {
+              regionOut = Math.max(0, currentPlayhead());
+              if (regionOut < regionIn) regionIn = Math.max(0, regionOut - 0.5);
+              updateTransportUI();
+              setStatus("Mark Out → playhead @ " + fmt(regionOut));
+            }
+            dragHandle = null;
+            scrubbing = false;
+            ev.preventDefault();
+            ev.stopPropagation();
+            return;
+          }
+          lastHandleTap = { key: dragHandle || "", t: now };
         } else {
           dragHandle = null;
+          lastHandleTap = { key: "", t: 0 };
         }
         scrubbing = true;
         timelineEl.classList.add("is-scrubbing");
@@ -2287,12 +2366,53 @@
         var hin = ev.target.closest && ev.target.closest("[data-amx-trim-in]");
         var hout = ev.target.closest && ev.target.closest("[data-amx-trim-out]");
         var bar = ev.target.closest && ev.target.closest(".amx-track-playhead");
+        if (!bindTrackPlayheads._lastTap) bindTrackPlayheads._lastTap = { key: "", t: 0 };
+        var lt = bindTrackPlayheads._lastTap;
+        function isDbl(key) {
+          var now = Date.now();
+          var ok = lt.key === key && now - lt.t < 380;
+          lt.key = ok ? "" : key;
+          lt.t = ok ? 0 : now;
+          return ok;
+        }
         if (hin) {
+          var ii = Number(hin.getAttribute("data-amx-trim-in"));
+          if (isDbl("in-" + ii) && tracks[ii] && tracks[ii].buffer) {
+            pushHistory();
+            var tm = tracks[ii];
+            var ad = trackActiveDur(tm);
+            var loc = currentPlayhead() - (tm.offset || 0);
+            loc = Math.max(0, Math.min(ad, loc));
+            var bufPos = trackTrimIn(tm) + loc;
+            if (currentPlayhead() < (tm.offset || 0)) bufPos = trackTrimIn(tm);
+            bufPos = Math.max(0, Math.min(trackTrimOut(tm) - 0.05, bufPos));
+            tm.trimIn = bufPos;
+            updateTransportUI();
+            setStatus("T" + (ii + 1) + " Mark In → playhead @ " + fmt(tm.trimIn));
+            ev.preventDefault();
+            return;
+          }
           pushHistory();
-          drag = { i: Number(hin.getAttribute("data-amx-trim-in")), mode: "in" };
+          drag = { i: ii, mode: "in" };
         } else if (hout) {
+          var jj = Number(hout.getAttribute("data-amx-trim-out"));
+          if (isDbl("out-" + jj) && tracks[jj] && tracks[jj].buffer) {
+            pushHistory();
+            var tmo = tracks[jj];
+            var ad2 = trackActiveDur(tmo);
+            var loc2 = currentPlayhead() - (tmo.offset || 0);
+            loc2 = Math.max(0, Math.min(ad2, loc2));
+            var bufPos2 = trackTrimIn(tmo) + loc2;
+            if (currentPlayhead() > (tmo.offset || 0) + ad2) bufPos2 = trackTrimOut(tmo);
+            bufPos2 = Math.max(trackTrimIn(tmo) + 0.05, Math.min(tmo.buffer.duration, bufPos2));
+            tmo.trimOut = bufPos2;
+            updateTransportUI();
+            setStatus("T" + (jj + 1) + " Mark Out → playhead @ " + fmt(tmo.trimOut));
+            ev.preventDefault();
+            return;
+          }
           pushHistory();
-          drag = { i: Number(hout.getAttribute("data-amx-trim-out")), mode: "out" };
+          drag = { i: jj, mode: "out" };
         } else if (bar) {
           drag = { i: Number(bar.getAttribute("data-i")), mode: "scrub" };
         } else return;
@@ -2468,68 +2588,15 @@
 
 
 
-    // Double-click knob region → pindah ke playhead
-    root.addEventListener("dblclick", function (ev) {
+
+    root.addEventListener("keydown", function (ev) {
+      if (ev.key !== "Enter") return;
       var t = ev.target;
-      if (!t || !t.closest) return;
-      // Main timeline handles
-      var hIn = t.closest("[data-amx=handle-in]");
-      var hOut = t.closest("[data-amx=handle-out]");
-      if (hIn) {
-        regionIn = Math.max(0, currentPlayhead());
-        if (regionOut != null && regionIn > regionOut) {
-          regionOut = Math.min(maxDur(), regionIn + 0.5);
-        }
-        updateTransportUI();
-        setStatus("Mark In (dblclick) @ " + fmt(regionIn));
+      if (!t || !t.getAttribute) return;
+      var act = t.getAttribute("data-act");
+      if (act === "trk-mark-in-text" || act === "trk-mark-out-text") {
         ev.preventDefault();
-        return;
-      }
-      if (hOut) {
-        regionOut = Math.max(0, currentPlayhead());
-        if (regionOut < regionIn) {
-          regionIn = Math.max(0, regionOut - 0.5);
-        }
-        updateTransportUI();
-        setStatus("Mark Out (dblclick) @ " + fmt(regionOut));
-        ev.preventDefault();
-        return;
-      }
-      // Per-track trim knobs
-      var tin = t.closest("[data-amx-trim-in]");
-      var tout = t.closest("[data-amx-trim-out]");
-      if (tin) {
-        var i = Number(tin.getAttribute("data-amx-trim-in"));
-        if (!tracks[i] || !tracks[i].buffer) return;
-        pushHistory();
-        var tm = tracks[i];
-        var ad = trackActiveDur(tm);
-        var loc = currentPlayhead() - (tm.offset || 0);
-        loc = Math.max(0, Math.min(ad, loc));
-        var bufPos = trackTrimIn(tm) + loc;
-        if (currentPlayhead() < (tm.offset || 0)) bufPos = trackTrimIn(tm);
-        bufPos = Math.max(0, Math.min(trackTrimOut(tm) - 0.05, bufPos));
-        tm.trimIn = bufPos;
-        updateTransportUI();
-        setStatus("T" + (i + 1) + " In → playhead @ " + fmt(tm.trimIn));
-        ev.preventDefault();
-        return;
-      }
-      if (tout) {
-        var j = Number(tout.getAttribute("data-amx-trim-out"));
-        if (!tracks[j] || !tracks[j].buffer) return;
-        pushHistory();
-        var tmo = tracks[j];
-        var ad2 = trackActiveDur(tmo);
-        var loc2 = currentPlayhead() - (tmo.offset || 0);
-        loc2 = Math.max(0, Math.min(ad2, loc2));
-        var bufPos2 = trackTrimIn(tmo) + loc2;
-        if (currentPlayhead() > (tmo.offset || 0) + ad2) bufPos2 = trackTrimOut(tmo);
-        bufPos2 = Math.max(trackTrimIn(tmo) + 0.05, Math.min(tmo.buffer.duration, bufPos2));
-        tmo.trimOut = bufPos2;
-        updateTransportUI();
-        setStatus("T" + (j + 1) + " Out → playhead @ " + fmt(tmo.trimOut));
-        ev.preventDefault();
+        t.blur();
       }
     });
 
@@ -2540,6 +2607,32 @@
       var act = t.getAttribute("data-act");
       var i = Number(t.getAttribute("data-i"));
       if (!tracks[i]) return;
+      if (act === "trk-mark-in-text") {
+        var secIn = parseClock(t.value);
+        if (secIn == null || !tracks[i].buffer) {
+          t.value = fmt(trackTrimIn(tracks[i]));
+          return;
+        }
+        pushHistory();
+        secIn = Math.max(0, Math.min(trackTrimOut(tracks[i]) - 0.05, secIn));
+        tracks[i].trimIn = secIn;
+        updateTransportUI();
+        setStatus("T" + (i + 1) + " Mark In @ " + fmt(secIn));
+        return;
+      }
+      if (act === "trk-mark-out-text") {
+        var secOut = parseClock(t.value);
+        if (secOut == null || !tracks[i].buffer) {
+          t.value = fmt(trackTrimOut(tracks[i]));
+          return;
+        }
+        pushHistory();
+        secOut = Math.max(trackTrimIn(tracks[i]) + 0.05, Math.min(tracks[i].buffer.duration, secOut));
+        tracks[i].trimOut = secOut;
+        updateTransportUI();
+        setStatus("T" + (i + 1) + " Mark Out @ " + fmt(secOut));
+        return;
+      }
       if (act === "harm") {
         tracks[i].semitones = Number(t.value) || 0;
         applyLiveVolumes();
