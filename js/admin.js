@@ -1454,6 +1454,50 @@
         else annStartRec();
       });
     }
+
+    const annMixerBtn = $("#annMixerBtn");
+    if (annMixerBtn && !annMixerBtn.dataset.bound) {
+      annMixerBtn.dataset.bound = "1";
+      annMixerBtn.addEventListener("click", function () {
+        if (!window.SHAudioMixer) {
+          $("#annStatus").textContent = "Audio Mixer belum dimuat — pastikan js/audio-mixer.js ter-load.";
+          return;
+        }
+        SHAudioMixer.open({
+          context: "announce",
+          onExport: async function (result) {
+            if (!result || !result.blob) throw new Error("Tidak ada hasil mix");
+            if (!GalleryDB.uploadChatAudio) throw new Error("Upload suara belum tersedia");
+            $("#annStatus").textContent = "Mengunggah hasil mix pengumuman…";
+            try {
+              const url = await GalleryDB.uploadChatAudio(result.blob);
+              if (!url) throw new Error("Upload gagal");
+              let dur = result.duration;
+              if (dur == null || !isFinite(dur)) {
+                try {
+                  const tmp = document.createElement("audio");
+                  tmp.preload = "metadata";
+                  const obj = URL.createObjectURL(result.blob);
+                  tmp.src = obj;
+                  await new Promise(function (res) {
+                    tmp.onloadedmetadata = function () { res(); };
+                    tmp.onerror = function () { res(); };
+                    setTimeout(res, 1500);
+                  });
+                  if (isFinite(tmp.duration) && tmp.duration > 0 && tmp.duration !== Infinity) dur = tmp.duration;
+                  URL.revokeObjectURL(obj);
+                } catch (e) {}
+              }
+              setAnnVoiceSlot(url, dur);
+              $("#annStatus").textContent = "Hasil mix dipasang ke pengumuman (buat/edit). Simpan pengumuman untuk menerapkan.";
+            } catch (e) {
+              $("#annStatus").textContent = "Gagal mix: " + ((e && e.message) || e);
+              throw e;
+            }
+          },
+        });
+      });
+    }
     const annVoiceStop = $("#annVoiceStop");
     if (annVoiceStop) annVoiceStop.addEventListener("click", () => annStopRec(true));
     const annVoiceCancel = $("#annVoiceCancel");

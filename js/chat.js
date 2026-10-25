@@ -1481,6 +1481,7 @@
         setAvatarExpanded(!open);
       });
     }
+    // Hanya auto-collapse saat pertama build, bukan saat dibuka dari nama
     if (!buildAvatarPicker._initialized) {
       setAvatarExpanded(false);
       buildAvatarPicker._initialized = true;
@@ -2721,6 +2722,7 @@
       '<div class="chat-inline-tools">' +
       '<label class="chat-inline-tool chat-inline-tool-btn" title="Gambar / screenshot"><input type="file" accept="image/*" class="chat-inline-file" hidden>🖼 Gambar</label>' +
       '<button type="button" class="chat-inline-tool chat-inline-tool-btn chat-inline-voice" title="Pesan suara">🎤 Suara</button>' +
+      '<button type="button" class="chat-inline-tool chat-inline-tool-btn chat-inline-mixer" title="Audio Mixer (multi-track)">🎚 Mixer</button>' +
       '<span class="muted chat-inline-hint">atau tempel screenshot (Ctrl+V)</span>' +
       "</div>" +
       '<div class="chat-voice-bar chat-inline-voice-bar sh-voice-rec-bar" hidden>' +
@@ -2876,6 +2878,38 @@
       }
       // fallback tanpa SHVoice: kode minimal
       status.textContent = "Muat ulang halaman untuk rekaman penuh";
+    })();
+
+    // Audio Mixer di composer balasan
+    (function bindInlineMixer() {
+      var mixBtn = wrap.querySelector(".chat-inline-mixer");
+      if (!mixBtn) return;
+      mixBtn.addEventListener("click", function () {
+        if (!window.SHAudioMixer) {
+          status.textContent = "Audio Mixer belum dimuat";
+          return;
+        }
+        SHAudioMixer.open({
+          context: "chat-reply",
+          onExport: async function (result) {
+            if (!result || !result.blob) throw new Error("Tidak ada hasil mix");
+            if (uploading) throw new Error("Upload sedang berjalan");
+            uploading = true;
+            status.textContent = "Mengunggah hasil mix (balasan)…";
+            try {
+              // replyToId sudah diset di openInlineReply
+              await sendVoiceBlob(result.blob, result.duration, result.name || null);
+              try { wrap.remove(); } catch (e) {}
+              status.textContent = "Hasil mix terkirim sebagai balasan suara";
+            } catch (e) {
+              status.textContent = "Gagal kirim mix: " + ((e && e.message) || e);
+              throw e;
+            } finally {
+              uploading = false;
+            }
+          },
+        });
+      });
     })();
 
     ta.addEventListener("input", () => {
@@ -3215,7 +3249,7 @@
     });
     // Klik / fokus nama → buka pilihan avatar agar user sadar ada emoji
     function openAvatarFromName() {
-      if (!avatarPicker || !avatarPicker.children.length) {
+      if (!avatarPicker || avatarPicker.children.length === 0) {
         buildAvatarPicker();
       }
       setAvatarExpanded(true);
@@ -3224,18 +3258,14 @@
           avatarPicker.classList.add("is-hint");
           avatarPicker.scrollIntoView({ block: "nearest", behavior: "smooth" });
           setTimeout(function () {
-            try { avatarPicker.classList.remove("is-hint"); } catch (e2) {}
-          }, 2000);
-        }
-        var tog = document.getElementById("chatAvatarToggle");
-        if (tog) {
-          tog.classList.add("is-hint-pulse");
-          setTimeout(function () { tog.classList.remove("is-hint-pulse"); }, 2000);
+            avatarPicker.classList.remove("is-hint");
+          }, 1800);
         }
       } catch (e) {}
     }
     nameInput.addEventListener("focus", openAvatarFromName);
     nameInput.addEventListener("click", openAvatarFromName);
+    // Juga saat pointerdown (lebih andal di mobile)
     nameInput.addEventListener("pointerdown", function () {
       setTimeout(openAvatarFromName, 0);
     });

@@ -13,7 +13,7 @@
   <title>Panel Admin — Silverhawk Gallery</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="page-skills" data-shlock-mode="normal" data-shlock-domain="webgal.silverhawk.web.id" data-shlock-brand="Silverhawk Gallery" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
+<body class="page-skills" data-shlock-mode="normal" data-shlock-domain="class.silverhawk.web.id,webgal.silverhawk.web.id,localhost,ayahelang.github.io" data-shlock-brand="Silverhawk Class" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
   <div class="bg-grid"></div>
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark">SH</span><span><b>Silverhawk</b><small>Admin</small></span></a>
@@ -25,6 +25,7 @@
       <a href="refleksi.html">Nilai Proses</a>
       <a href="stats.html">Statistik</a>
       <a href="absensi.html">Absensi</a>
+      <a href="classroom.html">Classroom</a>
       <a href="chat.html">Chat</a>
       <a href="panduan.html">Panduan</a>
       <a href="about.html">About</a>
@@ -387,6 +388,7 @@
               <button type="button" class="btn btn-ghost" id="annInsertImg">+ URL gambar</button>
               <button type="button" class="btn btn-ghost" id="annInsertLink">+ Link</button>
               <button type="button" class="btn btn-ghost" id="annVoiceBtn" title="Rekam pesan suara">🎤 Suara</button>
+              <button type="button" class="btn btn-ghost" id="annMixerBtn" title="Audio Mixer multi-track untuk pengumuman">🎚 Mixer</button>
               <span class="muted" style="font-size:11px">Tempel (paste) gambar langsung dari clipboard juga bisa</span>
             </div>
             <div id="annVoiceBar" class="chat-voice-bar ann-voice-bar" hidden>
@@ -534,6 +536,8 @@
   <script src="js/preview-card.js"></script>
   <script src="js/profile-status.js"></script>
   <script src="js/auth-ui.js"></script>
+  <script src="js/vendor/lame.min.js"></script>
+  <script src="js/audio-mixer.js"></script>
   <script src="js/admin.js"></script>
   <script src="js/share.js"></script>
   <script src="https://silverhawk.web.id/lock/lock.js"></script>
