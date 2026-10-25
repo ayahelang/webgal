@@ -4933,3 +4933,76 @@ small.chat-msg-time{font-size:11px;color:#8aa3ae}
   padding-bottom:6px;
 }
 .amx-track.is-collapsed .amx-track-hd{margin-bottom:0}
+
+/* Skip ±5 dtk: selaras ⏮/⏭ — tanpa kotak/background biru (bukan gaya play) */
+.amx-nav-skip,
+.amx-nav[data-amx="skip-back"],
+.amx-nav[data-amx="skip-fwd"],
+.amx-nav[data-amx="to-start"],
+.amx-nav[data-amx="to-end"]{
+  background:transparent!important;
+  color:#9fd9ef!important;
+  border-color:rgba(125,227,255,.28)!important;
+  box-shadow:none!important;
+  font-size:11px!important;
+  letter-spacing:-1px;
+}
+.amx-nav-skip:hover,
+.amx-nav[data-amx="skip-back"]:hover,
+.amx-nav[data-amx="skip-fwd"]:hover,
+.amx-nav[data-amx="to-start"]:hover,
+.amx-nav[data-amx="to-end"]:hover{
+  background:transparent!important;
+  color:#e8f7ff!important;
+  border-color:rgba(125,227,255,.55)!important;
+}
+.amx-nav-stop,
+.amx-nav[data-amx="stop"]{
+  background:transparent!important;
+  color:#9fd9ef!important;
+  border-color:rgba(125,227,255,.28)!important;
+  box-shadow:none!important;
+}
+.amx-nav-stop:hover,
+.amx-nav[data-amx="stop"]:hover{
+  background:transparent!important;
+  color:#e8f7ff!important;
+}
+[data-theme="light"] .amx-nav-skip,
+[data-theme="light"] .amx-nav[data-amx="skip-back"],
+[data-theme="light"] .amx-nav[data-amx="skip-fwd"],
+[data-theme="light"] .amx-nav[data-amx="to-start"],
+[data-theme="light"] .amx-nav[data-amx="to-end"],
+[data-theme="light"] .amx-nav-stop,
+[data-theme="light"] .amx-nav[data-amx="stop"]{
+  color:#1a6f9a!important;
+  background:transparent!important;
+}
+
+/* Region trim per-track (lebih kecil dari handle utama) */
+.amx-track-trim-reg{
+  position:absolute;top:0;bottom:0;left:0;width:100%;
+  background:rgba(125,227,255,.1);
+  border-radius:999px;
+  pointer-events:none;
+}
+.amx-track-trim-in,
+.amx-track-trim-out{
+  position:absolute;top:50%;
+  width:10px;height:16px;
+  margin:-8px 0 0 -5px;
+  border-radius:3px;
+  cursor:ew-resize;
+  z-index:4;
+  box-shadow:0 0 0 1px rgba(0,0,0,.35);
+}
+.amx-track-trim-in{
+  background:linear-gradient(180deg,#7dffb0,#3ecf7a);
+}
+.amx-track-trim-out{
+  background:linear-gradient(180deg,#ff8a9a,#e04860);
+}
+.amx-backdrop{
+  /* hanya dim — tidak menutup mixer */
+  pointer-events:auto;
+}

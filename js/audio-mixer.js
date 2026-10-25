@@ -235,7 +235,7 @@
     root.id = "shAudioMixerRoot";
     root.className = "amx-root";
     root.innerHTML =
-      '<div class="amx-backdrop" data-amx="close"></div>' +
+      '<div class="amx-backdrop" data-amx="backdrop"></div>' +
       '<div class="amx-panel" data-amx-panel role="dialog" aria-label="Audio Mixer">' +
       '  <header class="amx-head amx-drag" data-amx-drag>' +
       "    <strong>Audio Mixer</strong>" +
@@ -257,10 +257,10 @@
       "  </div>" +
       '  <div class="amx-transport">' +
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="to-start" title="Awal">⏮</button>' +
-      '    <button type="button" class="btn btn-ghost amx-nav" data-amx="skip-back" title="-5 dtk">⏪</button>' +
+      '    <button type="button" class="btn btn-ghost amx-nav amx-nav-skip" data-amx="skip-back" title="-5 dtk">◀◀</button>' +
       '    <button type="button" class="btn btn-ghost amx-nav amx-nav-play" data-amx="play" title="Play">▶</button>' +
-      '    <button type="button" class="btn btn-ghost amx-nav" data-amx="stop" title="Stop">■</button>' +
-      '    <button type="button" class="btn btn-ghost amx-nav" data-amx="skip-fwd" title="+5 dtk">⏩</button>' +
+      '    <button type="button" class="btn btn-ghost amx-nav amx-nav-stop" data-amx="stop" title="Stop">■</button>' +
+      '    <button type="button" class="btn btn-ghost amx-nav amx-nav-skip" data-amx="skip-fwd" title="+5 dtk">▶▶</button>' +
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="to-end" title="Akhir">⏭</button>' +
       '    <div class="amx-level-bar" data-amx="levelbar" hidden title="Peak meter (hijau aman · kuning hati-hati · merah clipping)">' +
       '      <span class="chat-voice-dot amx-dot" data-amx="recdot" hidden aria-hidden="true"></span>' +
@@ -397,11 +397,28 @@
       if (statusEl) statusEl.textContent = t;
     }
 
+    function trackTrimIn(tr) {
+      if (!tr || !tr.buffer) return 0;
+      var ti = typeof tr.trimIn === "number" ? tr.trimIn : 0;
+      return Math.max(0, Math.min(tr.buffer.duration, ti));
+    }
+    function trackTrimOut(tr) {
+      if (!tr || !tr.buffer) return 0;
+      var to = tr.trimOut == null ? tr.buffer.duration : Number(tr.trimOut);
+      if (!isFinite(to)) to = tr.buffer.duration;
+      var ti = trackTrimIn(tr);
+      return Math.max(ti + 0.05, Math.min(tr.buffer.duration, to));
+    }
+    function trackActiveDur(tr) {
+      if (!tr || !tr.buffer) return 0;
+      return Math.max(0.05, trackTrimOut(tr) - trackTrimIn(tr));
+    }
+
     function maxDur() {
       var m = 0;
       tracks.forEach(function (t) {
         if (!t.buffer) return;
-        var end = (t.offset || 0) + t.buffer.duration;
+        var end = (t.offset || 0) + trackActiveDur(t);
         if (end > m) m = end;
       });
       return m;
@@ -626,14 +643,30 @@
           continue;
         }
         var off = tr.offset || 0;
+        var tIn = trackTrimIn(tr);
+        var tOut = trackTrimOut(tr);
+        var activeDur = tOut - tIn;
         var local = playhead - off;
         var p = 0;
         if (local <= 0) p = 0;
-        else if (local >= tr.buffer.duration) p = 1;
-        else p = local / tr.buffer.duration;
-        el.style.width = p * 100 + "%";
+        else if (local >= activeDur) p = 1;
+        else p = local / activeDur;
+        // map playhead onto full-buffer bar: trimIn..trimOut region
+        var pBar = activeDur > 0 ? (tIn + p * activeDur) / tr.buffer.duration : 0;
+        el.style.width = pBar * 100 + "%";
         var kn = listEl.querySelector('[data-amx-prog-knob="' + idx + '"]');
-        if (kn) kn.style.left = p * 100 + "%";
+        if (kn) kn.style.left = pBar * 100 + "%";
+        var hin = listEl.querySelector('[data-amx-trim-in="' + idx + '"]');
+        var hout = listEl.querySelector('[data-amx-trim-out="' + idx + '"]');
+        var reg = listEl.querySelector('[data-amx-trim-reg="' + idx + '"]');
+        var pin = tIn / tr.buffer.duration;
+        var pout = tOut / tr.buffer.duration;
+        if (hin) hin.style.left = pin * 100 + "%";
+        if (hout) hout.style.left = pout * 100 + "%";
+        if (reg) {
+          reg.style.left = pin * 100 + "%";
+          reg.style.width = Math.max(0, (pout - pin) * 100) + "%";
+        }
       }
     }
 
@@ -941,17 +974,20 @@
       // Selalu schedule track yang punya buffer agar mute/unmute/solo live (gain 0/1)
       if (!tr || !tr.buffer) return null;
       var off = tr.offset || 0;
-      var bufDur = tr.buffer.duration;
-      if (head >= off + bufDur) return null;
+      var tIn = trackTrimIn(tr);
+      var tOut = trackTrimOut(tr);
+      var activeDur = tOut - tIn;
+      if (head >= off + activeDur) return null;
       var when = t0;
-      var offsetInBuffer = 0;
+      var offsetInBuffer = tIn;
       if (head > off) {
-        offsetInBuffer = head - off;
+        offsetInBuffer = tIn + (head - off);
       } else {
         when = t0 + (off - head);
-        offsetInBuffer = 0;
+        offsetInBuffer = tIn;
       }
-      var remaining = bufDur - offsetInBuffer;
+      if (offsetInBuffer >= tOut - 0.001) return null;
+      var remaining = tOut - offsetInBuffer;
       if (remaining <= 0.001) return null;
       var src = audioCtx.createBufferSource();
       src.buffer = tr.buffer;
@@ -1105,13 +1141,26 @@
           "</div>" +
           '<div class="amx-track-playhead amx-detail-block" data-act="trk-scrub" data-i="' +
           idx +
-          '" title="Playhead track — klik/geser untuk seek">' +
+          '" title="Playhead track — klik seek · geser knob hijau/merah untuk potong ujung">' +
+          '<div class="amx-track-trim-reg" data-amx-trim-reg="' +
+          idx +
+          '"></div>' +
           '<div class="amx-track-playhead-fill" data-amx-prog="' +
           idx +
           '"></div>' +
           '<div class="amx-track-playhead-knob" data-amx-prog-knob="' +
           idx +
           '"></div>' +
+          '<div class="amx-track-trim-in" data-amx-trim-in="' +
+          idx +
+          '" data-act="trk-trim-in" data-i="' +
+          idx +
+          '" title="Awal region track (buang bagian kotor di depan)"></div>' +
+          '<div class="amx-track-trim-out" data-amx-trim-out="' +
+          idx +
+          '" data-act="trk-trim-out" data-i="' +
+          idx +
+          '" title="Akhir region track (buang bagian kotor di belakang)"></div>' +
           "</div>" +
           '<div class="amx-track-grid amx-detail-block">' +
           '<div class="amx-track-col-l">' +
@@ -1245,6 +1294,8 @@
         refTrack: -1,
         expanded: false,
         balance: 0,
+        trimIn: 0,
+        trimOut: null,
       });
       renderTracks();
       return true;
@@ -1519,15 +1570,17 @@
 
       active.forEach(function (t) {
         var off = t.offset || 0;
-        var bufDur = t.buffer.duration;
+        var tIn = trackTrimIn(t);
+        var tOut = trackTrimOut(t);
+        var activeDur = tOut - tIn;
         var trackStart = off;
-        var trackEnd = off + bufDur;
+        var trackEnd = off + activeDur;
         // irisan dengan [start, end]
         var playStart = Math.max(trackStart, start);
         var playEnd = Math.min(trackEnd, end);
         if (playEnd - playStart < 0.01) return;
         var when = playStart - start; // posisi di buffer offline
-        var offsetInBuffer = playStart - off;
+        var offsetInBuffer = tIn + (playStart - off);
         var len = playEnd - playStart;
         var src = offline.createBufferSource();
         src.buffer = t.buffer;
@@ -1772,8 +1825,12 @@
       var ox = 0;
       var oy = 0;
       handle.addEventListener("pointerdown", function (ev) {
-        if (ev.target && ev.target.closest && ev.target.closest("[data-amx=close]"))
-          return;
+        var tg = ev.target;
+        if (tg && tg.closest) {
+          if (tg.closest("[data-amx=close]")) return;
+          if (tg.closest("[data-amx=promo]")) return;
+          if (tg.closest("a,button,input,select,textarea,label")) return;
+        }
         dragging = true;
         panelEl.classList.add("is-dragging");
         var rect = panelEl.getBoundingClientRect();
@@ -1812,6 +1869,24 @@
       }
       handle.addEventListener("pointerup", endDrag);
       handle.addEventListener("pointercancel", endDrag);
+    })();
+
+    // Full Mixer: pastikan buka tab baru (header drag tidak menelan klik)
+    (function bindPromo() {
+      var a = root.querySelector("a[data-amx=promo], a.amx-promo");
+      if (!a) return;
+      a.addEventListener(
+        "click",
+        function (ev) {
+          ev.stopPropagation();
+          var url = a.getAttribute("href") || "https://mixer.silverhawk.web.id";
+          try {
+            window.open(url, "_blank", "noopener,noreferrer");
+          } catch (e) {}
+          ev.preventDefault();
+        },
+        true
+      );
     })();
 
     if (timelineEl) {
@@ -1887,7 +1962,17 @@
       if (t.matches && t.matches('input[data-amx="file"]')) return;
       if (t.matches && t.matches('input[type="range"]')) return;
       if (t.matches && t.matches('input[type="text"]')) return;
-      if (t.closest && t.closest("[data-amx=promo]")) return;
+      if (t.closest && t.closest("[data-amx=promo]")) {
+        // biarkan navigasi native; jaga-jaga buka tab baru
+        var a = t.closest("a[data-amx=promo]") || t.closest("a.amx-promo");
+        if (a && a.href) {
+          try {
+            window.open(a.href, "_blank", "noopener,noreferrer");
+          } catch (e) {}
+          if (ev && ev.preventDefault) ev.preventDefault();
+        }
+        return;
+      }
       if (amx === "close") close();
       else if (amx === "rec") {
         if (isRecording) stopRec();
@@ -2001,17 +2086,102 @@
           renderTracks();
         }
       } else if (act === "trk-scrub") {
-        var si = Number(t.getAttribute("data-i"));
-        var trs = tracks[si];
-        if (!trs || !trs.buffer) return;
-        var box = t.closest ? t.closest("[data-act=trk-scrub]") || t : t;
-        var rect = box.getBoundingClientRect();
-        var x = (ev.clientX - rect.left) / Math.max(1, rect.width);
-        x = Math.max(0, Math.min(1, x));
-        var abs = (trs.offset || 0) + x * trs.buffer.duration;
-        seekTo(abs);
+        // seek via pointer handler (bisa bedakan trim handle)
+        return;
+      } else if (act === "trk-trim-in" || act === "trk-trim-out") {
+        return;
       }
     };
+
+    // Seek + trim handles per track playhead
+    (function bindTrackPlayheads() {
+      var drag = null; // { i, mode: "scrub"|"in"|"out" }
+      function posRatio(ev, box) {
+        var rect = box.getBoundingClientRect();
+        return Math.max(0, Math.min(1, (ev.clientX - rect.left) / Math.max(1, rect.width)));
+      }
+      function applyDrag(ev) {
+        if (!drag || !tracks[drag.i] || !tracks[drag.i].buffer) return;
+        var tr = tracks[drag.i];
+        var box = listEl.querySelector(
+          '.amx-track-playhead[data-i="' + drag.i + '"], .amx-track-playhead[data-act=trk-scrub][data-i="' + drag.i + '"]'
+        );
+        // fallback: closest from target
+        if (!box && ev.target && ev.target.closest)
+          box = ev.target.closest(".amx-track-playhead");
+        if (!box) return;
+        var x = posRatio(ev, box);
+        var sec = x * tr.buffer.duration;
+        if (drag.mode === "in") {
+          var out = trackTrimOut(tr);
+          tr.trimIn = Math.max(0, Math.min(out - 0.05, sec));
+          updateTransportUI();
+        } else if (drag.mode === "out") {
+          var inn = trackTrimIn(tr);
+          tr.trimOut = Math.max(inn + 0.05, Math.min(tr.buffer.duration, sec));
+          updateTransportUI();
+        } else {
+          // scrub relative to full buffer → absolute timeline
+          seekTo((tr.offset || 0) + Math.max(0, sec - trackTrimIn(tr)));
+          // better: seek to offset + position within active region if click in region
+          var tIn = trackTrimIn(tr);
+          var tOut = trackTrimOut(tr);
+          if (sec < tIn) seekTo(tr.offset || 0);
+          else if (sec > tOut) seekTo((tr.offset || 0) + (tOut - tIn));
+          else seekTo((tr.offset || 0) + (sec - tIn));
+        }
+      }
+      root.addEventListener("pointerdown", function (ev) {
+        if (!listEl) return;
+        var hin = ev.target.closest && ev.target.closest("[data-amx-trim-in]");
+        var hout = ev.target.closest && ev.target.closest("[data-amx-trim-out]");
+        var bar = ev.target.closest && ev.target.closest(".amx-track-playhead");
+        if (hin) {
+          drag = { i: Number(hin.getAttribute("data-amx-trim-in")), mode: "in" };
+        } else if (hout) {
+          drag = { i: Number(hout.getAttribute("data-amx-trim-out")), mode: "out" };
+        } else if (bar) {
+          drag = { i: Number(bar.getAttribute("data-i")), mode: "scrub" };
+        } else return;
+        try {
+          bar && bar.setPointerCapture && bar.setPointerCapture(ev.pointerId);
+        } catch (e) {}
+        applyDrag(ev);
+        ev.preventDefault();
+        ev.stopPropagation();
+      });
+      root.addEventListener("pointermove", function (ev) {
+        if (!drag) return;
+        applyDrag(ev);
+      });
+      function endD(ev) {
+        if (!drag) return;
+        var i = drag.i;
+        var mode = drag.mode;
+        drag = null;
+        if (mode === "in" || mode === "out") {
+          setStatus(
+            "T" +
+              (i + 1) +
+              " region " +
+              fmt(trackTrimIn(tracks[i])) +
+              " – " +
+              fmt(trackTrimOut(tracks[i]))
+          );
+          // restart play if needed so trim applies
+          if (isPlaying && !isRecording) {
+            var h = currentPlayhead();
+            stopPlayback(true);
+            playhead = h;
+            if (soloPlayIdx === i) startSoloTrack(i, h);
+            else if (soloPlayIdx < 0) playAll();
+          }
+        }
+      }
+      root.addEventListener("pointerup", endD);
+      root.addEventListener("pointercancel", endD);
+    })();
+
 
     function startSoloTrack(k, fromHead) {
       if (isRecording) return;
@@ -2028,12 +2198,16 @@
       var src = audioCtx.createBufferSource();
       src.buffer = tr.buffer;
       connectTrackLive(src, tr);
-      var offIn = Math.max(0, head - (tr.offset || 0));
+      var tIn = trackTrimIn(tr);
+      var tOut = trackTrimOut(tr);
+      var offIn = tIn + Math.max(0, head - (tr.offset || 0));
+      if (offIn >= tOut) offIn = tIn;
+      var rem = Math.max(0.05, tOut - offIn);
       try {
-        src.start(playStartedAtCtx, offIn);
+        src.start(playStartedAtCtx, offIn, rem);
       } catch (e) {
         try {
-          src.start(playStartedAtCtx);
+          src.start(playStartedAtCtx, offIn);
         } catch (e2) {}
       }
       playing.push(src);
