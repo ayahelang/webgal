@@ -5220,3 +5220,40 @@ input.amx-region-time{
   min-height:22px;
   white-space:nowrap;
 }
+
+/* Waktu dengan milidetik m:ss.mmm */
+.amx-clock,
+.amx-clock-end{
+  min-width:5.5em!important;
+  font-variant-numeric:tabular-nums;
+  font-size:12px!important;
+}
+.amx-mark-time,
+.amx-region-time,
+input.amx-mark-time,
+input.amx-region-time{
+  width:5.6em!important;
+  min-width:5.6em!important;
+  max-width:7em!important;
+  font-size:11px!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.amx-track-ph-cur,
+.amx-track-ph-dur{
+  min-width:5.2em!important;
+  font-size:11px!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.amx-track-dur{
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+.amx-off-input{
+  width:5.6em!important;
+  min-width:5.2em!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.amx-region-tools{
+  flex-wrap:wrap;
+  gap:4px 6px;
+}

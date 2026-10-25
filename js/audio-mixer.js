@@ -15,27 +15,55 @@
       .replace(/"/g, "&quot;");
   }
 
+  /** Format detik → "m:ss.mmm" (milidetik 3 digit) */
   function fmt(sec) {
-    if (!isFinite(sec) || sec < 0) return "0:00";
-    sec = Math.floor(sec);
-    return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0");
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    var msTotal = Math.round(sec * 1000);
+    var mins = Math.floor(msTotal / 60000);
+    var rem = msTotal % 60000;
+    var secs = Math.floor(rem / 1000);
+    var ms = rem % 1000;
+    return (
+      mins +
+      ":" +
+      String(secs).padStart(2, "0") +
+      "." +
+      String(ms).padStart(3, "0")
+    );
   }
 
-  /** Parse "m:ss", "mm:ss", "ss", or number → seconds (float). Invalid → NaN */
+  /**
+   * Parse waktu ke detik (float).
+   * Diterima: "m:ss.mmm", "m:ss", "ss.mmm", "ss", "h:mm:ss.mmm", angka.
+   * Invalid → NaN
+   */
   function parseTime(str) {
     if (str == null) return NaN;
     str = String(str).trim().replace(",", ".");
     if (!str) return NaN;
     if (/^\d+(\.\d+)?$/.test(str)) return Math.max(0, parseFloat(str));
-    var m = str.match(/^(\d+)\s*:\s*(\d{1,2})(?:\s*:\s*(\d{1,2}(?:\.\d+)?))?$/);
-    if (m) {
-      if (m[3] != null) {
-        // h:m:s
-        return Math.max(0, (+m[1]) * 3600 + (+m[2]) * 60 + parseFloat(m[3]));
-      }
-      return Math.max(0, (+m[1]) * 60 + (+m[2]));
+    // h:mm:ss.mmm atau h:mm:ss
+    var hms = str.match(
+      /^(\d+)\s*:\s*(\d{1,2})\s*:\s*(\d{1,2}(?:\.\d+)?)$/
+    );
+    if (hms) {
+      return Math.max(
+        0,
+        (+hms[1]) * 3600 + (+hms[2]) * 60 + parseFloat(hms[3])
+      );
+    }
+    // m:ss.mmm atau m:ss
+    var ms = str.match(/^(\d+)\s*:\s*(\d{1,2}(?:\.\d+)?)$/);
+    if (ms) {
+      return Math.max(0, (+ms[1]) * 60 + parseFloat(ms[2]));
     }
     return NaN;
+  }
+
+  /** Alias parseClock → parseTime (kompatibilitas) */
+  function parseClock(str) {
+    var n = parseTime(str);
+    return isFinite(n) ? n : null;
   }
 
   function encodeWav(audioBuffer) {
@@ -271,9 +299,9 @@
       "  </div>" +
       '  <div class="amx-region-tools">' +
       '    <button type="button" class="btn btn-ghost amx-xs amx-mark-btn-in" data-amx="mark-in" title="Set Mark In di playhead">Mark In</button>' +
-      '    <input type="text" class="amx-region-time amx-region-time-in" data-amx="region-in-text" value="0:00" inputmode="numeric" title="Ketik Mark In (m:ss) + Enter">' +
+      '    <input type="text" class="amx-region-time amx-region-time-in" data-amx="region-in-text" value="0:00.000" inputmode="numeric" title="Ketik Mark In (m:ss.mmm) + Enter">' +
       '    <button type="button" class="btn btn-ghost amx-xs amx-mark-btn-out" data-amx="mark-out" title="Set Mark Out di playhead">Mark Out</button>' +
-      '    <input type="text" class="amx-region-time amx-region-time-out" data-amx="region-out-text" value="0:00" inputmode="numeric" title="Ketik Mark Out (m:ss) + Enter">' +
+      '    <input type="text" class="amx-region-time amx-region-time-out" data-amx="region-out-text" value="0:00.000" inputmode="numeric" title="Ketik Mark Out (m:ss.mmm) + Enter">' +
       '    <button type="button" class="btn btn-ghost amx-xs" data-amx="region-reset" title="Reset region ke seluruh durasi">Reset</button>' +
       '    <span class="muted amx-region-label" data-amx="region-label"></span>' +
       "  </div>" +
@@ -1397,7 +1425,7 @@
           idx +
           '" value="' +
           fmt(trackTrimIn(tr)) +
-          '" inputmode="numeric" title="Ketik Mark In (m:ss) + Enter">' +
+          '" inputmode="numeric" title="Ketik Mark In (m:ss.mmm) + Enter">' +
           '<button type="button" class="btn btn-ghost amx-xs amx-trk-mark amx-trk-mark-out" data-act="trk-mark-out" data-i="' +
           idx +
           '" title="Mark Out di playhead">Mark Out</button>' +
@@ -1407,7 +1435,7 @@
           idx +
           '" value="' +
           fmt(trackTrimOut(tr)) +
-          '" inputmode="numeric" title="Ketik Mark Out (m:ss) + Enter">' +
+          '" inputmode="numeric" title="Ketik Mark Out (m:ss.mmm) + Enter">' +
           "</div>" +
           '<div class="amx-row-bal">' +
           '<label class="amx-slider-lab amx-bal-lab" title="Balance kiri/kanan (−100 … +100)">' +
