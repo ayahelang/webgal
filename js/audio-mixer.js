@@ -743,31 +743,63 @@
 
     function updateTransportUI() {
       var total = maxDur();
+      var hasTracks = tracks.length > 0 && total > 0.001;
+
+      // Clamp playhead & region ke total terbaru (setelah Mark Out / hapus track)
+      if (!hasTracks) {
+        playhead = 0;
+        regionIn = 0;
+        regionOut = null;
+      } else {
+        if (playhead > total) playhead = total;
+        if (regionIn > total) regionIn = Math.max(0, total - 0.05);
+        if (regionOut != null) {
+          if (regionOut > total) regionOut = total;
+          if (regionOut < regionIn) regionOut = Math.min(total, regionIn + 0.05);
+        }
+      }
+
       var cur = currentPlayhead();
-      if (total > 0 && cur > total) cur = total;
+      if (hasTracks && cur > total) cur = total;
       playhead = isPlaying ? cur : playhead;
-      if (clockEl) clockEl.textContent = fmt(playhead);
-      if (clockEndEl) clockEndEl.textContent = fmt(total);
-      var pct = total > 0 ? Math.min(1, playhead / total) : 0;
-      if (tfillEl) tfillEl.style.width = pct * 100 + "%";
-      if (theadEl) theadEl.style.left = pct * 100 + "%";
-      // region overlay
-      var reg = getRegion();
-      if (total > 0 && regionEl) {
-        regionEl.style.left = (reg.start / total) * 100 + "%";
-        regionEl.style.width = (reg.dur / total) * 100 + "%";
-      }
-      if (total > 0 && handleInEl) handleInEl.style.left = (reg.start / total) * 100 + "%";
-      if (total > 0 && handleOutEl) handleOutEl.style.left = (reg.end / total) * 100 + "%";
-      if (regionLabelEl) {
-        regionLabelEl.textContent =
-          fmt(reg.dur) + (reg.dur >= reg.total - 0.05 ? " (penuh)" : "");
-      }
-      if (regionInTextEl && document.activeElement !== regionInTextEl) {
-        regionInTextEl.value = fmt(reg.start);
-      }
-      if (regionOutTextEl && document.activeElement !== regionOutTextEl) {
-        regionOutTextEl.value = fmt(reg.end);
+
+      if (!hasTracks) {
+        if (clockEl) clockEl.textContent = "";
+        if (clockEndEl) clockEndEl.textContent = "";
+        if (tfillEl) tfillEl.style.width = "0%";
+        if (theadEl) theadEl.style.left = "0%";
+        if (regionEl) {
+          regionEl.style.left = "0%";
+          regionEl.style.width = "0%";
+        }
+        if (handleInEl) handleInEl.style.left = "0%";
+        if (handleOutEl) handleOutEl.style.left = "100%";
+        if (regionLabelEl) regionLabelEl.textContent = "";
+        if (regionInTextEl && document.activeElement !== regionInTextEl) regionInTextEl.value = "";
+        if (regionOutTextEl && document.activeElement !== regionOutTextEl) regionOutTextEl.value = "";
+      } else {
+        if (clockEl) clockEl.textContent = fmt(playhead);
+        if (clockEndEl) clockEndEl.textContent = fmt(total);
+        var pct = Math.min(1, playhead / total);
+        if (tfillEl) tfillEl.style.width = pct * 100 + "%";
+        if (theadEl) theadEl.style.left = pct * 100 + "%";
+        var reg = getRegion();
+        if (regionEl) {
+          regionEl.style.left = (reg.start / total) * 100 + "%";
+          regionEl.style.width = (reg.dur / total) * 100 + "%";
+        }
+        if (handleInEl) handleInEl.style.left = (reg.start / total) * 100 + "%";
+        if (handleOutEl) handleOutEl.style.left = (reg.end / total) * 100 + "%";
+        if (regionLabelEl) {
+          regionLabelEl.textContent =
+            fmt(reg.dur) + (reg.dur >= reg.total - 0.05 ? " (penuh)" : "");
+        }
+        if (regionInTextEl && document.activeElement !== regionInTextEl) {
+          regionInTextEl.value = fmt(reg.start);
+        }
+        if (regionOutTextEl && document.activeElement !== regionOutTextEl) {
+          regionOutTextEl.value = fmt(reg.end);
+        }
       }
 
       var bars = listEl ? listEl.querySelectorAll("[data-amx-prog]") : [];
@@ -811,7 +843,19 @@
         var curLab = listEl.querySelector('[data-amx-ph-cur="' + idx + '"]');
         var durLab = listEl.querySelector('[data-amx-ph-dur="' + idx + '"]');
         if (curLab) curLab.textContent = fmt(local);
-        if (durLab) durLab.textContent = fmt(dur);
+        // kanan bar: ujung region aktif (trimOut) — ikut Mark Out live
+        if (durLab) durLab.textContent = fmt(tOut);
+        // header track: durasi aktif (trimOut - trimIn)
+        var row = listEl.querySelector('.amx-track[data-track-i="' + idx + '"]');
+        if (row) {
+          var hdDur = row.querySelector(".amx-track-dur");
+          if (hdDur) {
+            var act = Math.max(0, tOut - tIn);
+            var offSec = tr.offset || 0;
+            hdDur.textContent =
+              fmt(act) + (offSec > 0.05 ? " @" + fmt(offSec) : "");
+          }
+        }
       }
     }
 
@@ -1193,7 +1237,11 @@
       listEl.innerHTML = "";
       if (!tracks.length) {
         listEl.innerHTML = '<p class="muted amx-empty">Belum ada track.</p>';
+        playhead = 0;
+        regionIn = 0;
+        regionOut = null;
         updateTransportUI();
+        setStatus("Belum ada track.");
         return;
       }
       tracks.forEach(function (tr, idx) {
@@ -1245,7 +1293,7 @@
           ) +
           "</span>" +
           '<span class="amx-track-dur">' +
-          fmt(tr.buffer ? tr.buffer.duration : 0) +
+          fmt(tr.buffer ? trackActiveDur(tr) : 0) +
           offLabel +
           "</span>" +
           '<div class="amx-track-acts">' +
@@ -1317,8 +1365,8 @@
           "</div>" +
           '<span class="amx-track-ph-dur" data-amx-ph-dur="' +
           idx +
-          '" title="Durasi total track">' +
-          fmt(tr.buffer ? tr.buffer.duration : 0) +
+          '" title="Akhir region track (Mark Out)">' +
+          fmt(tr.buffer ? trackTrimOut(tr) : 0) +
           "</span>" +
           '<button type="button" class="btn btn-ghost amx-xs amx-trk-region-reset" data-act="trk-region-reset" data-i="' +
           idx +
@@ -1455,7 +1503,12 @@
 
         listEl.appendChild(row);
       });
-      setStatus(tracks.length + "/" + MAX_TRACKS + " · total " + fmt(maxDur()));
+      var tot = maxDur();
+      setStatus(
+        tracks.length
+          ? tracks.length + "/" + MAX_TRACKS + " · total " + fmt(tot)
+          : "Belum ada track."
+      );
       updateTransportUI();
       setTrackMetersVisible(isPlaying);
     }
