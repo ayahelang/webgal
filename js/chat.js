@@ -1136,6 +1136,23 @@
       "</div></div>";
     const body = bubble.querySelector(".chat-body") || bubble;
     body.appendChild(picker);
+    // Sama seperti klik avatar → slide/scroll ke area yang baru terbuka
+    bubble.classList.add("react-hint");
+    try {
+      picker.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    } catch (e) {
+      try { picker.scrollIntoView(true); } catch (e2) {}
+    }
+    // Fokus pertama ke tombol emoji supaya keyboard/a11y & highlight terasa
+    setTimeout(function () {
+      var first = picker.querySelector(".chat-react-pick");
+      if (first) {
+        try { first.focus({ preventScroll: true }); } catch (e3) {}
+      }
+    }, 80);
+    setTimeout(function () {
+      bubble.classList.remove("react-hint");
+    }, 2200);
     // outside click closes
     setTimeout(function () {
       function onDoc(ev) {

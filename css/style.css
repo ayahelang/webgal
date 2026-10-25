@@ -4571,3 +4571,17 @@ small.chat-msg-time{font-size:11px;color:#8aa3ae}
   50%{transform:scale(1.01)}
 }
 
+/* Klik nama → reaksi: animasi highlight + area picker menonjol (mirip actions-hint avatar) */
+.chat-bubble.react-hint .chat-react-picker{
+  animation: reactPickerIn .35s ease;
+  box-shadow:0 0 0 2px rgba(125,227,255,.45),0 12px 28px rgba(0,0,0,.45);
+}
+.chat-bubble.react-hint .chat-author-name{
+  box-shadow:0 0 0 2px rgba(125,227,255,.4);
+  border-radius:6px;
+}
+@keyframes reactPickerIn{
+  from{opacity:0;transform:translateY(-8px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
