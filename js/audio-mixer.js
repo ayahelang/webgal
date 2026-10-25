@@ -232,6 +232,13 @@
       '  <header class="amx-head amx-drag" data-amx-drag>' +
       "    <strong>Audio Mixer</strong>" +
       '    <span class="muted amx-sub">Max 8 · geser judul untuk pindah</span>' +
+      '    <label class="amx-master-lab amx-master-in-head" title="Master / Gain — dorong di atas 100% untuk lebih nyaring">' +
+      '      <span>Master</span>' +
+      '      <input type="range" min="0" max="300" value="100" data-amx="master">' +
+      '      <span data-amx="master-val">100%</span>' +
+      "    </label>" +
+      '    <button type="button" class="btn btn-ghost amx-sm amx-icon-btn" data-amx="mute-all" title="Mute semua">🔇</button>' +
+      '    <button type="button" class="btn btn-ghost amx-sm amx-icon-btn" data-amx="unmute-all" title="Unmute semua">🔊</button>' +
       '    <a class="btn btn-ghost amx-sm amx-promo" href="https://mixer.silverhawk.web.id" target="_blank" rel="noopener noreferrer" data-amx="promo" title="Buka Silverhawk Audio Mixer — aplikasi web full (multi-track, efek, export pro). Pengembangan lanjut dari panel ini.">🎛 Full Mixer</a>' +
       '    <button type="button" class="btn btn-ghost amx-x" data-amx="close" title="Tutup">✕</button>' +
       "  </header>" +
@@ -239,13 +246,6 @@
       '    <button type="button" class="btn amx-sm amx-btn-rec" data-amx="rec" title="Rekam / Stop">● Rekam</button>' +
       '    <button type="button" class="btn btn-ghost amx-sm" data-amx="stop-rec" hidden>■ Stop</button>' +
       '    <label class="btn btn-ghost amx-sm amx-upload">⬆ File<input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.webm" hidden data-amx="file"></label>' +
-      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="mute-all" title="Mute semua">Mute all</button>' +
-      '    <button type="button" class="btn btn-ghost amx-sm" data-amx="unmute-all" title="Unmute semua">Unmute</button>' +
-      '    <label class="amx-master-lab" title="Master / Gain — dorong di atas 100% untuk lebih nyaring">' +
-      '      <span>Master</span>' +
-      '      <input type="range" min="0" max="300" value="100" data-amx="master">' +
-      '      <span data-amx="master-val">100%</span>' +
-      "    </label>" +
       "  </div>" +
       '  <div class="amx-transport">' +
       '    <button type="button" class="btn btn-ghost amx-nav" data-amx="to-start" title="Awal">⏮</button>' +
@@ -799,8 +799,10 @@
           "</button>" +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="mute" data-i="' +
           idx +
-          '">' +
+          '" title="' +
           (tr.muted ? "Unmute" : "Mute") +
+          '">' +
+          (tr.muted ? "M●" : "M") +
           "</button>" +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="solo-play" data-i="' +
           idx +

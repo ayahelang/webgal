@@ -4240,7 +4240,18 @@ details[open] > summary::before { content: "▾ "; }
   color:var(--text,#eef7fb);
   font-size:12px;
 }
-.amx-head{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.amx-head{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  margin:-10px -12px 8px;padding:8px 12px;
+  border-radius:14px 14px 0 0;
+  background:linear-gradient(90deg,rgba(28,78,118,.55),rgba(18,42,68,.42) 45%,rgba(12,26,40,.38));
+  border-bottom:1px solid rgba(125,227,255,.18);
+}
+[data-theme="light"] .amx-head{
+  background:linear-gradient(90deg,#e6f3fb,#f2f8fc 55%,#eef6fb);
+  border-bottom-color:rgba(26,143,209,.22);
+  color:#0c2433;
+}
 .amx-head strong{font-size:13px}
 .amx-sub{flex:1;font-size:10px}
 .amx-x{padding:2px 8px!important;min-height:28px}
@@ -4380,8 +4391,8 @@ details[open] > summary::before { content: "▾ "; }
   flex-wrap:nowrap;
 }
 .amx-off-input{
-  width:42px;min-width:42px;max-width:48px;
-  padding:1px 4px;margin:0;
+  width:52px;min-width:52px;max-width:60px;
+  padding:1px 5px;margin:0;
   font-size:10px;font-weight:700;
   font-variant-numeric:tabular-nums;
   text-align:center;
@@ -4522,11 +4533,12 @@ details[open] > summary::before { content: "▾ "; }
 .amx-nav{
   color:#9fd9ef!important;
   border-color:rgba(125,227,255,.28)!important;
+  background:transparent!important;
 }
 .amx-nav:hover{
   color:#e8f7ff!important;
   border-color:rgba(125,227,255,.55)!important;
-  background:rgba(94,200,255,.1)!important;
+  background:transparent!important;
 }
 .amx-nav-play,
 .amx-nav[data-amx="play"]{
@@ -4579,11 +4591,31 @@ details[open] > summary::before { content: "▾ "; }
   background:rgba(255,180,40,.1)!important;
   text-decoration:none!important;
   white-space:nowrap;
+  display:inline-flex!important;
+  align-items:center!important;
+  align-self:center;
+  line-height:1.2;
 }
 .amx-promo:hover{
   color:#fff!important;
   background:rgba(255,180,40,.25)!important;
   border-color:rgba(255,200,100,.7)!important;
+}
+/* Master di title bar + icon Mute/Unmute */
+.amx-master-in-head{
+  margin-left:2px;margin-right:2px;
+  padding:1px 6px;
+  flex-shrink:0;
+}
+.amx-icon-btn{
+  padding:2px 6px!important;
+  min-width:28px;
+  min-height:26px;
+  font-size:13px!important;
+  line-height:1;
+  display:inline-flex!important;
+  align-items:center;
+  justify-content:center;
 }
 
 .amx-rec-compact:not([hidden]){display:flex}
