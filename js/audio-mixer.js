@@ -544,11 +544,15 @@
     /** Posisi playhead di sumbu buffer track [0..duration], analog currentPlayhead di timeline utama */
     function trackLocalPos(tr) {
       if (!tr || !tr.buffer) return 0;
-      var dur = tr.buffer.duration;
-      var local = currentPlayhead() - (tr.offset || 0);
-      if (local < 0) return 0;
-      if (local > dur) return dur;
-      return local;
+      var off = tr.offset || 0;
+      var tIn = trackTrimIn(tr);
+      var tOut = trackTrimOut(tr);
+      var activeDur = tOut - tIn;
+      var ph = currentPlayhead();
+      // buffer di bawah playhead (model DAW)
+      if (ph <= off) return tIn;
+      if (ph >= off + activeDur) return tOut;
+      return tIn + (ph - off);
     }
 
 
@@ -556,8 +560,8 @@
       var m = 0;
       tracks.forEach(function (t) {
         if (!t.buffer) return;
-        // ujung timeline = offset + trimOut (akhir region aktif)
-        var end = (t.offset || 0) + trackTrimOut(t);
+        // ujung clip di timeline = Start + (MarkOut - MarkIn)
+        var end = (t.offset || 0) + trackActiveDur(t);
         if (end > m) m = end;
       });
       return m;
@@ -817,8 +821,14 @@
         var dur = tr.buffer.duration;
         var tIn = trackTrimIn(tr);
         var tOut = trackTrimOut(tr);
-        // Sumbu bar = [0 .. duration] buffer — sama konsep timeline utama
-        var local = playhead - off;
+        var activeDur = tOut - tIn;
+        // Sumbu bar = buffer 0..duration
+        // Di model DAW: di mixTime=offset terdengar buffer[trimIn]
+        // → posisi buffer = trimIn + (playhead - offset) saat di dalam clip
+        var local;
+        if (playhead <= off) local = tIn;
+        else if (playhead >= off + activeDur) local = tOut;
+        else local = tIn + (playhead - off);
         if (local < 0) local = 0;
         if (local > dur) local = dur;
         var pBar = dur > 0 ? local / dur : 0;
@@ -1160,19 +1170,22 @@
     }
 
     function scheduleTrack(tr, head, t0) {
-      // Sumbu buffer = bar track: mixTime = offset + bufferTime
+      // Model DAW:
+      //  - Start (offset) = posisi clip di timeline utama
+      //  - Mark In = 0:00 konten audio (buffer[trimIn] terdengar di mixTime=offset)
+      //  - Clip aktif di timeline: [offset, offset + (trimOut-trimIn)]
       if (!tr || !tr.buffer) return null;
       var off = tr.offset || 0;
       var tIn = trackTrimIn(tr);
       var tOut = trackTrimOut(tr);
-      // bagian track yang aktif di timeline: [offset+tIn, offset+tOut]
-      var trackStart = off + tIn;
-      var trackEnd = off + tOut;
+      var activeDur = tOut - tIn;
+      var trackStart = off;
+      var trackEnd = off + activeDur;
       if (head >= trackEnd - 0.001) return null;
       var when = t0;
       var offsetInBuffer = tIn;
       if (head > trackStart) {
-        offsetInBuffer = head - off; // absolut di buffer
+        offsetInBuffer = tIn + (head - off);
         when = t0;
       } else {
         when = t0 + (trackStart - head);
@@ -1810,14 +1823,15 @@
         var off = t.offset || 0;
         var tIn = trackTrimIn(t);
         var tOut = trackTrimOut(t);
-        // mixTime = offset + bufferTime
-        var trackStart = off + tIn;
-        var trackEnd = off + tOut;
+        var activeDur = tOut - tIn;
+        // clip di timeline: [offset, offset+activeDur]
+        var trackStart = off;
+        var trackEnd = off + activeDur;
         var playStart = Math.max(trackStart, start);
         var playEnd = Math.min(trackEnd, end);
         if (playEnd - playStart < 0.01) return;
         var when = playStart - start;
-        var offsetInBuffer = playStart - off; // absolut buffer
+        var offsetInBuffer = tIn + (playStart - off);
         var len = playEnd - playStart;
         var src = offline.createBufferSource();
         src.buffer = t.buffer;
@@ -2485,8 +2499,13 @@
           setTrimOut(drag.i, sec);
           updateTransportUI();
         } else {
-          // scrub → seek di timeline mix
-          seekTo((tr.offset || 0) + sec);
+          // scrub di sumbu buffer → mixTime = offset + (sec - trimIn)
+          var tInS = trackTrimIn(tr);
+          var tOutS = trackTrimOut(tr);
+          var rel = sec - tInS;
+          if (rel < 0) rel = 0;
+          if (rel > tOutS - tInS) rel = tOutS - tInS;
+          seekTo((tr.offset || 0) + rel);
         }
       }
 
@@ -2589,7 +2608,15 @@
       stopPlayback(true);
       ensureCtx();
       var tr = tracks[k];
-      var head = fromHead != null ? fromHead : tr.offset || 0;
+      var tIn = trackTrimIn(tr);
+      var tOut = trackTrimOut(tr);
+      var off = tr.offset || 0;
+      var activeDur = tOut - tIn;
+      // Default (play pertama): mulai di Start clip = offset → audio dari Mark In
+      var head = fromHead != null ? fromHead : off;
+      // Clamp ke dalam clip aktif [offset, offset+activeDur]
+      if (head < off) head = off;
+      if (head >= off + activeDur) head = off;
       playhead = head;
       playStartedAtHead = head;
       playStartedAtCtx = audioCtx.currentTime + 0.02;
@@ -2598,10 +2625,8 @@
       var src = audioCtx.createBufferSource();
       src.buffer = tr.buffer;
       connectTrackLive(src, tr);
-      var tIn = trackTrimIn(tr);
-      var tOut = trackTrimOut(tr);
-      // buffer pos = head - offset (sumbu sama dengan bar)
-      var offIn = Math.max(0, head - (tr.offset || 0));
+      // buffer: Mark In + posisi relatif di clip
+      var offIn = tIn + (head - off);
       if (offIn < tIn) offIn = tIn;
       if (offIn >= tOut) offIn = tIn;
       var rem = Math.max(0.05, tOut - offIn);
@@ -2616,7 +2641,7 @@
       startTransportLoop();
       setTrackMetersVisible(true);
       renderTracks();
-      setStatus("Play T" + (k + 1) + " @ " + fmt(head));
+      setStatus("Play T" + (k + 1) + " dari Mark In @ " + fmt(tIn) + " (mix " + fmt(head) + ")");
     }
 
     function pauseSoloOrMix() {
@@ -2701,11 +2726,13 @@
         if (isPlaying && soloPlayIdx === k) {
           pauseSoloOrMix();
         } else if (isPlaying && soloPlayIdx !== k) {
-          // resume from current playhead if same session pause on this track
-          startSoloTrack(k, playhead > (tracks[k].offset || 0) ? playhead : tracks[k].offset || 0);
-        } else if (!isPlaying && soloPlayIdx === k && playhead > (tracks[k].offset || 0)) {
+          // pindah ke track lain: mulai dari Mark In (awal clip)
+          startSoloTrack(k, tracks[k].offset || 0);
+        } else if (!isPlaying && soloPlayIdx === k) {
+          // resume setelah pause di track yang sama
           startSoloTrack(k, playhead);
         } else {
+          // play pertama / setelah stop: dari Mark In
           startSoloTrack(k, tracks[k].offset || 0);
         }
       });
