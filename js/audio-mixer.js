@@ -858,21 +858,40 @@
       var vol = effectiveTrackVol(tr);
       var rev = typeof tr.reverb === "number" ? tr.reverb : 0;
       var semi = typeof tr.semitones === "number" ? tr.semitones : 0;
+      var bal = typeof tr.balance === "number" ? tr.balance : 0;
       try {
-        // 100 cent = 1 semitone; durasi tetap (bukan playbackRate)
         src.detune.value = semi * 100;
       } catch (e) {}
       var dry = audioCtx.createGain();
       dry.gain.value = vol;
       src.connect(dry);
-      dry.connect(dest);
+      var panNode = null;
+      try {
+        panNode = audioCtx.createStereoPanner();
+        panNode.pan.value = Math.max(-1, Math.min(1, bal));
+        dry.connect(panNode);
+        panNode.connect(dest);
+      } catch (e) {
+        dry.connect(dest);
+      }
       var wetGain = null;
-      // selalu buat wet node agar solo/mute/reverb bisa diubah live
       ensureReverb();
       wetGain = audioCtx.createGain();
       wetGain.gain.value = vol * rev;
       src.connect(wetGain);
-      wetGain.connect(sharedConvolver);
+      try {
+        if (panNode) {
+          var wetPan = audioCtx.createStereoPanner();
+          wetPan.pan.value = Math.max(-1, Math.min(1, bal));
+          wetGain.connect(wetPan);
+          wetPan.connect(sharedConvolver);
+          panNode._wetPan = wetPan;
+        } else {
+          wetGain.connect(sharedConvolver);
+        }
+      } catch (e2) {
+        wetGain.connect(sharedConvolver);
+      }
       var trkAn = null;
       try {
         trkAn = audioCtx.createAnalyser();
@@ -880,7 +899,15 @@
         trkAn.smoothingTimeConstant = 0.3;
         dry.connect(trkAn);
       } catch (e) {}
-      liveGains.push({ dry: dry, wet: wetGain, track: tr, src: src, analyser: trkAn });
+      liveGains.push({
+        dry: dry,
+        wet: wetGain,
+        track: tr,
+        src: src,
+        analyser: trkAn,
+        pan: panNode,
+        wetPan: panNode && panNode._wetPan,
+      });
     }
 
     function applyLiveVolumes() {
@@ -889,10 +916,14 @@
         var vol = effectiveTrackVol(g.track);
         var rev = typeof g.track.reverb === "number" ? g.track.reverb : 0;
         var semi = typeof g.track.semitones === "number" ? g.track.semitones : 0;
+        var bal = typeof g.track.balance === "number" ? g.track.balance : 0;
+        bal = Math.max(-1, Math.min(1, bal));
         try {
           if (g.dry) g.dry.gain.value = vol;
           if (g.wet) g.wet.gain.value = vol * rev;
           if (g.src && g.src.detune) g.src.detune.value = semi * 100;
+          if (g.pan) g.pan.pan.value = bal;
+          if (g.wetPan) g.wetPan.pan.value = bal;
         } catch (e) {}
       });
       if (masterGainNode) {
@@ -986,6 +1017,7 @@
         var vol = typeof tr.volume === "number" ? tr.volume : 1;
         var rev = typeof tr.reverb === "number" ? tr.reverb : 0;
         var semi = typeof tr.semitones === "number" ? tr.semitones : 0;
+        var bal = typeof tr.balance === "number" ? tr.balance : 0;
         // Slider max: at least timeline length, current offset, 60s
         var offMax = Math.max(60, Math.ceil(maxDur() || 0), Math.ceil(offSec) + 30);
         if (offMax < 1) offMax = 60;
@@ -1011,16 +1043,7 @@
             "</option>";
         });
         row.innerHTML =
-          '<div class="amx-track-body">' +
-          '<div class="amx-track-left">' +
-          '<div class="amx-track-row1">' +
-          '<button type="button" class="btn btn-ghost amx-xs amx-fold" data-act="fold" data-i="' +
-          idx +
-          '" title="' +
-          (tr.expanded ? "Lipat track" : "Buka detail harmoni") +
-          '">' +
-          (tr.expanded ? "▾" : "▸") +
-          "</button>" +
+          '<div class="amx-track-hd">' +
           '<span class="amx-track-idx">T' +
           (idx + 1) +
           "</span>" +
@@ -1036,48 +1059,6 @@
           fmt(tr.buffer ? tr.buffer.duration : 0) +
           offLabel +
           "</span>" +
-          "</div>" +
-          '<div class="amx-track-bar"><div class="amx-track-bar-fill" data-amx-prog="' +
-          idx +
-          '"></div></div>' +
-          '<div class="amx-track-row2">' +
-          '<label class="amx-slider-lab amx-offset-lab" title="Waktu mulai track di timeline (geser atau ketik m:ss)">' +
-          'Start <input type="range" min="0" max="' +
-          offMax +
-          '" step="0.1" value="' +
-          offSec.toFixed(1) +
-          '" data-act="off" data-i="' +
-          idx +
-          '">' +
-          '<input type="text" class="amx-off-input" data-act="off-text" data-i="' +
-          idx +
-          '" value="' +
-          fmt(offSec) +
-          '" inputmode="numeric" aria-label="Waktu mulai track" title="Ketik m:ss lalu Enter">' +
-          "</label>" +
-          '<label class="amx-slider-lab amx-vol-lab" title="Volume">Vol <input type="range" min="0" max="150" value="' +
-          Math.round(vol * 100) +
-          '" data-act="vol" data-i="' +
-          idx +
-          '"><span data-amx-volval="' +
-          idx +
-          '">' +
-          Math.round(vol * 100) +
-          '%</span><canvas class="amx-track-peak" data-amx-trkmeter="' +
-          idx +
-          '" width="56" height="14" hidden title="Peak meter track" aria-hidden="true"></canvas></label>' +
-          '<label class="amx-slider-lab" title="Reverb">Rev <input type="range" min="0" max="100" value="' +
-          Math.round(rev * 100) +
-          '" data-act="rev" data-i="' +
-          idx +
-          '"><span data-amx-revval="' +
-          idx +
-          '">' +
-          Math.round(rev * 100) +
-          "%</span></label>" +
-          "</div>" +
-          "</div>" +
-          '<div class="amx-track-right">' +
           '<div class="amx-track-acts">' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="trk-start" data-i="' +
           idx +
@@ -1089,7 +1070,7 @@
           (tr.solo ? " is-solo" : "") +
           '" data-act="solo" data-i="' +
           idx +
-          '" title="Solo (track lain di-mute di play/mix)">' +
+          '" title="Solo">' +
           (tr.solo ? "S●" : "S") +
           "</button>" +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="mute" data-i="' +
@@ -1110,8 +1091,65 @@
           idx +
           '">✕</button>' +
           "</div>" +
-          '<div class="amx-track-harm-panel">' +
-          '<label class="amx-slider-lab amx-harm-lab" title="Harmoni / pitch (semitone)">' +
+          '<button type="button" class="btn btn-ghost amx-xs amx-fold" data-act="fold" data-i="' +
+          idx +
+          '" title="' +
+          (tr.expanded ? "Lipat" : "Buka detail") +
+          '">' +
+          (tr.expanded ? "▴" : "▾") +
+          "</button>" +
+          "</div>" +
+          '<div class="amx-track-grid">' +
+          '<div class="amx-track-col-l">' +
+          '<div class="amx-row-bal">' +
+          '<label class="amx-slider-lab amx-bal-lab" title="Balance kiri/kanan (−100 … +100)">' +
+          'Bal <input type="range" min="-100" max="100" value="' +
+          Math.round(bal * 100) +
+          '" data-act="bal" data-i="' +
+          idx +
+          '"><span data-amx-balval="' +
+          idx +
+          '">' +
+          Math.round(bal * 100) +
+          "</span></label>" +
+          '<canvas class="amx-track-peak" data-amx-trkmeter="' +
+          idx +
+          '" width="72" height="14" title="Peak meter" aria-hidden="true"></canvas>' +
+          "</div>" +
+          '<label class="amx-slider-lab amx-vol-lab" title="Volume">Vol <input type="range" min="0" max="150" value="' +
+          Math.round(vol * 100) +
+          '" data-act="vol" data-i="' +
+          idx +
+          '"><span data-amx-volval="' +
+          idx +
+          '">' +
+          Math.round(vol * 100) +
+          "%</span></label>" +
+          '<label class="amx-slider-lab amx-offset-lab amx-detail-row" title="Waktu mulai">' +
+          '<input type="text" class="amx-off-input" data-act="off-text" data-i="' +
+          idx +
+          '" value="' +
+          fmt(offSec) +
+          '" inputmode="numeric" aria-label="Waktu mulai">' +
+          ' Start <input type="range" min="0" max="' +
+          offMax +
+          '" step="0.1" value="' +
+          offSec.toFixed(1) +
+          '" data-act="off" data-i="' +
+          idx +
+          '"></label>' +
+          '<label class="amx-slider-lab amx-detail-row" title="Reverb">Rev <input type="range" min="0" max="100" value="' +
+          Math.round(rev * 100) +
+          '" data-act="rev" data-i="' +
+          idx +
+          '"><span data-amx-revval="' +
+          idx +
+          '">' +
+          Math.round(rev * 100) +
+          "%</span></label>" +
+          "</div>" +
+          '<div class="amx-track-col-r">' +
+          '<label class="amx-slider-lab amx-harm-lab" title="Harmoni">' +
           'Harm <select class="amx-harm-sel" data-act="harm" data-i="' +
           idx +
           '">' +
@@ -1143,35 +1181,36 @@
           (semi === -12 ? " selected" : "") +
           ">Oktaf ↓</option>" +
           "</select></label>" +
-          '<label class="amx-slider-lab amx-ref-lab" title="Track patokan (musik pengiring)">' +
+          '<label class="amx-slider-lab amx-ref-lab" title="Patokan">' +
           'Patokan <select class="amx-ref-sel" data-act="ref" data-i="' +
           idx +
           '">' +
           refOpts +
           "</select></label>" +
-          '<div class="amx-harm-suggest">' +
+          '<div class="amx-harm-suggest amx-detail-row">' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s2up" data-i="' +
           idx +
-          '" title="Saran suara 2 naik">S2↑</button>' +
+          '" title="S2 naik">S2↑</button>' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s2dn" data-i="' +
           idx +
-          '" title="Saran suara 2 turun">S2↓</button>' +
+          '" title="S2 turun">S2↓</button>' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s3up" data-i="' +
           idx +
-          '" title="Saran suara 3 naik">S3↑</button>' +
+          '" title="S3 naik">S3↑</button>' +
           '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s3dn" data-i="' +
           idx +
-          '" title="Saran suara 3 turun">S3↓</button>' +
-          "</div>" +
+          '" title="S3 turun">S3↓</button>' +
           "</div>" +
           "</div>" +
           "</div>";
         if (!tr.expanded) row.classList.add("is-collapsed");
         else row.classList.remove("is-collapsed");
+
         listEl.appendChild(row);
       });
       setStatus(tracks.length + "/" + MAX_TRACKS + " · total " + fmt(maxDur()));
       updateTransportUI();
+      setTrackMetersVisible(isPlaying);
     }
 
     function addBuffer(buffer, name, offsetSec) {
@@ -1191,6 +1230,7 @@
         semitones: 0,
         refTrack: -1,
         expanded: false,
+        balance: 0,
       });
       renderTracks();
       return true;
@@ -1483,10 +1523,18 @@
         try {
           src.detune.value = semi * 100;
         } catch (e) {}
+        var bal = typeof t.balance === "number" ? t.balance : 0;
         var dry = offline.createGain();
         dry.gain.value = vol;
         src.connect(dry);
-        dry.connect(master);
+        try {
+          var panO = offline.createStereoPanner();
+          panO.pan.value = Math.max(-1, Math.min(1, bal));
+          dry.connect(panO);
+          panO.connect(master);
+        } catch (e3) {
+          dry.connect(master);
+        }
         if (conv && rev > 0.01) {
           var wet = offline.createGain();
           wet.gain.value = vol * rev;
@@ -1992,24 +2040,38 @@
 
     function setTrackMetersVisible(on) {
       if (!listEl) return;
+      listEl.classList.toggle("amx-meters-on", !!on);
       var cans = listEl.querySelectorAll("[data-amx-trkmeter]");
       for (var i = 0; i < cans.length; i++) {
         var c = cans[i];
         var ti = Number(c.getAttribute("data-amx-trkmeter"));
-        var show = on && (soloPlayIdx < 0 || soloPlayIdx === ti);
-        if (show) {
-          c.hidden = false;
-          c.removeAttribute("hidden");
-        } else {
-          c.hidden = true;
-          c.setAttribute("hidden", "");
+        var show = !!on && (soloPlayIdx < 0 || soloPlayIdx === ti);
+        c.classList.toggle("is-active", show);
+        if (!show) {
           try {
             var g = c.getContext("2d");
-            if (g) g.clearRect(0, 0, c.width, c.height);
+            if (g) {
+              g.clearRect(0, 0, c.width, c.height);
+              // idle track
+              g.fillStyle = "rgba(0,0,0,0.35)";
+              g.fillRect(0, 0, c.width, c.height);
+              var segs = 16;
+              var gap = 1;
+              var bw = (c.width - gap * (segs - 1)) / segs;
+              for (var s = 0; s < segs; s++) {
+                var ratio = (s + 1) / segs;
+                g.fillStyle =
+                  ratio <= 0.6
+                    ? "rgba(61,220,132,0.2)"
+                    : ratio <= 0.85
+                      ? "rgba(255,200,80,0.2)"
+                      : "rgba(255,77,109,0.2)";
+                g.fillRect(s * (bw + gap), 2, bw, c.height - 4);
+              }
+            }
           } catch (e) {}
         }
       }
-      listEl.classList.toggle("amx-meters-on", !!on);
     }
 
     // Play/pause click + long-press stop on per-track ▶
@@ -2116,6 +2178,11 @@
         tracks[i].volume = Number(t.value) / 100;
         var lab = root.querySelector('[data-amx-volval="' + i + '"]');
         if (lab) lab.textContent = Math.round(tracks[i].volume * 100) + "%";
+        applyLiveVolumes();
+      } else if (act === "bal") {
+        tracks[i].balance = Number(t.value) / 100;
+        var labB = root.querySelector('[data-amx-balval="' + i + '"]');
+        if (labB) labB.textContent = String(Math.round(tracks[i].balance * 100));
         applyLiveVolumes();
       } else if (act === "rev") {
         tracks[i].reverb = Number(t.value) / 100;
