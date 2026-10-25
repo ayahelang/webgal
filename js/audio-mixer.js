@@ -637,12 +637,64 @@
       function tick() {
         transportRaf = requestAnimationFrame(tick);
         updateTransportUI();
+        drawTrackPeaks();
         var total = maxDur();
         if (isPlaying && !isRecording && total > 0 && currentPlayhead() >= total + 0.05) {
           stopPlayback(true);
         }
       }
       transportRaf = requestAnimationFrame(tick);
+    }
+
+    function drawTrackPeaks() {
+      if (!listEl) return;
+      var data = new Uint8Array(512);
+      liveGains.forEach(function (g) {
+        if (!g.analyser || !g.track) return;
+        var ti = tracks.indexOf(g.track);
+        if (ti < 0) return;
+        var canvas = listEl.querySelector('[data-amx-trkmeter="' + ti + '"]');
+        if (!canvas) return;
+        var ctx2 = canvas.getContext("2d");
+        if (!ctx2) return;
+        try {
+          g.analyser.getByteTimeDomainData(data);
+        } catch (e) {
+          return;
+        }
+        var peak = 0;
+        for (var i = 0; i < data.length; i++) {
+          var v = Math.abs(data[i] - 128) / 128;
+          if (v > peak) peak = v;
+        }
+        var w = canvas.width;
+        var h = canvas.height;
+        ctx2.clearRect(0, 0, w, h);
+        ctx2.fillStyle = "rgba(0,0,0,0.35)";
+        ctx2.fillRect(0, 0, w, h);
+        var segs = 14;
+        var gap = 1;
+        var bw = (w - gap * (segs - 1)) / segs;
+        var lit = Math.round(peak * segs);
+        for (var s = 0; s < segs; s++) {
+          var ratio = (s + 1) / segs;
+          var on = s < lit;
+          var col =
+            ratio <= 0.6
+              ? on
+                ? "#3ddc84"
+                : "rgba(61,220,132,0.18)"
+              : ratio <= 0.85
+                ? on
+                  ? "#ffc850"
+                  : "rgba(255,200,80,0.18)"
+                : on
+                  ? "#ff4d6d"
+                  : "rgba(255,77,109,0.18)";
+          ctx2.fillStyle = col;
+          ctx2.fillRect(s * (bw + gap), 2, bw, h - 4);
+        }
+      });
     }
 
     function stopTransportLoop() {
@@ -690,6 +742,107 @@
     }
 
     /** Volume efektif live: 0 jika mute / tidak solo saat ada solo */
+
+    /** Estimasi kunci dari buffer (chromagram lokal — tanpa API cloud) */
+    function estimateKeyFromBuffer(buffer) {
+      if (!buffer || !buffer.length) return null;
+      var sr = buffer.sampleRate;
+      var ch0 = buffer.getChannelData(0);
+      var n = ch0.length;
+      var maxN = Math.min(n, Math.floor(sr * 12));
+      var start = Math.max(0, Math.floor((n - maxN) / 2));
+      var chroma = new Float32Array(12);
+      var frame = Math.floor(sr * 0.046);
+      for (var i = start; i + frame < start + maxN; i += frame) {
+        var bestLag = 0;
+        var bestCorr = 0;
+        var minLag = Math.floor(sr / 500);
+        var maxLag = Math.floor(sr / 80);
+        for (var lag = minLag; lag < maxLag && lag < frame; lag++) {
+          var c = 0;
+          var lim = Math.min(frame, 360);
+          for (var k = 0; k < lim; k++) c += ch0[i + k] * ch0[i + k + lag];
+          if (c > bestCorr) {
+            bestCorr = c;
+            bestLag = lag;
+          }
+        }
+        if (bestLag > 0 && bestCorr > 0.01) {
+          var freq = sr / bestLag;
+          var midi = 69 + 12 * (Math.log(freq / 440) / Math.LN2);
+          if (isFinite(midi) && midi > 20 && midi < 100) {
+            var pc = ((Math.round(midi) % 12) + 12) % 12;
+            chroma[pc] += bestCorr;
+          }
+        }
+      }
+      var major = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+      var minor = [6.33, 2.68, 3.52, 5.38, 2.6, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+      var names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+      var best = { score: -1e9, root: 0, mode: "major" };
+      function corr(profile, shift) {
+        var s = 0;
+        for (var p = 0; p < 12; p++) s += chroma[p] * profile[(p - shift + 12) % 12];
+        return s;
+      }
+      for (var r = 0; r < 12; r++) {
+        var sm = corr(major, r);
+        var sn = corr(minor, r);
+        if (sm > best.score) best = { score: sm, root: r, mode: "major" };
+        if (sn > best.score) best = { score: sn, root: r, mode: "minor" };
+      }
+      var sum = 0;
+      for (var z = 0; z < 12; z++) sum += chroma[z];
+      if (sum < 1e-6) return null;
+      return {
+        root: best.root,
+        mode: best.mode,
+        name: names[best.root] + (best.mode === "major" ? " mayor" : " minor"),
+        suggestS2: best.mode === "minor" ? 3 : 4,
+        suggestS2Down: best.mode === "minor" ? -3 : -4,
+        suggestS3: 7,
+        suggestS3Down: -7,
+      };
+    }
+
+    function applyHarmonySuggestion(trackIdx, kind) {
+      var tr = tracks[trackIdx];
+      if (!tr) return;
+      var refIdx = typeof tr.refTrack === "number" ? tr.refTrack : -1;
+      if (refIdx < 0 || !tracks[refIdx] || !tracks[refIdx].buffer) {
+        setStatus("Pilih track patokan (musik pengiring) dulu.");
+        return;
+      }
+      setStatus("Menganalisis kunci track patokan…");
+      var key = null;
+      try {
+        key = estimateKeyFromBuffer(tracks[refIdx].buffer);
+      } catch (e) {}
+      if (!key) {
+        setStatus("Gagal deteksi kunci (sinyal lemah). Coba interval manual di Harm.");
+        return;
+      }
+      var semi = 0;
+      if (kind === "s2up") semi = key.suggestS2;
+      else if (kind === "s2dn") semi = key.suggestS2Down;
+      else if (kind === "s3up") semi = key.suggestS3;
+      else if (kind === "s3dn") semi = key.suggestS3Down;
+      tr.semitones = semi;
+      applyLiveVolumes();
+      renderTracks();
+      setStatus(
+        "T" +
+          (trackIdx + 1) +
+          " harmoni " +
+          (semi > 0 ? "+" : "") +
+          semi +
+          " st · patokan T" +
+          (refIdx + 1) +
+          " ≈ " +
+          key.name
+      );
+    }
+
     function effectiveTrackVol(tr) {
       if (!tr || !tr.buffer) return 0;
       if (!isTrackActive(tr)) return 0;
@@ -718,7 +871,14 @@
       wetGain.gain.value = vol * rev;
       src.connect(wetGain);
       wetGain.connect(sharedConvolver);
-      liveGains.push({ dry: dry, wet: wetGain, track: tr, src: src });
+      var trkAn = null;
+      try {
+        trkAn = audioCtx.createAnalyser();
+        trkAn.fftSize = 512;
+        trkAn.smoothingTimeConstant = 0.3;
+        dry.connect(trkAn);
+      } catch (e) {}
+      liveGains.push({ dry: dry, wet: wetGain, track: tr, src: src, analyser: trkAn });
     }
 
     function applyLiveVolumes() {
@@ -825,6 +985,27 @@
         // Slider max: at least timeline length, current offset, 60s
         var offMax = Math.max(60, Math.ceil(maxDur() || 0), Math.ceil(offSec) + 30);
         if (offMax < 1) offMax = 60;
+        var refOpts =
+          '<option value="-1"' +
+          (typeof tr.refTrack !== "number" || tr.refTrack < 0 ? " selected" : "") +
+          ">— pilih patokan —</option>";
+        tracks.forEach(function (t2, j) {
+          if (j === idx) return;
+          var nm = String(t2.name || "Track " + (j + 1))
+            .replace(/\s*@\d+:\d{2}\s*$/, "")
+            .trim()
+            .slice(0, 32);
+          refOpts +=
+            '<option value="' +
+            j +
+            '"' +
+            (tr.refTrack === j ? " selected" : "") +
+            ">T" +
+            (j + 1) +
+            " " +
+            nm.replace(/</g, "") +
+            "</option>";
+        });
         row.innerHTML =
           '<div class="amx-track-main">' +
           '<span class="amx-track-idx">T' +
@@ -861,7 +1042,7 @@
           fmt(offSec) +
           '" inputmode="numeric" aria-label="Waktu mulai track" title="Ketik m:ss lalu Enter">' +
           "</label>" +
-          '<label class="amx-slider-lab" title="Volume">Vol <input type="range" min="0" max="150" value="' +
+          '<label class="amx-slider-lab amx-vol-lab" title="Volume">Vol <input type="range" min="0" max="150" value="' +
           Math.round(vol * 100) +
           '" data-act="vol" data-i="' +
           idx +
@@ -869,7 +1050,9 @@
           idx +
           '">' +
           Math.round(vol * 100) +
-          "%</span></label>" +
+          '%</span><canvas class="amx-track-peak" data-amx-trkmeter="' +
+          idx +
+          '" width="56" height="14" title="Peak meter track (saat play)" aria-hidden="true"></canvas></label>' +
           '<label class="amx-slider-lab" title="Reverb">Rev <input type="range" min="0" max="100" value="' +
           Math.round(rev * 100) +
           '" data-act="rev" data-i="' +
@@ -911,6 +1094,26 @@
           (semi === -12 ? " selected" : "") +
           ">Oktaf ↓</option>" +
           "</select></label>" +
+          '<label class="amx-slider-lab amx-ref-lab" title="Pilih track musik pengiring sebagai patokan kunci">' +
+          'Patokan <select class="amx-ref-sel" data-act="ref" data-i="' +
+          idx +
+          '">' +
+          refOpts +
+          "</select></label>" +
+          '<div class="amx-harm-suggest">' +
+          '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s2up" data-i="' +
+          idx +
+          '" title="Saran suara 2 naik dari analisis patokan">S2↑</button>' +
+          '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s2dn" data-i="' +
+          idx +
+          '" title="Saran suara 2 turun">S2↓</button>' +
+          '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s3up" data-i="' +
+          idx +
+          '" title="Saran suara 3 naik (kwint)">S3↑</button>' +
+          '<button type="button" class="btn btn-ghost amx-xs" data-act="harm-s3dn" data-i="' +
+          idx +
+          '" title="Saran suara 3 turun">S3↓</button>' +
+          "</div>" +
           "</div>" +
           "</div></div>" +
           '<div class="amx-track-acts">' +
@@ -962,6 +1165,7 @@
         volume: 1,
         reverb: 0,
         semitones: 0,
+        refTrack: -1,
       });
       renderTracks();
       return true;
@@ -1651,7 +1855,23 @@
       }
 
       var act = t.getAttribute("data-act");
-      if (act === "rename" || act === "harm") return;
+      if (act === "rename" || act === "harm" || act === "ref") return;
+      if (act === "harm-s2up") {
+        applyHarmonySuggestion(Number(t.getAttribute("data-i")), "s2up");
+        return;
+      }
+      if (act === "harm-s2dn") {
+        applyHarmonySuggestion(Number(t.getAttribute("data-i")), "s2dn");
+        return;
+      }
+      if (act === "harm-s3up") {
+        applyHarmonySuggestion(Number(t.getAttribute("data-i")), "s3up");
+        return;
+      }
+      if (act === "harm-s3dn") {
+        applyHarmonySuggestion(Number(t.getAttribute("data-i")), "s3dn");
+        return;
+      }
       if (act === "mute") {
         var i = Number(t.getAttribute("data-i"));
         if (tracks[i]) {
@@ -1705,20 +1925,30 @@
       }
     };
 
-    // Harmoni (semitone) — live via detune
+    // Harmoni + patokan
     root.addEventListener("change", function (ev) {
       var t = ev.target;
       if (!t || !t.getAttribute) return;
-      if (t.getAttribute("data-act") !== "harm") return;
+      var act = t.getAttribute("data-act");
       var i = Number(t.getAttribute("data-i"));
       if (!tracks[i]) return;
-      tracks[i].semitones = Number(t.value) || 0;
-      applyLiveVolumes();
-      var lab =
-        tracks[i].semitones === 0
-          ? "Ori"
-          : (tracks[i].semitones > 0 ? "+" : "") + tracks[i].semitones + " st";
-      setStatus("T" + (i + 1) + " harmoni " + lab);
+      if (act === "harm") {
+        tracks[i].semitones = Number(t.value) || 0;
+        applyLiveVolumes();
+        var lab =
+          tracks[i].semitones === 0
+            ? "Ori"
+            : (tracks[i].semitones > 0 ? "+" : "") + tracks[i].semitones + " st";
+        setStatus("T" + (i + 1) + " harmoni " + lab);
+      } else if (act === "ref") {
+        tracks[i].refTrack = Number(t.value);
+        setStatus(
+          "T" +
+            (i + 1) +
+            " patokan: " +
+            (tracks[i].refTrack < 0 ? "—" : "T" + (tracks[i].refTrack + 1))
+        );
+      }
     });
 
     // Rename track (contenteditable)
