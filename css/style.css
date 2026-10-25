@@ -5112,3 +5112,84 @@ small.chat-msg-time{font-size:11px;color:#8aa3ae}
 }
 .amx-track-idx{cursor:pointer;user-select:none}
 .amx-track-idx:hover{color:#fff}
+
+/* Mark time: tanpa border berwarna, angka muat */
+.amx-mark-time,
+.amx-region-time,
+input.amx-mark-time,
+input.amx-region-time{
+  border:none!important;
+  box-shadow:none!important;
+  outline:none!important;
+  background:transparent!important;
+  width:3.2em!important;
+  min-width:3.2em!important;
+  max-width:4em!important;
+  padding:1px 2px!important;
+  font-size:11px!important;
+  font-weight:700!important;
+  font-variant-numeric:tabular-nums!important;
+  letter-spacing:0!important;
+  line-height:1.2!important;
+  text-align:left!important;
+  overflow:visible!important;
+  white-space:nowrap!important;
+}
+.amx-mark-time-in,
+.amx-region-time-in{color:#7dffb0!important}
+.amx-mark-time-out,
+.amx-region-time-out{color:#ff8a9a!important}
+.amx-mark-time:focus,
+.amx-region-time:focus{
+  background:rgba(0,0,0,.25)!important;
+  border-radius:4px!important;
+}
+
+/* Knob region: center vertikal di bar */
+.amx-timeline{
+  position:relative;
+}
+.amx-handle,
+.amx-handle-in,
+.amx-handle-out{
+  position:absolute!important;
+  top:50%!important;
+  transform:translate(-50%,-50%)!important;
+  margin:0!important;
+  width:12px!important;
+  height:18px!important;
+  border-radius:3px!important;
+  z-index:5!important;
+}
+.amx-handle-in{
+  background:linear-gradient(180deg,#9dffc0,#2ecc71)!important;
+}
+.amx-handle-out{
+  background:linear-gradient(180deg,#ff9aab,#e04860)!important;
+}
+.amx-handle::after{display:none!important}
+
+.amx-track-playhead{
+  position:relative;
+  overflow:visible!important;
+}
+.amx-track-trim-in,
+.amx-track-trim-out{
+  position:absolute!important;
+  top:50%!important;
+  transform:translate(-50%,-50%)!important;
+  margin:0!important;
+  width:10px!important;
+  height:14px!important;
+  border-radius:3px!important;
+  z-index:4!important;
+}
+.amx-track-playhead-knob{
+  position:absolute!important;
+  top:50%!important;
+  transform:translate(-50%,-50%)!important;
+  margin:0!important;
+  width:11px!important;
+  height:11px!important;
+  z-index:3!important;
+}

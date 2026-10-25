@@ -772,22 +772,20 @@
         var off = tr.offset || 0;
         var tIn = trackTrimIn(tr);
         var tOut = trackTrimOut(tr);
-        var activeDur = tOut - tIn;
+        // Playhead di bar penuh: independen dari trim (geser region tidak menggeser playhead)
         var local = playhead - off;
-        var p = 0;
-        if (local <= 0) p = 0;
-        else if (local >= activeDur) p = 1;
-        else p = local / activeDur;
-        // map playhead onto full-buffer bar: trimIn..trimOut region
-        var pBar = activeDur > 0 ? (tIn + p * activeDur) / tr.buffer.duration : 0;
+        var pBar = 0;
+        if (local <= 0) pBar = 0;
+        else if (local >= tr.buffer.duration) pBar = 1;
+        else pBar = local / tr.buffer.duration;
         el.style.width = pBar * 100 + "%";
         var kn = listEl.querySelector('[data-amx-prog-knob="' + idx + '"]');
         if (kn) kn.style.left = pBar * 100 + "%";
         var hin = listEl.querySelector('[data-amx-trim-in="' + idx + '"]');
         var hout = listEl.querySelector('[data-amx-trim-out="' + idx + '"]');
         var reg = listEl.querySelector('[data-amx-trim-reg="' + idx + '"]');
-        var pin = tIn / tr.buffer.duration;
-        var pout = tOut / tr.buffer.duration;
+        var pin = tr.buffer.duration > 0 ? tIn / tr.buffer.duration : 0;
+        var pout = tr.buffer.duration > 0 ? tOut / tr.buffer.duration : 1;
         if (hin) hin.style.left = pin * 100 + "%";
         if (hout) hout.style.left = pout * 100 + "%";
         if (reg) {
@@ -2380,14 +2378,8 @@
           tr.trimOut = Math.max(inn + 0.05, Math.min(tr.buffer.duration, sec));
           updateTransportUI();
         } else {
-          // scrub relative to full buffer → absolute timeline
-          seekTo((tr.offset || 0) + Math.max(0, sec - trackTrimIn(tr)));
-          // better: seek to offset + position within active region if click in region
-          var tIn = trackTrimIn(tr);
-          var tOut = trackTrimOut(tr);
-          if (sec < tIn) seekTo(tr.offset || 0);
-          else if (sec > tOut) seekTo((tr.offset || 0) + (tOut - tIn));
-          else seekTo((tr.offset || 0) + (sec - tIn));
+          // scrub: posisi di full-buffer bar → timeline (offset + sec)
+          seekTo((tr.offset || 0) + sec);
         }
       }
       root.addEventListener("pointerdown", function (ev) {
