@@ -24,7 +24,10 @@
   let typingTimer = null;
   let allMessages = [];
   let chatReactionsMap = {}; // messageId -> [{id,emoji,author_name,author_user_id}]
-  const CHAT_REACT_POSITIVE = ["👍", "❤️", "😂", "😮", "🙏", "🔥", "👏", "🎉", "✅", "💯", "😍", "🤩"];
+  const CHAT_REACT_POSITIVE = [
+    "👍", "❤️", "😂", "😮", "🙏", "🔥", "👏", "🎉", "✅", "💯", "😍", "🤩",
+    "🥰", "😎", "🤗", "💖", "✨", "🌟", "💪", "🤝", "😊", "🥳"
+  ];
   const CHAT_REACT_NEGATIVE = ["👎", "😡", "🤬", "😢", "😭", "🤮", "💩", "👎", "😒", "😤", "🤢", "☠️"];
   // unique order for picker (pos then neg)
   const CHAT_REACT_EMOJIS = (function () {
@@ -1453,8 +1456,6 @@
     });
     const cur = $("#chatAvatarCurrent");
     if (cur) cur.textContent = selectedAvatar;
-    // default: folded
-    setAvatarExpanded(false);
     const toggle = $("#chatAvatarToggle");
     if (toggle && !toggle.dataset.bound) {
       toggle.dataset.bound = "1";
@@ -1462,6 +1463,10 @@
         const open = toggle.getAttribute("aria-expanded") === "true";
         setAvatarExpanded(!open);
       });
+    }
+    if (!buildAvatarPicker._initialized) {
+      setAvatarExpanded(false);
+      buildAvatarPicker._initialized = true;
     }
   }
 
@@ -3193,15 +3198,30 @@
     });
     // Klik / fokus nama → buka pilihan avatar agar user sadar ada emoji
     function openAvatarFromName() {
-      buildAvatarPicker();
+      if (!avatarPicker || !avatarPicker.children.length) {
+        buildAvatarPicker();
+      }
       setAvatarExpanded(true);
-      // scroll picker into view if needed
       try {
-        if (avatarPicker) avatarPicker.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        if (avatarPicker) {
+          avatarPicker.classList.add("is-hint");
+          avatarPicker.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          setTimeout(function () {
+            try { avatarPicker.classList.remove("is-hint"); } catch (e2) {}
+          }, 2000);
+        }
+        var tog = document.getElementById("chatAvatarToggle");
+        if (tog) {
+          tog.classList.add("is-hint-pulse");
+          setTimeout(function () { tog.classList.remove("is-hint-pulse"); }, 2000);
+        }
       } catch (e) {}
     }
     nameInput.addEventListener("focus", openAvatarFromName);
     nameInput.addEventListener("click", openAvatarFromName);
+    nameInput.addEventListener("pointerdown", function () {
+      setTimeout(openAvatarFromName, 0);
+    });
     // Label "Nama tampilan" di field name
     const nameField = nameInput.closest(".field, .chat-f-name, .chat-fields-row > div");
     if (nameField) {
