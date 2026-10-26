@@ -104,16 +104,37 @@
     return new Blob([buffer], { type: "audio/wav" });
   }
 
-  /** Impulse response sederhana untuk reverb (tanpa file eksternal) */
+  /**
+   * Impulse reverb yang lebih halus (noise tersaring + normalisasi).
+   * IR pendek = lebih ringan di CPU (playback live tidak tersendat seperti BandLab-lite).
+   */
   function makeImpulse(ctx, seconds, decay) {
     var rate = ctx.sampleRate;
-    var len = Math.floor(rate * (seconds || 1.8));
+    var sec = seconds != null ? seconds : 1.05;
+    var len = Math.max(1, Math.floor(rate * sec));
     var impulse = ctx.createBuffer(2, len, rate);
-    decay = decay || 2.2;
+    decay = decay != null ? decay : 3.2;
     for (var c = 0; c < 2; c++) {
       var data = impulse.getChannelData(c);
+      var prev = 0;
+      var peak = 0;
+      // Noise putih + one-pole lowpass (mengurangi "gresekan" frekuensi tinggi)
       for (var i = 0; i < len; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+        var n = Math.random() * 2 - 1;
+        // sedikit decorrelate L/R
+        if (c === 1) n = n * 0.92 + (Math.random() * 2 - 1) * 0.08;
+        prev = prev * 0.94 + n * 0.06;
+        var env = Math.pow(1 - i / len, decay);
+        // early reflection kecil di awal
+        if (i < rate * 0.012) env *= 0.35 + (i / (rate * 0.012)) * 0.65;
+        data[i] = prev * env;
+        var a = Math.abs(data[i]);
+        if (a > peak) peak = a;
+      }
+      // Normalisasi agar Convolver tidak meledak / distorsi
+      if (peak > 1e-6) {
+        var g = 0.55 / peak;
+        for (var j = 0; j < len; j++) data[j] *= g;
       }
     }
     return impulse;
@@ -424,10 +445,19 @@
     function ensureReverb() {
       ensureCtx();
       if (!sharedConvolver) {
+        // IR hidup lebih pendek → Convolver real-time jauh lebih ringan (kurang lag/noise)
+        sharedImpulse = makeImpulse(audioCtx, 1.0, 3.4);
         sharedConvolver = audioCtx.createConvolver();
-        sharedImpulse = makeImpulse(audioCtx, 1.6, 2.4);
+        sharedConvolver.normalize = true;
         sharedConvolver.buffer = sharedImpulse;
-        sharedConvolver.connect(ensureMasterGain());
+        // Lowpass setelah reverb = karakter ruang lebih natural, kurangi hiss
+        var lpf = audioCtx.createBiquadFilter();
+        lpf.type = "lowpass";
+        lpf.frequency.value = 5200;
+        lpf.Q.value = 0.7;
+        sharedConvolver.connect(lpf);
+        lpf.connect(ensureMasterGain());
+        sharedConvolver._lpf = lpf;
       }
       return sharedConvolver;
     }
@@ -1143,7 +1173,7 @@
       var wetGain = null;
       ensureReverb();
       wetGain = audioCtx.createGain();
-      wetGain.gain.value = vol * rev;
+      wetGain.gain.value = vol * Math.min(0.85, Math.max(0, rev));
       src.connect(wetGain);
       try {
         if (panNode) {
@@ -1186,7 +1216,7 @@
         bal = Math.max(-1, Math.min(1, bal));
         try {
           if (g.dry) g.dry.gain.value = vol;
-          if (g.wet) g.wet.gain.value = vol * rev;
+          if (g.wet) g.wet.gain.value = vol * Math.min(0.85, Math.max(0, rev));
           if (g.src && g.src.detune) g.src.detune.value = semi * 100;
           if (g.pan) g.pan.pan.value = bal;
           if (g.wetPan) g.wetPan.pan.value = bal;
@@ -1842,7 +1872,7 @@
       master.connect(offline.destination);
       var conv = null;
       if (!opts.mono && tail > 0.2) {
-        var impulse = makeImpulse(offline, 1.4, 2.4);
+        var impulse = makeImpulse(offline, 1.5, 3.0);
         conv = offline.createConvolver();
         conv.buffer = impulse;
         conv.connect(master);
@@ -2948,14 +2978,8 @@
         tracks[i].reverb = Number(t.value) / 100;
         var lab2 = root.querySelector('[data-amx-revval="' + i + '"]');
         if (lab2) lab2.textContent = Math.round(tracks[i].reverb * 100) + "%";
+        // Hanya ubah gain wet — JANGAN restart play (restart = lag + noise/gresekan)
         applyLiveVolumes();
-        // jika reverb baru diaktifkan saat play, live graph mungkin belum punya wet — restart play
-        if (isPlaying && !isRecording && tracks[i].reverb > 0.01) {
-          var head = currentPlayhead();
-          stopPlayback(true);
-          playhead = head;
-          playAll();
-        }
       } else if (act === "off") {
         applyOffset(i, Number(t.value), {
           fromRange: true,
