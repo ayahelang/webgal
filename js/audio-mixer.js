@@ -105,100 +105,39 @@
   }
 
   /**
-   * Reverb algoritmik (comb + early reflection) — gaya DAW web / BandLab live.
-   * Tanpa ConvolverNode + noise IR → tidak gresekan, ringan, tidak perlu storage.
-   * Return { input, output } GainNodes.
+   * Impulse reverb yang lebih halus (noise tersaring + normalisasi).
+   * IR pendek = lebih ringan di CPU (playback live tidak tersendat seperti BandLab-lite).
    */
-/**
-   * Reverb algoritmik ringan (early + 4 comb damped + 2 allpass) — gaya live DAW web.
-   * Tanpa Convolver/IR noise → tidak gresekan, CPU rendah, TANPA storage sementara.
-   */
-  function createAlgoReverb(ctx, opts) {
-    opts = opts || {};
-    var input = ctx.createGain();
-    input.gain.value = 1;
-    var output = ctx.createGain();
-    output.gain.value = 1;
-
-    // Split: early reflections (singkat, bersih)
-    var erDelay = ctx.createDelay(0.25);
-    erDelay.delayTime.value = opts.earlyMs != null ? opts.earlyMs / 1000 : 0.022;
-    var erGain = ctx.createGain();
-    erGain.gain.value = opts.earlyGain != null ? opts.earlyGain : 0.18;
-    var erLp = ctx.createBiquadFilter();
-    erLp.type = "lowpass";
-    erLp.frequency.value = 4500;
-    input.connect(erDelay);
-    erDelay.connect(erLp);
-    erLp.connect(erGain);
-    erGain.connect(output);
-
-    // Comb bank (lebih sedikit + feedback lebih rendah = tidak metallic/gresek)
-    var combs = opts.combs || [0.031, 0.037, 0.043, 0.053];
-    var fbBase = opts.feedback != null ? opts.feedback : 0.58;
-    var combLevel = opts.combGain != null ? opts.combGain : 0.14;
-    var dampHz = opts.dampHz != null ? opts.dampHz : 2800;
-    for (var i = 0; i < combs.length; i++) {
-      var d = ctx.createDelay(1.0);
-      d.delayTime.value = combs[i];
-      var fbg = ctx.createGain();
-      fbg.gain.value = Math.max(0.35, fbBase - i * 0.03);
-      var lpf = ctx.createBiquadFilter();
-      lpf.type = "lowpass";
-      lpf.frequency.value = Math.max(1200, dampHz - i * 180);
-      lpf.Q.value = 0.5;
-      var mix = ctx.createGain();
-      mix.gain.value = combLevel;
-      input.connect(d);
-      d.connect(lpf);
-      lpf.connect(fbg);
-      fbg.connect(d);
-      lpf.connect(mix);
-      mix.connect(output);
+  function makeImpulse(ctx, seconds, decay) {
+    var rate = ctx.sampleRate;
+    var sec = seconds != null ? seconds : 1.05;
+    var len = Math.max(1, Math.floor(rate * sec));
+    var impulse = ctx.createBuffer(2, len, rate);
+    decay = decay != null ? decay : 3.2;
+    for (var c = 0; c < 2; c++) {
+      var data = impulse.getChannelData(c);
+      var prev = 0;
+      var peak = 0;
+      // Noise putih + one-pole lowpass (mengurangi "gresekan" frekuensi tinggi)
+      for (var i = 0; i < len; i++) {
+        var n = Math.random() * 2 - 1;
+        // sedikit decorrelate L/R
+        if (c === 1) n = n * 0.92 + (Math.random() * 2 - 1) * 0.08;
+        prev = prev * 0.94 + n * 0.06;
+        var env = Math.pow(1 - i / len, decay);
+        // early reflection kecil di awal
+        if (i < rate * 0.012) env *= 0.35 + (i / (rate * 0.012)) * 0.65;
+        data[i] = prev * env;
+        var a = Math.abs(data[i]);
+        if (a > peak) peak = a;
+      }
+      // Normalisasi agar Convolver tidak meledak / distorsi
+      if (peak > 1e-6) {
+        var g = 0.55 / peak;
+        for (var j = 0; j < len; j++) data[j] *= g;
+      }
     }
-
-    // 2× allpass (difusi lembut, bukan noise)
-    function allpass(delaySec, g) {
-      var din = ctx.createGain();
-      var dout = ctx.createGain();
-      var del = ctx.createDelay(0.5);
-      del.delayTime.value = delaySec;
-      var fg = ctx.createGain();
-      fg.gain.value = g;
-      var inv = ctx.createGain();
-      inv.gain.value = -g;
-      din.connect(del);
-      din.connect(inv);
-      inv.connect(dout);
-      del.connect(fg);
-      fg.connect(din);
-      del.connect(dout);
-      return { input: din, output: dout };
-    }
-    var ap1 = allpass(0.005, 0.5);
-    var ap2 = allpass(0.0117, 0.5);
-    // insert allpass on wet bus: rebuild path through series
-    // (output currently collects combs+early — route through allpass for smoother tail)
-    var mid = ctx.createGain();
-    // reconnect: we can't easily tear graph; instead post-filter series on a new node
-    var air = ctx.createBiquadFilter();
-    air.type = "lowpass";
-    air.frequency.value = opts.airHz != null ? opts.airHz : 5200;
-    air.Q.value = 0.707;
-    var hs = ctx.createBiquadFilter();
-    hs.type = "highshelf";
-    hs.frequency.value = 3500;
-    hs.gain.value = -6; // kurangi hiss atas
-
-    var realOut = ctx.createGain();
-    realOut.gain.value = 1;
-    output.connect(ap1.input);
-    ap1.output.connect(ap2.input);
-    ap2.output.connect(hs);
-    hs.connect(air);
-    air.connect(realOut);
-
-    return { input: input, output: realOut };
+    return impulse;
   }
 
 
@@ -470,7 +409,8 @@
     var CHAT_KBPS = 48;
     var CHAT_MAX_SEC = 120; // ~48kbps mono ≈ 0.7 MB / 2 mnt
     var CHAT_MAX_BYTES = 1.8 * 1024 * 1024;
-    var sharedReverb = null; // { input, output } algo reverb — bukan Convolver
+    var sharedConvolver = null;
+    var sharedImpulse = null;
 
     if (btnExport) {
       if (sendLabel && onExport) {
@@ -504,17 +444,22 @@
 
     function ensureReverb() {
       ensureCtx();
-      if (!sharedReverb) {
-        sharedReverb = createAlgoReverb(audioCtx, {
-          feedback: 0.55,
-          dampHz: 2600,
-          combGain: 0.12,
-          earlyGain: 0.16,
-          airHz: 5000,
-        });
-        sharedReverb.output.connect(ensureMasterGain());
+      if (!sharedConvolver) {
+        // IR hidup lebih pendek → Convolver real-time jauh lebih ringan (kurang lag/noise)
+        sharedImpulse = makeImpulse(audioCtx, 1.0, 3.4);
+        sharedConvolver = audioCtx.createConvolver();
+        sharedConvolver.normalize = true;
+        sharedConvolver.buffer = sharedImpulse;
+        // Lowpass setelah reverb = karakter ruang lebih natural, kurangi hiss
+        var lpf = audioCtx.createBiquadFilter();
+        lpf.type = "lowpass";
+        lpf.frequency.value = 5200;
+        lpf.Q.value = 0.7;
+        sharedConvolver.connect(lpf);
+        lpf.connect(ensureMasterGain());
+        sharedConvolver._lpf = lpf;
       }
-      return sharedReverb;
+      return sharedConvolver;
     }
 
     function setStatus(t) {
@@ -1228,20 +1173,20 @@
       var wetGain = null;
       ensureReverb();
       wetGain = audioCtx.createGain();
-      wetGain.gain.value = vol * Math.min(0.7, Math.max(0, rev));
+      wetGain.gain.value = vol * Math.min(0.85, Math.max(0, rev));
       src.connect(wetGain);
       try {
         if (panNode) {
           var wetPan = audioCtx.createStereoPanner();
           wetPan.pan.value = Math.max(-1, Math.min(1, bal));
           wetGain.connect(wetPan);
-          wetPan.connect(sharedReverb.input);
+          wetPan.connect(sharedConvolver);
           panNode._wetPan = wetPan;
         } else {
-          wetGain.connect(sharedReverb.input);
+          wetGain.connect(sharedConvolver);
         }
       } catch (e2) {
-        wetGain.connect(sharedReverb.input);
+        wetGain.connect(sharedConvolver);
       }
       var trkAn = null;
       try {
@@ -1271,7 +1216,7 @@
         bal = Math.max(-1, Math.min(1, bal));
         try {
           if (g.dry) g.dry.gain.value = vol;
-          if (g.wet) g.wet.gain.value = vol * Math.min(0.7, Math.max(0, rev));
+          if (g.wet) g.wet.gain.value = vol * Math.min(0.85, Math.max(0, rev));
           if (g.src && g.src.detune) g.src.detune.value = semi * 100;
           if (g.pan) g.pan.pan.value = bal;
           if (g.wetPan) g.wetPan.pan.value = bal;
@@ -1926,15 +1871,11 @@
       master.gain.value = masterGain;
       master.connect(offline.destination);
       var conv = null;
-      if (!opts.mono && tail > 0.15) {
-        conv = createAlgoReverb(offline, {
-          feedback: 0.58,
-          dampHz: 2800,
-          combGain: 0.13,
-          earlyGain: 0.18,
-          airHz: 5200,
-        });
-        conv.output.connect(master);
+      if (!opts.mono && tail > 0.2) {
+        var impulse = makeImpulse(offline, 1.5, 3.0);
+        conv = offline.createConvolver();
+        conv.buffer = impulse;
+        conv.connect(master);
       }
 
       active.forEach(function (t) {
@@ -1973,9 +1914,9 @@
         }
         if (conv && rev > 0.01) {
           var wet = offline.createGain();
-          wet.gain.value = vol * Math.min(0.65, rev);
+          wet.gain.value = vol * rev;
           src.connect(wet);
-          wet.connect(conv.input);
+          wet.connect(conv);
         }
         try {
           src.start(when, offsetInBuffer, len);
