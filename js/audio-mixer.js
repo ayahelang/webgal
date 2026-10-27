@@ -109,36 +109,46 @@
    * Tanpa ConvolverNode + noise IR → tidak gresekan, ringan, tidak perlu storage.
    * Return { input, output } GainNodes.
    */
+/**
+   * Reverb algoritmik ringan (early + 4 comb damped + 2 allpass) — gaya live DAW web.
+   * Tanpa Convolver/IR noise → tidak gresekan, CPU rendah, TANPA storage sementara.
+   */
   function createAlgoReverb(ctx, opts) {
     opts = opts || {};
     var input = ctx.createGain();
+    input.gain.value = 1;
     var output = ctx.createGain();
     output.gain.value = 1;
-    // Early reflection
-    var erDelay = ctx.createDelay(0.2);
-    erDelay.delayTime.value = opts.earlyMs != null ? opts.earlyMs / 1000 : 0.018;
+
+    // Split: early reflections (singkat, bersih)
+    var erDelay = ctx.createDelay(0.25);
+    erDelay.delayTime.value = opts.earlyMs != null ? opts.earlyMs / 1000 : 0.022;
     var erGain = ctx.createGain();
-    erGain.gain.value = opts.earlyGain != null ? opts.earlyGain : 0.28;
+    erGain.gain.value = opts.earlyGain != null ? opts.earlyGain : 0.18;
+    var erLp = ctx.createBiquadFilter();
+    erLp.type = "lowpass";
+    erLp.frequency.value = 4500;
     input.connect(erDelay);
-    erDelay.connect(erGain);
+    erDelay.connect(erLp);
+    erLp.connect(erGain);
     erGain.connect(output);
-    // Parallel comb filters (feedback delay + damping LPF)
-    var combs = opts.combs || [0.0297, 0.0371, 0.0411, 0.0437, 0.0533, 0.0671];
-    var fb = opts.feedback != null ? opts.feedback : 0.72;
-    var dampHz = opts.dampHz != null ? opts.dampHz : 3400;
-    var combOut = opts.combGain != null ? opts.combGain : 0.22;
+
+    // Comb bank (lebih sedikit + feedback lebih rendah = tidak metallic/gresek)
+    var combs = opts.combs || [0.031, 0.037, 0.043, 0.053];
+    var fbBase = opts.feedback != null ? opts.feedback : 0.58;
+    var combLevel = opts.combGain != null ? opts.combGain : 0.14;
+    var dampHz = opts.dampHz != null ? opts.dampHz : 2800;
     for (var i = 0; i < combs.length; i++) {
       var d = ctx.createDelay(1.0);
       d.delayTime.value = combs[i];
       var fbg = ctx.createGain();
-      fbg.gain.value = fb - i * 0.015;
-      if (fbg.gain.value < 0.45) fbg.gain.value = 0.45;
+      fbg.gain.value = Math.max(0.35, fbBase - i * 0.03);
       var lpf = ctx.createBiquadFilter();
       lpf.type = "lowpass";
-      lpf.frequency.value = dampHz - i * 120;
+      lpf.frequency.value = Math.max(1200, dampHz - i * 180);
       lpf.Q.value = 0.5;
       var mix = ctx.createGain();
-      mix.gain.value = combOut;
+      mix.gain.value = combLevel;
       input.connect(d);
       d.connect(lpf);
       lpf.connect(fbg);
@@ -146,16 +156,48 @@
       lpf.connect(mix);
       mix.connect(output);
     }
-    // Soft high cut on whole wet bus
+
+    // 2× allpass (difusi lembut, bukan noise)
+    function allpass(delaySec, g) {
+      var din = ctx.createGain();
+      var dout = ctx.createGain();
+      var del = ctx.createDelay(0.5);
+      del.delayTime.value = delaySec;
+      var fg = ctx.createGain();
+      fg.gain.value = g;
+      var inv = ctx.createGain();
+      inv.gain.value = -g;
+      din.connect(del);
+      din.connect(inv);
+      inv.connect(dout);
+      del.connect(fg);
+      fg.connect(din);
+      del.connect(dout);
+      return { input: din, output: dout };
+    }
+    var ap1 = allpass(0.005, 0.5);
+    var ap2 = allpass(0.0117, 0.5);
+    // insert allpass on wet bus: rebuild path through series
+    // (output currently collects combs+early — route through allpass for smoother tail)
+    var mid = ctx.createGain();
+    // reconnect: we can't easily tear graph; instead post-filter series on a new node
     var air = ctx.createBiquadFilter();
     air.type = "lowpass";
-    air.frequency.value = opts.airHz != null ? opts.airHz : 6500;
-    air.Q.value = 0.7;
-    // rewire: output is intermediate — insert air
-    var preOut = output;
+    air.frequency.value = opts.airHz != null ? opts.airHz : 5200;
+    air.Q.value = 0.707;
+    var hs = ctx.createBiquadFilter();
+    hs.type = "highshelf";
+    hs.frequency.value = 3500;
+    hs.gain.value = -6; // kurangi hiss atas
+
     var realOut = ctx.createGain();
-    preOut.connect(air);
+    realOut.gain.value = 1;
+    output.connect(ap1.input);
+    ap1.output.connect(ap2.input);
+    ap2.output.connect(hs);
+    hs.connect(air);
     air.connect(realOut);
+
     return { input: input, output: realOut };
   }
 
@@ -464,11 +506,11 @@
       ensureCtx();
       if (!sharedReverb) {
         sharedReverb = createAlgoReverb(audioCtx, {
-          feedback: 0.7,
-          dampHz: 3200,
-          combGain: 0.2,
-          earlyGain: 0.25,
-          airHz: 6000,
+          feedback: 0.55,
+          dampHz: 2600,
+          combGain: 0.12,
+          earlyGain: 0.16,
+          airHz: 5000,
         });
         sharedReverb.output.connect(ensureMasterGain());
       }
@@ -1186,7 +1228,7 @@
       var wetGain = null;
       ensureReverb();
       wetGain = audioCtx.createGain();
-      wetGain.gain.value = vol * Math.min(0.85, Math.max(0, rev));
+      wetGain.gain.value = vol * Math.min(0.7, Math.max(0, rev));
       src.connect(wetGain);
       try {
         if (panNode) {
@@ -1229,7 +1271,7 @@
         bal = Math.max(-1, Math.min(1, bal));
         try {
           if (g.dry) g.dry.gain.value = vol;
-          if (g.wet) g.wet.gain.value = vol * Math.min(0.85, Math.max(0, rev));
+          if (g.wet) g.wet.gain.value = vol * Math.min(0.7, Math.max(0, rev));
           if (g.src && g.src.detune) g.src.detune.value = semi * 100;
           if (g.pan) g.pan.pan.value = bal;
           if (g.wetPan) g.wetPan.pan.value = bal;
@@ -1886,11 +1928,11 @@
       var conv = null;
       if (!opts.mono && tail > 0.15) {
         conv = createAlgoReverb(offline, {
-          feedback: 0.68,
-          dampHz: 3000,
-          combGain: 0.2,
-          earlyGain: 0.22,
-          airHz: 5800,
+          feedback: 0.58,
+          dampHz: 2800,
+          combGain: 0.13,
+          earlyGain: 0.18,
+          airHz: 5200,
         });
         conv.output.connect(master);
       }
@@ -1931,7 +1973,7 @@
         }
         if (conv && rev > 0.01) {
           var wet = offline.createGain();
-          wet.gain.value = vol * Math.min(0.8, rev);
+          wet.gain.value = vol * Math.min(0.65, rev);
           src.connect(wet);
           wet.connect(conv.input);
         }
