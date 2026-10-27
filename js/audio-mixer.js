@@ -1201,23 +1201,6 @@
       } catch (e2) {
         wetGain.connect(sharedReverb.input);
       }
-      // Delay / echo (algoritmik, ringan — tanpa storage)
-      var dlyAmt = typeof tr.delay === "number" ? tr.delay : 0;
-      var delayNode = audioCtx.createDelay(1.0);
-      delayNode.delayTime.value = 0.25;
-      var dlyFb = audioCtx.createGain();
-      dlyFb.gain.value = 0.25 + 0.4 * Math.min(1, Math.max(0, dlyAmt));
-      var dlyWet = audioCtx.createGain();
-      dlyWet.gain.value = vol * Math.min(0.9, Math.max(0, dlyAmt)) * 0.75;
-      var dlyLp = audioCtx.createBiquadFilter();
-      dlyLp.type = "lowpass";
-      dlyLp.frequency.value = 4200;
-      src.connect(dlyWet);
-      dlyWet.connect(delayNode);
-      delayNode.connect(dlyLp);
-      dlyLp.connect(dlyFb);
-      dlyFb.connect(delayNode);
-      dlyLp.connect(dest);
       var trkAn = null;
       try {
         trkAn = audioCtx.createAnalyser();
@@ -1228,8 +1211,6 @@
       liveGains.push({
         dry: dry,
         wet: wetGain,
-        dlyWet: dlyWet,
-        dlyFb: dlyFb,
         track: tr,
         src: src,
         analyser: trkAn,
@@ -1243,15 +1224,12 @@
         if (!g.track) return;
         var vol = effectiveTrackVol(g.track);
         var rev = typeof g.track.reverb === "number" ? g.track.reverb : 0;
-        var dly = typeof g.track.delay === "number" ? g.track.delay : 0;
         var semi = typeof g.track.semitones === "number" ? g.track.semitones : 0;
         var bal = typeof g.track.balance === "number" ? g.track.balance : 0;
         bal = Math.max(-1, Math.min(1, bal));
         try {
           if (g.dry) g.dry.gain.value = vol;
           if (g.wet) g.wet.gain.value = vol * Math.min(0.85, Math.max(0, rev));
-          if (g.dlyWet) g.dlyWet.gain.value = vol * Math.min(0.9, Math.max(0, dly)) * 0.75;
-          if (g.dlyFb) g.dlyFb.gain.value = 0.25 + 0.4 * Math.min(1, Math.max(0, dly));
           if (g.src && g.src.detune) g.src.detune.value = semi * 100;
           if (g.pan) g.pan.pan.value = bal;
           if (g.wetPan) g.wetPan.pan.value = bal;
@@ -1360,7 +1338,6 @@
           offSec > 0.05 ? " @" + fmt(offSec) : "";
         var vol = typeof tr.volume === "number" ? tr.volume : 1;
         var rev = typeof tr.reverb === "number" ? tr.reverb : 0;
-        var delayAmt = typeof tr.delay === "number" ? tr.delay : 0;
         var semi = typeof tr.semitones === "number" ? tr.semitones : 0;
         var bal = typeof tr.balance === "number" ? tr.balance : 0;
         // Slider max: at least timeline length, current offset, 60s
@@ -1528,40 +1505,19 @@
           '">' +
           Math.round(vol * 100) +
           "%</span></label>" +
-          '<div class="amx-slider-lab amx-offset-lab" title="Start timeline — akurasi 1 ms">' +
+          '<label class="amx-slider-lab amx-offset-lab" title="Waktu mulai">' +
           '<input type="text" class="amx-off-input" data-act="off-text" data-i="' +
           idx +
           '" value="' +
           fmt(offSec) +
-          '" inputmode="decimal" aria-label="Start m:ss.mmm">' +
-          " Start " +
-          '<span class="amx-nudge">' +
-          '<button type="button" class="amx-nudge-btn" data-act="nudge" data-i="' +
-          idx +
-          '" data-ms="-100" title="-100 ms">−−</button>' +
-          '<button type="button" class="amx-nudge-btn" data-act="nudge" data-i="' +
-          idx +
-          '" data-ms="-10" title="-10 ms">−10</button>' +
-          '<button type="button" class="amx-nudge-btn" data-act="nudge" data-i="' +
-          idx +
-          '" data-ms="-1" title="-1 ms">−1</button>' +
-          '<button type="button" class="amx-nudge-btn" data-act="nudge" data-i="' +
-          idx +
-          '" data-ms="1" title="+1 ms">+1</button>' +
-          '<button type="button" class="amx-nudge-btn" data-act="nudge" data-i="' +
-          idx +
-          '" data-ms="10" title="+10 ms">+10</button>' +
-          '<button type="button" class="amx-nudge-btn" data-act="nudge" data-i="' +
-          idx +
-          '" data-ms="100" title="+100 ms">+100</button>' +
-          "</span>" +
-          '<input type="range" min="0" max="' +
+          '" inputmode="numeric" aria-label="Waktu mulai">' +
+          ' Start <input type="range" min="0" max="' +
           offMax +
-          '" step="0.001" value="' +
-          Number(offSec).toFixed(3) +
+          '" step="0.1" value="' +
+          offSec.toFixed(1) +
           '" data-act="off" data-i="' +
           idx +
-          '"></div>' +
+          '"></label>' +
           '<label class="amx-slider-lab" title="Reverb">Rev <input type="range" min="0" max="100" value="' +
           Math.round(rev * 100) +
           '" data-act="rev" data-i="' +
@@ -1570,15 +1526,6 @@
           idx +
           '">' +
           Math.round(rev * 100) +
-          "%</span></label>" +
-          '<label class="amx-slider-lab" title="Delay / Echo">Dly <input type="range" min="0" max="100" value="' +
-          Math.round(delayAmt * 100) +
-          '" data-act="dly" data-i="' +
-          idx +
-          '"><span data-amx-dlyval="' +
-          idx +
-          '">' +
-          Math.round(delayAmt * 100) +
           "%</span></label>" +
           "</div>" +
           '<div class="amx-track-col-r">' +
@@ -1666,7 +1613,6 @@
         offset: Math.max(0, offsetSec || 0),
         volume: 1,
         reverb: 0,
-          delay: 0,
         semitones: 0,
         refTrack: -1,
         expanded: false,
@@ -1988,24 +1934,6 @@
           wet.gain.value = vol * Math.min(0.8, rev);
           src.connect(wet);
           wet.connect(conv.input);
-        }
-        var dlyO = typeof t.delay === "number" ? t.delay : 0;
-        if (dlyO > 0.01) {
-          var dNode = offline.createDelay(1.0);
-          dNode.delayTime.value = 0.25;
-          var dFb = offline.createGain();
-          dFb.gain.value = 0.25 + 0.4 * Math.min(1, dlyO);
-          var dW = offline.createGain();
-          dW.gain.value = vol * Math.min(0.9, dlyO) * 0.75;
-          var dLp = offline.createBiquadFilter();
-          dLp.type = "lowpass";
-          dLp.frequency.value = 4200;
-          src.connect(dW);
-          dW.connect(dNode);
-          dNode.connect(dLp);
-          dLp.connect(dFb);
-          dFb.connect(dNode);
-          dLp.connect(master);
         }
         try {
           src.start(when, offsetInBuffer, len);
@@ -2558,16 +2486,6 @@
         applyHarmonySuggestion(Number(t.getAttribute("data-i")), "s3dn");
         return;
       }
-      if (act === "nudge") {
-        var ni = Number(t.getAttribute("data-i"));
-        var ms = Number(t.getAttribute("data-ms")) || 0;
-        if (tracks[ni] && ms) {
-          var next = (tracks[ni].offset || 0) + ms / 1000;
-          if (next < 0) next = 0;
-          applyOffset(ni, next, { status: true });
-        }
-        return;
-      }
       if (act === "mute") {
         var i = Number(t.getAttribute("data-i"));
         if (tracks[i]) {
@@ -3077,11 +2995,7 @@
         tracks[i].reverb = Number(t.value) / 100;
         var lab2 = root.querySelector('[data-amx-revval="' + i + '"]');
         if (lab2) lab2.textContent = Math.round(tracks[i].reverb * 100) + "%";
-        applyLiveVolumes();
-      } else if (act === "dly") {
-        tracks[i].delay = Number(t.value) / 100;
-        var labD = root.querySelector('[data-amx-dlyval="' + i + '"]');
-        if (labD) labD.textContent = Math.round(tracks[i].delay * 100) + "%";
+        // Hanya ubah gain wet — JANGAN restart play (restart = lag + noise/gresekan)
         applyLiveVolumes();
       } else if (act === "off") {
         applyOffset(i, Number(t.value), {
