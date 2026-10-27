@@ -108,37 +108,94 @@
    * Impulse reverb yang lebih halus (noise tersaring + normalisasi).
    * IR pendek = lebih ringan di CPU (playback live tidak tersendat seperti BandLab-lite).
    */
-  function makeImpulse(ctx, seconds, decay) {
-    var rate = ctx.sampleRate;
-    var sec = seconds != null ? seconds : 1.05;
-    var len = Math.max(1, Math.floor(rate * sec));
-    var impulse = ctx.createBuffer(2, len, rate);
-    decay = decay != null ? decay : 3.2;
-    for (var c = 0; c < 2; c++) {
-      var data = impulse.getChannelData(c);
-      var prev = 0;
-      var peak = 0;
-      // Noise putih + one-pole lowpass (mengurangi "gresekan" frekuensi tinggi)
-      for (var i = 0; i < len; i++) {
-        var n = Math.random() * 2 - 1;
-        // sedikit decorrelate L/R
-        if (c === 1) n = n * 0.92 + (Math.random() * 2 - 1) * 0.08;
-        prev = prev * 0.94 + n * 0.06;
-        var env = Math.pow(1 - i / len, decay);
-        // early reflection kecil di awal
-        if (i < rate * 0.012) env *= 0.35 + (i / (rate * 0.012)) * 0.65;
-        data[i] = prev * env;
-        var a = Math.abs(data[i]);
-        if (a > peak) peak = a;
-      }
-      // Normalisasi agar Convolver tidak meledak / distorsi
-      if (peak > 1e-6) {
-        var g = 0.55 / peak;
-        for (var j = 0; j < len; j++) data[j] *= g;
-      }
+  /**
+   * Reverb live ala BandLab: algoritmik (early + comb damped + allpass).
+   * Tanpa ConvolverNode / noise IR → bersih, ringan, tidak gresekan.
+   * Tidak butuh storage sementara — murni Web Audio di memori.
+   */
+  function createAlgoReverb(ctx, opts) {
+    opts = opts || {};
+    var input = ctx.createGain();
+    var sum = ctx.createGain();
+    var output = ctx.createGain();
+    output.gain.value = 1;
+
+    // Early reflection (singkat, soft LPF)
+    var er = ctx.createDelay(0.3);
+    er.delayTime.value = (opts.earlyMs != null ? opts.earlyMs : 22) / 1000;
+    var erG = ctx.createGain();
+    erG.gain.value = opts.earlyGain != null ? opts.earlyGain : 0.15;
+    var erLp = ctx.createBiquadFilter();
+    erLp.type = "lowpass";
+    erLp.frequency.value = 4200;
+    erLp.Q.value = 0.7;
+    input.connect(er);
+    er.connect(erLp);
+    erLp.connect(erG);
+    erG.connect(sum);
+
+    // 4 comb filters — feedback rendah + damping = ekor halus, bukan metallic
+    var delays = opts.combs || [0.0297, 0.0371, 0.0411, 0.0437];
+    var fb0 = opts.feedback != null ? opts.feedback : 0.52;
+    var combMix = opts.combGain != null ? opts.combGain : 0.11;
+    var damp = opts.dampHz != null ? opts.dampHz : 2400;
+    for (var i = 0; i < delays.length; i++) {
+      var d = ctx.createDelay(1.0);
+      d.delayTime.value = delays[i];
+      var fb = ctx.createGain();
+      fb.gain.value = Math.max(0.32, fb0 - i * 0.035);
+      var lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = Math.max(1100, damp - i * 200);
+      lp.Q.value = 0.5;
+      var mg = ctx.createGain();
+      mg.gain.value = combMix;
+      input.connect(d);
+      d.connect(lp);
+      lp.connect(fb);
+      fb.connect(d);
+      lp.connect(mg);
+      mg.connect(sum);
     }
-    return impulse;
+
+    // 2 allpass — difusi lembut (bukan noise)
+    function makeAP(sec, g) {
+      var din = ctx.createGain();
+      var dout = ctx.createGain();
+      var del = ctx.createDelay(0.5);
+      del.delayTime.value = sec;
+      var pos = ctx.createGain();
+      pos.gain.value = g;
+      var neg = ctx.createGain();
+      neg.gain.value = -g;
+      din.connect(del);
+      din.connect(neg);
+      neg.connect(dout);
+      del.connect(pos);
+      pos.connect(din);
+      del.connect(dout);
+      return { input: din, output: dout };
+    }
+    var ap1 = makeAP(0.005, 0.5);
+    var ap2 = makeAP(0.0117, 0.48);
+    var shelf = ctx.createBiquadFilter();
+    shelf.type = "highshelf";
+    shelf.frequency.value = 3200;
+    shelf.gain.value = -8; // potong hiss
+    var air = ctx.createBiquadFilter();
+    air.type = "lowpass";
+    air.frequency.value = opts.airHz != null ? opts.airHz : 4800;
+    air.Q.value = 0.707;
+
+    sum.connect(ap1.input);
+    ap1.output.connect(ap2.input);
+    ap2.output.connect(shelf);
+    shelf.connect(air);
+    air.connect(output);
+
+    return { input: input, output: output };
   }
+
 
 
   function floatTo16(ch) {
@@ -409,8 +466,8 @@
     var CHAT_KBPS = 48;
     var CHAT_MAX_SEC = 120; // ~48kbps mono ≈ 0.7 MB / 2 mnt
     var CHAT_MAX_BYTES = 1.8 * 1024 * 1024;
-    var sharedConvolver = null;
-    var sharedImpulse = null;
+    var sharedReverb = null; // {input,output} algo — bukan Convolver
+    var sharedImpulse = null; // unused (legacy)
 
     if (btnExport) {
       if (sendLabel && onExport) {
@@ -444,22 +501,17 @@
 
     function ensureReverb() {
       ensureCtx();
-      if (!sharedConvolver) {
-        // IR hidup lebih pendek → Convolver real-time jauh lebih ringan (kurang lag/noise)
-        sharedImpulse = makeImpulse(audioCtx, 1.0, 3.4);
-        sharedConvolver = audioCtx.createConvolver();
-        sharedConvolver.normalize = true;
-        sharedConvolver.buffer = sharedImpulse;
-        // Lowpass setelah reverb = karakter ruang lebih natural, kurangi hiss
-        var lpf = audioCtx.createBiquadFilter();
-        lpf.type = "lowpass";
-        lpf.frequency.value = 5200;
-        lpf.Q.value = 0.7;
-        sharedConvolver.connect(lpf);
-        lpf.connect(ensureMasterGain());
-        sharedConvolver._lpf = lpf;
+      if (!sharedReverb) {
+        sharedReverb = createAlgoReverb(audioCtx, {
+          feedback: 0.5,
+          dampHz: 2300,
+          combGain: 0.1,
+          earlyGain: 0.14,
+          airHz: 4600,
+        });
+        sharedReverb.output.connect(ensureMasterGain());
       }
-      return sharedConvolver;
+      return sharedReverb;
     }
 
     function setStatus(t) {
@@ -1173,20 +1225,20 @@
       var wetGain = null;
       ensureReverb();
       wetGain = audioCtx.createGain();
-      wetGain.gain.value = vol * Math.min(0.85, Math.max(0, rev));
+      wetGain.gain.value = vol * Math.min(0.65, Math.max(0, rev));
       src.connect(wetGain);
       try {
         if (panNode) {
           var wetPan = audioCtx.createStereoPanner();
           wetPan.pan.value = Math.max(-1, Math.min(1, bal));
           wetGain.connect(wetPan);
-          wetPan.connect(sharedConvolver);
+          wetPan.connect(sharedReverb.input);
           panNode._wetPan = wetPan;
         } else {
-          wetGain.connect(sharedConvolver);
+          wetGain.connect(sharedReverb.input);
         }
       } catch (e2) {
-        wetGain.connect(sharedConvolver);
+        wetGain.connect(sharedReverb.input);
       }
       var trkAn = null;
       try {
@@ -1216,7 +1268,7 @@
         bal = Math.max(-1, Math.min(1, bal));
         try {
           if (g.dry) g.dry.gain.value = vol;
-          if (g.wet) g.wet.gain.value = vol * Math.min(0.85, Math.max(0, rev));
+          if (g.wet) g.wet.gain.value = vol * Math.min(0.65, Math.max(0, rev));
           if (g.src && g.src.detune) g.src.detune.value = semi * 100;
           if (g.pan) g.pan.pan.value = bal;
           if (g.wetPan) g.wetPan.pan.value = bal;
@@ -1872,10 +1924,14 @@
       master.connect(offline.destination);
       var conv = null;
       if (!opts.mono && tail > 0.2) {
-        var impulse = makeImpulse(offline, 1.5, 3.0);
-        conv = offline.createConvolver();
-        conv.buffer = impulse;
-        conv.connect(master);
+        var conv = createAlgoReverb(offline, {
+          feedback: 0.52,
+          dampHz: 2500,
+          combGain: 0.11,
+          earlyGain: 0.15,
+          airHz: 4800,
+        });
+        conv.output.connect(master);
       }
 
       active.forEach(function (t) {
@@ -1916,7 +1972,7 @@
           var wet = offline.createGain();
           wet.gain.value = vol * rev;
           src.connect(wet);
-          wet.connect(conv);
+          wet.connect(conv.input);
         }
         try {
           src.start(when, offsetInBuffer, len);
