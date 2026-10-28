@@ -1,39 +1,44 @@
 <!doctype html>
 <html lang="id">
 <head>
-  <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-3KD7J08B5W"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-3KD7J08B5W');
-</script>
-  <link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css">
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="assets/favicon.svg">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>About — Teddy Mulyana · Silverhawk</title>
+  <meta name="description" content="Tentang Teddy Mulyana dan Silverhawk Student Web Gallery — portfolio digital santriwati SMA PMA.">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#081018">
   <link rel="canonical" href="https://webgal.silverhawk.web.id/about.html">
   <link rel="manifest" href="site.webmanifest">
-  <meta name="robots" content="index,follow">
-  <meta name="description" content="Tentang Teddy Mulyana dan Silverhawk Student Web Gallery — portfolio digital santriwati SMA PMA.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/favicon.svg">
+  <!-- Preconnect: potong latency pihak ketiga -->
+  <link rel="preconnect" href="https://silverhawk.web.id" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://www.googletagmanager.com">
+  <link rel="dns-prefetch" href="https://upnnjidobuujhvevfyaa.supabase.co">
+  <!-- LCP: discover foto di dokumen awal + prioritas tinggi -->
+  <link rel="preload" as="image" href="assets/teddy-mulyana.webp" type="image/webp" fetchpriority="high">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Silverhawk Gallery">
-  <meta property="og:title" content="Web Kreasi Santriwati — Silverhawk Gallery">
-  <meta property="og:description" content="Galeri Web Kreasi Santriwati SMA PMA — kumpulan karya Web Design santriwati kelas 51 dan 52.">
-  <meta property="og:url" content="https://webgal.silverhawk.web.id/">
+  <meta property="og:title" content="About — Teddy Mulyana · Silverhawk">
+  <meta property="og:description" content="Tentang Teddy Mulyana dan Silverhawk Student Web Gallery.">
+  <meta property="og:url" content="https://webgal.silverhawk.web.id/about.html">
   <meta property="og:image" content="https://webgal.silverhawk.web.id/assets/og-cover.png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Web Kreasi Santriwati — Silverhawk Gallery">
-  <meta name="twitter:description" content="Galeri Web Kreasi Santriwati SMA PMA — kumpulan karya website & video.">
+  <meta name="twitter:title" content="About — Teddy Mulyana · Silverhawk">
+  <meta name="twitter:description" content="Tentang Teddy Mulyana dan Silverhawk Student Web Gallery.">
   <meta name="twitter:image" content="https://webgal.silverhawk.web.id/assets/og-cover.png">
-  <title>About — Teddy Mulyana · Silverhawk</title>
+  <!-- CSS utama: tetap blocking agar tanpa FOUC; lock.css non-critical -->
   <link rel="stylesheet" href="css/style.css">
-</head>
+  <link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css"></noscript>
+  <style>
+    /* Critical: contrast & touch target about */
+    .about-photo{border-radius:16px;aspect-ratio:1;object-fit:cover;background:#0c1822}
+    .page-about .muted{color:#9eb4c0}
+    .page-about .btn,.page-about .about-link-card{min-height:44px}
+  </style>
+
 <body class="page-skills page-about" data-shlock-mode="normal" data-shlock-domain="webgal.silverhawk.web.id" data-shlock-brand="Silverhawk Gallery" data-shlock-social="https://www.tiktok.com/@enb.electronicsntools,https://www.tiktok.com/@belajarsmm,https://silverhawk.web.id">
   <div class="bg-grid"></div>
   <div class="orb orb-a"></div><div class="orb orb-b"></div>
@@ -60,7 +65,10 @@
   <main class="skills-main about-main">
     <section class="about-hero-card">
       <div class="about-photo-wrap">
-        <img class="about-photo" src="assets/teddy-mulyana.jpg" width="320" height="320" alt="Foto Teddy Mulyana" loading="eager">
+        <picture>
+          <source srcset="assets/teddy-mulyana.webp" type="image/webp">
+          <img class="about-photo" src="assets/teddy-mulyana.jpg" width="320" height="320" alt="Foto Teddy Mulyana" decoding="async" fetchpriority="high">
+        </picture>
       </div>
       <div class="about-hero-copy">
         <div class="eyebrow">PENGEMBANG &amp; PENGAJAR</div>
@@ -233,22 +241,12 @@
     <span>© 2026 • SMA PMA • Web Design &amp; Digital Literacy</span>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="data/supabase-config.js"></script>
-  <script src="js/db.js"></script>
-  <script src="js/ui-dialog.js"></script>
-  <script src="js/profile-status.js"></script>
-  <script src="js/auth-ui.js"></script>
-  <script src="js/share.js"></script>
-  <script src="js/stats-float.js"></script>
-  <script src="https://silverhawk.web.id/lock/lock.js"></script>
-  <script src="js/health-check.js"></script>
-  <script src="js/idle-tour.js"></script>
-  <script src="js/voice-kit.js"></script>
-  <script src="js/announce.js"></script>
-  <script src="js/class-bell.js"></script>
+  <!-- Skrip ringan dulu; yang berat setelah window.load / idle -->
+  <script src="js/theme.js" defer></script>
   <script>
-    (function () {
+  (function(){
+    /* Version modal — tidak butuh DB */
+    function bootModal(){
       var modal = document.getElementById("verModal");
       var openBtn = document.getElementById("btnVersionHistory");
       if (!modal || !openBtn) return;
@@ -261,14 +259,66 @@
       document.addEventListener("keydown", function (e) {
         if (e.key === "Escape" && !modal.hidden) close();
       });
-    })();
-  </script>
-  <script src="js/chat-float.js"></script>
-  <script src="js/theme.js"></script>
-  <script src="js/loupe.js"></script>
+    }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bootModal);
+    else bootModal();
 
+    function loadScript(src){
+      return new Promise(function(res,rej){
+        var s=document.createElement("script");
+        s.src=src; s.async=true;
+        s.onload=function(){res();}; s.onerror=function(){rej();};
+        document.body.appendChild(s);
+      });
+    }
+    function loadChain(urls){
+      return urls.reduce(function(p,u){ return p.then(function(){ return loadScript(u); }); }, Promise.resolve());
+    }
+    function bootApp(){
+      loadChain([
+        "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+        "data/supabase-config.js",
+        "js/db.js",
+        "js/ui-dialog.js",
+        "js/profile-status.js",
+        "js/auth-ui.js"
+      ]).then(function(){
+        /* sekunder: tidak kritis LCP */
+        return loadChain([
+          "js/share.js",
+          "js/stats-float.js",
+          "js/health-check.js",
+          "js/idle-tour.js",
+          "https://silverhawk.web.id/lock/lock.js",
+          "js/chat-float.js",
+          "js/loupe.js"
+        ]);
+      }).catch(function(){});
+    }
+    function bootAnalytics(){
+      var s=document.createElement("script");
+      s.src="https://www.googletagmanager.com/gtag/js?id=G-3KD7J08B5W";
+      s.async=true;
+      s.onload=function(){
+        window.dataLayer=window.dataLayer||[];
+        function gtag(){dataLayer.push(arguments);}
+        window.gtag=gtag;
+        gtag("js", new Date());
+        gtag("config","G-3KD7J08B5W",{send_page_view:true});
+      };
+      document.head.appendChild(s);
+    }
+    function whenIdle(fn){
+      if ("requestIdleCallback" in window) requestIdleCallback(fn,{timeout:4000});
+      else setTimeout(fn, 1);
+    }
+    window.addEventListener("load", function(){
+      whenIdle(bootApp);
+      setTimeout(bootAnalytics, 3500); /* GTM setelah interaktif */
+    });
+  })();
+  </script>
   <script>
-  /* Izinkan copas di field isian; blokir hanya di luar form */
   (function(){
     function isField(t){
       if(!t||!t.tagName) return false;
@@ -278,11 +328,17 @@
       return !!(t.closest&&(t.closest("input,textarea,select,[contenteditable='true']")));
     }
     document.addEventListener("copy", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
-    document.addEventListener("cut", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
-    document.addEventListener("paste", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
-    document.addEventListener("selectstart", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
   })();
   </script>
 
+  <script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      setTimeout(function () {
+        navigator.serviceWorker.register("sw-about-hint.js").catch(function () {});
+      }, 5000);
+    });
+  }
+  </script>
 </body>
 </html>
