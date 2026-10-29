@@ -1,11 +1,7 @@
-# Admin + password room access + PageSpeed mobile
+# PageSpeed round 2 — CLS focus
 
-## Chat room
-- Admin boleh masuk ruang berpassword **jika password benar** (tidak harus di tree peserta)
-- Opsional SQL: sql/patch-chat-room-admin-password.sql
-
-## PageSpeed (index)
-- CSS non-blocking + critical shell
-- defer script inti
-- widget sekunder idle ~2–3.5s
-- service worker cache statis
+CLS 0.97 → target <0.1 via:
+- style.css blocking (anti FOUC)
+- tema early in head
+- theme toggle + share bar + stats slot di HTML
+- min-height hero/topbar/fixed widgets

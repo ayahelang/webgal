@@ -7,10 +7,13 @@
   const LS_COLLAPSED = "sh_float_stats_collapsed";
 
   function boot() {
-    if (document.getElementById("sh-float-stats")) return;
-
-    const el = document.createElement("div");
-    el.id = "sh-float-stats";
+    let el = document.getElementById("sh-float-stats");
+    const existed = !!el;
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "sh-float-stats";
+    }
+    el.hidden = false;
     el.setAttribute("role", "complementary");
     el.setAttribute("aria-label", "Statistik pengunjung");
     el.innerHTML =
@@ -26,7 +29,7 @@
       '<span class="fs-more">Detail →</span>' +
       "</a>" +
       '<button type="button" class="fs-show" hidden title="Tampilkan statistik" aria-label="Tampilkan">📊</button>';
-    document.body.appendChild(el);
+    if (!existed) document.body.appendChild(el);
 
     const body = el.querySelector(".fs-body");
     body.style.cssText =

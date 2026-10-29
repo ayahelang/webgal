@@ -28,21 +28,25 @@
     apply(ORDER[(i + 1) % ORDER.length]);
   }
   function ensureBtn() {
-    if (document.getElementById("themeToggle")) return;
-    var bar = document.querySelector(".topbar");
-    if (!bar) return;
-    var btn = document.createElement("button");
-    btn.type = "button";
-    btn.id = "themeToggle";
-    btn.className = "theme-toggle";
-    btn.innerHTML = '<span class="theme-dot" aria-hidden="true"></span><span class="theme-label"></span>';
-    btn.addEventListener("click", next);
-    // prefer after nav
-    var nav = bar.querySelector(".topnav");
-    if (nav && nav.parentNode === bar) {
-      bar.insertBefore(btn, nav.nextSibling);
-    } else {
-      bar.appendChild(btn);
+    var btn = document.getElementById("themeToggle");
+    if (!btn) {
+      var bar = document.querySelector(".topbar");
+      if (!bar) return;
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = "themeToggle";
+      btn.className = "theme-toggle";
+      btn.innerHTML = '<span class="theme-dot" aria-hidden="true"></span><span class="theme-label"></span>';
+      var nav = bar.querySelector(".topnav");
+      if (nav && nav.parentNode === bar) {
+        bar.insertBefore(btn, nav.nextSibling);
+      } else {
+        bar.appendChild(btn);
+      }
+    }
+    if (!btn._themeBound) {
+      btn._themeBound = true;
+      btn.addEventListener("click", next);
     }
     apply(current());
   }
@@ -279,7 +283,7 @@
         document.querySelectorAll(".topnav").forEach(function (n) {
           delete n.dataset.navScrollBound;
         });
-        initNavScroll();
+        requestAnimationFrame(function(){ setTimeout(initNavScroll, 0); });
       }
     });
   } catch (e) {}
