@@ -2005,7 +2005,7 @@
     }
     if (!ok) {
       status.textContent = needsPasswordHint
-        ? "Akses ditolak: password salah atau Anda tidak diizinkan."
+        ? "Akses ditolak: password salah. Admin harus memasukkan password ruang yang benar."
         : "Akses ditolak: Anda tidak termasuk peserta yang diizinkan di ruang ini.";
       return false;
     }

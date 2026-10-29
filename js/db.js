@@ -1816,6 +1816,81 @@
   async function verifyChatRoomAccess({ roomId, password, angkatanId, classCode, studentName, angkatanYear }) {
     const sb = client();
     if (!sb || !roomId) return false;
+    var isAdmin = false;
+    try {
+      isAdmin = await isCurrentUserAdmin();
+    } catch (e) {
+      isAdmin = false;
+    }
+
+    // Verifikasi client-side (admin + password benar → boleh, tanpa harus di daftar siswa)
+    async function clientVerify() {
+      const rooms = await listChatRooms({ activeOnly: false });
+      const r = rooms.find(function (x) {
+        return String(x.id) === String(roomId);
+      });
+      if (!r || !r.is_active) return false;
+
+      var roomPw = null;
+      var allowedStudents = r.allowed_students || [];
+      try {
+        const full = await sb
+          .from("gallery_chat_rooms")
+          .select("access_password,allowed_students,is_active")
+          .eq("id", roomId)
+          .maybeSingle();
+        if (full.data) {
+          if (full.data.is_active === false) return false;
+          roomPw = full.data.access_password;
+          if (full.data.allowed_students) allowedStudents = full.data.allowed_students;
+        }
+      } catch (e) {}
+
+      // Password wajib jika ruang dilindungi
+      if (roomPw && String(roomPw).trim()) {
+        if (String(roomPw).trim() !== String(password || "").trim()) return false;
+      }
+
+      // Admin yang sudah lolos password (atau ruang tanpa password) boleh masuk
+      if (isAdmin) return true;
+
+      if (r.allowed_class_codes && r.allowed_class_codes.length) {
+        const cls = String(classCode || "").trim().toLowerCase();
+        if (
+          !cls ||
+          !r.allowed_class_codes.some(function (c) {
+            return String(c).trim().toLowerCase() === cls;
+          })
+        )
+          return false;
+      }
+      const stu = allowedStudents || [];
+      if (stu.length) {
+        const nm = String(studentName || "").trim().toLowerCase();
+        const yr = String(angkatanYear || "").trim();
+        const cls = String(classCode || "").trim().toLowerCase();
+        if (!nm) return false;
+        const ok = stu.some(function (t) {
+          return (
+            String(t.name || "").trim().toLowerCase() === nm &&
+            (!t.class || String(t.class).trim().toLowerCase() === cls) &&
+            (!t.year || String(t.year).trim() === yr)
+          );
+        });
+        if (!ok) return false;
+      }
+      return true;
+    }
+
+    // Admin: prioritaskan client verify (RPC lama sering menolak admin karena bukan peserta)
+    if (isAdmin) {
+      try {
+        return await clientVerify();
+      } catch (e) {
+        return false;
+      }
+    }
+
     try {
       const { data, error } = await sb.rpc("verify_chat_room_access_v2", {
         p_room_id: roomId,
@@ -1826,7 +1901,6 @@
         p_angkatan_year: angkatanYear || null,
       });
       if (!error) return !!data;
-      // fallback RPC v1
       const r1 = await sb.rpc("verify_chat_room_access", {
         p_room_id: roomId,
         p_password: password || null,
@@ -1836,33 +1910,11 @@
       if (!r1.error) return !!r1.data;
       throw error || r1.error;
     } catch (e) {
-      const rooms = await listChatRooms({ activeOnly: false });
-      const r = rooms.find(function (x) { return String(x.id) === String(roomId); });
-      if (!r || !r.is_active) return false;
-      if (r.needs_password) {
-        const full = await sb.from("gallery_chat_rooms").select("access_password,allowed_students").eq("id", roomId).maybeSingle();
-        const pw = full.data && full.data.access_password;
-        if (pw && String(pw).trim() && String(pw).trim() !== String(password || "").trim()) return false;
-        if (full.data && full.data.allowed_students) r.allowed_students = full.data.allowed_students;
+      try {
+        return await clientVerify();
+      } catch (e2) {
+        return false;
       }
-      if (r.allowed_class_codes && r.allowed_class_codes.length) {
-        const cls = String(classCode || "").trim().toLowerCase();
-        if (!cls || !r.allowed_class_codes.some(function (c) { return String(c).trim().toLowerCase() === cls; })) return false;
-      }
-      const stu = r.allowed_students || [];
-      if (stu.length) {
-        const nm = String(studentName || "").trim().toLowerCase();
-        const yr = String(angkatanYear || "").trim();
-        const cls = String(classCode || "").trim().toLowerCase();
-        if (!nm) return false;
-        const ok = stu.some(function (t) {
-          return String(t.name || "").trim().toLowerCase() === nm
-            && (!t.class || String(t.class).trim().toLowerCase() === cls)
-            && (!t.year || String(t.year).trim() === yr);
-        });
-        if (!ok) return false;
-      }
-      return true;
     }
   }
   function joinTypingChannel({ roomKey, userName, avatarEmoji, onSync }) {

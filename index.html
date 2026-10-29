@@ -23,8 +23,14 @@
   <meta name="twitter:description" content="Galeri Web Kreasi Santriwati SMA PMA — kumpulan karya website & video.">
   <meta name="twitter:image" content="https://webgal.silverhawk.web.id/assets/og-cover.png">
   <title>Web Kreasi Santriwati — Silverhawk Gallery</title>
-  <link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="dns-prefetch" href="https://silverhawk.web.id">
+  <link rel="preload" href="css/style.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="css/style.css"></noscript>
+  <link rel="preload" href="https://silverhawk.web.id/lock/lock.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css"></noscript>
+  <style>/* critical shell */body{margin:0;background:#081018;color:#e8f4f8;font-family:system-ui,sans-serif}.bg-grid{position:fixed;inset:0;pointer-events:none;opacity:.35}</style>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -190,34 +196,52 @@
     <div><span class="brand-mark small">SH</span><b><a href="https://silverhawk.web.id/">Silverhawk Student Web Gallery</a></b></div>
     <span>© 2026 • SMA PMA • Web Design & SMM</span>
   </footer>
-<script src="data/fallback.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="data/supabase-config.js"></script>
-  <script src="js/db.js"></script>
-  <script src="js/ui-dialog.js"></script>
-  <script src="js/profile-status.js"></script>
-  <script src="js/auth-ui.js"></script>
-
-  <script src="js/social.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/hero-thumbs.js"></script>
+<script defer src="data/fallback.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="data/supabase-config.js"></script>
+  <script defer src="js/db.js"></script>
+  <script defer src="js/ui-dialog.js"></script>
+  <script defer src="js/profile-status.js"></script>
+  <script defer src="js/auth-ui.js"></script>
+  <script defer src="js/social.js"></script>
+  <script defer src="js/app.js"></script>
+  <script defer src="js/hero-thumbs.js"></script>
+  <script defer src="js/share.js"></script>
+  <script defer src="js/stats-float.js"></script>
+  <script defer src="js/theme.js"></script>
   <script>
-    if (window.GalleryDB && GalleryDB.enabled()) {
-      GalleryDB.trackEvent("visit", { page: "home" });
-      GalleryDB.joinPresenceOnline(function(){});
-    }
+    // Widget non-kritis: idle / timeout agar LCP & TBT mobile lebih baik
+    (function () {
+      function load(src) {
+        var s = document.createElement("script");
+        s.src = src;
+        s.async = true;
+        document.body.appendChild(s);
+      }
+      function bootSecondary() {
+        [
+          "js/health-check.js",
+          "js/idle-fix.js",
+          "js/voice-kit.js",
+          "js/announce.js",
+          "js/class-bell.js",
+          "js/chat-float.js",
+          "js/loupe.js",
+          "https://silverhawk.web.id/lock/lock.js",
+        ].forEach(load);
+        if (window.SHHeroThumbs) {
+          try {
+            SHHeroThumbs.mountAll(document);
+          } catch (e) {}
+        }
+      }
+      if ("requestIdleCallback" in window) {
+        requestIdleCallback(bootSecondary, { timeout: 3500 });
+      } else {
+        setTimeout(bootSecondary, 2000);
+      }
+    })();
   </script>
-  <script src="js/share.js"></script>
-  <script src="js/stats-float.js"></script>
-  <script src="js/health-check.js"></script>
-  <script src="js/idle-tour.js"></script>
-  <script src="js/voice-kit.js"></script>
-  <script src="js/announce.js"></script>
-  <script src="js/class-bell.js"></script>
-  <script src="https://silverhawk.web.id/lock/lock.js"></script>
-  <script src="js/chat-float.js"></script>
-  <script src="js/theme.js"></script>
-  <script src="js/loupe.js"></script>
 
   <script>
   /* Izinkan copas di field isian; blokir hanya di luar form */
@@ -236,5 +260,14 @@
   })();
   </script>
 
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        setTimeout(function () {
+          navigator.serviceWorker.register("/sw.js").catch(function () {});
+        }, 4000);
+      });
+    }
+  </script>
 </body>
 </html>
