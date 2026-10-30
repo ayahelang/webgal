@@ -2888,8 +2888,13 @@
     let ends = payload.ends_at || null;
     let duration_days = payload.duration_days != null && payload.duration_days !== "" ? Number(payload.duration_days) : null;
     let duration_hours = payload.duration_hours != null && payload.duration_hours !== "" ? Number(payload.duration_hours) : null;
-    // Default: mulai sekarang (jika kosong), tampil 24 jam jika tidak ada selesai & tidak ada durasi
-    if (!payload.starts_at) starts = nowIso;
+    // Alarm: starts_at = detik Simpan; non-alarm: default sekarang jika kosong
+    if (payload.is_alarm === true) {
+      starts = nowIso;
+    } else if (!payload.starts_at) {
+      starts = nowIso;
+    }
+    // Default: tampil 24 jam jika tidak ada selesai & tidak ada durasi
     if (!ends && (duration_days == null || isNaN(duration_days)) && (duration_hours == null || isNaN(duration_hours))) {
       duration_hours = 24;
       duration_days = null;

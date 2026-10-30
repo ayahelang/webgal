@@ -62,12 +62,28 @@
       "width:28px;height:28px;cursor:pointer;font-size:14px;line-height:1}",
       ".sh-alarm-hd button:hover{background:rgba(255,200,80,.25);color:#fff}",
       ".sh-alarm-body{padding:12px 14px 14px}",
-      ".sh-alarm-hourglass{width:48px;height:48px;margin:0 auto 8px;position:relative}",
-      ".sh-alarm-hourglass:before,.sh-alarm-hourglass:after{content:'';position:absolute;left:50%;transform:translateX(-50%);",
-      "width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent}",
-      ".sh-alarm-hourglass:before{top:2px;border-top:20px solid rgba(255,180,60,.85);animation:shHgFlip 2s ease-in-out infinite}",
-      ".sh-alarm-hourglass:after{bottom:2px;border-bottom:20px solid rgba(255,180,60,.45)}",
-      "@keyframes shHgFlip{0%,100%{transform:translateX(-50%) rotate(0)}50%{transform:translateX(-50%) rotate(180deg)}}",
+      ".sh-alarm-hg{width:56px;height:72px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center}",
+      ".sh-alarm-hg-frame{position:relative;width:36px;height:64px;",
+      "animation:shHgRotate 3s ease-in-out infinite;transform-origin:center center}",
+      ".sh-alarm-hg-top,.sh-alarm-hg-bot{position:absolute;left:0;width:36px;height:28px;",
+      "border:2px solid rgba(255,200,100,.85);background:rgba(20,30,45,.55);overflow:hidden}",
+      ".sh-alarm-hg-top{top:0;border-radius:4px 4px 18px 18px;border-bottom-color:transparent}",
+      ".sh-alarm-hg-bot{bottom:0;border-radius:18px 18px 4px 4px;border-top-color:transparent}",
+      ".sh-alarm-hg-neck{position:absolute;left:50%;top:26px;width:4px;height:12px;margin-left:-2px;",
+      "background:rgba(255,200,100,.5)}",
+      ".sh-alarm-hg-sand-top{position:absolute;left:4px;right:4px;top:4px;height:20px;",
+      "background:linear-gradient(#ffc46a,#e8a040);border-radius:2px 2px 50% 50%;",
+      "animation:shHgSandTop 3s linear infinite;transform-origin:center bottom}",
+      ".sh-alarm-hg-sand-bot{position:absolute;left:8px;right:8px;bottom:4px;height:0;",
+      "background:linear-gradient(#e8a040,#ffc46a);border-radius:50% 50% 2px 2px;",
+      "animation:shHgSandBot 3s linear infinite}",
+      ".sh-alarm-hg-stream{position:absolute;left:50%;top:28px;width:2px;height:12px;margin-left:-1px;",
+      "background:repeating-linear-gradient(to bottom,#ffc46a 0 2px,transparent 2px 4px);",
+      "opacity:.85;animation:shHgStream 3s linear infinite}",
+      "@keyframes shHgSandTop{0%{height:20px;opacity:1}70%{height:2px;opacity:.9}85%,100%{height:0;opacity:0}}",
+      "@keyframes shHgSandBot{0%{height:0}70%{height:4px}100%{height:18px}}",
+      "@keyframes shHgStream{0%,85%{opacity:.9}90%,100%{opacity:0}}",
+      "@keyframes shHgRotate{0%,75%{transform:rotate(0deg)}100%{transform:rotate(180deg)}}",
       ".sh-alarm-count{text-align:center;font-size:28px;font-weight:800;letter-spacing:.04em;",
       "font-variant-numeric:tabular-nums;color:#ffc46a;text-shadow:0 0 12px rgba(255,180,60,.35)}",
       ".sh-alarm-sub{text-align:center;font-size:11px;color:#9ab;margin-top:4px}",
@@ -182,7 +198,7 @@
       '<button type="button" data-act="close" title="Tutup">✕</button>' +
       "</div>" +
       '<div class="sh-alarm-body">' +
-      '<div class="sh-alarm-hourglass" aria-hidden="true"></div>' +
+      '<div class="sh-alarm-hg" aria-hidden="true"><div class="sh-alarm-hg-frame"><div class="sh-alarm-hg-top"></div><div class="sh-alarm-hg-neck"></div><div class="sh-alarm-hg-bot"></div><div class="sh-alarm-hg-sand-top"></div><div class="sh-alarm-hg-sand-bot"></div><div class="sh-alarm-hg-stream"></div></div></div>' +
       '<div class="sh-alarm-count">--:--</div>' +
       '<div class="sh-alarm-sub">Menuju alarm &amp; baca nyaring</div>' +
       '<div class="sh-alarm-msg"></div>' +
@@ -235,12 +251,23 @@
       if (!alarmFired[ann.id]) {
         alarmFired[ann.id] = true;
         try {
+          if (alarmTimers[ann.id]) {
+            clearInterval(alarmTimers[ann.id]);
+            delete alarmTimers[ann.id];
+          }
+        } catch (e0) {}
+        // 1) TTS dulu (setelah countdown habis)
+        try {
           speakAnnouncement(ann);
         } catch (e) {}
         try {
           if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         } catch (e2) {}
-        // tetap tampil floating setelah bunyi
+        if (subEl) subEl.textContent = "Membacakan… lalu splash";
+        // 2) Setelah jeda singkat, buka splash (durasi splash_seconds mulai dihitung di sini)
+        setTimeout(function () {
+          showSplash(ann, { fromFloat: true, afterAlarm: true });
+        }, 600);
       }
     }
     tick();
@@ -447,11 +474,8 @@
           return;
         }
         if (!opts.fromFloat) markSeen(ann);
-        if (ann.is_alarm) {
-          try {
-            speakAnnouncement(ann);
-          } catch (e) {}
-        }
+        /* alarm: TTS hanya setelah countdown, bukan di splash */
+
         if (isStillValid(ann)) showFloatBtn(ann);
         else removeFloat(ann.id);
         resolve();

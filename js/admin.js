@@ -1252,6 +1252,28 @@
         .filter((n) => !isNaN(n) && n >= 0 && n <= 23);
       let startsRaw = String(fd.get("starts_at") || "").trim();
       let starts = startsRaw ? new Date(startsRaw).toISOString() : new Date().toISOString();
+      // Alarm aktif: reset waktu mulai = saat Simpan diklik
+      if (f.querySelector("[name=is_alarm]") && f.querySelector("[name=is_alarm]").checked) {
+        starts = new Date().toISOString();
+        try {
+          var startsInput = f.querySelector("[name=starts_at]");
+          if (startsInput) {
+            var d = new Date(starts);
+            // datetime-local: YYYY-MM-DDTHH:mm
+            var pad = function (n) { return String(n).padStart(2, "0"); };
+            startsInput.value =
+              d.getFullYear() +
+              "-" +
+              pad(d.getMonth() + 1) +
+              "-" +
+              pad(d.getDate()) +
+              "T" +
+              pad(d.getHours()) +
+              ":" +
+              pad(d.getMinutes());
+          }
+        } catch (e) {}
+      }
       let endsRaw = String(fd.get("ends_at") || "").trim();
       let ends = endsRaw ? new Date(endsRaw).toISOString() : null;
       let duration_days = fd.get("duration_days") ? Number(fd.get("duration_days")) : null;
