@@ -2,6 +2,37 @@
 (function () {
   const LS_PREFIX = "sh_ann_seen_";
 
+  function stripHtml(html) {
+    var d = document.createElement("div");
+    d.innerHTML = html || "";
+    return (d.textContent || d.innerText || "").replace(/\s+/g, " ").trim();
+  }
+
+  function speakAnnouncement(ann) {
+    try {
+      if (!window.speechSynthesis) return;
+      var text = (ann.title || "Pengingat") + ". " + stripHtml(ann.body_html || "");
+      if (!text.trim()) return;
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text.slice(0, 600));
+      u.lang = "id-ID";
+      u.rate = 0.95;
+      u.pitch = 1;
+      // prefer Indonesian voice if available
+      try {
+        var voices = window.speechSynthesis.getVoices() || [];
+        var idv = voices.find(function (v) {
+          return /id/i.test(v.lang);
+        });
+        if (idv) u.voice = idv;
+      } catch (e) {}
+      window.speechSynthesis.speak(u);
+    } catch (e) {
+      console.warn("TTS", e);
+    }
+  }
+
+
   function pageKind() {
     const p = (location.pathname.split("/").pop() || "index.html").toLowerCase();
     if (!p || p === "/" || p === "index.html") return "home";
@@ -155,7 +186,7 @@
     btn.id = "sh-ann-float-" + ann.id;
     btn.className = "sh-ann-float-btn";
     btn.title = ann.title || "Pengumuman";
-    btn.innerHTML = "<span>📢</span><span class='sh-ann-float-label'>" + (ann.title || "Pengumuman").slice(0, 28) + "</span>";
+    btn.innerHTML = "<span>" + (ann.is_alarm ? "⏰" : "📢") + "</span><span class='sh-ann-float-label'>" + (ann.title || (ann.is_alarm ? "Alarm" : "Pengumuman")).slice(0, 28) + "</span>";
     btn.onclick = () => {
       removeFloat(ann.id);
       showSplash(ann, { fromFloat: true });
@@ -194,6 +225,11 @@
           return;
         }
         if (!opts.fromFloat) markSeen(ann);
+        if (ann.is_alarm) {
+          try {
+            speakAnnouncement(ann);
+          } catch (e) {}
+        }
         if (isStillValid(ann)) showFloatBtn(ann);
         else removeFloat(ann.id);
         resolve();
@@ -267,6 +303,43 @@
 
   if (document.readyState === "complete") setTimeout(boot, 600);
   else window.addEventListener("load", () => setTimeout(boot, 600));
+
+  // Alarm talking: polling ringan tiap menit (hanya is_alarm)
+  setInterval(function () {
+    if (pageKind() === "admin") return;
+    if (!window.GalleryDB || !GalleryDB.fetchActiveAnnouncements) return;
+    GalleryDB.fetchActiveAnnouncements()
+      .then(function (list) {
+        return Promise.resolve().then(function () {
+          return GalleryDB.getSession()
+            .then(function (session) {
+              if (!session) return null;
+              return GalleryDB.getMyProfile();
+            })
+            .catch(function () {
+              return null;
+            })
+            .then(function (profile) {
+              var kind = pageKind();
+              var now = new Date();
+              var alarms = (list || []).filter(function (ann) {
+                return (
+                  ann.is_alarm &&
+                  matchesPlace(ann, kind) &&
+                  matchesAudience(ann, profile) &&
+                  inSchedule(ann, now)
+                );
+              });
+              alarms.forEach(function (ann) {
+                // tampilkan splash + suara (inSchedule sudah cek kuota)
+                showSplash(ann);
+              });
+            });
+        });
+      })
+      .catch(function () {});
+  }, 60000);
+
 
   function fmtAnnClock(sec) {
     if (!isFinite(sec) || sec < 0) return "--:--";

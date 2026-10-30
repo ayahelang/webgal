@@ -2908,6 +2908,7 @@
       schedule_hours: payload.schedule_hours || [],
       schedule_days: Array.isArray(payload.schedule_days) ? payload.schedule_days : [],
       splash_seconds: Number(payload.splash_seconds) || 15,
+      is_alarm: payload.is_alarm === true,
       active: payload.active !== false,
       created_by: (function () {
         const u = session && session.user;

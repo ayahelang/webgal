@@ -819,6 +819,7 @@
           f.querySelector("[name=schedule_hours]").value = (r.schedule_hours || []).join(",");
           setAnnScheduleDays(f, r.schedule_days || []);
           f.querySelector("[name=splash_seconds]").value = r.splash_seconds || 15;
+          if (f.querySelector("[name=is_alarm]")) f.querySelector("[name=is_alarm]").checked = !!r.is_alarm;
           f.querySelector("[name=active]").checked = r.active !== false;
           $("#annStatus").textContent = "Mode duplikat: simpan untuk membuat pengumuman baru · " + (r.title || "");
           scrollToForm("#annForm");
@@ -890,6 +891,7 @@
           f.querySelector("[name=schedule_hours]").value = (r.schedule_hours || []).join(",");
           setAnnScheduleDays(f, r.schedule_days || []);
           f.querySelector("[name=splash_seconds]").value = r.splash_seconds || 15;
+          if (f.querySelector("[name=is_alarm]")) f.querySelector("[name=is_alarm]").checked = !!r.is_alarm;
           f.querySelector("[name=active]").checked = r.active !== false;
           $("#annStatus").textContent = "Mode edit: " + (r.title || "");
           scrollToForm("#annForm");
@@ -1161,6 +1163,7 @@
         title: (f.querySelector("[name=title]") && f.querySelector("[name=title]").value) || "Preview",
         body_html: html,
         splash_seconds: Number(f.querySelector("[name=splash_seconds]").value) || 15,
+        is_alarm: !!(f.querySelector("[name=is_alarm]") && f.querySelector("[name=is_alarm]").checked),
         id: "preview-" + Date.now(),
         times_per_day: 99,
         active: true,
@@ -1255,6 +1258,7 @@
         schedule_hours: hoursRaw,
         schedule_days: readAnnScheduleDays(f),
         splash_seconds: Number(fd.get("splash_seconds")) || 15,
+        is_alarm: !!(f.querySelector("[name=is_alarm]") && f.querySelector("[name=is_alarm]").checked),
         active: f.querySelector("[name=active]").checked,
       };
       try {
