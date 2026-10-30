@@ -68,7 +68,7 @@
       ".sh-alarm-btn:hover{background:rgba(255,200,80,.25);color:#fff}",
       ".sh-alarm-msg{margin-top:8px;font-size:12px;color:#c5d4e6;max-height:120px;overflow:auto;line-height:1.45;border-top:1px solid rgba(255,180,60,.15);padding-top:8px}",
       ".sh-alarm-float.is-min .sh-alarm-body{display:none}",
-      ".sh-alarm-float.is-min{width:auto;min-width:160px}",
+      ".sh-alarm-float.is-min{width:auto;min-width:168px}",".sh-alarm-float.is-min .sh-alarm-hd{gap:6px}",".sh-alarm-btn[data-act=max]{font-size:13px;font-weight:700}",
       ".sh-alarm-float.is-min .sh-alarm-title:after{content:' (ketuk 2× / buka kembali)';font-weight:500;opacity:.75;font-size:10px}",
 
       ".sh-alarm-hg-frame,.sh-alarm-hg-sand-top,.sh-alarm-hg-sand-bot,.sh-alarm-hg-stream{",
@@ -205,7 +205,9 @@
     el.innerHTML =
       '<div class="sh-alarm-hd">' +
       '<span class="sh-alarm-title"></span>' +
-      '<button type="button" class="sh-alarm-btn" data-act="close" title="Sebelum alarm: perkecil · Setelah baca: tutup">✕</button>' +
+      '<button type="button" class="sh-alarm-btn" data-act="min" title="Perkecil">–</button>' +
+      '<button type="button" class="sh-alarm-btn" data-act="max" title="Perbesar" hidden>□</button>' +
+      '<button type="button" class="sh-alarm-btn" data-act="close" title="Tutup">✕</button>' +
       "</div>" +
       '<div class="sh-alarm-body">' +
       '<div class="sh-alarm-row">' +
@@ -222,19 +224,67 @@
       0,
       400
     );
+
+    function syncMinMaxButtons() {
+      var minBtn = el.querySelector('[data-act="min"]');
+      var maxBtn = el.querySelector('[data-act="max"]');
+      var closeBtn = el.querySelector('[data-act="close"]');
+      var fired = !!alarmFired[id] || el.classList.contains("is-fired");
+      var minimized = el.classList.contains("is-min");
+      if (fired) {
+        // Setelah read-aloud: hanya tutup total
+        if (minBtn) minBtn.hidden = true;
+        if (maxBtn) maxBtn.hidden = true;
+        if (closeBtn) {
+          closeBtn.hidden = false;
+          closeBtn.title = "Tutup sepenuhnya";
+        }
+        return;
+      }
+      // Sebelum fire: min / max bergantian
+      if (minBtn) {
+        minBtn.hidden = minimized;
+        minBtn.title = "Perkecil";
+      }
+      if (maxBtn) {
+        maxBtn.hidden = !minimized;
+        maxBtn.title = "Perbesar";
+      }
+      if (closeBtn) {
+        // ✕ sebelum fire = sama dengan minimize (atau biarkan min)
+        closeBtn.hidden = true; // pakai – dan □ agar jelas
+      }
+    }
+
+    function setMinimized(on) {
+      if (on) el.classList.add("is-min");
+      else el.classList.remove("is-min");
+      var u = loadAlarmUi(id);
+      u.min = !!on;
+      saveAlarmUi(id, u);
+      syncMinMaxButtons();
+    }
+
+    el.querySelector('[data-act="min"]').addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (alarmFired[id] || el.classList.contains("is-fired")) return;
+      setMinimized(true);
+    });
+    el.querySelector('[data-act="max"]').addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (alarmFired[id] || el.classList.contains("is-fired")) return;
+      setMinimized(false);
+    });
     el.querySelector('[data-act="close"]').addEventListener("click", function (ev) {
       ev.preventDefault();
       ev.stopPropagation();
       var fired = !!alarmFired[id] || el.classList.contains("is-fired");
       if (!fired) {
-        // Belum waktunya read-aloud → minimize saja (bukan tutup)
-        el.classList.add("is-min");
-        var u = loadAlarmUi(id);
-        u.min = true;
-        saveAlarmUi(id, u);
+        setMinimized(true);
         return;
       }
-      // Sudah / sedang read-aloud → tutup total, tanpa sisa tombol
       try {
         if (alarmTimers[id]) clearInterval(alarmTimers[id]);
       } catch (e) {}
@@ -250,24 +300,26 @@
       u2.min = false;
       saveAlarmUi(id, u2);
     });
-    // Klik header saat minimized (sebelum fire) → restore
-    el.querySelector(".sh-alarm-hd").addEventListener("dblclick", function () {
-      if (el.classList.contains("is-min") && !alarmFired[id]) {
-        el.classList.remove("is-min");
-        var u = loadAlarmUi(id);
-        u.min = false;
-        saveAlarmUi(id, u);
-      }
+
+    // Klik title saat minimized → maximize
+    el.querySelector(".sh-alarm-title").addEventListener("click", function () {
+      if (el.classList.contains("is-min") && !alarmFired[id]) setMinimized(false);
     });
+
     document.body.appendChild(el);
     if (ui.min) el.classList.add("is-min");
+    syncMinMaxButtons();
+    el._syncMinMaxButtons = syncMinMaxButtons;
     bindAlarmDrag(el, id);
     try {
-      if (window.SHFloatDrag) SHFloatDrag.enable(el, { key: "alarm-" + id, handle: el.querySelector(".sh-alarm-hd") });
+      if (window.SHFloatDrag)
+        SHFloatDrag.enable(el, {
+          key: "alarm-" + id,
+          handle: el.querySelector(".sh-alarm-hd"),
+        });
     } catch (e) {}
     return el;
   }
-
 
   /** Paksa tampil floating alarm (setelah Simpan di admin) — abaikan flag closed sesi lama */
   function forceShowAlarm(ann) {
@@ -336,8 +388,9 @@
       }
       if (countEl) countEl.textContent = "00:00";
       el.classList.add("is-fired");
-      // Saat waktunya: buka kembali jika sempat di-minimize, baca di KOTAK YANG SAMA
+      // Saat waktunya: maximize jika sempat min, baca di KOTAK YANG SAMA
       el.classList.remove("is-min");
+      if (typeof el._syncMinMaxButtons === "function") el._syncMinMaxButtons();
       if (!alarmFired[ann.id]) {
         alarmFired[ann.id] = true;
         try {
@@ -353,33 +406,45 @@
         try {
           if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         } catch (e2) {}
-        // Opsional: hitung mundur splash_seconds di kotak yang sama (bukan kotak baru)
+        // Countdown kedua (splash_seconds) di kotak yang sama → auto-close
         var splashSec = Math.max(5, Number(ann.splash_seconds) || 15);
         var leftSplash = splashSec;
+        var splashEndAt = Date.now() + splashSec * 1000;
         if (countEl) countEl.textContent = fmtCountdown(leftSplash * 1000);
-        if (subEl) subEl.textContent = "Selesai baca · auto-tutup " + leftSplash + "s (✕ tutup sekarang)";
+        if (subEl)
+          subEl.textContent =
+            "Auto-tutup " + leftSplash + "s · ✕ tutup sekarang";
         var splashIv = setInterval(function () {
-          leftSplash -= 1;
-          if (leftSplash <= 0) {
+          // panel sudah dihapus manual?
+          if (!document.getElementById("sh-alarm-float-" + ann.id)) {
             clearInterval(splashIv);
-            // auto close total setelah splash window
+            return;
+          }
+          var msLeft = splashEndAt - Date.now();
+          if (msLeft <= 0) {
+            clearInterval(splashIv);
+            delete alarmTimers[ann.id];
             try {
               if (window.speechSynthesis) window.speechSynthesis.cancel();
             } catch (e4) {}
             try {
-              el.remove();
+              var node = document.getElementById("sh-alarm-float-" + ann.id);
+              if (node) node.remove();
             } catch (e5) {}
             try {
               sessionStorage.setItem("sh_alarm_closed_" + ann.id, "1");
             } catch (e6) {}
             return;
           }
-          if (countEl) countEl.textContent = fmtCountdown(leftSplash * 1000);
+          if (countEl) countEl.textContent = fmtCountdown(msLeft);
           if (subEl)
             subEl.textContent =
-              "Selesai baca · auto-tutup " + leftSplash + "s (✕ tutup sekarang)";
-        }, 1000);
+              "Auto-tutup " +
+              Math.ceil(msLeft / 1000) +
+              "s · ✕ tutup sekarang";
+        }, 250);
         alarmTimers[ann.id] = splashIv;
+        if (typeof el._syncMinMaxButtons === "function") el._syncMinMaxButtons();
       }
     }
     tick();
@@ -390,11 +455,13 @@
   function mountAlarmAnnouncements(list, profile, kind) {
     (list || []).forEach(function (ann) {
       if (!ann || !ann.is_alarm || !ann.active) return;
-      if (!matchesPlace(ann, kind) && pageKind() !== "admin") return;
-      // admin always sees own alarms for monitoring
-      if (pageKind() !== "admin" && !matchesAudience(ann, profile)) return;
+      // Alarm: tampil di SEMUA halaman (home, user panel, dll.)
+      // Audience: public = semua pengunjung; logged_in / students = filter target
+      if (pageKind() !== "admin") {
+        if (!matchesAudience(ann, profile)) return;
+      }
       var fireAt = getAlarmFireAt(ann);
-      // tampilkan floating selama belum lewat 2 jam setelah fire (agar tetap kelihatan)
+      // tampilkan floating selama belum lewat 2 jam setelah fire
       if (Date.now() - fireAt > 2 * 3600 * 1000) return;
       if (sessionStorage.getItem("sh_alarm_closed_" + ann.id) === "1") return;
       tickAlarmFloat(ann);
@@ -687,7 +754,7 @@
           });
       })
       .catch(function () {});
-  }, 30000);
+  }, 10000);
 
 
   function fmtAnnClock(sec) {
