@@ -69,6 +69,8 @@
       ".sh-alarm-msg{margin-top:8px;font-size:12px;color:#c5d4e6;max-height:120px;overflow:auto;line-height:1.45;border-top:1px solid rgba(255,180,60,.15);padding-top:8px}",
       ".sh-alarm-float.is-min .sh-alarm-body{display:none}",
       ".sh-alarm-float.is-min{width:auto;min-width:160px}",
+      ".sh-alarm-float.is-min .sh-alarm-title:after{content:' (ketuk 2× / buka kembali)';font-weight:500;opacity:.75;font-size:10px}",
+
       ".sh-alarm-hg-frame,.sh-alarm-hg-sand-top,.sh-alarm-hg-sand-bot,.sh-alarm-hg-stream{",
       "animation-duration:var(--sh-hg-dur,3s)!important}",
       ".sh-alarm-hg{width:56px;height:72px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center}",
@@ -203,8 +205,7 @@
     el.innerHTML =
       '<div class="sh-alarm-hd">' +
       '<span class="sh-alarm-title"></span>' +
-      '<button type="button" class="sh-alarm-btn" data-act="min" title="Perkecil">–</button>' +
-      '<button type="button" class="sh-alarm-btn" data-act="close" title="Tutup sepenuhnya">✕</button>' +
+      '<button type="button" class="sh-alarm-btn" data-act="close" title="Sebelum alarm: perkecil · Setelah baca: tutup">✕</button>' +
       "</div>" +
       '<div class="sh-alarm-body">' +
       '<div class="sh-alarm-row">' +
@@ -221,29 +222,42 @@
       0,
       400
     );
-    el.querySelector('[data-act="min"]').addEventListener("click", function (ev) {
-      ev.preventDefault();
-      ev.stopPropagation();
-      el.classList.toggle("is-min");
-      var u = loadAlarmUi(id);
-      u.min = el.classList.contains("is-min");
-      saveAlarmUi(id, u);
-    });
     el.querySelector('[data-act="close"]').addEventListener("click", function (ev) {
       ev.preventDefault();
       ev.stopPropagation();
+      var fired = !!alarmFired[id] || el.classList.contains("is-fired");
+      if (!fired) {
+        // Belum waktunya read-aloud → minimize saja (bukan tutup)
+        el.classList.add("is-min");
+        var u = loadAlarmUi(id);
+        u.min = true;
+        saveAlarmUi(id, u);
+        return;
+      }
+      // Sudah / sedang read-aloud → tutup total, tanpa sisa tombol
       try {
         if (alarmTimers[id]) clearInterval(alarmTimers[id]);
       } catch (e) {}
       delete alarmTimers[id];
-      el.classList.remove("is-min");
+      try {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+      } catch (e3) {}
       el.remove();
       try {
         sessionStorage.setItem("sh_alarm_closed_" + id, "1");
       } catch (e2) {}
-      var u = loadAlarmUi(id);
-      u.min = false;
-      saveAlarmUi(id, u);
+      var u2 = loadAlarmUi(id);
+      u2.min = false;
+      saveAlarmUi(id, u2);
+    });
+    // Klik header saat minimized (sebelum fire) → restore
+    el.querySelector(".sh-alarm-hd").addEventListener("dblclick", function () {
+      if (el.classList.contains("is-min") && !alarmFired[id]) {
+        el.classList.remove("is-min");
+        var u = loadAlarmUi(id);
+        u.min = false;
+        saveAlarmUi(id, u);
+      }
     });
     document.body.appendChild(el);
     if (ui.min) el.classList.add("is-min");
@@ -316,14 +330,14 @@
       var left = fireAt - Date.now();
       if (left > 0) {
         el.classList.remove("is-fired");
-        el.classList.remove("is-min"); // pastikan expand saat countdown
         if (countEl) countEl.textContent = fmtCountdown(left);
         if (subEl) subEl.textContent = "Hitung mundur · lalu baca nyaring";
         return;
       }
       if (countEl) countEl.textContent = "00:00";
       el.classList.add("is-fired");
-      if (subEl) subEl.textContent = "Alarm! Membacakan…";
+      // Saat waktunya: buka kembali jika sempat di-minimize, baca di KOTAK YANG SAMA
+      el.classList.remove("is-min");
       if (!alarmFired[ann.id]) {
         alarmFired[ann.id] = true;
         try {
@@ -332,18 +346,40 @@
             delete alarmTimers[ann.id];
           }
         } catch (e0) {}
-        // 1) TTS dulu (setelah countdown habis)
+        if (subEl) subEl.textContent = "Membacakan pengumuman…";
         try {
           speakAnnouncement(ann);
         } catch (e) {}
         try {
           if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         } catch (e2) {}
-        if (subEl) subEl.textContent = "Membacakan… lalu splash";
-        // 2) Setelah jeda singkat, buka splash (durasi splash_seconds mulai dihitung di sini)
-        setTimeout(function () {
-          showSplash(ann, { fromFloat: true, afterAlarm: true });
-        }, 600);
+        // Opsional: hitung mundur splash_seconds di kotak yang sama (bukan kotak baru)
+        var splashSec = Math.max(5, Number(ann.splash_seconds) || 15);
+        var leftSplash = splashSec;
+        if (countEl) countEl.textContent = fmtCountdown(leftSplash * 1000);
+        if (subEl) subEl.textContent = "Selesai baca · auto-tutup " + leftSplash + "s (✕ tutup sekarang)";
+        var splashIv = setInterval(function () {
+          leftSplash -= 1;
+          if (leftSplash <= 0) {
+            clearInterval(splashIv);
+            // auto close total setelah splash window
+            try {
+              if (window.speechSynthesis) window.speechSynthesis.cancel();
+            } catch (e4) {}
+            try {
+              el.remove();
+            } catch (e5) {}
+            try {
+              sessionStorage.setItem("sh_alarm_closed_" + ann.id, "1");
+            } catch (e6) {}
+            return;
+          }
+          if (countEl) countEl.textContent = fmtCountdown(leftSplash * 1000);
+          if (subEl)
+            subEl.textContent =
+              "Selesai baca · auto-tutup " + leftSplash + "s (✕ tutup sekarang)";
+        }, 1000);
+        alarmTimers[ann.id] = splashIv;
       }
     }
     tick();
