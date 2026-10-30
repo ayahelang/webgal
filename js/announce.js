@@ -41,6 +41,228 @@
     return "other";
   }
 
+
+  function ensureAlarmCss() {
+    if (document.getElementById("sh-alarm-css")) return;
+    var s = document.createElement("style");
+    s.id = "sh-alarm-css";
+    s.textContent = [
+      ".sh-alarm-float{position:fixed;z-index:99980;width:min(320px,calc(100vw - 24px));",
+      "background:linear-gradient(165deg,#1a2740,#101820);border:1px solid rgba(255,180,60,.45);",
+      "border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.45);color:#e8eef7;",
+      "font:13px/1.4 system-ui,sans-serif;user-select:none;overflow:hidden}",
+      ".sh-alarm-float.is-min{width:auto;min-width:140px}",
+      ".sh-alarm-float.is-min .sh-alarm-body{display:none}",
+      ".sh-alarm-hd{display:flex;align-items:center;gap:8px;padding:8px 10px;",
+      "background:linear-gradient(135deg,rgba(60,40,10,.9),rgba(20,30,40,.95));",
+      "cursor:grab;border-bottom:1px solid rgba(255,180,60,.2)}",
+      ".sh-alarm-hd:active{cursor:grabbing}",
+      ".sh-alarm-title{flex:1;font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+      ".sh-alarm-hd button{border:0;background:rgba(255,255,255,.08);color:#cde;border-radius:6px;",
+      "width:28px;height:28px;cursor:pointer;font-size:14px;line-height:1}",
+      ".sh-alarm-hd button:hover{background:rgba(255,200,80,.25);color:#fff}",
+      ".sh-alarm-body{padding:12px 14px 14px}",
+      ".sh-alarm-hourglass{width:48px;height:48px;margin:0 auto 8px;position:relative}",
+      ".sh-alarm-hourglass:before,.sh-alarm-hourglass:after{content:'';position:absolute;left:50%;transform:translateX(-50%);",
+      "width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent}",
+      ".sh-alarm-hourglass:before{top:2px;border-top:20px solid rgba(255,180,60,.85);animation:shHgFlip 2s ease-in-out infinite}",
+      ".sh-alarm-hourglass:after{bottom:2px;border-bottom:20px solid rgba(255,180,60,.45)}",
+      "@keyframes shHgFlip{0%,100%{transform:translateX(-50%) rotate(0)}50%{transform:translateX(-50%) rotate(180deg)}}",
+      ".sh-alarm-count{text-align:center;font-size:28px;font-weight:800;letter-spacing:.04em;",
+      "font-variant-numeric:tabular-nums;color:#ffc46a;text-shadow:0 0 12px rgba(255,180,60,.35)}",
+      ".sh-alarm-sub{text-align:center;font-size:11px;color:#9ab;margin-top:4px}",
+      ".sh-alarm-msg{margin-top:10px;font-size:12px;color:#c5d4e6;max-height:72px;overflow:auto}",
+      ".sh-alarm-float.is-fired{border-color:rgba(80,220,120,.55);animation:shAlarmPulse 1s ease infinite}",
+      "@keyframes shAlarmPulse{0%,100%{box-shadow:0 0 0 0 rgba(80,220,120,.4)}70%{box-shadow:0 0 0 12px rgba(80,220,120,0)}}",
+      ".sh-alarm-float.is-fired .sh-alarm-count{color:#7dffb0}",
+    ].join("");
+    document.head.appendChild(s);
+  }
+
+  var alarmTimers = {};
+  var alarmFired = {};
+
+  function alarmUiKey(id) {
+    return "sh_alarm_ui_" + id;
+  }
+  function loadAlarmUi(id) {
+    try {
+      return JSON.parse(localStorage.getItem(alarmUiKey(id)) || "null") || {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function saveAlarmUi(id, data) {
+    try {
+      localStorage.setItem(alarmUiKey(id), JSON.stringify(data));
+    } catch (e) {}
+  }
+
+  function fmtCountdown(ms) {
+    if (ms < 0) ms = 0;
+    var t = Math.ceil(ms / 1000);
+    var m = Math.floor(t / 60);
+    var s = t % 60;
+    return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  }
+
+  function getAlarmFireAt(ann) {
+    if (ann.alarm_fire_at) {
+      var t = new Date(ann.alarm_fire_at).getTime();
+      if (isFinite(t)) return t;
+    }
+    var delay = Number(ann.alarm_delay_sec) || 0;
+    var base = ann.updated_at || ann.created_at || ann.starts_at;
+    if (base) {
+      var b = new Date(base).getTime();
+      if (isFinite(b)) return b + delay * 1000;
+    }
+    return Date.now() + delay * 1000;
+  }
+
+  function bindAlarmDrag(panel, id) {
+    var hd = panel.querySelector(".sh-alarm-hd");
+    if (!hd) return;
+    var dragging = false;
+    var ox = 0,
+      oy = 0;
+    function onDown(ev) {
+      if (ev.target && ev.target.closest && ev.target.closest("button")) return;
+      dragging = true;
+      var r = panel.getBoundingClientRect();
+      ox = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+      oy = (ev.touches ? ev.touches[0].clientY : ev.clientY) - r.top;
+      ev.preventDefault();
+    }
+    function onMove(ev) {
+      if (!dragging) return;
+      var cx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+      var cy = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      var x = Math.max(0, Math.min(window.innerWidth - 40, cx - ox));
+      var y = Math.max(0, Math.min(window.innerHeight - 40, cy - oy));
+      panel.style.left = x + "px";
+      panel.style.top = y + "px";
+      panel.style.right = "auto";
+      panel.style.bottom = "auto";
+    }
+    function onUp() {
+      if (!dragging) return;
+      dragging = false;
+      var ui = loadAlarmUi(id);
+      ui.x = parseFloat(panel.style.left) || 0;
+      ui.y = parseFloat(panel.style.top) || 0;
+      saveAlarmUi(id, ui);
+    }
+    hd.addEventListener("mousedown", onDown);
+    hd.addEventListener("touchstart", onDown, { passive: false });
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchend", onUp);
+  }
+
+  function ensureAlarmFloat(ann) {
+    ensureAlarmCss();
+    var id = String(ann.id);
+    var el = document.getElementById("sh-alarm-float-" + id);
+    if (el) return el;
+    var ui = loadAlarmUi(id);
+    el = document.createElement("div");
+    el.id = "sh-alarm-float-" + id;
+    el.className = "sh-alarm-float" + (ui.min ? " is-min" : "");
+    el.setAttribute("data-ann-id", id);
+    var left = ui.x != null ? ui.x : Math.max(12, window.innerWidth - 340);
+    var top = ui.y != null ? ui.y : 80 + (Object.keys(alarmTimers).length % 5) * 24;
+    el.style.left = left + "px";
+    el.style.top = top + "px";
+    el.innerHTML =
+      '<div class="sh-alarm-hd">' +
+      '<span class="sh-alarm-title"></span>' +
+      '<button type="button" data-act="min" title="Minimize / restore">–</button>' +
+      '<button type="button" data-act="close" title="Tutup">✕</button>' +
+      "</div>" +
+      '<div class="sh-alarm-body">' +
+      '<div class="sh-alarm-hourglass" aria-hidden="true"></div>' +
+      '<div class="sh-alarm-count">--:--</div>' +
+      '<div class="sh-alarm-sub">Menuju alarm &amp; baca nyaring</div>' +
+      '<div class="sh-alarm-msg"></div>' +
+      "</div>";
+    el.querySelector(".sh-alarm-title").textContent =
+      "⏰ " + (ann.title || "Alarm").slice(0, 48);
+    el.querySelector(".sh-alarm-msg").textContent = stripHtml(ann.body_html || "").slice(
+      0,
+      220
+    );
+    el.querySelector('[data-act="min"]').onclick = function () {
+      el.classList.toggle("is-min");
+      var u = loadAlarmUi(id);
+      u.min = el.classList.contains("is-min");
+      saveAlarmUi(id, u);
+    };
+    el.querySelector('[data-act="close"]').onclick = function () {
+      try {
+        if (alarmTimers[id]) clearInterval(alarmTimers[id]);
+      } catch (e) {}
+      delete alarmTimers[id];
+      el.remove();
+      try {
+        sessionStorage.setItem("sh_alarm_closed_" + id, "1");
+      } catch (e) {}
+    };
+    document.body.appendChild(el);
+    bindAlarmDrag(el, id);
+    return el;
+  }
+
+  function tickAlarmFloat(ann) {
+    if (sessionStorage.getItem("sh_alarm_closed_" + ann.id) === "1") return;
+    var el = ensureAlarmFloat(ann);
+    var fireAt = getAlarmFireAt(ann);
+    var countEl = el.querySelector(".sh-alarm-count");
+    var subEl = el.querySelector(".sh-alarm-sub");
+
+    function tick() {
+      var left = fireAt - Date.now();
+      if (left > 0) {
+        el.classList.remove("is-fired");
+        if (countEl) countEl.textContent = fmtCountdown(left);
+        if (subEl) subEl.textContent = "Hitung mundur · lalu TTS";
+        return;
+      }
+      if (countEl) countEl.textContent = "00:00";
+      el.classList.add("is-fired");
+      if (subEl) subEl.textContent = "Alarm! Membacakan…";
+      if (!alarmFired[ann.id]) {
+        alarmFired[ann.id] = true;
+        try {
+          speakAnnouncement(ann);
+        } catch (e) {}
+        try {
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        } catch (e2) {}
+        // tetap tampil floating setelah bunyi
+      }
+    }
+    tick();
+    if (alarmTimers[ann.id]) clearInterval(alarmTimers[ann.id]);
+    alarmTimers[ann.id] = setInterval(tick, 250);
+  }
+
+  function mountAlarmAnnouncements(list, profile, kind) {
+    (list || []).forEach(function (ann) {
+      if (!ann || !ann.is_alarm || !ann.active) return;
+      if (!matchesPlace(ann, kind) && pageKind() !== "admin") return;
+      // admin always sees own alarms for monitoring
+      if (pageKind() !== "admin" && !matchesAudience(ann, profile)) return;
+      var fireAt = getAlarmFireAt(ann);
+      // tampilkan floating selama belum lewat 2 jam setelah fire (agar tetap kelihatan)
+      if (Date.now() - fireAt > 2 * 3600 * 1000) return;
+      if (sessionStorage.getItem("sh_alarm_closed_" + ann.id) === "1") return;
+      tickAlarmFloat(ann);
+    });
+  }
+
+
   function inSchedule(ann, now) {
     if (!ann.active) return false;
     const days = Array.isArray(ann.schedule_days) ? ann.schedule_days.map(Number) : [];
@@ -288,7 +510,12 @@
       const queue = list.filter(
         (ann) => matchesPlace(ann, kind) && matchesAudience(ann, profile) && inSchedule(ann, now)
       );
+      // Alarm floating + countdown (lintas halaman)
+      mountAlarmAnnouncements(list, profile, kind);
+
       for (const ann of queue) {
+        // alarm pakai floating countdown, bukan splash biasa di boot
+        if (ann.is_alarm) continue;
         await showSplash(ann);
       }
     } catch (e) {
@@ -299,46 +526,32 @@
   window.SHAnnounce = {
     showSplash,
     boot,
+    mountAlarmAnnouncements,
+    tickAlarmFloat,
   };
 
   if (document.readyState === "complete") setTimeout(boot, 600);
   else window.addEventListener("load", () => setTimeout(boot, 600));
 
-  // Alarm talking: polling ringan tiap menit (hanya is_alarm)
+  // Refresh alarm floating tiap 30 detik (sinkron fire_at dari server)
   setInterval(function () {
-    if (pageKind() === "admin") return;
     if (!window.GalleryDB || !GalleryDB.fetchActiveAnnouncements) return;
     GalleryDB.fetchActiveAnnouncements()
       .then(function (list) {
-        return Promise.resolve().then(function () {
-          return GalleryDB.getSession()
-            .then(function (session) {
-              if (!session) return null;
-              return GalleryDB.getMyProfile();
-            })
-            .catch(function () {
-              return null;
-            })
-            .then(function (profile) {
-              var kind = pageKind();
-              var now = new Date();
-              var alarms = (list || []).filter(function (ann) {
-                return (
-                  ann.is_alarm &&
-                  matchesPlace(ann, kind) &&
-                  matchesAudience(ann, profile) &&
-                  inSchedule(ann, now)
-                );
-              });
-              alarms.forEach(function (ann) {
-                // tampilkan splash + suara (inSchedule sudah cek kuota)
-                showSplash(ann);
-              });
-            });
-        });
+        return GalleryDB.getSession()
+          .then(function (session) {
+            if (!session) return null;
+            return GalleryDB.getMyProfile();
+          })
+          .catch(function () {
+            return null;
+          })
+          .then(function (profile) {
+            mountAlarmAnnouncements(list, profile, pageKind());
+          });
       })
       .catch(function () {});
-  }, 60000);
+  }, 30000);
 
 
   function fmtAnnClock(sec) {

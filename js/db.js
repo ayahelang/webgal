@@ -2909,6 +2909,23 @@
       schedule_days: Array.isArray(payload.schedule_days) ? payload.schedule_days : [],
       splash_seconds: Number(payload.splash_seconds) || 15,
       is_alarm: payload.is_alarm === true,
+      alarm_delay_sec: (function () {
+        if (!payload.is_alarm) return 0;
+        var m = Number(payload.alarm_min) || 0;
+        var s = Number(payload.alarm_sec) || 0;
+        if (payload.alarm_delay_sec != null && payload.alarm_delay_sec !== "")
+          return Math.max(0, Number(payload.alarm_delay_sec) || 0);
+        return Math.max(0, m * 60 + s);
+      })(),
+      alarm_fire_at: (function () {
+        if (!payload.is_alarm) return null;
+        var m = Number(payload.alarm_min) || 0;
+        var s = Number(payload.alarm_sec) || 0;
+        var delay = payload.alarm_delay_sec != null && payload.alarm_delay_sec !== ""
+          ? Math.max(0, Number(payload.alarm_delay_sec) || 0)
+          : Math.max(0, m * 60 + s);
+        return new Date(Date.now() + delay * 1000).toISOString();
+      })(),
       active: payload.active !== false,
       created_by: (function () {
         const u = session && session.user;

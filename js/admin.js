@@ -820,6 +820,11 @@
           setAnnScheduleDays(f, r.schedule_days || []);
           f.querySelector("[name=splash_seconds]").value = r.splash_seconds || 15;
           if (f.querySelector("[name=is_alarm]")) f.querySelector("[name=is_alarm]").checked = !!r.is_alarm;
+          var delay = Number(r.alarm_delay_sec) || 0;
+          if (f.querySelector("[name=alarm_min]")) f.querySelector("[name=alarm_min]").value = Math.floor(delay / 60);
+          if (f.querySelector("[name=alarm_sec]")) f.querySelector("[name=alarm_sec]").value = delay % 60;
+          var box = document.getElementById("annAlarmSettings");
+          if (box) box.style.display = r.is_alarm ? "grid" : "none";
           f.querySelector("[name=active]").checked = r.active !== false;
           $("#annStatus").textContent = "Mode duplikat: simpan untuk membuat pengumuman baru · " + (r.title || "");
           scrollToForm("#annForm");
@@ -892,6 +897,11 @@
           setAnnScheduleDays(f, r.schedule_days || []);
           f.querySelector("[name=splash_seconds]").value = r.splash_seconds || 15;
           if (f.querySelector("[name=is_alarm]")) f.querySelector("[name=is_alarm]").checked = !!r.is_alarm;
+          var delay = Number(r.alarm_delay_sec) || 0;
+          if (f.querySelector("[name=alarm_min]")) f.querySelector("[name=alarm_min]").value = Math.floor(delay / 60);
+          if (f.querySelector("[name=alarm_sec]")) f.querySelector("[name=alarm_sec]").value = delay % 60;
+          var box = document.getElementById("annAlarmSettings");
+          if (box) box.style.display = r.is_alarm ? "grid" : "none";
           f.querySelector("[name=active]").checked = r.active !== false;
           $("#annStatus").textContent = "Mode edit: " + (r.title || "");
           scrollToForm("#annForm");
@@ -1032,6 +1042,9 @@
       reset.onclick = () => {
         f.reset();
         f.querySelector("[name=id]").value = "";
+        var box = document.getElementById("annAlarmSettings");
+        if (box) box.style.display = "none";
+        if (f.querySelector("[name=is_alarm]")) f.querySelector("[name=is_alarm]").checked = false;
         f.querySelector("[name=is_active]").checked = true;
         setTreeStudentTargets($("#chatRoomStudentTree"), []);
         if (st) st.textContent = "";
@@ -1164,6 +1177,10 @@
         body_html: html,
         splash_seconds: Number(f.querySelector("[name=splash_seconds]").value) || 15,
         is_alarm: !!(f.querySelector("[name=is_alarm]") && f.querySelector("[name=is_alarm]").checked),
+        alarm_min: Number((f.querySelector("[name=alarm_min]") || {}).value) || 0,
+        alarm_sec: Number((f.querySelector("[name=alarm_sec]") || {}).value) || 0,
+        alarm_delay_sec: (Number((f.querySelector("[name=alarm_min]") || {}).value) || 0) * 60 + (Number((f.querySelector("[name=alarm_sec]") || {}).value) || 0),
+        alarm_fire_at: new Date(Date.now() + ((Number((f.querySelector("[name=alarm_min]") || {}).value) || 0) * 60 + (Number((f.querySelector("[name=alarm_sec]") || {}).value) || 0)) * 1000).toISOString(),
         id: "preview-" + Date.now(),
         times_per_day: 99,
         active: true,
@@ -1259,11 +1276,22 @@
         schedule_days: readAnnScheduleDays(f),
         splash_seconds: Number(fd.get("splash_seconds")) || 15,
         is_alarm: !!(f.querySelector("[name=is_alarm]") && f.querySelector("[name=is_alarm]").checked),
+        alarm_min: Number((f.querySelector("[name=alarm_min]") || {}).value) || 0,
+        alarm_sec: Number((f.querySelector("[name=alarm_sec]") || {}).value) || 0,
         active: f.querySelector("[name=active]").checked,
       };
       try {
-        await GalleryDB.upsertAnnouncement(payload);
-        $("#annStatus").textContent = "Pengumuman disimpan.";
+        var saved = await GalleryDB.upsertAnnouncement(payload);
+        $("#annStatus").textContent = payload.is_alarm
+          ? "Alarm disimpan — floating hitung mundur aktif."
+          : "Pengumuman disimpan.";
+        try {
+          if (payload.is_alarm && window.SHAnnounce && SHAnnounce.tickAlarmFloat && saved) {
+            SHAnnounce.tickAlarmFloat(saved);
+          } else if (payload.is_alarm && window.SHAnnounce && SHAnnounce.mountAlarmAnnouncements && saved) {
+            SHAnnounce.mountAlarmAnnouncements([saved], null, "admin");
+          }
+        } catch (e) {}
         f.reset();
         f.querySelector("[name=id]").value = "";
         $("#annEditor").innerHTML = "";

@@ -434,7 +434,15 @@
           </div>
           <label class="field"><span>Durasi splash (detik)</span><input type="number" name="splash_seconds" min="5" max="120" value="15"></label>
           <label class="check ann-active-align"><input type="checkbox" name="active" checked> Aktif</label>
-            <label class="check" style="grid-column:1/-1"><input type="checkbox" name="is_alarm" value="1"> <b>⏰ Alarm bersuara</b> — saat jadwal tiba, dibacakan judul &amp; isi (TTS)</label>
+            <label class="check" style="grid-column:1/-1"><input type="checkbox" name="is_alarm" id="annIsAlarm" value="1"> <b>⏰ Alarm bersuara</b> — hitung mundur lalu TTS baca judul &amp; isi</label>
+            <div id="annAlarmSettings" class="ann-alarm-settings" style="grid-column:1/-1;display:none;gap:10px;padding:10px 12px;border:1px solid rgba(255,180,60,.35);border-radius:10px;background:rgba(40,28,8,.35)">
+              <div style="font-size:12px;font-weight:700;color:#ffc46a">⏱ Setelan alarm</div>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end">
+                <label class="field" style="margin:0"><span>Menit</span><input type="number" name="alarm_min" id="annAlarmMin" min="0" max="1440" value="1" style="width:88px"></label>
+                <label class="field" style="margin:0"><span>Detik</span><input type="number" name="alarm_sec" id="annAlarmSec" min="0" max="59" value="0" style="width:88px"></label>
+                <small class="muted" style="flex:1;min-width:160px">Hitung mundur mulai <b>saat disimpan</b>. Kotak floating muncul di admin &amp; di halaman pengguna sesuai audience.</small>
+              </div>
+            </div>
           <div class="admin-form-actions" style="grid-column:1/-1">
             <button class="btn btn-primary" type="button" id="annSave">Simpan pengumuman</button>
             <button class="btn btn-ghost" type="button" id="annReset">Batal edit</button>
@@ -568,6 +576,23 @@
     document.addEventListener("selectstart", function(e){ if(isField(e.target)) e.stopPropagation(); }, true);
   })();
   </script>
+
+
+<script>
+(function(){
+  function syncAlarmUI(){
+    var cb=document.getElementById("annIsAlarm");
+    var box=document.getElementById("annAlarmSettings");
+    if(!cb||!box)return;
+    box.style.display=cb.checked?"grid":"none";
+  }
+  document.addEventListener("change",function(e){
+    if(e.target&&e.target.id==="annIsAlarm")syncAlarmUI();
+  });
+  document.addEventListener("DOMContentLoaded",syncAlarmUI);
+  setTimeout(syncAlarmUI,500);
+})();
+</script>
 
 </body>
 </html>
