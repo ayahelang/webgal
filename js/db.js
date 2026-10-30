@@ -2986,6 +2986,47 @@
     return data || [];
   }
 
+  /**
+   * Realtime: INSERT/UPDATE pengumuman → callback segera (tanpa polling).
+   * Perlu Realtime enabled + publication untuk table gallery_announcements di Supabase.
+   */
+  function subscribeActiveAnnouncements(onChange) {
+    const sb = client();
+    if (!sb || typeof onChange !== "function") return function () {};
+    let ch = null;
+    try {
+      ch = sb
+        .channel("gallery_announcements_live")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "gallery_announcements" },
+          function (payload) {
+            try {
+              onChange(payload);
+            } catch (e) {
+              console.warn("ann realtime cb", e);
+            }
+          }
+        )
+        .subscribe(function (status) {
+          if (status === "SUBSCRIBED") {
+            /* ok */
+          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            console.warn("ann realtime:", status);
+          }
+        });
+    } catch (e) {
+      console.warn("subscribeActiveAnnouncements", e);
+      return function () {};
+    }
+    return function unsubscribe() {
+      try {
+        if (ch) sb.removeChannel(ch);
+      } catch (e) {}
+    };
+  }
+
+
   async function batchEngagement(urls) {
     const sb = client();
     const map = {};
@@ -4611,6 +4652,8 @@
     upsertAnnouncement,
     deleteAnnouncement,
     fetchActiveAnnouncements,
+    subscribeActiveAnnouncements,
+    client,
     listAttendanceSessionsAdmin,
     upsertAttendanceSession,
     deleteAttendanceSession,

@@ -731,31 +731,87 @@
     mountAlarmAnnouncements,
     tickAlarmFloat,
     forceShowAlarm,
+    refreshAlarmsNow,
   };
 
   if (document.readyState === "complete") setTimeout(boot, 600);
   else window.addEventListener("load", () => setTimeout(boot, 600));
 
-  // Refresh alarm floating tiap 30 detik (sinkron fire_at dari server)
-  setInterval(function () {
+  async function refreshAlarmsNow() {
     if (!window.GalleryDB || !GalleryDB.fetchActiveAnnouncements) return;
-    GalleryDB.fetchActiveAnnouncements()
-      .then(function (list) {
-        return GalleryDB.getSession()
-          .then(function (session) {
-            if (!session) return null;
-            return GalleryDB.getMyProfile();
-          })
-          .catch(function () {
-            return null;
-          })
-          .then(function (profile) {
-            mountAlarmAnnouncements(list, profile, pageKind());
-          });
-      })
-      .catch(function () {});
-  }, 10000);
+    try {
+      var list = await GalleryDB.fetchActiveAnnouncements();
+      var profile = null;
+      try {
+        var session = await GalleryDB.getSession();
+        if (session) profile = await GalleryDB.getMyProfile();
+      } catch (e) {}
+      mountAlarmAnnouncements(list, profile, pageKind());
+    } catch (e) {
+      console.warn("refreshAlarmsNow", e);
+    }
+  }
 
+  // Realtime: admin Simpan → semua browser langsung dapat event (tanpa tunggu 10 dtk)
+  (function bindAnnRealtime() {
+    function tryBind() {
+      if (!window.GalleryDB || !GalleryDB.subscribeActiveAnnouncements) {
+        setTimeout(tryBind, 800);
+        return;
+      }
+      GalleryDB.subscribeActiveAnnouncements(function (payload) {
+        var row = (payload && (payload.new || payload.old)) || null;
+        // Alarm baru / diubah → mount segera; countdown pakai alarm_fire_at absolut
+        if (row && row.is_alarm) {
+          if (payload.eventType === "DELETE" || row.active === false) {
+            try {
+              var el = document.getElementById("sh-alarm-float-" + row.id);
+              if (el) el.remove();
+              if (alarmTimers[row.id]) {
+                clearInterval(alarmTimers[row.id]);
+                delete alarmTimers[row.id];
+              }
+            } catch (e) {}
+            return;
+          }
+          try {
+            sessionStorage.removeItem("sh_alarm_closed_" + row.id);
+          } catch (e2) {}
+          // Pastikan fire_at ada agar sisa waktu sama di semua klien
+          if (!row.alarm_fire_at && row.alarm_delay_sec != null) {
+            var base = row.updated_at || row.created_at || new Date().toISOString();
+            row.alarm_fire_at = new Date(
+              new Date(base).getTime() + (Number(row.alarm_delay_sec) || 0) * 1000
+            ).toISOString();
+          }
+          tickAlarmFloat(row);
+        }
+        // sinkron list penuh (non-alarm + state)
+        refreshAlarmsNow();
+      });
+    }
+    tryBind();
+  })();
+
+  // Fallback lambat jika Realtime belum aktif di proyek Supabase
+  setInterval(function () {
+    refreshAlarmsNow();
+  }, 60000);
+
+  // Tab lain di browser yang sama (admin + preview)
+  try {
+    var bc = new BroadcastChannel("sh_ann_alarm");
+    bc.onmessage = function (ev) {
+      var d = ev.data || {};
+      if (d.type === "alarm-saved" && d.ann) {
+        try {
+          sessionStorage.removeItem("sh_alarm_closed_" + d.ann.id);
+        } catch (e) {}
+        tickAlarmFloat(d.ann);
+      }
+    };
+    window.__shAnnBc = bc;
+  } catch (e) {}
 
   function fmtAnnClock(sec) {
     if (!isFinite(sec) || sec < 0) return "--:--";

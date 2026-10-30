@@ -1325,6 +1325,13 @@
             });
             if (window.SHAnnounce && typeof SHAnnounce.forceShowAlarm === "function") {
               SHAnnounce.forceShowAlarm(localAnn);
+              try {
+                if (window.__shAnnBc)
+                  window.__shAnnBc.postMessage({ type: "alarm-saved", ann: localAnn });
+              } catch (eBc) {}
+              try {
+                if (SHAnnounce.refreshAlarmsNow) SHAnnounce.refreshAlarmsNow();
+              } catch (eR) {}
             } else if (window.SHAnnounce && typeof SHAnnounce.tickAlarmFloat === "function") {
               try {
                 sessionStorage.removeItem("sh_alarm_closed_" + localAnn.id);

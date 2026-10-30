@@ -10,3 +10,7 @@ comment on column public.gallery_announcements.alarm_delay_sec is
   'Detik hitung mundur sejak disimpan (untuk UI)';
 comment on column public.gallery_announcements.alarm_fire_at is
   'Waktu absolut alarm berbunyi + TTS';
+
+-- Realtime (Supabase Dashboard → Database → Publications)
+-- atau jalankan:
+-- alter publication supabase_realtime add table public.gallery_announcements;
