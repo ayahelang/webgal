@@ -68,7 +68,7 @@
       ".sh-alarm-btn:hover{background:rgba(255,200,80,.25);color:#fff}",
       ".sh-alarm-msg{margin-top:8px;font-size:12px;color:#c5d4e6;max-height:120px;overflow:auto;line-height:1.45;border-top:1px solid rgba(255,180,60,.15);padding-top:8px}",
       ".sh-alarm-float.is-min .sh-alarm-body{display:none}",
-      ".sh-alarm-float.is-min{width:auto;min-width:168px}",".sh-alarm-float.is-min .sh-alarm-hd{gap:6px}",".sh-alarm-btn[data-act=max]{font-size:13px;font-weight:700}",
+      ".sh-alarm-float.is-min{width:auto;min-width:168px}",".sh-alarm-float.is-min .sh-alarm-hd{gap:6px}",".sh-alarm-btn[data-act=max]{font-size:13px;font-weight:700}",".sh-alarm-btn.is-hidden{display:none!important}",".sh-alarm-btn{display:inline-flex!important;align-items:center;justify-content:center}",
       ".sh-alarm-float.is-min .sh-alarm-title:after{content:' (ketuk 2× / buka kembali)';font-weight:500;opacity:.75;font-size:10px}",
 
       ".sh-alarm-hg-frame,.sh-alarm-hg-sand-top,.sh-alarm-hg-sand-bot,.sh-alarm-hg-stream{",
@@ -136,15 +136,23 @@
   function getAlarmFireAt(ann) {
     if (ann.alarm_fire_at) {
       var t = new Date(ann.alarm_fire_at).getTime();
-      if (isFinite(t)) return t;
+      if (isFinite(t) && t > 0) return t;
     }
-    var delay = Number(ann.alarm_delay_sec) || 0;
+    var delay = Number(ann.alarm_delay_sec);
+    if (!isFinite(delay) || delay < 0) delay = 0;
     var base = ann.updated_at || ann.created_at || ann.starts_at;
     if (base) {
       var b = new Date(base).getTime();
-      if (isFinite(b)) return b + delay * 1000;
+      if (isFinite(b) && b > 0) return b + delay * 1000;
     }
-    return Date.now() + delay * 1000;
+    // last resort: jangan anggap "sekarang" tanpa delay (hindari langsung phase 2)
+    return Date.now() + Math.max(delay, 1) * 1000;
+  }
+
+  function getAlarmPhase2End(ann) {
+    var fireAt = getAlarmFireAt(ann);
+    var splashSec = Math.max(5, Number(ann.splash_seconds) || 15);
+    return fireAt + splashSec * 1000;
   }
 
   function bindAlarmDrag(panel, id) {
@@ -225,6 +233,19 @@
       400
     );
 
+    function setBtnVisible(btn, on) {
+      if (!btn) return;
+      if (on) {
+        btn.classList.remove("is-hidden");
+        btn.hidden = false;
+        btn.style.display = "";
+      } else {
+        btn.classList.add("is-hidden");
+        btn.hidden = true;
+        btn.style.display = "none";
+      }
+    }
+
     function syncMinMaxButtons() {
       var minBtn = el.querySelector('[data-act="min"]');
       var maxBtn = el.querySelector('[data-act="max"]');
@@ -232,28 +253,18 @@
       var fired = !!alarmFired[id] || el.classList.contains("is-fired");
       var minimized = el.classList.contains("is-min");
       if (fired) {
-        // Setelah read-aloud: hanya tutup total
-        if (minBtn) minBtn.hidden = true;
-        if (maxBtn) maxBtn.hidden = true;
-        if (closeBtn) {
-          closeBtn.hidden = false;
-          closeBtn.title = "Tutup sepenuhnya";
-        }
+        setBtnVisible(minBtn, false);
+        setBtnVisible(maxBtn, false);
+        setBtnVisible(closeBtn, true);
+        if (closeBtn) closeBtn.title = "Tutup sepenuhnya";
         return;
       }
-      // Sebelum fire: min / max bergantian
-      if (minBtn) {
-        minBtn.hidden = minimized;
-        minBtn.title = "Perkecil";
-      }
-      if (maxBtn) {
-        maxBtn.hidden = !minimized;
-        maxBtn.title = "Perbesar";
-      }
-      if (closeBtn) {
-        // ✕ sebelum fire = sama dengan minimize (atau biarkan min)
-        closeBtn.hidden = true; // pakai – dan □ agar jelas
-      }
+      // Phase 1 (sama seperti admin): – saat expanded, □ saat minimized; ✕ disembunyikan
+      setBtnVisible(minBtn, !minimized);
+      setBtnVisible(maxBtn, minimized);
+      setBtnVisible(closeBtn, false);
+      if (minBtn) minBtn.title = "Perkecil";
+      if (maxBtn) maxBtn.title = "Perbesar";
     }
 
     function setMinimized(on) {
@@ -301,7 +312,6 @@
       saveAlarmUi(id, u2);
     });
 
-    // Klik title saat minimized → maximize
     el.querySelector(".sh-alarm-title").addEventListener("click", function () {
       if (el.classList.contains("is-min") && !alarmFired[id]) setMinimized(false);
     });
@@ -354,102 +364,121 @@
   }
 
   function tickAlarmFloat(ann) {
+    if (!ann || !ann.id) return;
     if (sessionStorage.getItem("sh_alarm_closed_" + ann.id) === "1") return;
-    var el = ensureAlarmFloat(ann);
+
     var fireAt = getAlarmFireAt(ann);
+    var phase2End = getAlarmPhase2End(ann);
+    var now0 = Date.now();
+
+    // Sudah lewat phase 2 → jangan tampilkan
+    if (now0 >= phase2End) {
+      try {
+        sessionStorage.setItem("sh_alarm_closed_" + ann.id, "1");
+      } catch (e) {}
+      return;
+    }
+
+    var el = ensureAlarmFloat(ann);
     var countEl = el.querySelector(".sh-alarm-count");
     var subEl = el.querySelector(".sh-alarm-sub");
     var hg = el.querySelector(".sh-alarm-hg-frame");
-    // sinkronkan animasi pasir ke sisa waktu menuju read-aloud (sekali)
-    if (hg && !hg.getAttribute("data-synced")) {
-      var remain = Math.max(500, fireAt - Date.now());
+    var id = String(ann.id);
+
+    // Sinkron jam pasir ke sisa phase 1 (sekali per mount / sisa waktu)
+    if (hg && now0 < fireAt) {
+      var remain = Math.max(500, fireAt - now0);
       var durSec = (remain / 1000).toFixed(2);
-      el.style.setProperty("--sh-hg-dur", durSec + "s");
-      // restart animation
-      hg.style.animation = "none";
-      void hg.offsetWidth;
-      hg.style.animation = "";
-      var sands = el.querySelectorAll(".sh-alarm-hg-sand-top,.sh-alarm-hg-sand-bot,.sh-alarm-hg-stream");
-      sands.forEach(function (n) {
-        n.style.animation = "none";
-        void n.offsetWidth;
-        n.style.animation = "";
-      });
-      hg.setAttribute("data-synced", "1");
+      var prev = hg.getAttribute("data-synced-for");
+      if (prev !== String(fireAt)) {
+        el.style.setProperty("--sh-hg-dur", durSec + "s");
+        hg.style.animation = "none";
+        void hg.offsetWidth;
+        hg.style.animation = "";
+        el.querySelectorAll(
+          ".sh-alarm-hg-sand-top,.sh-alarm-hg-sand-bot,.sh-alarm-hg-stream"
+        ).forEach(function (n) {
+          n.style.animation = "none";
+          void n.offsetWidth;
+          n.style.animation = "";
+        });
+        hg.setAttribute("data-synced-for", String(fireAt));
+      }
     }
 
-    function tick() {
-      var left = fireAt - Date.now();
-      if (left > 0) {
-        el.classList.remove("is-fired");
-        if (countEl) countEl.textContent = fmtCountdown(left);
-        if (subEl) subEl.textContent = "Hitung mundur · lalu baca nyaring";
-        return;
-      }
-      if (countEl) countEl.textContent = "00:00";
-      el.classList.add("is-fired");
-      // Saat waktunya: maximize jika sempat min, baca di KOTAK YANG SAMA
-      el.classList.remove("is-min");
+    function applyPhase1(msLeft) {
+      el.classList.remove("is-fired");
+      if (countEl) countEl.textContent = fmtCountdown(msLeft);
+      if (subEl) subEl.textContent = "Hitung mundur · lalu baca nyaring";
       if (typeof el._syncMinMaxButtons === "function") el._syncMinMaxButtons();
-      if (!alarmFired[ann.id]) {
-        alarmFired[ann.id] = true;
-        try {
-          if (alarmTimers[ann.id]) {
-            clearInterval(alarmTimers[ann.id]);
-            delete alarmTimers[ann.id];
-          }
-        } catch (e0) {}
-        if (subEl) subEl.textContent = "Membacakan pengumuman…";
+    }
+
+    function applyPhase2(msLeft, doSpeak) {
+      el.classList.add("is-fired");
+      el.classList.remove("is-min");
+      if (countEl) countEl.textContent = fmtCountdown(msLeft);
+      if (subEl)
+        subEl.textContent =
+          "Auto-tutup " + Math.ceil(msLeft / 1000) + "s · ✕ tutup";
+      if (typeof el._syncMinMaxButtons === "function") el._syncMinMaxButtons();
+      if (doSpeak && !alarmFired[id]) {
+        alarmFired[id] = true;
         try {
           speakAnnouncement(ann);
         } catch (e) {}
         try {
           if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         } catch (e2) {}
-        // Countdown kedua (splash_seconds) di kotak yang sama → auto-close
-        var splashSec = Math.max(5, Number(ann.splash_seconds) || 15);
-        var leftSplash = splashSec;
-        var splashEndAt = Date.now() + splashSec * 1000;
-        if (countEl) countEl.textContent = fmtCountdown(leftSplash * 1000);
-        if (subEl)
-          subEl.textContent =
-            "Auto-tutup " + leftSplash + "s · ✕ tutup sekarang";
-        var splashIv = setInterval(function () {
-          // panel sudah dihapus manual?
-          if (!document.getElementById("sh-alarm-float-" + ann.id)) {
-            clearInterval(splashIv);
-            return;
-          }
-          var msLeft = splashEndAt - Date.now();
-          if (msLeft <= 0) {
-            clearInterval(splashIv);
-            delete alarmTimers[ann.id];
-            try {
-              if (window.speechSynthesis) window.speechSynthesis.cancel();
-            } catch (e4) {}
-            try {
-              var node = document.getElementById("sh-alarm-float-" + ann.id);
-              if (node) node.remove();
-            } catch (e5) {}
-            try {
-              sessionStorage.setItem("sh_alarm_closed_" + ann.id, "1");
-            } catch (e6) {}
-            return;
-          }
-          if (countEl) countEl.textContent = fmtCountdown(msLeft);
-          if (subEl)
-            subEl.textContent =
-              "Auto-tutup " +
-              Math.ceil(msLeft / 1000) +
-              "s · ✕ tutup sekarang";
-        }, 250);
-        alarmTimers[ann.id] = splashIv;
-        if (typeof el._syncMinMaxButtons === "function") el._syncMinMaxButtons();
       }
     }
+
+    function closeTotal() {
+      try {
+        if (alarmTimers[id]) clearInterval(alarmTimers[id]);
+      } catch (e) {}
+      delete alarmTimers[id];
+      try {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+      } catch (e4) {}
+      try {
+        var node = document.getElementById("sh-alarm-float-" + id);
+        if (node) node.remove();
+      } catch (e5) {}
+      try {
+        sessionStorage.setItem("sh_alarm_closed_" + id, "1");
+      } catch (e6) {}
+    }
+
+    function tick() {
+      if (sessionStorage.getItem("sh_alarm_closed_" + id) === "1") {
+        try {
+          if (alarmTimers[id]) clearInterval(alarmTimers[id]);
+        } catch (e) {}
+        return;
+      }
+      if (!document.getElementById("sh-alarm-float-" + id)) {
+        try {
+          if (alarmTimers[id]) clearInterval(alarmTimers[id]);
+        } catch (e) {}
+        return;
+      }
+      var now = Date.now();
+      if (now < fireAt) {
+        applyPhase1(fireAt - now);
+        return;
+      }
+      if (now < phase2End) {
+        // Masuk phase 2: speak hanya sekali saat pertama kali melewati fireAt
+        var firstEnter = !alarmFired[id];
+        applyPhase2(phase2End - now, firstEnter);
+        return;
+      }
+      closeTotal();
+    }
+
     tick();
-    if (alarmTimers[ann.id]) clearInterval(alarmTimers[ann.id]);
-    alarmTimers[ann.id] = setInterval(tick, 250);
+    if (alarmTimers[id]) clearInterval(alarmTimers[id]);
+    alarmTimers[id] = setInterval(tick, 200);
   }
 
   function mountAlarmAnnouncements(list, profile, kind) {
@@ -460,9 +489,8 @@
       if (pageKind() !== "admin") {
         if (!matchesAudience(ann, profile)) return;
       }
-      var fireAt = getAlarmFireAt(ann);
-      // tampilkan floating selama belum lewat 2 jam setelah fire
-      if (Date.now() - fireAt > 2 * 3600 * 1000) return;
+      var phase2End = getAlarmPhase2End(ann);
+      if (Date.now() >= phase2End) return;
       if (sessionStorage.getItem("sh_alarm_closed_" + ann.id) === "1") return;
       tickAlarmFloat(ann);
     });
@@ -545,9 +573,9 @@
   }
 
   function matchesAudience(ann, profile) {
-    const aud = ann.audience || "public";
-    if (aud === "public") return true;
-    if (aud === "logged_in") return !!(profile && profile.id);
+    const aud = String(ann.audience || "public").toLowerCase().trim();
+    if (!aud || aud === "public" || aud === "all" || aud === "semua") return true;
+    if (aud === "logged_in" || aud === "login") return !!(profile && profile.id);
     if (aud === "students") {
       if (!profile || !profile.linked_student_name) return false;
       const targets = ann.target_students || [];
