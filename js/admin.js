@@ -1305,15 +1305,42 @@
       try {
         var saved = await GalleryDB.upsertAnnouncement(payload);
         $("#annStatus").textContent = payload.is_alarm
-          ? "Alarm disimpan — floating hitung mundur aktif."
+          ? "Alarm disimpan — kotak hitung mundur ditampilkan."
           : "Pengumuman disimpan.";
         try {
-          if (payload.is_alarm && window.SHAnnounce && SHAnnounce.tickAlarmFloat && saved) {
-            SHAnnounce.tickAlarmFloat(saved);
-          } else if (payload.is_alarm && window.SHAnnounce && SHAnnounce.mountAlarmAnnouncements && saved) {
-            SHAnnounce.mountAlarmAnnouncements([saved], null, "admin");
+          if (payload.is_alarm) {
+            var delaySec =
+              (Number(payload.alarm_min) || 0) * 60 + (Number(payload.alarm_sec) || 0);
+            var localAnn = Object.assign({}, saved || {}, {
+              id: (saved && saved.id) || payload.id || "local-" + Date.now(),
+              title: payload.title || (saved && saved.title) || "Alarm",
+              body_html: payload.body_html || (saved && saved.body_html) || "",
+              is_alarm: true,
+              active: true,
+              alarm_delay_sec: delaySec,
+              alarm_fire_at:
+                (saved && saved.alarm_fire_at) ||
+                new Date(Date.now() + delaySec * 1000).toISOString(),
+              splash_seconds: payload.splash_seconds || 15,
+            });
+            if (window.SHAnnounce && typeof SHAnnounce.forceShowAlarm === "function") {
+              SHAnnounce.forceShowAlarm(localAnn);
+            } else if (window.SHAnnounce && typeof SHAnnounce.tickAlarmFloat === "function") {
+              try {
+                sessionStorage.removeItem("sh_alarm_closed_" + localAnn.id);
+              } catch (e0) {}
+              SHAnnounce.tickAlarmFloat(localAnn);
+            } else {
+              console.warn("SHAnnounce belum siap — muat ulang halaman admin");
+              $("#annStatus").textContent =
+                "Alarm tersimpan, tapi modul floating belum siap. Muat ulang halaman.";
+            }
           }
-        } catch (e) {}
+        } catch (e) {
+          console.warn("tampilkan alarm", e);
+          $("#annStatus").textContent =
+            "Alarm tersimpan, gagal tampilkan kotak: " + (e.message || e);
+        }
         f.reset();
         f.querySelector("[name=id]").value = "";
         $("#annEditor").innerHTML = "";

@@ -254,6 +254,39 @@
     return el;
   }
 
+
+  /** Paksa tampil floating alarm (setelah Simpan di admin) — abaikan flag closed sesi lama */
+  function forceShowAlarm(ann) {
+    if (!ann) return;
+    ann = Object.assign({}, ann);
+    ann.is_alarm = true;
+    ann.active = true;
+    if (!ann.id) ann.id = "local-" + Date.now();
+    // pastikan fire_at ada
+    if (!ann.alarm_fire_at) {
+      var delay = Number(ann.alarm_delay_sec) || 0;
+      if (!delay && (ann.alarm_min != null || ann.alarm_sec != null)) {
+        delay = (Number(ann.alarm_min) || 0) * 60 + (Number(ann.alarm_sec) || 0);
+      }
+      ann.alarm_delay_sec = delay;
+      ann.alarm_fire_at = new Date(Date.now() + delay * 1000).toISOString();
+    }
+    try {
+      sessionStorage.removeItem("sh_alarm_closed_" + ann.id);
+    } catch (e) {}
+    // hapus panel lama jika ada agar animasi/sync ulang
+    try {
+      var oldEl = document.getElementById("sh-alarm-float-" + ann.id);
+      if (oldEl) oldEl.remove();
+      if (alarmTimers[ann.id]) {
+        clearInterval(alarmTimers[ann.id]);
+        delete alarmTimers[ann.id];
+      }
+      delete alarmFired[ann.id];
+    } catch (e2) {}
+    tickAlarmFloat(ann);
+  }
+
   function tickAlarmFloat(ann) {
     if (sessionStorage.getItem("sh_alarm_closed_" + ann.id) === "1") return;
     var el = ensureAlarmFloat(ann);
@@ -562,7 +595,6 @@
         sessionStorage.removeItem("sh_ann_force_preview");
       } catch (e2) {}
     }
-    if (pageKind() === "admin") return;
     if (!window.GalleryDB || !GalleryDB.fetchActiveAnnouncements) return;
     try {
       const list = await GalleryDB.fetchActiveAnnouncements();
@@ -574,14 +606,14 @@
       } catch (e) {}
       const kind = pageKind();
       const now = new Date();
+      // Alarm floating — juga di halaman admin (setelah simpan / refresh)
+      mountAlarmAnnouncements(list, profile, kind);
+      // Splash pengumuman biasa: tidak di admin
+      if (kind === "admin") return;
       const queue = list.filter(
         (ann) => matchesPlace(ann, kind) && matchesAudience(ann, profile) && inSchedule(ann, now)
       );
-      // Alarm floating + countdown (lintas halaman)
-      mountAlarmAnnouncements(list, profile, kind);
-
       for (const ann of queue) {
-        // alarm pakai floating countdown, bukan splash biasa di boot
         if (ann.is_alarm) continue;
         await showSplash(ann);
       }
@@ -595,6 +627,7 @@
     boot,
     mountAlarmAnnouncements,
     tickAlarmFloat,
+    forceShowAlarm,
   };
 
   if (document.readyState === "complete") setTimeout(boot, 600);
