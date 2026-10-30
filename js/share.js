@@ -13,6 +13,9 @@
       bar = document.createElement("div");
       bar.id = "sh-share-bar";
       document.body.appendChild(bar);
+    try {
+      if (window.SHFloatDrag) SHFloatDrag.enable(bar, { key: "share-bar" });
+    } catch (e) {}
     }
     if (!bar.querySelector(".sh-wa")) {
     bar.innerHTML = `
@@ -44,3 +47,8 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", build);
   else build();
 })();
+
+  try {
+    var bar = document.getElementById("sh-share-bar");
+    if (bar && window.SHFloatDrag) SHFloatDrag.enable(bar, { key: "share-bar" });
+  } catch (e) {}

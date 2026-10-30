@@ -248,3 +248,12 @@
     boot();
   }
 })();
+
+  try {
+    var el = document.getElementById("sh-float-stats");
+    if (el && window.SHFloatDrag) SHFloatDrag.enable(el, { key: "float-stats" });
+    setTimeout(function () {
+      var e2 = document.getElementById("sh-float-stats");
+      if (e2 && window.SHFloatDrag) SHFloatDrag.enable(e2, { key: "float-stats" });
+    }, 1200);
+  } catch (e) {}

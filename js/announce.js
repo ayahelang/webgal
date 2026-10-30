@@ -62,9 +62,18 @@
       "width:28px;height:28px;cursor:pointer;font-size:14px;line-height:1}",
       ".sh-alarm-hd button:hover{background:rgba(255,200,80,.25);color:#fff}",
       ".sh-alarm-body{padding:12px 14px 14px}",
+      ".sh-alarm-row{display:flex;align-items:center;gap:12px;margin-bottom:8px}",
+      ".sh-alarm-meta{flex:1;min-width:0}",
+      ".sh-alarm-btn{border:0;background:rgba(255,255,255,.08);color:#cde;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:14px;line-height:1}",
+      ".sh-alarm-btn:hover{background:rgba(255,200,80,.25);color:#fff}",
+      ".sh-alarm-msg{margin-top:8px;font-size:12px;color:#c5d4e6;max-height:120px;overflow:auto;line-height:1.45;border-top:1px solid rgba(255,180,60,.15);padding-top:8px}",
+      ".sh-alarm-float.is-min .sh-alarm-body{display:none}",
+      ".sh-alarm-float.is-min{width:auto;min-width:160px}",
+      ".sh-alarm-hg-frame,.sh-alarm-hg-sand-top,.sh-alarm-hg-sand-bot,.sh-alarm-hg-stream{",
+      "animation-duration:var(--sh-hg-dur,3s)!important}",
       ".sh-alarm-hg{width:56px;height:72px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center}",
       ".sh-alarm-hg-frame{position:relative;width:36px;height:64px;",
-      "animation:shHgRotate 3s ease-in-out infinite;transform-origin:center center}",
+      "animation:shHgRotate var(--sh-hg-dur,3s) ease-in-out 1 forwards;transform-origin:center center}",
       ".sh-alarm-hg-top,.sh-alarm-hg-bot{position:absolute;left:0;width:36px;height:28px;",
       "border:2px solid rgba(255,200,100,.85);background:rgba(20,30,45,.55);overflow:hidden}",
       ".sh-alarm-hg-top{top:0;border-radius:4px 4px 18px 18px;border-bottom-color:transparent}",
@@ -73,17 +82,17 @@
       "background:rgba(255,200,100,.5)}",
       ".sh-alarm-hg-sand-top{position:absolute;left:4px;right:4px;top:4px;height:20px;",
       "background:linear-gradient(#ffc46a,#e8a040);border-radius:2px 2px 50% 50%;",
-      "animation:shHgSandTop 3s linear infinite;transform-origin:center bottom}",
+      "animation:shHgSandTop var(--sh-hg-dur,3s) linear 1 forwards;transform-origin:center bottom}",
       ".sh-alarm-hg-sand-bot{position:absolute;left:8px;right:8px;bottom:4px;height:0;",
       "background:linear-gradient(#e8a040,#ffc46a);border-radius:50% 50% 2px 2px;",
-      "animation:shHgSandBot 3s linear infinite}",
+      "animation:shHgSandBot var(--sh-hg-dur,3s) linear 1 forwards}",
       ".sh-alarm-hg-stream{position:absolute;left:50%;top:28px;width:2px;height:12px;margin-left:-1px;",
       "background:repeating-linear-gradient(to bottom,#ffc46a 0 2px,transparent 2px 4px);",
-      "opacity:.85;animation:shHgStream 3s linear infinite}",
+      "opacity:.85;animation:shHgStream var(--sh-hg-dur,3s) linear 1 forwards}",
       "@keyframes shHgSandTop{0%{height:20px;opacity:1}70%{height:2px;opacity:.9}85%,100%{height:0;opacity:0}}",
       "@keyframes shHgSandBot{0%{height:0}70%{height:4px}100%{height:18px}}",
       "@keyframes shHgStream{0%,85%{opacity:.9}90%,100%{opacity:0}}",
-      "@keyframes shHgRotate{0%,75%{transform:rotate(0deg)}100%{transform:rotate(180deg)}}",
+      "@keyframes shHgRotate{0%,92%{transform:rotate(0deg)}100%{transform:rotate(180deg)}}",
       ".sh-alarm-count{text-align:center;font-size:28px;font-weight:800;letter-spacing:.04em;",
       "font-variant-numeric:tabular-nums;color:#ffc46a;text-shadow:0 0 12px rgba(255,180,60,.35)}",
       ".sh-alarm-sub{text-align:center;font-size:11px;color:#9ab;margin-top:4px}",
@@ -185,7 +194,7 @@
     var ui = loadAlarmUi(id);
     el = document.createElement("div");
     el.id = "sh-alarm-float-" + id;
-    el.className = "sh-alarm-float" + (ui.min ? " is-min" : "");
+    el.className = "sh-alarm-float";
     el.setAttribute("data-ann-id", id);
     var left = ui.x != null ? ui.x : Math.max(12, window.innerWidth - 340);
     var top = ui.y != null ? ui.y : 80 + (Object.keys(alarmTimers).length % 5) * 24;
@@ -194,39 +203,54 @@
     el.innerHTML =
       '<div class="sh-alarm-hd">' +
       '<span class="sh-alarm-title"></span>' +
-      '<button type="button" data-act="min" title="Minimize / restore">–</button>' +
-      '<button type="button" data-act="close" title="Tutup">✕</button>' +
+      '<button type="button" class="sh-alarm-btn" data-act="min" title="Perkecil">–</button>' +
+      '<button type="button" class="sh-alarm-btn" data-act="close" title="Tutup sepenuhnya">✕</button>' +
       "</div>" +
       '<div class="sh-alarm-body">' +
+      '<div class="sh-alarm-row">' +
       '<div class="sh-alarm-hg" aria-hidden="true"><div class="sh-alarm-hg-frame"><div class="sh-alarm-hg-top"></div><div class="sh-alarm-hg-neck"></div><div class="sh-alarm-hg-bot"></div><div class="sh-alarm-hg-sand-top"></div><div class="sh-alarm-hg-sand-bot"></div><div class="sh-alarm-hg-stream"></div></div></div>' +
+      '<div class="sh-alarm-meta">' +
       '<div class="sh-alarm-count">--:--</div>' +
-      '<div class="sh-alarm-sub">Menuju alarm &amp; baca nyaring</div>' +
+      '<div class="sh-alarm-sub">Menuju baca nyaring</div>' +
+      "</div></div>" +
       '<div class="sh-alarm-msg"></div>' +
       "</div>";
     el.querySelector(".sh-alarm-title").textContent =
       "⏰ " + (ann.title || "Alarm").slice(0, 48);
     el.querySelector(".sh-alarm-msg").textContent = stripHtml(ann.body_html || "").slice(
       0,
-      220
+      400
     );
-    el.querySelector('[data-act="min"]').onclick = function () {
+    el.querySelector('[data-act="min"]').addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
       el.classList.toggle("is-min");
       var u = loadAlarmUi(id);
       u.min = el.classList.contains("is-min");
       saveAlarmUi(id, u);
-    };
-    el.querySelector('[data-act="close"]').onclick = function () {
+    });
+    el.querySelector('[data-act="close"]').addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
       try {
         if (alarmTimers[id]) clearInterval(alarmTimers[id]);
       } catch (e) {}
       delete alarmTimers[id];
+      el.classList.remove("is-min");
       el.remove();
       try {
         sessionStorage.setItem("sh_alarm_closed_" + id, "1");
-      } catch (e) {}
-    };
+      } catch (e2) {}
+      var u = loadAlarmUi(id);
+      u.min = false;
+      saveAlarmUi(id, u);
+    });
     document.body.appendChild(el);
+    if (ui.min) el.classList.add("is-min");
     bindAlarmDrag(el, id);
+    try {
+      if (window.SHFloatDrag) SHFloatDrag.enable(el, { key: "alarm-" + id, handle: el.querySelector(".sh-alarm-hd") });
+    } catch (e) {}
     return el;
   }
 
@@ -236,13 +260,32 @@
     var fireAt = getAlarmFireAt(ann);
     var countEl = el.querySelector(".sh-alarm-count");
     var subEl = el.querySelector(".sh-alarm-sub");
+    var hg = el.querySelector(".sh-alarm-hg-frame");
+    // sinkronkan animasi pasir ke sisa waktu menuju read-aloud (sekali)
+    if (hg && !hg.getAttribute("data-synced")) {
+      var remain = Math.max(500, fireAt - Date.now());
+      var durSec = (remain / 1000).toFixed(2);
+      el.style.setProperty("--sh-hg-dur", durSec + "s");
+      // restart animation
+      hg.style.animation = "none";
+      void hg.offsetWidth;
+      hg.style.animation = "";
+      var sands = el.querySelectorAll(".sh-alarm-hg-sand-top,.sh-alarm-hg-sand-bot,.sh-alarm-hg-stream");
+      sands.forEach(function (n) {
+        n.style.animation = "none";
+        void n.offsetWidth;
+        n.style.animation = "";
+      });
+      hg.setAttribute("data-synced", "1");
+    }
 
     function tick() {
       var left = fireAt - Date.now();
       if (left > 0) {
         el.classList.remove("is-fired");
+        el.classList.remove("is-min"); // pastikan expand saat countdown
         if (countEl) countEl.textContent = fmtCountdown(left);
-        if (subEl) subEl.textContent = "Hitung mundur · lalu TTS";
+        if (subEl) subEl.textContent = "Hitung mundur · lalu baca nyaring";
         return;
       }
       if (countEl) countEl.textContent = "00:00";

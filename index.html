@@ -46,7 +46,7 @@
   </script>
   <style>
     /* slot fixed — tidak dorong layout saat widget mengisi */
-    #sh-share-bar{position:fixed;right:12px;bottom:72px;z-index:40;min-height:40px;min-width:120px;contain:layout style}
+    #sh-share-bar,#sh-float-stats,#shHealthBtn{cursor:grab}#sh-share-bar.is-dragging,#sh-float-stats.is-dragging,#shHealthBtn.is-dragging{cursor:grabbing}#sh-share-bar{position:fixed;right:12px;bottom:72px;z-index:40;min-height:40px;min-width:120px;contain:layout style}
     #sh-float-stats{position:fixed;left:10px;bottom:12px;z-index:40;min-height:36px;min-width:160px;contain:layout style}
     .theme-toggle{flex:0 0 auto;min-width:72px;min-height:32px}
     .topbar{min-height:56px}
@@ -248,6 +248,7 @@
       }
       function bootSecondary() {
         [
+          "js/float-drag.js",
           "js/share.js",
           "js/stats-float.js",
           "js/health-check.js",

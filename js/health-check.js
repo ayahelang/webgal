@@ -39,6 +39,12 @@
     btn.title = "Cek koneksi database & layanan";
     btn.addEventListener("click", openModal);
     document.body.appendChild(btn);
+    try {
+      if (window.SHFloatDrag) SHFloatDrag.enable(btn, { key: "health-btn" });
+      else setTimeout(function () {
+        if (window.SHFloatDrag) SHFloatDrag.enable(btn, { key: "health-btn" });
+      }, 800);
+    } catch (e) {}
 
     const modal = el("div", "sh-health-modal", "");
     modal.id = "shHealthModal";
