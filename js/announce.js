@@ -351,16 +351,25 @@
     tickAlarmFloat(ann);
   }
 
-  function clearAlarmTimers(id) {
+  function clearUiInterval(id) {
     id = String(id);
     try {
       if (alarmTimers[id]) clearInterval(alarmTimers[id]);
     } catch (e) {}
+    delete alarmTimers[id];
+  }
+
+  function clearCloseTimeout(id) {
+    id = String(id);
     try {
       if (alarmCloseTimeouts[id]) clearTimeout(alarmCloseTimeouts[id]);
-    } catch (e2) {}
-    delete alarmTimers[id];
+    } catch (e) {}
     delete alarmCloseTimeouts[id];
+  }
+
+  function clearAlarmTimers(id) {
+    clearUiInterval(id);
+    clearCloseTimeout(id);
   }
 
   function closeAlarmTotal(id) {
@@ -378,33 +387,69 @@
     } catch (e6) {}
   }
 
+  /** Jadwalkan auto-close sekali per phase2End — jangan di-reset sembarangan */
+  function schedulePhase2Close(id, phase2End) {
+    id = String(id);
+    var key = id + "@" + String(phase2End);
+    if (alarmCloseTimeouts[id + "_key"] === key && alarmCloseTimeouts[id]) {
+      return; // sudah terjadwal untuk akhir yang sama
+    }
+    clearCloseTimeout(id);
+    alarmCloseTimeouts[id + "_key"] = key;
+    var ms = phase2End - Date.now();
+    if (ms < 0) ms = 0;
+    alarmCloseTimeouts[id] = setTimeout(function () {
+      closeAlarmTotal(id);
+    }, ms + 40);
+  }
+
   function tickAlarmFloat(ann) {
     if (!ann || ann.id == null || ann.id === "") return;
     var id = String(ann.id);
     if (sessionStorage.getItem("sh_alarm_closed_" + id) === "1") return;
 
-    var fireAt = getAlarmFireAt(ann);
-    var phase2End = getAlarmPhase2End(ann);
-    var now0 = Date.now();
+    // Normalisasi field dari server (penting untuk pengunjung / anon)
+    ann = Object.assign({}, ann);
+    ann.is_alarm = true;
+    ann.active = ann.active !== false;
+    if (ann.splash_seconds == null || ann.splash_seconds === "") {
+      ann.splash_seconds = 15;
+    }
+    ann.splash_seconds = Math.max(5, Number(ann.splash_seconds) || 15);
+    if (!ann.alarm_fire_at && ann.alarm_delay_sec != null) {
+      var base = ann.updated_at || ann.created_at || ann.starts_at;
+      if (base) {
+        ann.alarm_fire_at = new Date(
+          new Date(base).getTime() + (Number(ann.alarm_delay_sec) || 0) * 1000
+        ).toISOString();
+      }
+    }
 
+    var fireAt = getAlarmFireAt(ann);
+    var phase2End = fireAt + ann.splash_seconds * 1000;
+    if (!isFinite(fireAt) || !isFinite(phase2End)) {
+      console.warn("alarm times invalid", ann);
+      return;
+    }
+
+    var now0 = Date.now();
     if (now0 >= phase2End) {
       closeAlarmTotal(id);
       return;
     }
 
     var el = ensureAlarmFloat(ann);
-    // pastikan id elemen konsisten
     el.id = "sh-alarm-float-" + id;
+    el.setAttribute("data-fire-at", String(fireAt));
+    el.setAttribute("data-phase2-end", String(phase2End));
     var countEl = el.querySelector(".sh-alarm-count");
     var subEl = el.querySelector(".sh-alarm-sub");
     var hg = el.querySelector(".sh-alarm-hg-frame");
 
-    // Jam pasir: sync ke sisa phase 1
     if (hg && now0 < fireAt) {
       var remain = Math.max(500, fireAt - now0);
-      var durSec = (remain / 1000).toFixed(2);
       if (hg.getAttribute("data-synced-for") !== String(fireAt)) {
-        el.style.setProperty("--sh-hg-dur", durSec + "s");
+        el.style.setProperty("--sh-hg-dur", (remain / 1000).toFixed(2) + "s");
         try {
           hg.style.animation = "none";
           void hg.offsetWidth;
@@ -438,23 +483,26 @@
       if (typeof el._syncMinMaxButtons === "function") el._syncMinMaxButtons();
       if (doSpeak && !alarmFired[id]) {
         alarmFired[id] = true;
-        try {
-          speakAnnouncement(ann);
-        } catch (e) {}
-        try {
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-        } catch (e2) {}
+        // TTS jangan sampai memblokir phase 2
+        setTimeout(function () {
+          try {
+            speakAnnouncement(ann);
+          } catch (e) {}
+          try {
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          } catch (e2) {}
+        }, 0);
       }
     }
 
-    // UI tick (tampilan angka)
     function tick() {
       if (sessionStorage.getItem("sh_alarm_closed_" + id) === "1") {
-        clearAlarmTimers(id);
+        clearUiInterval(id);
         return;
       }
-      if (!document.getElementById("sh-alarm-float-" + id)) {
-        clearAlarmTimers(id);
+      var node = document.getElementById("sh-alarm-float-" + id);
+      if (!node) {
+        clearUiInterval(id);
         return;
       }
       var now = Date.now();
@@ -462,30 +510,19 @@
         applyPhase1(fireAt - now);
         return;
       }
+      // Phase 2 — selalu (admin & pengunjung)
       if (now < phase2End) {
         applyPhase2(phase2End - now, !alarmFired[id]);
         return;
       }
-      // safety: jika timeout belum sempat
       closeAlarmTotal(id);
     }
 
-    // Timer UI
-    clearAlarmTimers(id);
+    // UI interval: boleh di-reset; close timeout: sekali per phase2End
+    clearUiInterval(id);
     tick();
     alarmTimers[id] = setInterval(tick, 200);
-
-    // AUTO-CLOSE UTAMA: setTimeout absolut ke phase2End (tidak tergantung interval)
-    var msToClose = phase2End - Date.now();
-    if (msToClose < 0) msToClose = 0;
-    alarmCloseTimeouts[id] = setTimeout(function () {
-      closeAlarmTotal(id);
-    }, msToClose + 30);
-
-    // Jika sudah di phase 2 saat mount, pastikan speak sekali
-    if (Date.now() >= fireAt && Date.now() < phase2End && !alarmFired[id]) {
-      applyPhase2(phase2End - Date.now(), true);
-    }
+    schedulePhase2Close(id, phase2End);
   }
 
   function mountAlarmAnnouncements(list, profile, kind) {
