@@ -107,6 +107,7 @@
   }
 
   var alarmTimers = {};
+  var alarmCloseTimeouts = {};
   var alarmFired = {};
 
   function alarmUiKey(id) {
@@ -296,17 +297,7 @@
         setMinimized(true);
         return;
       }
-      try {
-        if (alarmTimers[id]) clearInterval(alarmTimers[id]);
-      } catch (e) {}
-      delete alarmTimers[id];
-      try {
-        if (window.speechSynthesis) window.speechSynthesis.cancel();
-      } catch (e3) {}
-      el.remove();
-      try {
-        sessionStorage.setItem("sh_alarm_closed_" + id, "1");
-      } catch (e2) {}
+      closeAlarmTotal(id);
       var u2 = loadAlarmUi(id);
       u2.min = false;
       saveAlarmUi(id, u2);
@@ -352,56 +343,80 @@
     } catch (e) {}
     // hapus panel lama jika ada agar animasi/sync ulang
     try {
-      var oldEl = document.getElementById("sh-alarm-float-" + ann.id);
-      if (oldEl) oldEl.remove();
-      if (alarmTimers[ann.id]) {
-        clearInterval(alarmTimers[ann.id]);
-        delete alarmTimers[ann.id];
-      }
-      delete alarmFired[ann.id];
+      var aid = String(ann.id);
+      closeAlarmTotal(aid);
+      sessionStorage.removeItem("sh_alarm_closed_" + aid);
+      delete alarmFired[aid];
     } catch (e2) {}
     tickAlarmFloat(ann);
   }
 
+  function clearAlarmTimers(id) {
+    id = String(id);
+    try {
+      if (alarmTimers[id]) clearInterval(alarmTimers[id]);
+    } catch (e) {}
+    try {
+      if (alarmCloseTimeouts[id]) clearTimeout(alarmCloseTimeouts[id]);
+    } catch (e2) {}
+    delete alarmTimers[id];
+    delete alarmCloseTimeouts[id];
+  }
+
+  function closeAlarmTotal(id) {
+    id = String(id);
+    clearAlarmTimers(id);
+    try {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    } catch (e4) {}
+    try {
+      var node = document.getElementById("sh-alarm-float-" + id);
+      if (node) node.remove();
+    } catch (e5) {}
+    try {
+      sessionStorage.setItem("sh_alarm_closed_" + id, "1");
+    } catch (e6) {}
+  }
+
   function tickAlarmFloat(ann) {
-    if (!ann || !ann.id) return;
-    if (sessionStorage.getItem("sh_alarm_closed_" + ann.id) === "1") return;
+    if (!ann || ann.id == null || ann.id === "") return;
+    var id = String(ann.id);
+    if (sessionStorage.getItem("sh_alarm_closed_" + id) === "1") return;
 
     var fireAt = getAlarmFireAt(ann);
     var phase2End = getAlarmPhase2End(ann);
     var now0 = Date.now();
 
-    // Sudah lewat phase 2 → jangan tampilkan
     if (now0 >= phase2End) {
-      try {
-        sessionStorage.setItem("sh_alarm_closed_" + ann.id, "1");
-      } catch (e) {}
+      closeAlarmTotal(id);
       return;
     }
 
     var el = ensureAlarmFloat(ann);
+    // pastikan id elemen konsisten
+    el.id = "sh-alarm-float-" + id;
     var countEl = el.querySelector(".sh-alarm-count");
     var subEl = el.querySelector(".sh-alarm-sub");
     var hg = el.querySelector(".sh-alarm-hg-frame");
-    var id = String(ann.id);
 
-    // Sinkron jam pasir ke sisa phase 1 (sekali per mount / sisa waktu)
+    // Jam pasir: sync ke sisa phase 1
     if (hg && now0 < fireAt) {
       var remain = Math.max(500, fireAt - now0);
       var durSec = (remain / 1000).toFixed(2);
-      var prev = hg.getAttribute("data-synced-for");
-      if (prev !== String(fireAt)) {
+      if (hg.getAttribute("data-synced-for") !== String(fireAt)) {
         el.style.setProperty("--sh-hg-dur", durSec + "s");
-        hg.style.animation = "none";
-        void hg.offsetWidth;
-        hg.style.animation = "";
-        el.querySelectorAll(
-          ".sh-alarm-hg-sand-top,.sh-alarm-hg-sand-bot,.sh-alarm-hg-stream"
-        ).forEach(function (n) {
-          n.style.animation = "none";
-          void n.offsetWidth;
-          n.style.animation = "";
-        });
+        try {
+          hg.style.animation = "none";
+          void hg.offsetWidth;
+          hg.style.animation = "";
+          el.querySelectorAll(
+            ".sh-alarm-hg-sand-top,.sh-alarm-hg-sand-bot,.sh-alarm-hg-stream"
+          ).forEach(function (n) {
+            n.style.animation = "none";
+            void n.offsetWidth;
+            n.style.animation = "";
+          });
+        } catch (eHg) {}
         hg.setAttribute("data-synced-for", String(fireAt));
       }
     }
@@ -416,10 +431,10 @@
     function applyPhase2(msLeft, doSpeak) {
       el.classList.add("is-fired");
       el.classList.remove("is-min");
-      if (countEl) countEl.textContent = fmtCountdown(msLeft);
+      if (countEl) countEl.textContent = fmtCountdown(Math.max(0, msLeft));
       if (subEl)
         subEl.textContent =
-          "Auto-tutup " + Math.ceil(msLeft / 1000) + "s · ✕ tutup";
+          "Auto-tutup " + Math.max(1, Math.ceil(msLeft / 1000)) + "s · ✕ tutup";
       if (typeof el._syncMinMaxButtons === "function") el._syncMinMaxButtons();
       if (doSpeak && !alarmFired[id]) {
         alarmFired[id] = true;
@@ -432,34 +447,14 @@
       }
     }
 
-    function closeTotal() {
-      try {
-        if (alarmTimers[id]) clearInterval(alarmTimers[id]);
-      } catch (e) {}
-      delete alarmTimers[id];
-      try {
-        if (window.speechSynthesis) window.speechSynthesis.cancel();
-      } catch (e4) {}
-      try {
-        var node = document.getElementById("sh-alarm-float-" + id);
-        if (node) node.remove();
-      } catch (e5) {}
-      try {
-        sessionStorage.setItem("sh_alarm_closed_" + id, "1");
-      } catch (e6) {}
-    }
-
+    // UI tick (tampilan angka)
     function tick() {
       if (sessionStorage.getItem("sh_alarm_closed_" + id) === "1") {
-        try {
-          if (alarmTimers[id]) clearInterval(alarmTimers[id]);
-        } catch (e) {}
+        clearAlarmTimers(id);
         return;
       }
       if (!document.getElementById("sh-alarm-float-" + id)) {
-        try {
-          if (alarmTimers[id]) clearInterval(alarmTimers[id]);
-        } catch (e) {}
+        clearAlarmTimers(id);
         return;
       }
       var now = Date.now();
@@ -468,17 +463,29 @@
         return;
       }
       if (now < phase2End) {
-        // Masuk phase 2: speak hanya sekali saat pertama kali melewati fireAt
-        var firstEnter = !alarmFired[id];
-        applyPhase2(phase2End - now, firstEnter);
+        applyPhase2(phase2End - now, !alarmFired[id]);
         return;
       }
-      closeTotal();
+      // safety: jika timeout belum sempat
+      closeAlarmTotal(id);
     }
 
+    // Timer UI
+    clearAlarmTimers(id);
     tick();
-    if (alarmTimers[id]) clearInterval(alarmTimers[id]);
     alarmTimers[id] = setInterval(tick, 200);
+
+    // AUTO-CLOSE UTAMA: setTimeout absolut ke phase2End (tidak tergantung interval)
+    var msToClose = phase2End - Date.now();
+    if (msToClose < 0) msToClose = 0;
+    alarmCloseTimeouts[id] = setTimeout(function () {
+      closeAlarmTotal(id);
+    }, msToClose + 30);
+
+    // Jika sudah di phase 2 saat mount, pastikan speak sekali
+    if (Date.now() >= fireAt && Date.now() < phase2End && !alarmFired[id]) {
+      applyPhase2(phase2End - Date.now(), true);
+    }
   }
 
   function mountAlarmAnnouncements(list, profile, kind) {
@@ -795,10 +802,7 @@
             try {
               var el = document.getElementById("sh-alarm-float-" + row.id);
               if (el) el.remove();
-              if (alarmTimers[row.id]) {
-                clearInterval(alarmTimers[row.id]);
-                delete alarmTimers[row.id];
-              }
+              closeAlarmTotal(row.id);
             } catch (e) {}
             return;
           }
