@@ -315,28 +315,41 @@
     const f = $(sel);
     if (!f) return;
     try {
-      // Loncat ke form pengeditan (mis. setelah klik Ubah di list)
-      f.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Pastikan tab/panel form terlihat
+      try {
+        var panel = f.closest(".admin-panel, .tab-panel, [data-tab-panel], section, .card");
+        if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (e0) {}
+      setTimeout(function () {
+        try {
+          f.scrollIntoView({ behavior: "smooth", block: "start" });
+        } catch (e1) {}
+        try {
+          var top = f.getBoundingClientRect().top + window.pageYOffset - 72;
+          window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+        } catch (e2) {}
+      }, 50);
       f.classList.add("admin-form-flash");
       setTimeout(function () {
         f.classList.remove("admin-form-flash");
-      }, 1200);
+      }, 1400);
       setTimeout(function () {
         const el =
           f.querySelector("input[name=title]") ||
+          f.querySelector("#annEditor") ||
           f.querySelector("input:not([type=hidden]):not([type=checkbox]):not([type=radio])") ||
           f.querySelector("[contenteditable='true']") ||
           f.querySelector("textarea, select");
         if (el) {
           try {
             el.focus({ preventScroll: true });
-          } catch (e2) {
+          } catch (e3) {
             try {
               el.focus();
-            } catch (e3) {}
+            } catch (e4) {}
           }
         }
-      }, 400);
+      }, 450);
     } catch (e) {}
   }
   function collapseTreeParents(root, depthKeepOpen) {
@@ -782,26 +795,6 @@
           if (!r) return;
           const f = $("#annForm");
 
-    (function bindAnnStartsToday() {
-      var btn = document.getElementById("annStartsToday");
-      var inp = document.getElementById("annStartsAt") || document.querySelector("#annForm [name=starts_at]");
-      if (!btn || !inp) return;
-      btn.addEventListener("click", function () {
-        var d = new Date();
-        var pad = function (n) { return String(n).padStart(2, "0"); };
-        inp.value =
-          d.getFullYear() +
-          "-" +
-          pad(d.getMonth() + 1) +
-          "-" +
-          pad(d.getDate()) +
-          "T" +
-          pad(d.getHours()) +
-          ":" +
-          pad(d.getMinutes());
-      });
-    })();
-
           if (!f) return;
           f.querySelector("[name=id]").value = "";
           f.querySelector("[name=title]").value = (r.title || "") + " (salinan)";
@@ -837,14 +830,19 @@
                     f.querySelector("[name=times_per_day]").value = r.times_per_day || 1;
                     setAnnScheduleDays(f, r.schedule_days || []);
           f.querySelector("[name=splash_seconds]").value = r.splash_seconds || 15;
-          if (f.querySelector("[name=is_alarm]")) f.querySelector("[name=is_alarm]").checked = !!r.is_alarm;
+          var alarmOn = r.is_alarm === true || r.is_alarm === "true" || r.is_alarm === 1 || r.is_alarm === "1" || r.is_alarm === "t";
+          var alarmCb = f.querySelector("[name=is_alarm]") || document.getElementById("annIsAlarm");
+          if (alarmCb) {
+            alarmCb.checked = !!alarmOn;
+            try { alarmCb.dispatchEvent(new Event("change", { bubbles: true })); } catch (eA) {}
+          }
           var delay = Number(r.alarm_delay_sec) || 0;
           if (f.querySelector("[name=alarm_min]")) f.querySelector("[name=alarm_min]").value = Math.floor(delay / 60);
           if (f.querySelector("[name=alarm_sec]")) f.querySelector("[name=alarm_sec]").value = delay % 60;
           var box = document.getElementById("annAlarmSettings");
-          if (box) box.style.display = r.is_alarm ? "grid" : "none";
+          if (box) box.style.display = alarmOn ? "grid" : "none";
           f.querySelector("[name=active]").checked = r.active !== false;
-          $("#annStatus").textContent = "Mode duplikat: simpan untuk membuat pengumuman baru · " + (r.title || "");
+          $("#annStatus").textContent = "Mode duplikat — periksa setelan, lalu klik Simpan untuk membuat salinan.";
           scrollToForm("#annForm");
         })
       );
@@ -911,14 +909,19 @@
                     f.querySelector("[name=times_per_day]").value = r.times_per_day || 1;
                     setAnnScheduleDays(f, r.schedule_days || []);
           f.querySelector("[name=splash_seconds]").value = r.splash_seconds || 15;
-          if (f.querySelector("[name=is_alarm]")) f.querySelector("[name=is_alarm]").checked = !!r.is_alarm;
+          var alarmOn = r.is_alarm === true || r.is_alarm === "true" || r.is_alarm === 1 || r.is_alarm === "1" || r.is_alarm === "t";
+          var alarmCb = f.querySelector("[name=is_alarm]") || document.getElementById("annIsAlarm");
+          if (alarmCb) {
+            alarmCb.checked = !!alarmOn;
+            try { alarmCb.dispatchEvent(new Event("change", { bubbles: true })); } catch (eA) {}
+          }
           var delay = Number(r.alarm_delay_sec) || 0;
           if (f.querySelector("[name=alarm_min]")) f.querySelector("[name=alarm_min]").value = Math.floor(delay / 60);
           if (f.querySelector("[name=alarm_sec]")) f.querySelector("[name=alarm_sec]").value = delay % 60;
           var box = document.getElementById("annAlarmSettings");
-          if (box) box.style.display = r.is_alarm ? "grid" : "none";
+          if (box) box.style.display = alarmOn ? "grid" : "none";
           f.querySelector("[name=active]").checked = r.active !== false;
-          $("#annStatus").textContent = "Mode edit: " + (r.title || "");
+          $("#annStatus").textContent = "Mode ubah — periksa setelan, lalu klik Simpan jika sudah yakin.";
           scrollToForm("#annForm");
         })
       );
@@ -1103,6 +1106,46 @@
   function bindAnnouncementForm() {
     const f = $("#annForm");
     if (!f) return;
+
+    // Tombol "Hari ini" untuk starts_at (mobile & desktop)
+    (function bindAnnStartsToday() {
+      var btn = document.getElementById("annStartsToday");
+      var inp =
+        document.getElementById("annStartsAt") ||
+        (f && f.querySelector("[name=starts_at]"));
+      if (!btn || !inp || btn.dataset.boundToday === "1") return;
+      btn.dataset.boundToday = "1";
+      btn.addEventListener("click", function (ev) {
+        if (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+        }
+        var d = new Date();
+        function pad(n) {
+          return String(n).padStart(2, "0");
+        }
+        // datetime-local: YYYY-MM-DDTHH:mm (detik opsional, browser sering abaikan)
+        var v =
+          d.getFullYear() +
+          "-" +
+          pad(d.getMonth() + 1) +
+          "-" +
+          pad(d.getDate()) +
+          "T" +
+          pad(d.getHours()) +
+          ":" +
+          pad(d.getMinutes());
+        inp.value = v;
+        try {
+          inp.dispatchEvent(new Event("input", { bubbles: true }));
+          inp.dispatchEvent(new Event("change", { bubbles: true }));
+        } catch (e) {}
+        try {
+          inp.focus();
+        } catch (e2) {}
+      });
+    })();
+
     // cegah submit native / navigasi
     f.setAttribute("method", "post");
     f.setAttribute("action", "javascript:void(0)");
