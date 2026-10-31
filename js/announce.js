@@ -126,6 +126,63 @@
     } catch (e) {}
   }
 
+  function playFestiveChime() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      var ctx = new AC();
+      if (ctx.state === "suspended") ctx.resume();
+      // arpeggio meriah + chord penutup
+      var melody = [
+        { f: 523.25, t: 0 },
+        { f: 659.25, t: 0.1 },
+        { f: 783.99, t: 0.2 },
+        { f: 1046.5, t: 0.32 },
+        { f: 783.99, t: 0.48 },
+        { f: 1046.5, t: 0.58 },
+        { f: 1318.5, t: 0.72 },
+      ];
+      melody.forEach(function (n) {
+        var o = ctx.createOscillator();
+        var g = ctx.createGain();
+        o.type = "triangle";
+        o.frequency.value = n.f;
+        g.gain.value = 0.0001;
+        o.connect(g);
+        g.connect(ctx.destination);
+        var t0 = ctx.currentTime + n.t;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+        o.start(t0);
+        o.stop(t0 + 0.32);
+      });
+      // chord C major singkat
+      [523.25, 659.25, 783.99].forEach(function (f, i) {
+        var o = ctx.createOscillator();
+        var g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.value = f;
+        o.connect(g);
+        g.connect(ctx.destination);
+        var t0 = ctx.currentTime + 0.95;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.04);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.7);
+        o.start(t0);
+        o.stop(t0 + 0.75);
+      });
+      setTimeout(function () {
+        try {
+          ctx.close();
+        } catch (e) {}
+      }, 2000);
+    } catch (e) {}
+    try {
+      if (navigator.vibrate) navigator.vibrate([80, 40, 80, 40, 120, 60, 200]);
+    } catch (e2) {}
+  }
+
   function fmtCountdown(ms) {
     if (ms < 0) ms = 0;
     var t = Math.ceil(ms / 1000);
@@ -399,7 +456,17 @@
     var ms = phase2End - Date.now();
     if (ms < 0) ms = 0;
     alarmCloseTimeouts[id] = setTimeout(function () {
-      closeAlarmTotal(id);
+      // cadangan jika interval UI sudah berhenti; beri ruang chime
+      try {
+        var elx = document.getElementById("sh-alarm-float-" + id);
+        if (elx && !elx.getAttribute("data-festive-done")) {
+          elx.setAttribute("data-festive-done", "1");
+          playFestiveChime();
+        }
+      } catch (e) {}
+      setTimeout(function () {
+        closeAlarmTotal(id);
+      }, 1100);
     }, ms + 40);
   }
 
@@ -446,23 +513,46 @@
     var subEl = el.querySelector(".sh-alarm-sub");
     var hg = el.querySelector(".sh-alarm-hg-frame");
 
-    if (hg && now0 < fireAt) {
-      var remain = Math.max(500, fireAt - now0);
-      if (hg.getAttribute("data-synced-for") !== String(fireAt)) {
-        el.style.setProperty("--sh-hg-dur", (remain / 1000).toFixed(2) + "s");
-        try {
-          hg.style.animation = "none";
-          void hg.offsetWidth;
-          hg.style.animation = "";
-          el.querySelectorAll(
-            ".sh-alarm-hg-sand-top,.sh-alarm-hg-sand-bot,.sh-alarm-hg-stream"
-          ).forEach(function (n) {
-            n.style.animation = "none";
-            void n.offsetWidth;
-            n.style.animation = "";
-          });
-        } catch (eHg) {}
-        hg.setAttribute("data-synced-for", String(fireAt));
+    var sandTop = el.querySelector(".sh-alarm-hg-sand-top");
+    var sandBot = el.querySelector(".sh-alarm-hg-sand-bot");
+    var sandStream = el.querySelector(".sh-alarm-hg-stream");
+    var phase1Total = Math.max(1, fireAt - Math.min(now0, fireAt));
+    // jika masih phase 1, total = sisa dari awal fire; simpan total absolut
+    if (now0 < fireAt) {
+      // total phase 1 dari delay asli
+      var delaySec = Number(ann.alarm_delay_sec);
+      if (!isFinite(delaySec) || delaySec <= 0) {
+        delaySec = Math.max(1, (fireAt - now0) / 1000);
+      }
+      phase1Total = delaySec * 1000;
+    }
+    var phase2Total = Math.max(1000, phase2End - fireAt);
+
+    function disableCssSandAnim() {
+      [hg, sandTop, sandBot, sandStream].forEach(function (n) {
+        if (!n) return;
+        n.style.animation = "none";
+        n.style.animationDuration = "0s";
+      });
+      if (hg) {
+        hg.style.transform = "none";
+      }
+    }
+    disableCssSandAnim();
+
+    /** progress 0 = penuh di atas, 1 = penuh di bawah — sinkron ke sisa waktu */
+    function setSandProgress(progress) {
+      progress = Math.max(0, Math.min(1, progress));
+      if (sandTop) {
+        sandTop.style.height = 20 * (1 - progress) + "px";
+        sandTop.style.opacity = progress >= 0.98 ? "0" : "1";
+      }
+      if (sandBot) {
+        sandBot.style.height = 18 * progress + "px";
+      }
+      if (sandStream) {
+        sandStream.style.opacity =
+          progress > 0.02 && progress < 0.97 ? "0.9" : "0";
       }
     }
 
@@ -471,24 +561,8 @@
       if (countEl) countEl.textContent = fmtCountdown(msLeft);
       if (subEl) subEl.textContent = "Hitung mundur · lalu baca nyaring";
       if (typeof el._syncMinMaxButtons === "function") el._syncMinMaxButtons();
-    }
-
-    function restartHourglass(durationMs, syncKey) {
-      if (!hg) return;
-      var remain = Math.max(500, durationMs);
-      if (hg.getAttribute("data-synced-for") === String(syncKey)) return;
-      el.style.setProperty("--sh-hg-dur", (remain / 1000).toFixed(2) + "s");
-      try {
-        var nodes = el.querySelectorAll(
-          ".sh-alarm-hg-frame,.sh-alarm-hg-sand-top,.sh-alarm-hg-sand-bot,.sh-alarm-hg-stream"
-        );
-        nodes.forEach(function (n) {
-          n.style.animation = "none";
-          void n.offsetWidth;
-          n.style.animation = "";
-        });
-      } catch (eHg) {}
-      hg.setAttribute("data-synced-for", String(syncKey));
+      var progress = 1 - msLeft / phase1Total;
+      setSandProgress(progress);
     }
 
     function applyPhase2(msLeft, doSpeak) {
@@ -499,8 +573,9 @@
         subEl.textContent =
           "Hitung mundur tutup · " + fmtCountdown(Math.max(0, msLeft)) + " · ✕ tutup";
       if (typeof el._syncMinMaxButtons === "function") el._syncMinMaxButtons();
-      // Jam pasir kedua: animasi + timer sinkron sisa phase 2 (splash_seconds)
-      restartHourglass(msLeft, "p2-" + String(phase2End));
+      // pasir phase 2: mulai penuh atas lagi, kosong seiring sisa waktu
+      var progress = 1 - Math.max(0, msLeft) / phase2Total;
+      setSandProgress(progress);
       if (doSpeak && !alarmFired[id]) {
         alarmFired[id] = true;
         setTimeout(function () {
@@ -529,9 +604,23 @@
         applyPhase1(fireAt - now);
         return;
       }
-      // Phase 2 — selalu (admin & pengunjung)
       if (now < phase2End) {
         applyPhase2(phase2End - now, !alarmFired[id]);
+        return;
+      }
+      // akhir phase 2: bunyi meriah lalu tutup
+      if (!el.getAttribute("data-festive-done")) {
+        el.setAttribute("data-festive-done", "1");
+        try {
+          playFestiveChime();
+        } catch (eF) {}
+        setSandProgress(1);
+        if (countEl) countEl.textContent = "00:00";
+        if (subEl) subEl.textContent = "Selesai! 🎉";
+        setTimeout(function () {
+          closeAlarmTotal(id);
+        }, 1200);
+        clearUiInterval(id);
         return;
       }
       closeAlarmTotal(id);
