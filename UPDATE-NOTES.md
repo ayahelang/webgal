@@ -1,1 +1,1 @@
-edit jump, status reset, alarm fill, today btn
+Voice split from text; play works splash+alarm; hourglass untouched
