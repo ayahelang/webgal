@@ -1,1 +1,1 @@
-chime x3, sand shape in glass, non-alarm realtime
+ann schedule days-only, today btn, catchup, voice permanent, links blank, alarm media
