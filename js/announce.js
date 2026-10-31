@@ -120,10 +120,28 @@
     } catch (e) {}
   }
 
-  function playFestiveChime() {
+  /** Bunyi meriah 3×; onDone dipanggil setelah suara benar-benar selesai */
+  function playFestiveChime(onDone) {
+    var cycle = 1.15;
+    var reps = 3;
+    // akhir chord terakhir: (reps-1)*cycle + 0.95 + 0.75
+    var durationMs = Math.ceil(((reps - 1) * cycle + 0.95 + 0.75 + 0.15) * 1000);
+    var doneCalled = false;
+    function finish() {
+      if (doneCalled) return;
+      doneCalled = true;
+      if (typeof onDone === "function") {
+        try {
+          onDone();
+        } catch (e0) {}
+      }
+    }
     try {
       var AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return;
+      if (!AC) {
+        setTimeout(finish, 400);
+        return durationMs;
+      }
       var ctx = new AC();
       if (ctx.state === "suspended") ctx.resume();
       var melody = [
@@ -135,8 +153,7 @@
         { f: 1046.5, t: 0.58 },
         { f: 1318.5, t: 0.72 },
       ];
-      var cycle = 1.15; // satu putaran arpeggio+chord
-      for (var rep = 0; rep < 3; rep++) {
+      for (var rep = 0; rep < reps; rep++) {
         (function (base) {
           melody.forEach(function (n) {
             var o = ctx.createOscillator();
@@ -173,12 +190,16 @@
         try {
           ctx.close();
         } catch (e) {}
-      }, 4000);
-    } catch (e) {}
+        finish();
+      }, durationMs);
+    } catch (e) {
+      setTimeout(finish, 400);
+    }
     try {
       if (navigator.vibrate)
         navigator.vibrate([80, 40, 80, 40, 120, 60, 200, 80, 40, 80, 40, 120, 60, 200, 80, 40, 80, 40, 120, 60, 200]);
     } catch (e2) {}
+    return durationMs;
   }
 
   function fmtCountdown(ms) {
@@ -466,17 +487,23 @@
     var ms = phase2End - Date.now();
     if (ms < 0) ms = 0;
     alarmCloseTimeouts[id] = setTimeout(function () {
-      // cadangan jika interval UI sudah berhenti; beri ruang chime
+      // cadangan: jika tick UI tidak sempat memutar chime
       try {
         var elx = document.getElementById("sh-alarm-float-" + id);
-        if (elx && !elx.getAttribute("data-festive-done")) {
-          elx.setAttribute("data-festive-done", "1");
-          playFestiveChime();
+        if (!elx) {
+          closeAlarmTotal(id);
+          return;
         }
-      } catch (e) {}
-      setTimeout(function () {
+        if (elx.getAttribute("data-festive-done")) return;
+        elx.setAttribute("data-festive-done", "1");
+        var sub = elx.querySelector(".sh-alarm-sub");
+        if (sub) sub.textContent = "Selesai! 🎉 · mendengarkan…";
+        playFestiveChime(function () {
+          closeAlarmTotal(id);
+        });
+      } catch (e) {
         closeAlarmTotal(id);
-      }, 3600);
+      }
     }, ms + 40);
   }
 
@@ -630,19 +657,21 @@
         applyPhase2(phase2End - now, !alarmFired[id]);
         return;
       }
-      // akhir phase 2: bunyi meriah lalu tutup
+      // akhir phase 2: bunyi meriah dulu (kotak tetap terbuka), tutup setelah selesai
       if (!el.getAttribute("data-festive-done")) {
         el.setAttribute("data-festive-done", "1");
-        try {
-          playFestiveChime();
-        } catch (eF) {}
         setSandProgress(1);
         if (countEl) countEl.textContent = "00:00";
-        if (subEl) subEl.textContent = "Selesai! 🎉";
-        setTimeout(function () {
-          closeAlarmTotal(id);
-        }, 3600);
+        if (subEl) subEl.textContent = "Selesai! 🎉 · mendengarkan…";
         clearUiInterval(id);
+        try {
+          playFestiveChime(function () {
+            if (subEl) subEl.textContent = "Selesai! 🎉";
+            closeAlarmTotal(id);
+          });
+        } catch (eF) {
+          closeAlarmTotal(id);
+        }
         return;
       }
       closeAlarmTotal(id);
