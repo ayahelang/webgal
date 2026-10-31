@@ -71,32 +71,23 @@
       ".sh-alarm-float.is-min{width:auto;min-width:168px}",".sh-alarm-float.is-min .sh-alarm-hd{gap:6px}",".sh-alarm-btn[data-act=max]{font-size:13px;font-weight:700}",".sh-alarm-btn.is-hidden{display:none!important}",".sh-alarm-btn{display:inline-flex!important;align-items:center;justify-content:center}",
       ".sh-alarm-float.is-min .sh-alarm-title:after{content:' (ketuk 2× / buka kembali)';font-weight:500;opacity:.75;font-size:10px}",
 
-      ".sh-alarm-hg-frame,.sh-alarm-hg-sand-top,.sh-alarm-hg-sand-bot,.sh-alarm-hg-stream{",
-      "animation-duration:var(--sh-hg-dur,3s)!important}",
       ".sh-alarm-hg{width:56px;height:72px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center}",
-      ".sh-alarm-hg-frame{position:relative;width:36px;height:64px;",
-      "animation:shHgRotate var(--sh-hg-dur,3s) ease-in-out 1 forwards;transform-origin:center center}",
+      ".sh-alarm-hg-frame{position:relative;width:36px;height:64px;transform-origin:center center}",
       ".sh-alarm-hg-top,.sh-alarm-hg-bot{position:absolute;left:0;width:36px;height:28px;",
-      "border:2px solid rgba(255,200,100,.85);background:rgba(20,30,45,.55);overflow:hidden}",
+      "border:2px solid rgba(255,200,100,.85);background:rgba(20,30,45,.55);overflow:hidden;box-sizing:border-box}",
       ".sh-alarm-hg-top{top:0;border-radius:4px 4px 18px 18px;border-bottom-color:transparent}",
       ".sh-alarm-hg-bot{bottom:0;border-radius:18px 18px 4px 4px;border-top-color:transparent}",
       ".sh-alarm-hg-neck{position:absolute;left:50%;top:26px;width:4px;height:12px;margin-left:-2px;",
-      "background:rgba(255,200,100,.5)}",
-      ".sh-alarm-hg-sand-top{position:absolute;left:5px;right:5px;top:auto;bottom:36px;height:20px;max-height:22px;",
-      "background:linear-gradient(to top,#e09030 0%,#ffc46a 55%,#ffe0a0 100%);",
-      "border-radius:40% 40% 6px 6px;",
-      "transform-origin:center bottom;box-sizing:border-box}",
-      ".sh-alarm-hg-sand-bot{position:absolute;left:6px;right:6px;top:auto;bottom:4px;height:0;max-height:22px;",
-      "background:linear-gradient(to top,#e09030 0%,#ffc46a 60%,#ffe0a0 100%);",
-      "border-radius:6px 6px 30% 30%;",
-      "transform-origin:center bottom;box-sizing:border-box}",
-      ".sh-alarm-hg-stream{position:absolute;left:50%;top:28px;width:2px;height:12px;margin-left:-1px;",
-      "background:repeating-linear-gradient(to bottom,#ffc46a 0 2px,transparent 2px 4px);",
-      "opacity:.85;animation:shHgStream var(--sh-hg-dur,3s) linear 1 forwards}",
-      "@keyframes shHgSandTop{0%{height:20px;opacity:1}70%{height:2px;opacity:.9}85%,100%{height:0;opacity:0}}",
-      "@keyframes shHgSandBot{0%{height:0}70%{height:4px}100%{height:18px}}",
-      "@keyframes shHgStream{0%,85%{opacity:.9}90%,100%{opacity:0}}",
-      "@keyframes shHgRotate{0%,92%{transform:rotate(0deg)}100%{transform:rotate(180deg)}}",
+      "background:rgba(255,200,100,.5);z-index:2}",
+      ".sh-alarm-hg-sand-top{position:absolute;left:0;right:0;bottom:0;width:100%;height:100%;",
+      "background:linear-gradient(to top,#c87820 0%,#e8a040 35%,#ffc46a 70%,#ffe8b0 100%);",
+      "box-sizing:border-box}",
+      ".sh-alarm-hg-sand-bot{position:absolute;left:0;right:0;bottom:0;width:100%;height:0%;",
+      "background:linear-gradient(to top,#c87820 0%,#e8a040 40%,#ffc46a 75%,#ffe8b0 100%);",
+      "box-sizing:border-box}",
+      ".sh-alarm-hg-stream{position:absolute;left:50%;top:28px;width:2px;height:12px;margin-left:-1px;z-index:3;",
+      "background:repeating-linear-gradient(to bottom,#ffc46a 0 2px,transparent 2px 4px);opacity:.85}",
+
       ".sh-alarm-count{text-align:center;font-size:28px;font-weight:800;letter-spacing:.04em;",
       "font-variant-numeric:tabular-nums;color:#ffc46a;text-shadow:0 0 12px rgba(255,180,60,.35)}",
       ".sh-alarm-sub{text-align:center;font-size:11px;color:#9ab;margin-top:4px}",
@@ -134,7 +125,6 @@
       if (!AC) return;
       var ctx = new AC();
       if (ctx.state === "suspended") ctx.resume();
-      // arpeggio meriah + chord penutup
       var melody = [
         { f: 523.25, t: 0 },
         { f: 659.25, t: 0.1 },
@@ -144,44 +134,49 @@
         { f: 1046.5, t: 0.58 },
         { f: 1318.5, t: 0.72 },
       ];
-      melody.forEach(function (n) {
-        var o = ctx.createOscillator();
-        var g = ctx.createGain();
-        o.type = "triangle";
-        o.frequency.value = n.f;
-        g.gain.value = 0.0001;
-        o.connect(g);
-        g.connect(ctx.destination);
-        var t0 = ctx.currentTime + n.t;
-        g.gain.setValueAtTime(0.0001, t0);
-        g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.03);
-        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
-        o.start(t0);
-        o.stop(t0 + 0.32);
-      });
-      // chord C major singkat
-      [523.25, 659.25, 783.99].forEach(function (f, i) {
-        var o = ctx.createOscillator();
-        var g = ctx.createGain();
-        o.type = "sine";
-        o.frequency.value = f;
-        o.connect(g);
-        g.connect(ctx.destination);
-        var t0 = ctx.currentTime + 0.95;
-        g.gain.setValueAtTime(0.0001, t0);
-        g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.04);
-        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.7);
-        o.start(t0);
-        o.stop(t0 + 0.75);
-      });
+      var cycle = 1.15; // satu putaran arpeggio+chord
+      for (var rep = 0; rep < 3; rep++) {
+        (function (base) {
+          melody.forEach(function (n) {
+            var o = ctx.createOscillator();
+            var g = ctx.createGain();
+            o.type = "triangle";
+            o.frequency.value = n.f;
+            g.gain.value = 0.0001;
+            o.connect(g);
+            g.connect(ctx.destination);
+            var t0 = ctx.currentTime + base + n.t;
+            g.gain.setValueAtTime(0.0001, t0);
+            g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.03);
+            g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+            o.start(t0);
+            o.stop(t0 + 0.32);
+          });
+          [523.25, 659.25, 783.99].forEach(function (f) {
+            var o = ctx.createOscillator();
+            var g = ctx.createGain();
+            o.type = "sine";
+            o.frequency.value = f;
+            o.connect(g);
+            g.connect(ctx.destination);
+            var t0 = ctx.currentTime + base + 0.95;
+            g.gain.setValueAtTime(0.0001, t0);
+            g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.04);
+            g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.7);
+            o.start(t0);
+            o.stop(t0 + 0.75);
+          });
+        })(rep * cycle);
+      }
       setTimeout(function () {
         try {
           ctx.close();
         } catch (e) {}
-      }, 2000);
+      }, 4000);
     } catch (e) {}
     try {
-      if (navigator.vibrate) navigator.vibrate([80, 40, 80, 40, 120, 60, 200]);
+      if (navigator.vibrate)
+        navigator.vibrate([80, 40, 80, 40, 120, 60, 200, 80, 40, 80, 40, 120, 60, 200, 80, 40, 80, 40, 120, 60, 200]);
     } catch (e2) {}
   }
 
@@ -279,7 +274,7 @@
       "</div>" +
       '<div class="sh-alarm-body">' +
       '<div class="sh-alarm-row">' +
-      '<div class="sh-alarm-hg" aria-hidden="true"><div class="sh-alarm-hg-frame"><div class="sh-alarm-hg-top"></div><div class="sh-alarm-hg-neck"></div><div class="sh-alarm-hg-bot"></div><div class="sh-alarm-hg-sand-top"></div><div class="sh-alarm-hg-sand-bot"></div><div class="sh-alarm-hg-stream"></div></div></div>' +
+      '<div class="sh-alarm-hg" aria-hidden="true"><div class="sh-alarm-hg-frame"><div class="sh-alarm-hg-top"><div class="sh-alarm-hg-sand-top"></div></div><div class="sh-alarm-hg-neck"></div><div class="sh-alarm-hg-bot"><div class="sh-alarm-hg-sand-bot"></div></div><div class="sh-alarm-hg-stream"></div></div></div>' +
       '<div class="sh-alarm-meta">' +
       '<div class="sh-alarm-count">--:--</div>' +
       '<div class="sh-alarm-sub">Menuju baca nyaring</div>' +
@@ -468,7 +463,7 @@
       } catch (e) {}
       setTimeout(function () {
         closeAlarmTotal(id);
-      }, 1100);
+      }, 3600);
     }, ms + 40);
   }
 
@@ -545,18 +540,24 @@
     /** progress 0 = penuh di atas, 1 = penuh di bawah — sinkron ke sisa waktu */
     function setSandProgress(progress) {
       progress = Math.max(0, Math.min(1, progress));
-      // Atas: jangkar bottom (dekat leher) — height turun = permukaan pasir turun ke leher
+      // Atas: penuh mengikuti bentuk gelas (overflow parent).
+      // Height turun dari 100%→0% dengan jangkar bottom → pixel atas menghilang rata horizontal.
       if (sandTop) {
+        sandTop.style.left = "0";
+        sandTop.style.right = "0";
+        sandTop.style.width = "100%";
         sandTop.style.top = "auto";
-        sandTop.style.bottom = "36px";
-        sandTop.style.height = Math.max(0, 20 * (1 - progress)) + "px";
-        sandTop.style.opacity = progress >= 0.98 ? "0" : "1";
+        sandTop.style.bottom = "0";
+        sandTop.style.height = (100 * (1 - progress)).toFixed(2) + "%";
+        sandTop.style.opacity = progress >= 0.995 ? "0" : "1";
       }
-      // Bawah: jangkar bottom — height naik = tumpukan naik dari dasar
       if (sandBot) {
+        sandBot.style.left = "0";
+        sandBot.style.right = "0";
+        sandBot.style.width = "100%";
         sandBot.style.top = "auto";
-        sandBot.style.bottom = "4px";
-        sandBot.style.height = Math.max(0, 18 * progress) + "px";
+        sandBot.style.bottom = "0";
+        sandBot.style.height = (100 * progress).toFixed(2) + "%";
       }
       if (sandStream) {
         sandStream.style.opacity =
@@ -627,7 +628,7 @@
         if (subEl) subEl.textContent = "Selesai! 🎉";
         setTimeout(function () {
           closeAlarmTotal(id);
-        }, 1200);
+        }, 3600);
         clearUiInterval(id);
         return;
       }
@@ -949,6 +950,52 @@
       }
       GalleryDB.subscribeActiveAnnouncements(function (payload) {
         var row = (payload && (payload.new || payload.old)) || null;
+        var ev = (payload && payload.eventType) || "";
+
+        // Pengumuman biasa (non-alarm): real-time float + splash untuk target
+        if (row && !row.is_alarm) {
+          if (ev === "DELETE" || row.active === false) {
+            try {
+              removeFloat(row.id);
+            } catch (e0) {}
+            refreshAlarmsNow();
+            return;
+          }
+          (async function () {
+            try {
+              var kind = pageKind();
+              if (kind === "admin") return;
+              var profile = null;
+              try {
+                var session = await GalleryDB.getSession();
+                if (session) profile = await GalleryDB.getMyProfile();
+              } catch (eP) {}
+              var now = new Date();
+              if (
+                matchesPlace(row, kind) &&
+                matchesAudience(row, profile) &&
+                inSchedule(row, now) &&
+                isStillValid(row)
+              ) {
+                showFloatBtn(row);
+                // jika baru disimpan / dimulai, tampilkan splash segera (satu kali per id/versi)
+                var seenKey = "sh_ann_rt_" + row.id + "_" + (row.updated_at || row.created_at || "");
+                try {
+                  if (!sessionStorage.getItem(seenKey)) {
+                    sessionStorage.setItem(seenKey, "1");
+                    showSplash(row, { fromRealtime: true });
+                  }
+                } catch (eS) {
+                  showSplash(row, { fromRealtime: true });
+                }
+              }
+            } catch (eR) {
+              console.warn("ann realtime non-alarm", eR);
+            }
+          })();
+          return;
+        }
+
         // Alarm baru / diubah → mount segera; countdown pakai alarm_fire_at absolut
         if (row && row.is_alarm) {
           if (payload.eventType === "DELETE" || row.active === false) {
