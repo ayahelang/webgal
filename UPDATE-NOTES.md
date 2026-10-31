@@ -1,1 +1,1 @@
-Voice split from text; play works splash+alarm; hourglass untouched
+Close alarm box only after festive chime finishes
