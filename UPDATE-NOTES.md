@@ -1,1 +1,1 @@
-Alarm phase2 hourglass + class port
+# Jam pasir sync JS + chime akhir phase 2
