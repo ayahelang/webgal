@@ -473,17 +473,36 @@
       if (typeof el._syncMinMaxButtons === "function") el._syncMinMaxButtons();
     }
 
+    function restartHourglass(durationMs, syncKey) {
+      if (!hg) return;
+      var remain = Math.max(500, durationMs);
+      if (hg.getAttribute("data-synced-for") === String(syncKey)) return;
+      el.style.setProperty("--sh-hg-dur", (remain / 1000).toFixed(2) + "s");
+      try {
+        var nodes = el.querySelectorAll(
+          ".sh-alarm-hg-frame,.sh-alarm-hg-sand-top,.sh-alarm-hg-sand-bot,.sh-alarm-hg-stream"
+        );
+        nodes.forEach(function (n) {
+          n.style.animation = "none";
+          void n.offsetWidth;
+          n.style.animation = "";
+        });
+      } catch (eHg) {}
+      hg.setAttribute("data-synced-for", String(syncKey));
+    }
+
     function applyPhase2(msLeft, doSpeak) {
       el.classList.add("is-fired");
       el.classList.remove("is-min");
       if (countEl) countEl.textContent = fmtCountdown(Math.max(0, msLeft));
       if (subEl)
         subEl.textContent =
-          "Auto-tutup " + Math.max(1, Math.ceil(msLeft / 1000)) + "s · ✕ tutup";
+          "Hitung mundur tutup · " + fmtCountdown(Math.max(0, msLeft)) + " · ✕ tutup";
       if (typeof el._syncMinMaxButtons === "function") el._syncMinMaxButtons();
+      // Jam pasir kedua: animasi + timer sinkron sisa phase 2 (splash_seconds)
+      restartHourglass(msLeft, "p2-" + String(phase2End));
       if (doSpeak && !alarmFired[id]) {
         alarmFired[id] = true;
-        // TTS jangan sampai memblokir phase 2
         setTimeout(function () {
           try {
             speakAnnouncement(ann);
