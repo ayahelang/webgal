@@ -2894,10 +2894,17 @@
     } else if (!payload.starts_at) {
       starts = nowIso;
     }
-    // Default: tampil 24 jam jika tidak ada selesai & tidak ada durasi
-    if (!ends && (duration_days == null || isNaN(duration_days)) && (duration_hours == null || isNaN(duration_hours))) {
-      duration_hours = 24;
-      duration_days = null;
+    // Default: berlaku 1 hari sampai 23:59 hari terakhir
+    if (duration_days == null || isNaN(duration_days) || duration_days < 1) {
+      duration_days = 1;
+    }
+    duration_hours = null;
+    if (!ends && starts) {
+      var sd = new Date(starts);
+      if (!isNaN(sd.getTime())) {
+        var ed = new Date(sd.getFullYear(), sd.getMonth(), sd.getDate() + (duration_days - 1), 23, 59, 59, 999);
+        ends = ed.toISOString();
+      }
     }
     const row = {
       title: payload.title || "",

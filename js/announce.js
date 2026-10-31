@@ -1,5 +1,6 @@
 
 (function () {
+  // VOICE PENGUMUMAN: tidak ikut auto-hapus chat (permanen selama pengumuman ada)
   const LS_PREFIX = "sh_ann_seen_";
 
   function stripHtml(html) {
@@ -91,7 +92,7 @@
       ".sh-alarm-count{text-align:center;font-size:28px;font-weight:800;letter-spacing:.04em;",
       "font-variant-numeric:tabular-nums;color:#ffc46a;text-shadow:0 0 12px rgba(255,180,60,.35)}",
       ".sh-alarm-sub{text-align:center;font-size:11px;color:#9ab;margin-top:4px}",
-      ".sh-alarm-msg{margin-top:10px;font-size:12px;color:#c5d4e6;max-height:72px;overflow:auto}",
+      ".sh-alarm-msg{margin-top:10px;font-size:12px;color:#c5d4e6;max-height:160px;overflow:auto;line-height:1.45}",".sh-alarm-msg img{max-width:100%;height:auto;border-radius:8px;margin:6px 0;display:block}",".sh-alarm-msg a{color:#7de3ff;text-decoration:underline}",".sh-alarm-msg .sh-ap,.sh-alarm-msg .sh-voice-player{max-width:100%;margin:6px 0}",
       ".sh-alarm-float.is-fired{border-color:rgba(80,220,120,.55);animation:shAlarmPulse 1s ease infinite}",
       "@keyframes shAlarmPulse{0%,100%{box-shadow:0 0 0 0 rgba(80,220,120,.4)}70%{box-shadow:0 0 0 12px rgba(80,220,120,0)}}",
       ".sh-alarm-float.is-fired .sh-alarm-count{color:#7dffb0}",
@@ -283,10 +284,15 @@
       "</div>";
     el.querySelector(".sh-alarm-title").textContent =
       "⏰ " + (ann.title || "Alarm").slice(0, 48);
-    el.querySelector(".sh-alarm-msg").textContent = stripHtml(ann.body_html || "").slice(
-      0,
-      400
-    );
+    var msgEl = el.querySelector(".sh-alarm-msg");
+    if (msgEl) {
+      msgEl.innerHTML = (ann.body_html || "").slice(0, 4000);
+      enhanceAnnLinks(msgEl);
+      try {
+        normalizeAnnVoiceUi(msgEl);
+        wireAnnVoicePlayers(msgEl);
+      } catch (eV) {}
+    }
 
     function setBtnVisible(btn, on) {
       if (!btn) return;
@@ -658,30 +664,47 @@
   }
 
 
-  function inSchedule(ann, now) {
-    if (!ann.active) return false;
+  function resolveAnnEnd(ann, start) {
+    if (ann.ends_at) {
+      var e = new Date(ann.ends_at);
+      if (!isNaN(e.getTime())) return e;
+    }
+    var days = Number(ann.duration_days);
+    if (!days || days < 1) days = 1;
+    if (!start) start = ann.starts_at ? new Date(ann.starts_at) : new Date();
+    return new Date(
+      start.getFullYear(),
+      start.getMonth(),
+      start.getDate() + (days - 1),
+      23,
+      59,
+      59,
+      999
+    );
+  }
+
+  function isAnnDateValid(ann, now) {
+    if (!ann || !ann.active) return false;
     const days = Array.isArray(ann.schedule_days) ? ann.schedule_days.map(Number) : [];
-    if (days.length) {
-      if (days.indexOf(now.getDay()) < 0) return false;
-    }
+    if (days.length && days.indexOf(now.getDay()) < 0) return false;
     const start = ann.starts_at ? new Date(ann.starts_at) : null;
-    let end = ann.ends_at ? new Date(ann.ends_at) : null;
     if (start && now < start) return false;
-    // duration if ends empty; default 24 jam jika tidak diset
-    if (!end && start) {
-      end = new Date(start.getTime());
-      if (ann.duration_days || ann.duration_hours) {
-        if (ann.duration_days) end.setDate(end.getDate() + Number(ann.duration_days));
-        if (ann.duration_hours) end.setHours(end.getHours() + Number(ann.duration_hours));
-      } else {
-        end.setHours(end.getHours() + 24);
-      }
-    }
+    const end = resolveAnnEnd(ann, start);
     if (end && now > end) return false;
+    return true;
+  }
+
+  /** Interval slot dalam hari (tanpa jam manual) */
+  function inSchedule(ann, now) {
+    if (!isAnnDateValid(ann, now)) return false;
 
     const times = Math.max(1, Number(ann.times_per_day) || 1);
-    const hours = Array.isArray(ann.schedule_hours) ? ann.schedule_hours.filter((h) => h >= 0 && h <= 23) : [];
-    const dayKey = now.toISOString().slice(0, 10);
+    const dayKey =
+      now.getFullYear() +
+      "-" +
+      String(now.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(now.getDate()).padStart(2, "0");
     const seenKey = LS_PREFIX + ann.id + "_" + dayKey;
     let seen = [];
     try {
@@ -689,18 +712,39 @@
     } catch (e) {
       seen = [];
     }
+    if (!Array.isArray(seen)) seen = [];
     if (seen.length >= times) return false;
 
-    if (hours.length) {
-      const h = now.getHours();
-      // only show if current hour is in list, and not yet shown this hour
-      if (hours.indexOf(h) < 0) return false;
-      if (seen.indexOf(h) >= 0) return false;
-    } else {
-      // auto slots: divide day into times equal windows
-      const slot = Math.floor((now.getHours() * 60 + now.getMinutes()) / (1440 / times));
-      if (seen.indexOf(slot) >= 0) return false;
+    // slot otomatis merata sepanjang hari
+    const slot = Math.floor((now.getHours() * 60 + now.getMinutes()) / (1440 / times));
+    if (seen.indexOf(slot) >= 0) return false;
+    return true;
+  }
+
+  /** Pengunjung baru: tampil sekali di awal meskipun slot interval sudah lewat */
+  function shouldCatchupOnBoot(ann, now) {
+    if (!isAnnDateValid(ann, now)) return false;
+    if (ann.is_alarm) return false;
+    const times = Math.max(1, Number(ann.times_per_day) || 1);
+    const dayKey =
+      now.getFullYear() +
+      "-" +
+      String(now.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(now.getDate()).padStart(2, "0");
+    const seenKey = LS_PREFIX + ann.id + "_" + dayKey;
+    let seen = [];
+    try {
+      seen = JSON.parse(localStorage.getItem(seenKey) || "[]");
+    } catch (e) {
+      seen = [];
     }
+    if (!Array.isArray(seen)) seen = [];
+    if (seen.length >= times) return false;
+    const catchKey = "sh_ann_catchup_" + ann.id + "_" + dayKey;
+    try {
+      if (sessionStorage.getItem(catchKey) === "1") return false;
+    } catch (e2) {}
     return true;
   }
 
@@ -714,24 +758,35 @@
 
   function markSeen(ann) {
     const now = new Date();
-    const dayKey = now.toISOString().slice(0, 10);
+    const dayKey =
+      now.getFullYear() +
+      "-" +
+      String(now.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(now.getDate()).padStart(2, "0");
     const seenKey = LS_PREFIX + ann.id + "_" + dayKey;
     let seen = [];
     try {
       seen = JSON.parse(localStorage.getItem(seenKey) || "[]");
-    } catch (e) {}
+    } catch (e) {
+      seen = [];
+    }
+    if (!Array.isArray(seen)) seen = [];
     const times = Math.max(1, Number(ann.times_per_day) || 1);
-    const hours = Array.isArray(ann.schedule_hours) ? ann.schedule_hours : [];
-    if (hours.length) seen.push(now.getHours());
-    else {
-      const slot = Math.floor((now.getHours() * 60 + now.getMinutes()) / (1440 / times));
-      seen.push(slot);
+    const slot = Math.floor((now.getHours() * 60 + now.getMinutes()) / (1440 / times));
+    if (seen.indexOf(slot) < 0) seen.push(slot);
+    // catch-up: pakai slot -1 agar tidak bentrok
+    if (seen.indexOf(-1) < 0 && sessionStorage.getItem("sh_ann_catchup_" + ann.id + "_" + dayKey) === "pending") {
+      seen.push(-1);
+      try {
+        sessionStorage.setItem("sh_ann_catchup_" + ann.id + "_" + dayKey, "1");
+      } catch (e3) {}
     }
     try {
       localStorage.setItem(seenKey, JSON.stringify(seen));
-    } catch (e) {}
-    trackRead(ann, "view");
+    } catch (e4) {}
   }
+
 
   function matchesAudience(ann, profile) {
     const aud = String(ann.audience || "public").toLowerCase().trim();
@@ -812,6 +867,17 @@
     openFloats[ann.id] = true;
   }
 
+  function enhanceAnnLinks(root) {
+    if (!root) return;
+    root.querySelectorAll("a[href]").forEach(function (a) {
+      var href = a.getAttribute("href") || "";
+      if (/^https?:\/\//i.test(href) || href.startsWith("//")) {
+        a.setAttribute("target", "_blank");
+        a.setAttribute("rel", "noopener noreferrer");
+      }
+    });
+  }
+
   function showSplash(ann, opts) {
     opts = opts || {};
     return new Promise((resolve) => {
@@ -854,6 +920,7 @@
       });
       // Pasang ke DOM dulu, baru bangun player (agar audio + event stabil)
       document.body.appendChild(overlay);
+      enhanceAnnLinks(bodyEl);
       normalizeAnnVoiceUi(bodyEl);
       wireAnnVoicePlayers(bodyEl);
       setTimeout(function () { wireAnnVoicePlayers(bodyEl); }, 50);
@@ -902,12 +969,55 @@
       mountAlarmAnnouncements(list, profile, kind);
       // Splash pengumuman biasa: tidak di admin
       if (kind === "admin") return;
-      const queue = list.filter(
-        (ann) => matchesPlace(ann, kind) && matchesAudience(ann, profile) && inSchedule(ann, now)
+      const base = list.filter(
+        (ann) =>
+          !ann.is_alarm &&
+          matchesPlace(ann, kind) &&
+          matchesAudience(ann, profile) &&
+          isAnnDateValid(ann, now)
       );
-      for (const ann of queue) {
-        if (ann.is_alarm) continue;
-        await showSplash(ann);
+      // 1) Catch-up: pengunjung baru / buka web → tampil sekali meski slot interval lewat
+      for (const ann of base) {
+        if (shouldCatchupOnBoot(ann, now)) {
+          try {
+            const dayKey =
+              now.getFullYear() +
+              "-" +
+              String(now.getMonth() + 1).padStart(2, "0") +
+              "-" +
+              String(now.getDate()).padStart(2, "0");
+            sessionStorage.setItem("sh_ann_catchup_" + ann.id + "_" + dayKey, "pending");
+          } catch (eC) {}
+          await showSplash(ann);
+          markSeen(ann);
+          showFloatBtn(ann);
+        }
+      }
+      // 2) Slot interval normal
+      for (const ann of base) {
+        if (inSchedule(ann, now)) {
+          await showSplash(ann);
+          showFloatBtn(ann);
+        }
+      }
+      // 3) Selama tetap di halaman: cek slot berikutnya
+      if (!window.__shAnnIntervalPoll) {
+        window.__shAnnIntervalPoll = setInterval(async function () {
+          try {
+            if (!window.GalleryDB || !GalleryDB.fetchActiveAnnouncements) return;
+            const list2 = await GalleryDB.fetchActiveAnnouncements();
+            const now2 = new Date();
+            let profile2 = profile;
+            for (const ann of list2 || []) {
+              if (ann.is_alarm) continue;
+              if (!matchesPlace(ann, kind) || !matchesAudience(ann, profile2)) continue;
+              if (inSchedule(ann, now2)) {
+                await showSplash(ann);
+                showFloatBtn(ann);
+              }
+            }
+          } catch (eP) {}
+        }, 60000);
       }
     } catch (e) {
       console.warn("announce", e);

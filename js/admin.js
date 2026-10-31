@@ -781,6 +781,27 @@
           const r = rows.find((x) => String(x.id) === String(b.dataset.dupAnn));
           if (!r) return;
           const f = $("#annForm");
+
+    (function bindAnnStartsToday() {
+      var btn = document.getElementById("annStartsToday");
+      var inp = document.getElementById("annStartsAt") || document.querySelector("#annForm [name=starts_at]");
+      if (!btn || !inp) return;
+      btn.addEventListener("click", function () {
+        var d = new Date();
+        var pad = function (n) { return String(n).padStart(2, "0"); };
+        inp.value =
+          d.getFullYear() +
+          "-" +
+          pad(d.getMonth() + 1) +
+          "-" +
+          pad(d.getDate()) +
+          "T" +
+          pad(d.getHours()) +
+          ":" +
+          pad(d.getMinutes());
+      });
+    })();
+
           if (!f) return;
           f.querySelector("[name=id]").value = "";
           f.querySelector("[name=title]").value = (r.title || "") + " (salinan)";
@@ -812,12 +833,9 @@
           $("#annStudentTree").classList.toggle("is-collapsed", r.audience !== "students");
           setAnnTargets(r.target_students || []);
           f.querySelector("[name=starts_at]").value = toLocalInput(r.starts_at);
-          f.querySelector("[name=ends_at]").value = toLocalInput(r.ends_at);
-          f.querySelector("[name=duration_days]").value = r.duration_days || "";
-          f.querySelector("[name=duration_hours]").value = r.duration_hours || "";
-          f.querySelector("[name=times_per_day]").value = r.times_per_day || 1;
-          f.querySelector("[name=schedule_hours]").value = (r.schedule_hours || []).join(",");
-          setAnnScheduleDays(f, r.schedule_days || []);
+                    f.querySelector("[name=duration_days]").value = r.duration_days || 1;
+                    f.querySelector("[name=times_per_day]").value = r.times_per_day || 1;
+                    setAnnScheduleDays(f, r.schedule_days || []);
           f.querySelector("[name=splash_seconds]").value = r.splash_seconds || 15;
           if (f.querySelector("[name=is_alarm]")) f.querySelector("[name=is_alarm]").checked = !!r.is_alarm;
           var delay = Number(r.alarm_delay_sec) || 0;
@@ -889,12 +907,9 @@
           $("#annStudentTree").classList.toggle("is-collapsed", r.audience !== "students");
           setAnnTargets(r.target_students || []);
           f.querySelector("[name=starts_at]").value = toLocalInput(r.starts_at);
-          f.querySelector("[name=ends_at]").value = toLocalInput(r.ends_at);
-          f.querySelector("[name=duration_days]").value = r.duration_days || "";
-          f.querySelector("[name=duration_hours]").value = r.duration_hours || "";
-          f.querySelector("[name=times_per_day]").value = r.times_per_day || 1;
-          f.querySelector("[name=schedule_hours]").value = (r.schedule_hours || []).join(",");
-          setAnnScheduleDays(f, r.schedule_days || []);
+                    f.querySelector("[name=duration_days]").value = r.duration_days || 1;
+                    f.querySelector("[name=times_per_day]").value = r.times_per_day || 1;
+                    setAnnScheduleDays(f, r.schedule_days || []);
           f.querySelector("[name=splash_seconds]").value = r.splash_seconds || 15;
           if (f.querySelector("[name=is_alarm]")) f.querySelector("[name=is_alarm]").checked = !!r.is_alarm;
           var delay = Number(r.alarm_delay_sec) || 0;
@@ -1246,42 +1261,25 @@
         audience = "public";
         show_on = "home";
       }
-      const hoursRaw = String(fd.get("schedule_hours") || "")
-        .split(/[,\s]+/)
-        .map((x) => parseInt(x, 10))
-        .filter((n) => !isNaN(n) && n >= 0 && n <= 23);
       let startsRaw = String(fd.get("starts_at") || "").trim();
-      let starts = startsRaw ? new Date(startsRaw).toISOString() : new Date().toISOString();
-      // Alarm aktif: reset waktu mulai = saat Simpan diklik
-      if (f.querySelector("[name=is_alarm]") && f.querySelector("[name=is_alarm]").checked) {
-        starts = new Date().toISOString();
-        try {
-          var startsInput = f.querySelector("[name=starts_at]");
-          if (startsInput) {
-            var d = new Date(starts);
-            // datetime-local: YYYY-MM-DDTHH:mm
-            var pad = function (n) { return String(n).padStart(2, "0"); };
-            startsInput.value =
-              d.getFullYear() +
-              "-" +
-              pad(d.getMonth() + 1) +
-              "-" +
-              pad(d.getDate()) +
-              "T" +
-              pad(d.getHours()) +
-              ":" +
-              pad(d.getMinutes());
-          }
-        } catch (e) {}
-      }
-      let endsRaw = String(fd.get("ends_at") || "").trim();
-      let ends = endsRaw ? new Date(endsRaw).toISOString() : null;
-      let duration_days = fd.get("duration_days") ? Number(fd.get("duration_days")) : null;
-      let duration_hours = fd.get("duration_hours") ? Number(fd.get("duration_hours")) : null;
-      // Default tampil 24 jam jika tidak diisi selesai & tidak diisi durasi
-      if (!ends && (duration_days == null || isNaN(duration_days)) && (duration_hours == null || isNaN(duration_hours))) {
-        duration_hours = 24;
-      }
+      let startsDate = startsRaw ? new Date(startsRaw) : new Date();
+      if (isNaN(startsDate.getTime())) startsDate = new Date();
+      let starts = startsDate.toISOString();
+      let duration_days = Number(fd.get("duration_days"));
+      if (!duration_days || isNaN(duration_days) || duration_days < 1) duration_days = 1;
+      // Akhir = 23:59:59 di hari ke-(duration_days) dari tanggal mulai
+      let endLocal = new Date(
+        startsDate.getFullYear(),
+        startsDate.getMonth(),
+        startsDate.getDate() + (duration_days - 1),
+        23,
+        59,
+        59,
+        999
+      );
+      let ends = endLocal.toISOString();
+      let duration_hours = null;
+      const hoursRaw = [];
       const payload = {
         id: fd.get("id") || null,
         title: fd.get("title"),
@@ -1291,10 +1289,10 @@
         target_students: showStudents ? readAnnTargets() : [],
         starts_at: starts,
         ends_at: ends,
-        duration_days: duration_days,
+        duration_days: duration_days || 1,
         duration_hours: duration_hours,
         times_per_day: Number(fd.get("times_per_day")) || 1,
-        schedule_hours: hoursRaw,
+        schedule_hours: [],
         schedule_days: readAnnScheduleDays(f),
         splash_seconds: Number(fd.get("splash_seconds")) || 15,
         is_alarm: !!(f.querySelector("[name=is_alarm]") && f.querySelector("[name=is_alarm]").checked),
