@@ -1,1 +1,1 @@
-# Jam pasir sync JS + chime akhir phase 2
+# Pasir atas: berkurang dari permukaan turun ke leher (bottom-anchored)
