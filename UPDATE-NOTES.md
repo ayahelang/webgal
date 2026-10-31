@@ -1,1 +1,1 @@
-Close alarm box only after festive chime finishes
+clickable links + close after 3x chime only
