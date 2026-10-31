@@ -92,7 +92,7 @@
       ".sh-alarm-count{text-align:center;font-size:28px;font-weight:800;letter-spacing:.04em;",
       "font-variant-numeric:tabular-nums;color:#ffc46a;text-shadow:0 0 12px rgba(255,180,60,.35)}",
       ".sh-alarm-sub{text-align:center;font-size:11px;color:#9ab;margin-top:4px}",
-      ".sh-alarm-msg{margin-top:10px;font-size:12px;color:#c5d4e6;max-height:160px;overflow:auto;line-height:1.45}",".sh-alarm-msg img{max-width:100%;height:auto;border-radius:8px;margin:6px 0;display:block}",".sh-alarm-msg a{color:#7de3ff;text-decoration:underline}",".sh-alarm-msg .sh-ap,.sh-alarm-msg .sh-voice-player{max-width:100%;margin:6px 0}",".sh-alarm-voice{margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,180,60,.2)}",".ann-voice-area{margin-top:10px;padding-top:8px;border-top:1px solid rgba(125,227,255,.18)}",".ann-voice-area .ann-voice-slot-render,.sh-alarm-voice .ann-voice-slot-render{margin:6px 0}",
+      ".sh-alarm-msg{margin-top:10px;font-size:12px;color:#c5d4e6;max-height:160px;overflow:auto;line-height:1.45}",".sh-alarm-msg img{max-width:100%;height:auto;border-radius:8px;margin:6px 0;display:block}",".sh-alarm-msg{user-select:text;pointer-events:auto}",".sh-alarm-msg a,.sh-ann-body a,.sh-ann-splash a{color:#7de3ff!important;text-decoration:underline!important;pointer-events:auto!important;cursor:pointer!important;position:relative;z-index:6}",".sh-alarm-hd{user-select:none}",".sh-alarm-msg .sh-ap,.sh-alarm-msg .sh-voice-player{max-width:100%;margin:6px 0}",".sh-alarm-voice{margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,180,60,.2)}",".ann-voice-area{margin-top:10px;padding-top:8px;border-top:1px solid rgba(125,227,255,.18)}",".ann-voice-area .ann-voice-slot-render,.sh-alarm-voice .ann-voice-slot-render{margin:6px 0}",
       ".sh-alarm-float.is-fired{border-color:rgba(80,220,120,.55);animation:shAlarmPulse 1s ease infinite}",
       "@keyframes shAlarmPulse{0%,100%{box-shadow:0 0 0 0 rgba(80,220,120,.4)}70%{box-shadow:0 0 0 12px rgba(80,220,120,0)}}",
       ".sh-alarm-float.is-fired .sh-alarm-count{color:#7dffb0}",
@@ -121,11 +121,8 @@
   }
 
   /** Bunyi meriah 3×; onDone dipanggil setelah suara benar-benar selesai */
+  /** Bunyi meriah 3 putaran berurutan; onDone setelah putaran ke-3 selesai */
   function playFestiveChime(onDone) {
-    var cycle = 1.15;
-    var reps = 3;
-    // akhir chord terakhir: (reps-1)*cycle + 0.95 + 0.75
-    var durationMs = Math.ceil(((reps - 1) * cycle + 0.95 + 0.75 + 0.15) * 1000);
     var doneCalled = false;
     function finish() {
       if (doneCalled) return;
@@ -136,70 +133,81 @@
         } catch (e0) {}
       }
     }
+    var reps = 3;
+    var cycleSec = 1.35;
     try {
       var AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) {
-        setTimeout(finish, 400);
-        return durationMs;
+        setTimeout(finish, 500);
+        return;
       }
       var ctx = new AC();
-      if (ctx.state === "suspended") ctx.resume();
-      var melody = [
-        { f: 523.25, t: 0 },
-        { f: 659.25, t: 0.1 },
-        { f: 783.99, t: 0.2 },
-        { f: 1046.5, t: 0.32 },
-        { f: 783.99, t: 0.48 },
-        { f: 1046.5, t: 0.58 },
-        { f: 1318.5, t: 0.72 },
-      ];
-      for (var rep = 0; rep < reps; rep++) {
-        (function (base) {
-          melody.forEach(function (n) {
-            var o = ctx.createOscillator();
-            var g = ctx.createGain();
-            o.type = "triangle";
-            o.frequency.value = n.f;
-            g.gain.value = 0.0001;
-            o.connect(g);
-            g.connect(ctx.destination);
-            var t0 = ctx.currentTime + base + n.t;
-            g.gain.setValueAtTime(0.0001, t0);
-            g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.03);
-            g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
-            o.start(t0);
-            o.stop(t0 + 0.32);
-          });
-          [523.25, 659.25, 783.99].forEach(function (f) {
-            var o = ctx.createOscillator();
-            var g = ctx.createGain();
-            o.type = "sine";
-            o.frequency.value = f;
-            o.connect(g);
-            g.connect(ctx.destination);
-            var t0 = ctx.currentTime + base + 0.95;
-            g.gain.setValueAtTime(0.0001, t0);
-            g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.04);
-            g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.7);
-            o.start(t0);
-            o.stop(t0 + 0.75);
-          });
-        })(rep * cycle);
+      function resumeCtx() {
+        if (ctx.state === "suspended") {
+          return ctx.resume().catch(function () {});
+        }
+        return Promise.resolve();
       }
-      setTimeout(function () {
-        try {
-          ctx.close();
-        } catch (e) {}
-        finish();
-      }, durationMs);
+      function playOneCycle(baseOffset) {
+        var melody = [
+          { f: 523.25, t: 0 },
+          { f: 659.25, t: 0.12 },
+          { f: 783.99, t: 0.24 },
+          { f: 1046.5, t: 0.38 },
+          { f: 783.99, t: 0.55 },
+          { f: 1046.5, t: 0.68 },
+          { f: 1318.5, t: 0.85 },
+        ];
+        melody.forEach(function (n) {
+          var o = ctx.createOscillator();
+          var g = ctx.createGain();
+          o.type = "triangle";
+          o.frequency.value = n.f;
+          o.connect(g);
+          g.connect(ctx.destination);
+          var t0 = ctx.currentTime + baseOffset + n.t;
+          g.gain.setValueAtTime(0.0001, t0);
+          g.gain.exponentialRampToValueAtTime(0.22, t0 + 0.03);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32);
+          o.start(t0);
+          o.stop(t0 + 0.36);
+        });
+        [523.25, 659.25, 783.99].forEach(function (f) {
+          var o = ctx.createOscillator();
+          var g = ctx.createGain();
+          o.type = "sine";
+          o.frequency.value = f;
+          o.connect(g);
+          g.connect(ctx.destination);
+          var t0 = ctx.currentTime + baseOffset + 1.05;
+          g.gain.setValueAtTime(0.0001, t0);
+          g.gain.exponentialRampToValueAtTime(0.14, t0 + 0.04);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55);
+          o.start(t0);
+          o.stop(t0 + 0.6);
+        });
+      }
+      resumeCtx().then(function () {
+        for (var rep = 0; rep < reps; rep++) {
+          playOneCycle(rep * cycleSec);
+        }
+        var totalMs = Math.ceil((reps * cycleSec + 0.35) * 1000);
+        setTimeout(function () {
+          try {
+            ctx.close();
+          } catch (e) {}
+          finish();
+        }, totalMs);
+      }).catch(function () {
+        setTimeout(finish, 500);
+      });
+      try {
+        if (navigator.vibrate)
+          navigator.vibrate([100, 50, 100, 50, 150, 80, 200, 100, 100, 50, 100, 50, 150, 80, 200, 100, 100, 50, 100, 50, 150, 80, 200]);
+      } catch (eV) {}
     } catch (e) {
-      setTimeout(finish, 400);
+      setTimeout(finish, 500);
     }
-    try {
-      if (navigator.vibrate)
-        navigator.vibrate([80, 40, 80, 40, 120, 60, 200, 80, 40, 80, 40, 120, 60, 200, 80, 40, 80, 40, 120, 60, 200]);
-    } catch (e2) {}
-    return durationMs;
   }
 
   function fmtCountdown(ms) {
@@ -657,24 +665,36 @@
         applyPhase2(phase2End - now, !alarmFired[id]);
         return;
       }
-      // akhir phase 2: bunyi meriah dulu (kotak tetap terbuka), tutup setelah selesai
+      // akhir phase 2: JANGAN tutup dulu — putar bunyi meriah 3×, baru tutup
       if (!el.getAttribute("data-festive-done")) {
         el.setAttribute("data-festive-done", "1");
         setSandProgress(1);
         if (countEl) countEl.textContent = "00:00";
-        if (subEl) subEl.textContent = "Selesai! 🎉 · mendengarkan…";
+        if (subEl) subEl.textContent = "Selesai! 🎉 · bunyi meriah (3×)…";
         clearUiInterval(id);
+        // batalkan timeout cadangan agar tidak race-close
         try {
+          clearCloseTimeout(id);
+        } catch (eC) {}
+        try {
+          // resume audio dari gesture minim: klik dummy pada panel
+          try {
+            el.click();
+          } catch (eClick) {}
           playFestiveChime(function () {
             if (subEl) subEl.textContent = "Selesai! 🎉";
-            closeAlarmTotal(id);
+            setTimeout(function () {
+              closeAlarmTotal(id);
+            }, 250);
           });
         } catch (eF) {
-          closeAlarmTotal(id);
+          setTimeout(function () {
+            closeAlarmTotal(id);
+          }, 500);
         }
         return;
       }
-      closeAlarmTotal(id);
+      // sudah festive: tunggu onDone, jangan tutup di sini
     }
 
     // UI interval: boleh di-reset; close timeout: sekali per phase2End
@@ -905,12 +925,55 @@
 
   function enhanceAnnLinks(root) {
     if (!root) return;
+    // Linkify plain URL text (belum jadi <a>)
+    try {
+      var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+      var textNodes = [];
+      while (walker.nextNode()) textNodes.push(walker.currentNode);
+      var urlRe = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi;
+      textNodes.forEach(function (tn) {
+        if (!tn.parentElement) return;
+        if (tn.parentElement.closest("a, button, script, style, .sh-ap, .ann-voice-area")) return;
+        var text = tn.nodeValue || "";
+        if (!urlRe.test(text)) return;
+        urlRe.lastIndex = 0;
+        var frag = document.createDocumentFragment();
+        var last = 0;
+        var m;
+        while ((m = urlRe.exec(text))) {
+          if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+          var raw = m[0];
+          var href = raw.indexOf("http") === 0 ? raw : "https://" + raw;
+          var a = document.createElement("a");
+          a.href = href;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.textContent = raw;
+          a.style.pointerEvents = "auto";
+          frag.appendChild(a);
+          last = m.index + raw.length;
+        }
+        if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+        tn.parentNode.replaceChild(frag, tn);
+      });
+    } catch (eL) {}
     root.querySelectorAll("a[href]").forEach(function (a) {
       var href = a.getAttribute("href") || "";
-      if (/^https?:\/\//i.test(href) || href.startsWith("//")) {
+      if (/^https?:\/\//i.test(href) || href.startsWith("//") || href.indexOf("www.") === 0) {
+        if (href.indexOf("www.") === 0) a.setAttribute("href", "https://" + href);
         a.setAttribute("target", "_blank");
         a.setAttribute("rel", "noopener noreferrer");
+        a.style.pointerEvents = "auto";
+        a.style.cursor = "pointer";
       }
+      // cegah drag panel menelan klik link
+      a.addEventListener(
+        "click",
+        function (ev) {
+          ev.stopPropagation();
+        },
+        true
+      );
     });
   }
 
