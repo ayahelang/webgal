@@ -1,1 +1,1 @@
-# Pasir atas: berkurang dari permukaan turun ke leher (bottom-anchored)
+chime x3, sand shape in glass, non-alarm realtime
