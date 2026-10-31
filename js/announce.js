@@ -82,12 +82,14 @@
       ".sh-alarm-hg-bot{bottom:0;border-radius:18px 18px 4px 4px;border-top-color:transparent}",
       ".sh-alarm-hg-neck{position:absolute;left:50%;top:26px;width:4px;height:12px;margin-left:-2px;",
       "background:rgba(255,200,100,.5)}",
-      ".sh-alarm-hg-sand-top{position:absolute;left:4px;right:4px;top:4px;height:20px;",
-      "background:linear-gradient(#ffc46a,#e8a040);border-radius:2px 2px 50% 50%;",
-      "animation:shHgSandTop var(--sh-hg-dur,3s) linear 1 forwards;transform-origin:center bottom}",
-      ".sh-alarm-hg-sand-bot{position:absolute;left:8px;right:8px;bottom:4px;height:0;",
-      "background:linear-gradient(#e8a040,#ffc46a);border-radius:50% 50% 2px 2px;",
-      "animation:shHgSandBot var(--sh-hg-dur,3s) linear 1 forwards}",
+      ".sh-alarm-hg-sand-top{position:absolute;left:5px;right:5px;top:auto;bottom:36px;height:20px;max-height:22px;",
+      "background:linear-gradient(to top,#e09030 0%,#ffc46a 55%,#ffe0a0 100%);",
+      "border-radius:40% 40% 6px 6px;",
+      "transform-origin:center bottom;box-sizing:border-box}",
+      ".sh-alarm-hg-sand-bot{position:absolute;left:6px;right:6px;top:auto;bottom:4px;height:0;max-height:22px;",
+      "background:linear-gradient(to top,#e09030 0%,#ffc46a 60%,#ffe0a0 100%);",
+      "border-radius:6px 6px 30% 30%;",
+      "transform-origin:center bottom;box-sizing:border-box}",
       ".sh-alarm-hg-stream{position:absolute;left:50%;top:28px;width:2px;height:12px;margin-left:-1px;",
       "background:repeating-linear-gradient(to bottom,#ffc46a 0 2px,transparent 2px 4px);",
       "opacity:.85;animation:shHgStream var(--sh-hg-dur,3s) linear 1 forwards}",
@@ -543,12 +545,18 @@
     /** progress 0 = penuh di atas, 1 = penuh di bawah — sinkron ke sisa waktu */
     function setSandProgress(progress) {
       progress = Math.max(0, Math.min(1, progress));
+      // Atas: jangkar bottom (dekat leher) — height turun = permukaan pasir turun ke leher
       if (sandTop) {
-        sandTop.style.height = 20 * (1 - progress) + "px";
+        sandTop.style.top = "auto";
+        sandTop.style.bottom = "36px";
+        sandTop.style.height = Math.max(0, 20 * (1 - progress)) + "px";
         sandTop.style.opacity = progress >= 0.98 ? "0" : "1";
       }
+      // Bawah: jangkar bottom — height naik = tumpukan naik dari dasar
       if (sandBot) {
-        sandBot.style.height = 18 * progress + "px";
+        sandBot.style.top = "auto";
+        sandBot.style.bottom = "4px";
+        sandBot.style.height = Math.max(0, 18 * progress) + "px";
       }
       if (sandStream) {
         sandStream.style.opacity =
