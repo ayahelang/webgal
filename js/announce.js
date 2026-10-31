@@ -92,7 +92,7 @@
       ".sh-alarm-count{text-align:center;font-size:28px;font-weight:800;letter-spacing:.04em;",
       "font-variant-numeric:tabular-nums;color:#ffc46a;text-shadow:0 0 12px rgba(255,180,60,.35)}",
       ".sh-alarm-sub{text-align:center;font-size:11px;color:#9ab;margin-top:4px}",
-      ".sh-alarm-msg{margin-top:10px;font-size:12px;color:#c5d4e6;max-height:160px;overflow:auto;line-height:1.45}",".sh-alarm-msg img{max-width:100%;height:auto;border-radius:8px;margin:6px 0;display:block}",".sh-alarm-msg a{color:#7de3ff;text-decoration:underline}",".sh-alarm-msg .sh-ap,.sh-alarm-msg .sh-voice-player{max-width:100%;margin:6px 0}",
+      ".sh-alarm-msg{margin-top:10px;font-size:12px;color:#c5d4e6;max-height:160px;overflow:auto;line-height:1.45}",".sh-alarm-msg img{max-width:100%;height:auto;border-radius:8px;margin:6px 0;display:block}",".sh-alarm-msg a{color:#7de3ff;text-decoration:underline}",".sh-alarm-msg .sh-ap,.sh-alarm-msg .sh-voice-player{max-width:100%;margin:6px 0}",".sh-alarm-voice{margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,180,60,.2)}",".ann-voice-area{margin-top:10px;padding-top:8px;border-top:1px solid rgba(125,227,255,.18)}",".ann-voice-area .ann-voice-slot-render,.sh-alarm-voice .ann-voice-slot-render{margin:6px 0}",
       ".sh-alarm-float.is-fired{border-color:rgba(80,220,120,.55);animation:shAlarmPulse 1s ease infinite}",
       "@keyframes shAlarmPulse{0%,100%{box-shadow:0 0 0 0 rgba(80,220,120,.4)}70%{box-shadow:0 0 0 12px rgba(80,220,120,0)}}",
       ".sh-alarm-float.is-fired .sh-alarm-count{color:#7dffb0}",
@@ -280,17 +280,24 @@
       '<div class="sh-alarm-count">--:--</div>' +
       '<div class="sh-alarm-sub">Menuju baca nyaring</div>' +
       "</div></div>" +
-      '<div class="sh-alarm-msg"></div>' +
+      '<div class="sh-alarm-msg"></div><div class="sh-alarm-voice"></div>' +
       "</div>";
     el.querySelector(".sh-alarm-title").textContent =
       "⏰ " + (ann.title || "Alarm").slice(0, 48);
     var msgEl = el.querySelector(".sh-alarm-msg");
     if (msgEl) {
-      msgEl.innerHTML = (ann.body_html || "").slice(0, 4000);
+      var splitA = splitAnnBodyAndVoice((ann.body_html || "").slice(0, 8000));
+      msgEl.innerHTML = splitA.bodyHtml;
       enhanceAnnLinks(msgEl);
+      var voiceHost = el.querySelector(".sh-alarm-voice");
+      if (!voiceHost) {
+        voiceHost = document.createElement("div");
+        voiceHost.className = "sh-alarm-voice";
+        if (msgEl.parentNode) msgEl.parentNode.insertBefore(voiceHost, msgEl.nextSibling);
+      }
+      voiceHost.innerHTML = buildVoiceSlotHtml(splitA.voices);
       try {
-        normalizeAnnVoiceUi(msgEl);
-        wireAnnVoicePlayers(msgEl);
+        wireAnnVoicePlayers(voiceHost);
       } catch (eV) {}
     }
 
@@ -890,7 +897,11 @@
         `<div class="sh-ann-foot"><span class="sh-ann-timer"></span>` +
         `<button type="button" class="sh-ann-close">Tutup</button></div></div>`;
       overlay.querySelector("h2").textContent = ann.title || "Pengumuman";
-      overlay.querySelector(".sh-ann-body").innerHTML = ann.body_html || "";
+      (function () {
+        var bodyEl0 = overlay.querySelector(".sh-ann-body");
+        var split0 = splitAnnBodyAndVoice(ann.body_html || "");
+        bodyEl0.innerHTML = split0.bodyHtml + buildVoiceSlotHtml(split0.voices);
+      })();
       const bodyEl = overlay.querySelector(".sh-ann-body");
       const timerEl = overlay.querySelector(".sh-ann-timer");
       const close = () => {
@@ -1166,99 +1177,219 @@
   /**
    * Satu player custom saja — buang audio native / duplikat.
    */
-  function normalizeAnnVoiceUi(root) {
-    if (!root) return;
-    var items = []; // {url, dur}
-    function addItem(u, d) {
+  /** Pisahkan suara dari HTML — gambar tetap di body */
+  function splitAnnBodyAndVoice(html) {
+    var tmp = document.createElement("div");
+    tmp.innerHTML = html || "";
+    var voices = [];
+    function addVoice(u, d) {
       u = String(u || "").trim();
-      if (!u || u.indexOf("blob:") === 0) return; // blob preview lokal biasanya sudah invalid
-      // skip duplicates
-      for (var i = 0; i < items.length; i++) {
-        if (items[i].url === u) {
-          if (items[i].dur == null && d != null && isFinite(d)) items[i].dur = d;
+      if (!u || u.indexOf("blob:") === 0) return;
+      for (var i = 0; i < voices.length; i++) {
+        if (voices[i].url === u) {
+          if (voices[i].dur == null && d != null && isFinite(d)) voices[i].dur = d;
           return;
         }
       }
-      items.push({ url: u, dur: d != null && isFinite(d) ? d : null });
+      voices.push({ url: u, dur: d != null && isFinite(d) ? d : null });
     }
+    tmp
+      .querySelectorAll(
+        "audio, [data-voice-url], .sh-ap, .sh-audio, .sh-voice-player, .chat-voice-player, .ann-voice-block, .ann-voice-slot-render, .chat-voice-msg"
+      )
+      .forEach(function (n) {
+        var u = n.getAttribute("data-voice-url") || n.getAttribute("data-src") || "";
+        if (!u && n.tagName === "AUDIO") u = n.getAttribute("src") || n.src || "";
+        if (!u) {
+          var a = n.querySelector && n.querySelector("audio");
+          if (a) u = a.getAttribute("src") || a.src || "";
+        }
+        var ds = n.getAttribute("data-duration") || n.getAttribute("data-dur") || "";
+        var d = ds ? parseFloat(ds) : null;
+        addVoice(u, d);
+        n.remove();
+      });
+    return { bodyHtml: tmp.innerHTML, voices: voices };
+  }
 
-    root.querySelectorAll("audio").forEach(function (node) {
-      var u = node.getAttribute("src") || "";
-      if (!u && node.src) u = node.src;
-      var d = null;
-      var host = node.closest("[data-duration], [data-dur], .sh-ap, .sh-voice-player, .ann-voice-block");
-      if (host) {
-        var ds = host.getAttribute("data-duration") || host.getAttribute("data-dur");
-        if (ds) d = parseFloat(ds);
-      }
-      if (isFinite(node.duration) && node.duration > 0 && node.duration !== Infinity) {
-        d = node.duration;
-      }
-      addItem(u, d);
-    });
-    root.querySelectorAll("[data-voice-url], [data-src]").forEach(function (node) {
-      var u = node.getAttribute("data-voice-url") || node.getAttribute("data-src") || "";
-      var ds = node.getAttribute("data-duration") || node.getAttribute("data-dur") || "";
-      addItem(u, ds ? parseFloat(ds) : null);
-    });
-
-    // Hapus player/audio lama
-    root.querySelectorAll(
-      "audio, .sh-ap, .sh-audio, .sh-voice-player, .chat-voice-player, .ann-voice-block, .ann-voice-slot-render, .chat-voice-msg"
-    ).forEach(function (n) {
-      n.remove();
-    });
-
+  function buildVoiceSlotHtml(items) {
+    if (!items || !items.length) return "";
+    var html = '<div class="ann-voice-area" data-ann-voice-area="1">';
     items.forEach(function (it) {
-      var wrap = document.createElement("div");
-      wrap.className = "ann-voice-slot-render";
+      html += '<div class="ann-voice-slot-render">';
       if (window.SHVoice && SHVoice.playerHtml) {
-        wrap.innerHTML = SHVoice.playerHtml({
+        html += SHVoice.playerHtml({
           url: it.url,
           duration: it.dur,
-          ttlLabel: "",
+          ttlLabel: "Pesan suara pengumuman",
           downloadable: true,
+          name: "pengumuman-suara",
         });
       } else {
-        wrap.innerHTML =
-          '<div class="sh-ap" data-src="' + it.url.replace(/"/g, "&quot;") + '"' +
-          (it.dur ? ' data-dur="' + it.dur + '"' : "") +
+        var esc = String(it.url).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+        var durAttr = it.dur != null && isFinite(it.dur) ? ' data-dur="' + it.dur + '"' : "";
+        html +=
+          '<div class="sh-ap" data-src="' +
+          esc +
+          '"' +
+          durAttr +
           ">" +
-          '<button type="button" class="sh-ap-play">▶</button>' +
-          '<button type="button" class="sh-ap-stop">■</button>' +
-          '<div class="sh-ap-body"><div class="sh-ap-time"><span class="sh-ap-cur">00:00</span> / <span class="sh-ap-dur">00:00</span></div>' +
-          '<input class="sh-ap-seek" type="range" min="0" max="' + (it.dur || 1) + '" value="0" step="0.01" /></div>' +
-          '<button type="button" class="sh-ap-dl">⬇</button>' +
-          '<audio class="sh-ap-audio" preload="auto" playsinline src="' + it.url.replace(/"/g, "&quot;") + '"></audio></div>';
+          '<button type="button" class="sh-ap-play" aria-label="Putar">▶</button>' +
+          '<button type="button" class="sh-ap-stop" aria-label="Stop">■</button>' +
+          '<div class="sh-ap-body"><div class="sh-ap-time"><span class="sh-ap-cur">00:00</span> / <span class="sh-ap-dur">--:--</span></div>' +
+          '<input class="sh-ap-seek" type="range" min="0" max="1" value="0" step="0.01" /></div>' +
+          '<audio class="sh-ap-audio" preload="auto" playsinline src="' +
+          esc +
+          '"></audio></div>';
       }
-      // pastikan audio preload auto + src absolut
-      var a = wrap.querySelector("audio");
-      if (a) {
-        a.preload = "auto";
-        a.removeAttribute("controls");
-        a.controls = false;
-        try { a.load(); } catch (e) {}
-      }
-      root.appendChild(wrap);
+      html += "</div>";
     });
+    html += "</div>";
+    return html;
+  }
 
-    root.querySelectorAll("audio").forEach(function (a) {
-      a.removeAttribute("controls");
-      a.controls = false;
-      a.style.setProperty("display", "none", "important");
+  function ensureVoiceKitLoaded(cb) {
+    if (window.SHVoice && SHVoice.wirePlayers) {
+      if (cb) cb();
+      return;
+    }
+    if (!document.querySelector('script[data-sh-voice-kit]')) {
+      var s = document.createElement("script");
+      s.src = "js/voice-kit.js";
+      s.async = true;
+      s.setAttribute("data-sh-voice-kit", "1");
+      s.onload = function () {
+        if (cb) cb();
+      };
+      s.onerror = function () {
+        if (cb) cb();
+      };
+      document.head.appendChild(s);
+    } else {
+      var n = 0;
+      var iv = setInterval(function () {
+        n++;
+        if ((window.SHVoice && SHVoice.wirePlayers) || n > 50) {
+          clearInterval(iv);
+          if (cb) cb();
+        }
+      }, 100);
+    }
+  }
+
+  function fallbackWireVoice(root) {
+    if (!root) return;
+    root.querySelectorAll(".sh-ap").forEach(function (box) {
+      if (box._shAnnFallback) return;
+      box._shAnnFallback = true;
+      var audio = box.querySelector("audio");
+      var src = box.getAttribute("data-src") || (audio && (audio.getAttribute("src") || audio.src)) || "";
+      if (!audio && src) {
+        audio = document.createElement("audio");
+        audio.className = "sh-ap-audio";
+        audio.preload = "auto";
+        audio.playsInline = true;
+        audio.src = src;
+        audio.style.display = "none";
+        box.appendChild(audio);
+      }
+      if (!audio) return;
+      var playBtn = box.querySelector(".sh-ap-play");
+      var stopBtn = box.querySelector(".sh-ap-stop");
+      var curEl = box.querySelector(".sh-ap-cur");
+      var durEl = box.querySelector(".sh-ap-dur");
+      var seek = box.querySelector(".sh-ap-seek");
+      function fmt(sec) {
+        if (!isFinite(sec) || sec < 0) return "--:--";
+        sec = Math.floor(sec);
+        return String(Math.floor(sec / 60)).padStart(2, "0") + ":" + String(sec % 60).padStart(2, "0");
+      }
+      function syncDur() {
+        var d = audio.duration;
+        if (!isFinite(d) || d === Infinity) d = parseFloat(box.getAttribute("data-dur") || "");
+        if (isFinite(d) && d > 0) {
+          if (durEl) durEl.textContent = fmt(d);
+          if (seek) seek.max = d;
+        }
+      }
+      audio.addEventListener("loadedmetadata", syncDur);
+      audio.addEventListener("durationchange", syncDur);
+      audio.addEventListener("timeupdate", function () {
+        if (curEl) curEl.textContent = fmt(audio.currentTime);
+        if (seek && !seek._dragging) seek.value = String(audio.currentTime);
+      });
+      audio.addEventListener("ended", function () {
+        if (playBtn) playBtn.textContent = "▶";
+      });
+      if (playBtn) {
+        playBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (audio.paused) {
+            var p = audio.play();
+            if (p && p.catch) p.catch(function () {});
+            playBtn.textContent = "❚❚";
+          } else {
+            audio.pause();
+            playBtn.textContent = "▶";
+          }
+        });
+      }
+      if (stopBtn) {
+        stopBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          audio.pause();
+          audio.currentTime = 0;
+          if (playBtn) playBtn.textContent = "▶";
+        });
+      }
+      if (seek) {
+        seek.addEventListener("input", function () {
+          seek._dragging = true;
+          audio.currentTime = Number(seek.value) || 0;
+        });
+        seek.addEventListener("change", function () {
+          seek._dragging = false;
+        });
+      }
+      try {
+        audio.load();
+      } catch (e) {}
+      syncDur();
     });
+  }
+
+  function normalizeAnnVoiceUi(root) {
+    if (!root) return;
+    var split = splitAnnBodyAndVoice(root.innerHTML);
+    root.innerHTML = split.bodyHtml + buildVoiceSlotHtml(split.voices);
   }
 
   function wireAnnVoicePlayers(root) {
     if (!root) return;
-    root.querySelectorAll("audio").forEach(function (a) {
-      a.removeAttribute("controls");
-      a.controls = false;
-      a.style.setProperty("display", "none", "important");
-    });
-    if (window.SHVoice && SHVoice.wirePlayers) {
-      SHVoice.wirePlayers(root);
+    function run() {
+      try {
+        root.querySelectorAll("audio").forEach(function (a) {
+          a.removeAttribute("controls");
+          a.controls = false;
+          a.style.setProperty("display", "none", "important");
+        });
+      } catch (e0) {}
+      if (window.SHVoice && SHVoice.wirePlayers) {
+        try {
+          SHVoice.wirePlayers(root);
+        } catch (e1) {
+          fallbackWireVoice(root);
+        }
+      } else {
+        fallbackWireVoice(root);
+      }
     }
+    ensureVoiceKitLoaded(run);
+    setTimeout(run, 100);
+    setTimeout(run, 350);
+    setTimeout(run, 900);
   }
 
 
