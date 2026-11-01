@@ -471,3 +471,67 @@ small.sh-cb-count {
   display:none!important;
 }
 
+.att-sess-row{position:relative;z-index:1;overflow:visible!important}
+.att-sess-row.is-menu-open{z-index:80!important}
+.att-sess-menu-wrap{z-index:2}
+.att-sess-row.is-menu-open .att-sess-menu-wrap{z-index:81}
+.att-menu-pop{
+  z-index:90!important;
+  position:absolute!important;
+}
+
+
+/* ===== Unified floating hub ===== */
+#shFabHub{
+  position:fixed;right:14px;bottom:18px;z-index:60;
+  display:flex;flex-direction:column;align-items:flex-end;gap:8px;
+  pointer-events:none;
+}
+#shFabHub > *{pointer-events:auto}
+#shFabMain{
+  width:52px;height:52px;border-radius:50%;
+  border:1px solid rgba(125,227,255,.45);
+  background:linear-gradient(145deg,#1a8fd1,#5ec8ff);
+  color:#041018;font-weight:800;font-size:20px;
+  box-shadow:0 8px 28px rgba(0,0,0,.45);
+  cursor:pointer;
+  display:grid;place-items:center;
+}
+#shFabMain[aria-expanded="true"]{background:linear-gradient(145deg,#0d3a52,#1a8fd1);color:#e8f4fa}
+#shFabPanel{
+  width:min(280px,calc(100vw - 28px));
+  padding:10px;
+  border-radius:16px;
+  border:1px solid rgba(125,227,255,.3);
+  background:rgba(8,16,24,.96);
+  box-shadow:0 16px 40px rgba(0,0,0,.5);
+  display:flex;flex-direction:column;gap:8px;
+}
+#shFabPanel[hidden]{display:none!important}
+.sh-fab-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sh-fab-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:6px 10px;border-radius:999px;font-size:11px;
+  border:1px solid rgba(125,227,255,.22);background:rgba(0,0,0,.28);color:#cfe6ef;
+}
+.sh-fab-chip b{color:#7de3ff}
+.sh-fab-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sh-fab-actions button,.sh-fab-actions a{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  padding:10px 8px;border-radius:10px;font-size:12px;font-weight:600;
+  border:1px solid rgba(125,227,255,.25);background:rgba(255,255,255,.05);
+  color:#e8f4fa;text-decoration:none;cursor:pointer;
+}
+.sh-fab-actions .sh-fab-wa{background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.4)}
+.sh-fab-actions .sh-fab-mail{background:rgba(234,67,53,.12);border-color:rgba(234,67,53,.35)}
+/* Sembunyikan floater lama saat hub aktif */
+body.sh-fab-on #sh-share-bar,
+body.sh-fab-on #sh-float-stats,
+body.sh-fab-on #shHealthBtn,
+body.sh-fab-on .sh-health-btn{
+  display:none!important;
+}
+/* Tema di topbar tetap; di hub juga ada pintasan */
+@media (min-width:901px){
+  /* desktop: hub tetap, hemat area */
+}
