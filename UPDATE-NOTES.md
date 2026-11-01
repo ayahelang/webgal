@@ -1,2 +1,1 @@
-Attendance editable TTS + remove classroom nav from webgal
-Run sql/patch-attendance-bell-text.sql once
+Default: check-in end = start+10m; checkout start = end-10m
