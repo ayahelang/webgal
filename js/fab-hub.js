@@ -45,21 +45,38 @@
     main.addEventListener("click", function (e) {
       e.stopPropagation();
       setOpen(panel.hidden);
-      if (!panel.hidden) syncFromPage();
+      if (!panel.hidden) { syncFromPage(); try { refreshFabThemeLabel(); } catch (e) {} }
     });
 
     document.addEventListener("click", function (e) {
       if (!panel.hidden && !hub.contains(e.target)) setOpen(false);
     });
 
-    // Theme
+    // Theme (satu-satunya kontrol — floating #themeToggle disembunyikan)
     var fabTheme = document.getElementById("fabTheme");
+    function refreshFabThemeLabel() {
+      if (!fabTheme) return;
+      try {
+        if (window.SHTheme && window.SHTheme.current) {
+          var cur = window.SHTheme.current();
+          var lab = (window.SHTheme.labels && window.SHTheme.labels[cur]) || cur;
+          fabTheme.textContent = "Tema: " + (lab.replace(/^Tema\s*/, "") || cur);
+        }
+      } catch (e) {}
+    }
     if (fabTheme) {
-      fabTheme.addEventListener("click", function () {
-        var t = document.getElementById("themeToggle");
-        if (t) t.click();
-        else if (window.SHTheme && typeof window.SHTheme.next === "function") window.SHTheme.next();
+      fabTheme.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (window.SHTheme && typeof window.SHTheme.next === "function") {
+          window.SHTheme.next();
+        } else {
+          var t = document.getElementById("themeToggle");
+          if (t) t.click();
+        }
+        refreshFabThemeLabel();
       });
+      refreshFabThemeLabel();
     }
 
     // Health / SIM
@@ -129,7 +146,7 @@
 
     // periodic soft sync while open
     setInterval(function () {
-      if (!panel.hidden) syncFromPage();
+      if (!panel.hidden) { syncFromPage(); try { refreshFabThemeLabel(); } catch (e) {} }
     }, 5000);
 
     // initial hide of legacy floaters once DOM widgets may appear

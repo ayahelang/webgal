@@ -27,6 +27,7 @@
     var i = ORDER.indexOf(current());
     apply(ORDER[(i + 1) % ORDER.length]);
   }
+  window.SHTheme = { current: current, apply: apply, next: next, labels: LABEL };
   function ensureBtn() {
     var btn = document.getElementById("themeToggle");
     if (!btn) {
@@ -341,4 +342,30 @@
   setTimeout(scan, 500);
   setTimeout(scan, 2000);
 })();
+
+
+  /** Muat FAB hub di setiap halaman yang memakai theme.js */
+  function loadFabHub() {
+    if (window.__shFabHubLoading) return;
+    if (document.querySelector('script[data-sh-fab-hub]')) return;
+    window.__shFabHubLoading = true;
+    var s = document.createElement("script");
+    s.src = "js/fab-hub.js";
+    s.async = true;
+    s.setAttribute("data-sh-fab-hub", "1");
+    s.onerror = function () {
+      window.__shFabHubLoading = false;
+    };
+    (document.body || document.documentElement).appendChild(s);
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () {
+      setTimeout(loadFabHub, 300);
+    });
+  } else {
+    setTimeout(loadFabHub, 300);
+  }
+  window.addEventListener("load", function () {
+    setTimeout(loadFabHub, 100);
+  });
 
