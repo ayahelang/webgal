@@ -783,3 +783,28 @@ html.sh-fab-on .sh-tour-toggle{
   visibility:visible!important;
   opacity:1!important;
 }
+
+/* Tree row: jangan potong tombol collaps; label satu baris */
+.pt-row{
+  overflow:visible!important;
+}
+.pt-row > .sh-cb-name,
+.pt-row > strong.sh-cb-name,
+.pt-row > strong{
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  flex:1 1 auto!important;
+  min-width:0!important;
+}
+.pt-row > .sh-cb-count,
+.pt-row > small.sh-cb-count,
+.pt-row > .pt-count{
+  flex:0 0 auto!important;
+  white-space:nowrap!important;
+}
+.pt-row > .pt-toggle{
+  flex:0 0 28px!important;
+  order:30!important;
+  margin-left:6px!important;
+}
