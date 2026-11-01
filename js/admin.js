@@ -679,6 +679,24 @@
     });
   }
 
+  function shTreeNormalizeRows(root) {
+    if (!root) return;
+    try {
+      root = typeof root === "string" ? document.querySelector(root) : root;
+      if (!root) return;
+      root.querySelectorAll(".pt-row").forEach(function (row) {
+        var tog = row.querySelector(":scope > .pt-toggle, :scope > .sh-cb-toggle");
+        if (tog) row.appendChild(tog);
+        row.querySelectorAll("strong, .sh-cb-name, .pt-label-text").forEach(function (el) {
+          el.style.visibility = "visible";
+          el.style.opacity = "1";
+          el.style.color = "";
+          el.style.fontSize = "";
+        });
+      });
+    } catch (e) {}
+  }
+
   async function buildStudentCheckTree(hostId, opts) {
     opts = opts || {};
     const host = typeof hostId === "string" ? $(hostId) : hostId;

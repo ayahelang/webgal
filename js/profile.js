@@ -349,8 +349,8 @@
         : "";
       return `<div class="pt-node" data-id="${id}">
         <div class="pt-row">
+          <label class="pt-label"><input type="checkbox" data-key="${opts.key}" ${checked}> <span class="pt-label-text">${label}</span></label>
           <button type="button" class="pt-toggle ${hasKids ? "" : "leaf"}" data-toggle="${id}" aria-label="lipat">${hasKids ? "▾" : "•"}</button>
-          <label><input type="checkbox" data-key="${opts.key}" ${checked}> ${label}</label>
         </div>${kids}</div>`;
     }
 
@@ -405,6 +405,12 @@
         open: true,
       });
 
+    try {
+      host.querySelectorAll(".pt-row").forEach(function (row) {
+        var tog = row.querySelector(":scope > .pt-toggle");
+        if (tog) row.appendChild(tog);
+      });
+    } catch (eN) {}
     host.querySelectorAll(".pt-toggle").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         e.preventDefault();
