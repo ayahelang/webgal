@@ -260,6 +260,48 @@
   }
 
 
+
+  function linkAvatarHtml(url, name) {
+    const u = String(url || "").trim();
+    const alt = esc((name || "?").toString().slice(0, 1).toUpperCase());
+    if (u) {
+      return `<img class="link-av" src="${esc(u)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.classList.add('is-broken');this.removeAttribute('src')">`;
+    }
+    return `<span class="link-av link-av-ph" aria-hidden="true">${alt}</span>`;
+  }
+
+  function shNameSelectHtml(id, year, classCode, selected) {
+    const y = String(year || "2025");
+    const c = String(classCode || "51");
+    const sel = String(selected || "");
+    const names = [];
+    try {
+      const roster = rosterCache || {};
+      ((roster[y] || {})[c] || []).forEach(function (n) {
+        if (n && names.indexOf(n) < 0) names.push(n);
+      });
+    } catch (e) {}
+    names.sort(function (a, b) {
+      return a.localeCompare(b, "id");
+    });
+    const label = sel || "— pilih nama —";
+    const opts =
+      `<button type="button" class="sh-select-opt" data-value="">— pilih nama —</button>` +
+      names
+        .map(function (n) {
+          const on = n === sel ? " is-selected" : "";
+          return `<button type="button" class="sh-select-opt${on}" data-value="${esc(n)}">${esc(n)}</button>`;
+        })
+        .join("");
+    return (
+      `<div class="sh-select" data-sh-select="${esc(id)}">` +
+      `<button type="button" class="sh-select-btn" data-sh-select-btn="${esc(id)}"><span class="sh-select-label">${esc(label)}</span><span class="sh-select-caret" aria-hidden="true">▾</span></button>` +
+      `<div class="sh-select-menu" data-sh-select-menu="${esc(id)}" hidden>${opts}</div>` +
+      `<input type="hidden" data-link-name="${esc(id)}" value="${esc(sel)}">` +
+      `</div>`
+    );
+  }
+
   function nameOptionsHtml(year, classCode, selected) {
     const y = String(year || "");
     const c = String(classCode || "");
@@ -292,22 +334,96 @@
 
   function bindLinkNameSelects(root) {
     const scope = root || document;
-    scope.querySelectorAll("[data-link-year]").forEach((yearSel) => {
+
+    function fillShSelect(id, y, c, keepValue) {
+      const wrap = scope.querySelector('[data-sh-select="' + id + '"]');
+      const hidden = scope.querySelector('input[data-link-name="' + id + '"]');
+      const menu = scope.querySelector('[data-sh-select-menu="' + id + '"]');
+      const btnLab = scope.querySelector('[data-sh-select-btn="' + id + '"] .sh-select-label');
+      if (!hidden || !menu) return;
+      const cur = keepValue != null ? keepValue : hidden.value || "";
+      let names = [];
+      try {
+        names = ((rosterCache || {})[y] || {})[c] || [];
+      } catch (e) {
+        names = [];
+      }
+      names = names.slice().sort(function (a, b) {
+        return a.localeCompare(b, "id");
+      });
+      menu.innerHTML =
+        '<button type="button" class="sh-select-opt" data-value="">— pilih nama —</button>' +
+        names
+          .map(function (n) {
+            const on = n === cur ? " is-selected" : "";
+            return '<button type="button" class="sh-select-opt' + on + '" data-value="' + esc(n) + '">' + esc(n) + "</button>";
+          })
+          .join("");
+      if (cur && names.indexOf(cur) < 0) {
+        // keep custom selected label
+      }
+      hidden.value = cur && names.indexOf(cur) >= 0 ? cur : cur || "";
+      if (btnLab) btnLab.textContent = hidden.value || "— pilih nama —";
+      menu.querySelectorAll(".sh-select-opt").forEach(function (opt) {
+        opt.onclick = function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const v = opt.getAttribute("data-value") || "";
+          hidden.value = v;
+          if (btnLab) btnLab.textContent = v || "— pilih nama —";
+          menu.hidden = true;
+          menu.querySelectorAll(".sh-select-opt").forEach(function (o) {
+            o.classList.toggle("is-selected", (o.getAttribute("data-value") || "") === v);
+          });
+        };
+      });
+    }
+
+    scope.querySelectorAll("[data-sh-select-btn]").forEach(function (btn) {
+      if (btn.dataset.shBound) return;
+      btn.dataset.shBound = "1";
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = btn.getAttribute("data-sh-select-btn");
+        const menu = scope.querySelector('[data-sh-select-menu="' + id + '"]');
+        if (!menu) return;
+        const open = menu.hidden;
+        scope.querySelectorAll("[data-sh-select-menu]").forEach(function (m) {
+          m.hidden = true;
+        });
+        menu.hidden = !open;
+      });
+    });
+
+    scope.querySelectorAll("[data-link-year]").forEach(function (yearSel) {
       const id = yearSel.getAttribute("data-link-year");
       const classSel = scope.querySelector('[data-link-class="' + id + '"]');
       const nameSel = scope.querySelector('[data-link-name="' + id + '"]');
       if (!nameSel) return;
-      const refresh = () => {
+      const refresh = function () {
         const y = yearSel.value;
         const c = classSel ? classSel.value : "51";
         const cur = nameSel.value;
         if (nameSel.tagName === "SELECT") {
           nameSel.innerHTML = nameOptionsHtml(y, c, cur);
+        } else {
+          fillShSelect(id, y, c, cur);
         }
       };
       yearSel.onchange = refresh;
       if (classSel) classSel.onchange = refresh;
       refresh();
+    });
+  }
+
+  // tutup custom select jika klik di luar
+  if (!window.__shSelectDocBound) {
+    window.__shSelectDocBound = true;
+    document.addEventListener("click", function () {
+      document.querySelectorAll("[data-sh-select-menu]").forEach(function (m) {
+        m.hidden = true;
+      });
     });
   }
 
@@ -4260,9 +4376,15 @@
                   const sn = esc(r.linked_student_name);
                   const y = String(r.linked_angkatan_year || "2025");
                   const c = String(r.linked_class_code || "51");
+                  const av = linkAvatarHtml(r.avatar_url || r.picture || "", r.display_name || r.email || sn);
                   return `<div class="admin-row link-row" style="margin:4px 0;flex-direction:column;align-items:stretch">
                     <div class="link-row-top" style="display:flex;justify-content:space-between;gap:8px;align-items:center;width:100%">
-                      <div class="link-row-info"><strong>${sn}</strong><br><small>${who}</small></div>
+                      <div class="link-row-info" style="display:flex;align-items:center;gap:10px;min-width:0">
+                        ${av}
+                        <div style="min-width:0">
+                          <strong>${sn}</strong><br><small>${who}</small>
+                        </div>
+                      </div>
                       <div class="link-row-actions" style="display:flex;gap:6px;flex-shrink:0">
                         <button type="button" class="btn btn-ghost" data-edit-link="${r.id}" style="padding:6px 10px;font-size:12px">Ubah</button>
                         <button type="button" class="btn btn-ghost" data-unlink="${r.id}" style="padding:6px 10px;font-size:12px">Lepas</button>
@@ -4276,8 +4398,8 @@
                         <label class="field" style="margin:0"><span>Kelas</span>
                           <select data-link-class="${r.id}"><option value="51" ${c==="51"?"selected":""}>51</option><option value="52" ${c==="52"?"selected":""}>52</option></select>
                         </label>
-                        <label class="field" style="margin:0;min-width:160px"><span>Nama siswa</span>
-                          <select data-link-name="${r.id}"></select>
+                        <label class="field" style="margin:0;min-width:180px"><span>Nama siswa</span>
+                          ${shNameSelectHtml(r.id, y, c, r.linked_student_name || "")}
                         </label>
                         <button type="button" class="btn btn-primary" data-save-link="${r.id}" style="padding:8px 12px;font-size:12px">Simpan tautan</button>
                       </div>
@@ -4406,16 +4528,20 @@
               .map(function (u) {
                 const who = esc(u.display_name || u.email || u.id);
                 const mail = esc(u.email || "");
+                const av = linkAvatarHtml(u.avatar_url || u.picture || "", u.display_name || u.email || "");
                 return (
                   '<div class="admin-row link-row" style="margin:4px 0;flex-direction:column;align-items:stretch">' +
-                  '<div><strong>' + who + '</strong><br><small>' + mail + '</small></div>' +
+                  '<div class="link-row-info" style="display:flex;align-items:center;gap:10px;min-width:0">' +
+                  av +
+                  '<div style="min-width:0"><strong>' + who + '</strong><br><small>' + mail + '</small></div></div>' +
                   '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:end">' +
                   '<label class="field" style="margin:0"><span>Angkatan</span>' +
                   '<select data-link-year="' + u.id + '"><option value="2025">2025</option><option value="2024">2024</option></select></label>' +
                   '<label class="field" style="margin:0"><span>Kelas</span>' +
                   '<select data-link-class="' + u.id + '"><option value="51">51</option><option value="52">52</option></select></label>' +
-                  '<label class="field" style="margin:0;min-width:140px"><span>Nama siswa</span>' +
-                  '<select data-link-name="' + u.id + '"></select></label>' +
+                  '<label class="field" style="margin:0;min-width:180px"><span>Nama siswa</span>' +
+                  shNameSelectHtml(u.id, "2025", "51", "") +
+                  "</label>" +
                   '<button type="button" class="btn btn-primary" data-admin-link="' + u.id + '" style="padding:8px 12px;font-size:12px">Tautkan</button>' +
                   "</div></div>"
                 );
