@@ -38,16 +38,17 @@
     <section class="skills-hero admin-hero-row">
       <div class="admin-hero-text">
         <div class="eyebrow">ADMIN</div>
-        <h1>Panel Admin</h1>
+        <div class="admin-title-row">
+          <h1>Panel Admin</h1>
+          <button type="button" class="btn btn-ghost admin-logout-btn" id="btnLogout" hidden>Keluar</button>
+        </div>
         <p class="skills-lead">Login Google. Kelola video, data user, dan undang admin tambahan.</p>
       </div>
-      <div class="admin-who summary-card" id="adminWhoCard" hidden>
-        <img id="adminAvatar" alt="" class="admin-avatar" hidden>
-        <div class="admin-who-meta">
-          <div id="adminName" style="font-weight:700"></div>
-          <div id="adminEmail" class="muted" style="font-size:13px"></div>
-        </div>
-        <button type="button" class="btn btn-ghost" id="btnLogout">Keluar</button>
+      <!-- Kartu profil besar dihilangkan (hemat baris). Identitas tetap di header topbar. -->
+      <div id="adminWhoCard" hidden aria-hidden="true" style="display:none!important">
+        <img id="adminAvatar" alt="" hidden>
+        <div id="adminName" hidden></div>
+        <div id="adminEmail" hidden></div>
       </div>
     </section>
 
