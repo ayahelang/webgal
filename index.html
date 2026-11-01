@@ -27,6 +27,10 @@
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
   <link rel="dns-prefetch" href="https://silverhawk.web.id">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"></noscript>
   <link rel="preload" href="assets/favicon.svg" as="image" type="image/svg+xml">
   <link rel="preload" href="https://silverhawk.web.id/lock/lock.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css"></noscript>
@@ -34,18 +38,20 @@
     /* tema sebelum paint — cegah FOUC/CLS */
     (function () {
       try {
+        var c = { youth: "#081018", light: "#e8f4fc", adult: "#161d26", senior: "#242018" };
         var t = localStorage.getItem("sh_theme") || "youth";
         if (["youth","light","adult","senior"].indexOf(t) < 0) t = "youth";
         document.documentElement.setAttribute("data-theme", t);
         document.documentElement.style.backgroundColor = c[t] || "#081018";
         document.documentElement.style.color = (t==="light") ? "#0a1a24" : "#eef7fb";
-        var c = { youth: "#081018", light: "#e8f4fc", adult: "#161d26", senior: "#242018" };
         var m = document.querySelector('meta[name="theme-color"]');
         if (m) m.setAttribute("content", c[t] || "#081018");
       } catch (e) {}
     })();
   </script>
   <style>
+    html,body{background:#081018;color:#eef7fb}
+    html[data-theme="light"],html[data-theme="light"] body{background:#e8f4fc;color:#0a1a24}
     /* slot fixed — tidak dorong layout saat widget mengisi */
     #sh-share-bar,#sh-float-stats,#shHealthBtn{cursor:grab}#sh-share-bar.is-dragging,#sh-float-stats.is-dragging,#shHealthBtn.is-dragging{cursor:grabbing}#sh-share-bar{position:fixed;right:12px;bottom:72px;z-index:40;min-height:40px;min-width:120px;contain:layout style}
     #sh-float-stats{position:fixed;left:10px;bottom:12px;z-index:40;min-height:36px;min-width:160px;contain:layout style}
