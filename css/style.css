@@ -347,3 +347,44 @@ small.sh-cb-count {
   margin-top:8px;
 }
 
+/* Admin hero: judul + Keluar satu baris, tanpa kartu profil besar */
+.admin-hero-row{
+  display:block!important;
+  margin-bottom:4px!important;
+  gap:0!important;
+}
+.admin-hero-text{flex:none;width:100%;min-width:0}
+.admin-title-row{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  flex-wrap:nowrap!important;
+  margin:0 0 6px!important;
+}
+.admin-title-row h1{
+  margin:0!important;
+  flex:1 1 auto;
+  min-width:0;
+  line-height:1.15!important;
+}
+.admin-logout-btn,
+.admin-title-row #btnLogout{
+  flex:0 0 auto!important;
+  margin:0!important;
+  white-space:nowrap!important;
+  min-height:36px!important;
+  padding:6px 12px!important;
+  font-size:13px!important;
+}
+.admin-who,
+#adminWhoCard.summary-card{
+  display:none!important;
+}
+@media (max-width:640px){
+  .admin-hero-row{margin-bottom:2px!important}
+  .skills-hero.admin-hero-row{padding-bottom:0!important}
+  .admin-title-row h1{font-size:clamp(1.45rem,6vw,1.85rem)!important}
+  .admin-logout-btn{font-size:12px!important;padding:5px 10px!important}
+}
+
