@@ -2129,6 +2129,11 @@
     f.querySelector("[name=checkin_end]").value = String(r.checkin_end || "").slice(0, 5);
     f.querySelector("[name=checkout_start]").value = String(r.checkout_start || "").slice(0, 5);
     f.querySelector("[name=checkout_end]").value = String(r.checkout_end || "").slice(0, 5);
+          if (f.querySelector("[name=warn_before_end_min]")) f.querySelector("[name=warn_before_end_min]").value = r.warn_before_end_min != null ? r.warn_before_end_min : 5;
+          if (f.querySelector("[name=warn_before_end_text]")) f.querySelector("[name=warn_before_end_text]").value = r.warn_before_end_text || "";
+          if (f.querySelector("[name=warn_before_start_min]")) f.querySelector("[name=warn_before_start_min]").value = r.warn_before_start_min != null ? r.warn_before_start_min : 0;
+          if (f.querySelector("[name=warn_before_start_text]")) f.querySelector("[name=warn_before_start_text]").value = r.warn_before_start_text || "";
+          if (f.querySelector("[name=end_message]")) f.querySelector("[name=end_message]").value = r.end_message || "";
     const rc = f.querySelector("[name=require_checkout]");
     if (rc) rc.checked = r.require_checkout !== false;
     const al = f.querySelector("[name=allow_late]");
@@ -2395,6 +2400,11 @@
         active: !!(f.querySelector("[name=active]") && f.querySelector("[name=active]").checked),
         msg_checkin_ontime: ((f.querySelector("[name=msg_checkin_ontime]") && f.querySelector("[name=msg_checkin_ontime]").value) || "").trim().slice(0, 280),
         msg_checkin_late: ((f.querySelector("[name=msg_checkin_late]") && f.querySelector("[name=msg_checkin_late]").value) || "").trim().slice(0, 280),
+        warn_before_end_min: Number(fd.get("warn_before_end_min")) || 5,
+        warn_before_end_text: String(fd.get("warn_before_end_text") || "").trim(),
+        warn_before_start_min: Number(fd.get("warn_before_start_min")) || 0,
+        warn_before_start_text: String(fd.get("warn_before_start_text") || "").trim(),
+        end_message: String(fd.get("end_message") || "").trim(),
         msg_checkout: ((f.querySelector("[name=msg_checkout]") && f.querySelector("[name=msg_checkout]").value) || "").trim().slice(0, 280),
       };
       save.disabled = true;

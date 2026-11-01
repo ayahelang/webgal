@@ -175,7 +175,7 @@
     }
   }
 
-  function showEndPopup(label) {
+  function showEndPopup(label, message) {
     const existing = document.getElementById("shClassEndPopup");
     if (existing) existing.remove();
     const wrap = document.createElement("div");
@@ -199,7 +199,7 @@
     h.textContent = "Jam pelajaran selesai";
     const body = document.createElement("p");
     body.style.cssText = "margin:0 0 18px;color:#d5ebf3;";
-    body.textContent = "Jam pelajaran " + label + " telah selesai.";
+    body.textContent = message || ("Jam pelajaran " + label + " telah selesai.");
     const btn = document.createElement("button");
     btn.type = "button";
     btn.textContent = "Baik";
@@ -254,31 +254,64 @@
     });
 
     today.forEach(function (s) {
-      const endMin = timeToMin(s.checkout_end);
-      if (!endMin && endMin !== 0) return;
-      const warnMin = endMin - 5;
       const label = sessionLabel(s);
       const sid = String(s.id);
+      const endMin = timeToMin(s.checkout_end);
+      const startMin = timeToMin(s.checkin_start);
 
-      // 5 menit sebelum berakhir (jendela ~1 menit agar tidak kelewatan poll)
-      if (nowP.minutes === warnMin && !alreadyFired(LS_WARN, sid, nowP.date)) {
-        markFired(LS_WARN, sid, nowP.date);
-        ensureAudioUnlock();
-        const text = "Lima menit lagi jam pelajaran " + label + " Selesai";
-        speakId(text);
+      function fillTpl(tpl, def) {
+        var t = String(tpl || def || "").trim();
+        if (!t) t = def;
+        return t.replace(/\{label\}/gi, label).replace(/\{mapel\}/gi, label);
       }
 
-      // tepat saat / melewati checkout_end (hanya fire sekali per sesi/hari)
-      if (nowP.minutes >= endMin && !alreadyFired(LS_END, sid, nowP.date)) {
-        // jangan fire terlalu lama setelah lewat (max 2 menit) agar refresh halaman lama tidak spam
-        if (nowP.minutes <= endMin + 2) {
-          markFired(LS_END, sid, nowP.date);
+      // opsional: N menit sebelum check-in mulai
+      var beforeStart = Number(s.warn_before_start_min);
+      if (!isFinite(beforeStart) || beforeStart < 0) beforeStart = 0;
+      if (beforeStart > 0 && startMin) {
+        var warnStartMin = startMin - beforeStart;
+        if (warnStartMin < 0) warnStartMin += 24 * 60;
+        if (nowP.minutes === warnStartMin && !alreadyFired(LS_WARN + "s_", sid, nowP.date)) {
+          markFired(LS_WARN + "s_", sid, nowP.date);
           ensureAudioUnlock();
-          playSchoolBell();
-          showEndPopup(label);
-        } else {
-          // sudah lewat jauh — tandai saja agar tidak muncul belakangan
-          markFired(LS_END, sid, nowP.date);
+          speakId(
+            fillTpl(
+              s.warn_before_start_text,
+              "Lima menit lagi jam pelajaran {label} dimulai"
+            )
+          );
+        }
+      }
+
+      // N menit sebelum checkout_end (default 5)
+      if (endMin || endMin === 0) {
+        var beforeEnd = Number(s.warn_before_end_min);
+        if (!isFinite(beforeEnd) || beforeEnd <= 0) beforeEnd = 5;
+        var warnMin = endMin - beforeEnd;
+        if (warnMin < 0) warnMin += 24 * 60;
+        if (nowP.minutes === warnMin && !alreadyFired(LS_WARN, sid, nowP.date)) {
+          markFired(LS_WARN, sid, nowP.date);
+          ensureAudioUnlock();
+          speakId(
+            fillTpl(
+              s.warn_before_end_text,
+              "Lima menit lagi jam pelajaran {label} selesai"
+            )
+          );
+        }
+
+        if (nowP.minutes >= endMin && !alreadyFired(LS_END, sid, nowP.date)) {
+          if (nowP.minutes <= endMin + 2) {
+            markFired(LS_END, sid, nowP.date);
+            ensureAudioUnlock();
+            playSchoolBell();
+            showEndPopup(
+              label,
+              fillTpl(s.end_message, "Jam pelajaran {label} telah selesai.")
+            );
+          } else {
+            markFired(LS_END, sid, nowP.date);
+          }
         }
       }
     });
