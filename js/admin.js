@@ -725,46 +725,103 @@
   /** Tree checkbox tri-state (standar: full / partial / empty) */
   function bindTriStateTree(root) {
     if (!root) return;
-    // expand/collapse hanya lewat treeToggleBind (hindari double-toggle)
     treeToggleBind(root);
-    function childBoxes(node) {
-      return [...node.querySelectorAll('input[type=checkbox][data-sh-cb]')];
+    root.classList && root.classList.add("sh-cb-tree");
+
+    function leavesIn(node) {
+      return node ? [...node.querySelectorAll('input[type=checkbox][data-sh-cb="leaf"]')] : [];
     }
-    function syncParent(cb) {
-      let p = cb.closest("[data-sh-children]");
-      while (p) {
-        const parentRow = p.previousElementSibling;
-        const parentCb = parentRow && parentRow.querySelector('input[type=checkbox][data-sh-cb="group"]');
-        if (parentCb) {
-          const boxes = childBoxes(p).filter((x) => x.getAttribute("data-sh-cb") === "leaf" || x.getAttribute("data-sh-cb") === "group");
-          // only direct? use all descendant leaves
-          const leaves = [...p.querySelectorAll('input[type=checkbox][data-sh-cb="leaf"]')];
-          const n = leaves.length;
-          const c = leaves.filter((x) => x.checked).length;
-          parentCb.checked = n > 0 && c === n;
-          parentCb.indeterminate = c > 0 && c < n;
+
+    function kidsPanelForGroup(cb) {
+      const row = cb.closest(".pt-row") || cb.closest(".sh-cb-row") || cb.closest(".pt-node");
+      if (!row) return null;
+      // panel anak: sibling berikutnya .pt-children / [data-sh-children]
+      let sib = row.nextElementSibling;
+      if (sib && (sib.classList.contains("pt-children") || sib.hasAttribute("data-sh-children"))) return sib;
+      // fallback: dalam pt-node yang sama
+      const node = cb.closest(".pt-node");
+      if (node) {
+        const kids = node.querySelector(":scope > .pt-children, :scope > [data-sh-children]");
+        if (kids) return kids;
+      }
+      // data-parent id
+      const tog = row.querySelector(".pt-toggle, .sh-cb-toggle");
+      const id = tog && tog.getAttribute("data-t");
+      if (id) {
+        try {
+          return root.querySelector('[data-parent="' + CSS.escape(id) + '"]');
+        } catch (e) {
+          return root.querySelector('[data-parent="' + id + '"]');
         }
-        const wrap = p.parentElement && p.parentElement.closest("[data-sh-children]");
-        p = wrap;
+      }
+      return null;
+    }
+
+    function applyParentState(parentCb, leaves) {
+      const n = leaves.length;
+      const c = leaves.filter((x) => x.checked).length;
+      if (n === 0) {
+        parentCb.checked = false;
+        parentCb.indeterminate = false;
+        return;
+      }
+      if (c === 0) {
+        parentCb.checked = false;
+        parentCb.indeterminate = false;
+      } else if (c === n) {
+        parentCb.checked = true;
+        parentCb.indeterminate = false;
+      } else {
+        // sebagian → abu-abu
+        parentCb.checked = false;
+        parentCb.indeterminate = true;
       }
     }
-    root.querySelectorAll('input[type=checkbox][data-sh-cb]').forEach((cb) => {
-      cb.addEventListener("change", () => {
-        if (cb.getAttribute("data-sh-cb") === "group") {
-          const row = cb.closest(".pt-row") || cb.closest(".sh-cb-row");
-          const kids = row && row.nextElementSibling && row.nextElementSibling.matches("[data-sh-children]")
-            ? row.nextElementSibling
-            : null;
-          if (kids) {
-            kids.querySelectorAll('input[type=checkbox][data-sh-cb]').forEach((x) => {
-              x.checked = cb.checked;
-              x.indeterminate = false;
-            });
-          }
-          cb.indeterminate = false;
+
+    function syncAncestors(fromEl) {
+      let panel = fromEl.closest(".pt-children, [data-sh-children]");
+      while (panel) {
+        const parentRow = panel.previousElementSibling;
+        const parentCb =
+          parentRow && parentRow.querySelector('input[type=checkbox][data-sh-cb="group"]');
+        if (parentCb) {
+          applyParentState(parentCb, leavesIn(panel));
         }
-        syncParent(cb);
+        const outer = panel.parentElement && panel.parentElement.closest(".pt-children, [data-sh-children]");
+        panel = outer;
+      }
+    }
+
+    function onGroupToggle(cb) {
+      const kids = kidsPanelForGroup(cb);
+      const on = !!cb.checked;
+      cb.indeterminate = false;
+      if (kids) {
+        kids.querySelectorAll('input[type=checkbox][data-sh-cb]').forEach((x) => {
+          x.checked = on;
+          x.indeterminate = false;
+        });
+      }
+      syncAncestors(cb);
+    }
+
+    root.querySelectorAll('input[type=checkbox][data-sh-cb]').forEach((cb) => {
+      if (cb.dataset.triBound === "1") return;
+      cb.dataset.triBound = "1";
+      cb.addEventListener("change", function () {
+        if (cb.getAttribute("data-sh-cb") === "group") {
+          onGroupToggle(cb);
+        } else {
+          // leaf → update semua parent
+          syncAncestors(cb);
+        }
       });
+      // klik pada label sudah memicu change
+    });
+
+    // sinkron awal (setelah restore centang)
+    leavesIn(root).forEach(function (leaf) {
+      syncAncestors(leaf);
     });
   }
 
@@ -790,8 +847,16 @@
       if (!kids) return;
       const leaves = [...kids.querySelectorAll('input[type=checkbox][data-sh-cb="leaf"]')];
       const c = leaves.filter((x) => x.checked).length;
-      g.checked = leaves.length > 0 && c === leaves.length;
-      g.indeterminate = c > 0 && c < leaves.length;
+      if (c === 0) {
+        g.checked = false;
+        g.indeterminate = false;
+      } else if (c === leaves.length) {
+        g.checked = true;
+        g.indeterminate = false;
+      } else {
+        g.checked = false;
+        g.indeterminate = true;
+      }
     });
   }
 
@@ -849,10 +914,10 @@
           .join("");
         return `<div class="pt-node">
           <div class="pt-row sh-cb-row">
-            <button type="button" class="pt-toggle sh-cb-toggle" data-t="stu-y-${esc(y)}">▾</button>
+            <button type="button" class="pt-toggle sh-cb-toggle" data-t="stu-y-${esc(y)}">▸</button>
             <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong class="sh-cb-name">Angkatan ${esc(y)}</strong><small class="sh-cb-count">(${totalY})</small></label>
           </div>
-          <div class="pt-children" data-sh-children data-parent="stu-y-${esc(y)}">${cHtml}</div>
+          <div class="pt-children is-collapsed" data-sh-children data-parent="stu-y-${esc(y)}">${cHtml}</div>
         </div>`;
       })
       .join("");
@@ -916,10 +981,10 @@
           .join("");
         return `<div class="pt-node">
           <div class="pt-row sh-cb-row">
-            <button type="button" class="pt-toggle sh-cb-toggle" data-t="ann-y-${esc(y)}">▾</button>
+            <button type="button" class="pt-toggle sh-cb-toggle" data-t="ann-y-${esc(y)}">▸</button>
             <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong class="sh-cb-name">Angkatan ${esc(y)}</strong><small class="sh-cb-count">(${totalY})</small></label>
           </div>
-          <div class="pt-children" data-sh-children data-parent="ann-y-${esc(y)}">${cHtml}</div>
+          <div class="pt-children is-collapsed" data-sh-children data-parent="ann-y-${esc(y)}">${cHtml}</div>
         </div>`;
       })
       .join("");
