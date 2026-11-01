@@ -488,7 +488,7 @@
             return `<div class="pt-node">
               <div class="pt-row sh-cb-row">
                 <button type="button" class="pt-toggle sh-cb-toggle" data-t="stu-${esc(y)}-${esc(c)}">▸</button>
-                <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong>Kelas ${esc(c)}</strong> <small class="muted">(${names.length})</small></label>
+                <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <span class="sh-cb-text"><strong>Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${names.length})</small></label>
               </div>
               <div class="pt-children is-collapsed" data-sh-children data-parent="stu-${esc(y)}-${esc(c)}">${nHtml}</div>
             </div>`;
@@ -497,7 +497,7 @@
         return `<div class="pt-node">
           <div class="pt-row sh-cb-row">
             <button type="button" class="pt-toggle sh-cb-toggle" data-t="stu-y-${esc(y)}">▾</button>
-            <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong>Angkatan ${esc(y)}</strong> <small class="muted">(${totalY})</small></label>
+            <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <span class="sh-cb-text"><strong>Angkatan ${esc(y)}</strong></span><small class="sh-cb-count muted">(${totalY})</small></label>
           </div>
           <div class="pt-children" data-sh-children data-parent="stu-y-${esc(y)}">${cHtml}</div>
         </div>`;
@@ -555,7 +555,7 @@
             return `<div class="pt-node">
               <div class="pt-row sh-cb-row">
                 <button type="button" class="pt-toggle sh-cb-toggle" data-t="ann-${esc(y)}-${esc(c)}">▸</button>
-                <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong>Kelas ${esc(c)}</strong> <small class="muted">(${names.length})</small></label>
+                <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <span class="sh-cb-text"><strong>Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${names.length})</small></label>
               </div>
               <div class="pt-children is-collapsed" data-sh-children data-parent="ann-${esc(y)}-${esc(c)}">${nHtml || "<p class='muted'>Kosong</p>"}</div>
             </div>`;
@@ -564,7 +564,7 @@
         return `<div class="pt-node">
           <div class="pt-row sh-cb-row">
             <button type="button" class="pt-toggle sh-cb-toggle" data-t="ann-y-${esc(y)}">▾</button>
-            <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong>Angkatan ${esc(y)}</strong> <small class="muted">(${totalY})</small></label>
+            <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <span class="sh-cb-text"><strong>Angkatan ${esc(y)}</strong></span><small class="sh-cb-count muted">(${totalY})</small></label>
           </div>
           <div class="pt-children" data-sh-children data-parent="ann-y-${esc(y)}">${cHtml}</div>
         </div>`;
@@ -3267,7 +3267,7 @@
                     .map((nm) => {
                       const list = root[cat][y][c][nm].map(vidRow).join("");
                       return `<div class="pt-node">
-                        <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><strong>${esc(nm)}</strong> <small class="muted">(${root[cat][y][c][nm].length})</small></div>
+                        <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><span class="sh-cb-text"><strong>${esc(nm)}</strong></span><small class="sh-cb-count muted">(${root[cat][y][c][nm].length})</small></div>
                         <div class="pt-children is-collapsed" data-parent="v-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">${list}</div>
                       </div>`;
                     })
@@ -3550,14 +3550,14 @@
                     )
                     .join("");
                   return `<div class="pt-node">
-                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><strong>${esc(nm)}</strong> <small class="muted">(${tree[y][c][nm].length})</small></div>
+                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><span class="sh-cb-text"><strong>${esc(nm)}</strong></span><small class="sh-cb-count muted">(${tree[y][c][nm].length})</small></div>
                     <div class="pt-children is-collapsed" data-parent="w-${esc(y)}-${esc(c)}-${esc(nm)}">${sites}</div>
                   </div>`;
                 })
                 .join("");
               const siteCount = names.reduce((n, nm) => n + tree[y][c][nm].length, 0);
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${siteCount})</small></div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}">▸</button><span class="sh-cb-text"><strong>Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${siteCount})</small></div>
                 <div class="pt-children is-collapsed" data-parent="w-${esc(y)}-${esc(c)}">${nHtml}</div>
               </div>`;
             })
@@ -3566,7 +3566,7 @@
             return n + Object.keys(tree[y][c] || {}).reduce((m, nm) => m + (tree[y][c][nm] || []).length, 0);
           }, 0);
           return `<div class="pt-node" style="margin-bottom:10px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-y-${esc(y)}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${yearCount})</small></div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-y-${esc(y)}">▸</button><span class="sh-cb-text"><strong>Angkatan ${esc(y)}</strong></span><small class="sh-cb-count muted">(${yearCount})</small></div>
             <div class="pt-children is-collapsed" data-parent="w-y-${esc(y)}">${cHtml}</div>
           </div>`;
         })
@@ -3709,7 +3709,7 @@
       return `<div class="pt-node">
         <div class="pt-row sh-stu-row">
           <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▸</button>
-          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"> <strong>Kelas ${esc(c)}</strong> <small class="muted">(${list.length})</small></label>
+          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><span class="sh-cb-text"><strong>Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${list.length})</small></label>
         </div>
         <div class="pt-children is-collapsed" data-sh-children data-parent="${esc(id)}">${rows}</div>
       </div>`;
@@ -3723,7 +3723,7 @@
       return `<div class="pt-node" style="margin-bottom:10px">
         <div class="pt-row sh-stu-row">
           <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▾</button>
-          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"> <strong>Angkatan ${esc(y)}</strong> <small class="muted">(${total})</small></label>
+          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><span class="sh-cb-text"><strong>Angkatan ${esc(y)}</strong></span><small class="sh-cb-count muted">(${total})</small></label>
         </div>
         <div class="pt-children" data-sh-children data-parent="${esc(id)}">${cHtml}</div>
       </div>`;
@@ -3743,7 +3743,7 @@
       html += `<div class="pt-node" style="margin-bottom:10px">
         <div class="pt-row sh-stu-row">
           <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▾</button>
-          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"> <strong>Pengajar</strong> <small class="muted">(${pengajar.length})</small></label>
+          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><span class="sh-cb-text"><strong>Pengajar</strong></span><small class="sh-cb-count muted">(${pengajar.length})</small></label>
         </div>
         <div class="pt-children" data-sh-children data-parent="${esc(id)}">${rows}</div>
       </div>`;
@@ -3766,7 +3766,7 @@
       html += `<div class="pt-node" style="margin-bottom:10px">
         <div class="pt-row sh-stu-row">
           <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▾</button>
-          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"> <strong>Tanpa angkatan</strong> <small class="muted">(${noYear.length})</small></label>
+          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><span class="sh-cb-text"><strong>Tanpa angkatan</strong></span><small class="sh-cb-count muted">(${noYear.length})</small></label>
         </div>
         <div class="pt-children" data-sh-children data-parent="${esc(id)}">${rows}</div>
       </div>`;
@@ -3843,7 +3843,7 @@
             )
             .join("");
           return `<div class="pt-node" style="margin-bottom:10px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="ang-${esc(y)}">▾</button><strong>Tahun ${esc(y)}</strong> <small class="muted">(${tree[y].length})</small></div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="ang-${esc(y)}">▾</button><span class="sh-cb-text"><strong>Tahun ${esc(y)}</strong></span><small class="sh-cb-count muted">(${tree[y].length})</small></div>
             <div class="pt-children" data-parent="ang-${esc(y)}">${list}</div>
           </div>`;
         })
@@ -3934,7 +3934,7 @@
                 })
                 .join("");
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="c-${y}-${c}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${tree[y][c].length} tautan)</small></div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="c-${y}-${c}">▸</button><span class="sh-cb-text"><strong>Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${tree[y][c].length} tautan)</small></div>
                 <div class="pt-children is-collapsed" data-parent="c-${y}-${c}">${list}</div>
               </div>`;
             })
@@ -4013,7 +4013,7 @@
           const boxS = document.createElement("div");
           boxS.style.marginTop = "16px";
           boxS.innerHTML =
-            `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="link-siswa-belum">▸</button><strong>Siswa belum tertaut akun Google</strong> <small class="muted">(${cov.unlinkedStudents.length})</small></div><div class="pt-children" data-parent="link-siswa-belum">` +
+            `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="link-siswa-belum">▸</button><span class="sh-cb-text"><strong>Siswa belum tertaut akun Google</strong></span><small class="sh-cb-count muted">(${cov.unlinkedStudents.length})</small></div><div class="pt-children" data-parent="link-siswa-belum">` +
             Object.keys(byY)
               .sort()
               .reverse()
@@ -4022,7 +4022,7 @@
                   .sort()
                   .map((c) => {
                     const names = byY[y][c].sort((a, b) => a.localeCompare(b, "id"));
-                    return `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="sb-${y}-${c}">▾</button><strong>Angkatan ${esc(y)} · Kelas ${esc(c)}</strong> <small class="muted">(${names.length})</small></div><div class="pt-children" data-parent="sb-${y}-${c}">${names
+                    return `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="sb-${y}-${c}">▾</button><span class="sh-cb-text"><strong>Angkatan ${esc(y)} · Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${names.length})</small></div><div class="pt-children" data-parent="sb-${y}-${c}">${names
                       .map((n) => `<div class="admin-row"><div><strong>${esc(n)}</strong><br><small>Belum ada akun Google yang menautkan nama ini</small></div></div>`)
                       .join("")}</div></div>`;
                   })
@@ -4039,7 +4039,7 @@
           const box = document.createElement("div");
           box.style.marginTop = "16px";
           box.innerHTML = `<div class="pt-node">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="link-nolink">▸</button><strong>Akun Google belum pilih nama siswa</strong> <small class="muted">(${noLink.length} akun · bukan daftar siswa)</small></div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="link-nolink">▸</button><span class="sh-cb-text"><strong>Akun Google belum pilih nama siswa</strong></span><small class="sh-cb-count muted">(${noLink.length} akun · bukan daftar siswa)</small></div>
             <div class="pt-children" data-parent="link-nolink">${noLink
               .map(
                 (u) => `<div class="admin-row">
@@ -4230,7 +4230,7 @@
                     .map((nm) => {
                       const list = root[cat][y][c][nm].map(desRow).join("");
                       return `<div class="pt-node">
-                        <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><strong>${esc(nm)}</strong> <small class="muted">(${root[cat][y][c][nm].length})</small></div>
+                        <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><span class="sh-cb-text"><strong>${esc(nm)}</strong></span><small class="sh-cb-count muted">(${root[cat][y][c][nm].length})</small></div>
                         <div class="pt-children is-collapsed" data-parent="d-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">${list}</div>
                       </div>`;
                     })
@@ -4451,7 +4451,7 @@
           .map((c) => {
             const list = tree[y][c].map(userRow).join("");
             return `<div class="pt-node">
-              <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted">(${tree[y][c].length})</small></div>
+              <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-${esc(y)}-${esc(c)}">▸</button><span class="sh-cb-text"><strong>Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${tree[y][c].length})</small></div>
               <div class="pt-children is-collapsed" data-parent="u-${esc(y)}-${esc(c)}">${list}</div>
             </div>`;
           })
@@ -4465,7 +4465,7 @@
     if (unlinked) {
       const noLink = rows.filter((u) => !(u.linked_student_name && String(u.linked_student_name).trim()));
       html += `<div class="pt-node" style="margin-top:12px">
-        <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-nolink">▸</button><strong>Belum menautkan siswa</strong> <small class="muted">(${unlinked})</small></div>
+        <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-nolink">▸</button><span class="sh-cb-text"><strong>Belum menautkan siswa</strong></span><small class="sh-cb-count muted">(${unlinked})</small></div>
         <div class="pt-children is-collapsed" data-parent="u-nolink">${noLink.map((u) => userRow(u) + adminLinkForm(u)).join("")}</div>
       </div>`;
     }
@@ -4545,4 +4545,60 @@
 
 
   boot();
+
+  // Pembersihan data absensi lama (hemat kuota Supabase free)
+  (function bindAttPurge() {
+    function ensurePurgeBar() {
+      var host = document.querySelector("#attSessionsList") || document.querySelector("[data-att-panel]") || document.getElementById("tab-attendance");
+      if (!host) return;
+      if (document.getElementById("attPurgeBar")) return;
+      var bar = document.createElement("div");
+      bar.id = "attPurgeBar";
+      bar.className = "card";
+      bar.style.margin = "12px 0";
+      bar.innerHTML =
+        "<h3 style=\"font-size:14px;margin:0 0 8px\">Arsip & bersihkan data absensi</h3>" +
+        "<p class=\"muted\" style=\"font-size:12px;margin:0 0 8px\">Unduh CSV rekap dulu, lalu hapus <b>record kehadiran</b> sebelum tanggal ini (sesi/template tidak dihapus). Membantu kuota database gratis.</p>" +
+        "<div class=\"toolbar\" style=\"gap:8px;flex-wrap:wrap\">" +
+        "<label style=\"font-size:12px\">Hapus record sebelum <input type=\"date\" id=\"attPurgeBefore\"></label>" +
+        "<button type=\"button\" class=\"btn btn-ghost\" id=\"attPurgeBtn\">Hapus record lama</button>" +
+        "<span class=\"muted\" id=\"attPurgeStatus\" style=\"font-size:12px\"></span>" +
+        "</div>";
+      host.parentNode.insertBefore(bar, host);
+      document.getElementById("attPurgeBtn").addEventListener("click", async function () {
+        var d = document.getElementById("attPurgeBefore").value;
+        var st = document.getElementById("attPurgeStatus");
+        if (!d) {
+          st.textContent = "Pilih tanggal dulu";
+          return;
+        }
+        if (!window.GalleryDB || !GalleryDB.purgeAttendanceRecordsBefore) {
+          st.textContent = "Fungsi purge belum tersedia — deploy js/db.js terbaru";
+          return;
+        }
+        if (!(await shConfirm("Hapus semua record absensi dengan tanggal sesi/check-in sebelum " + d + "?\n\nUnduh CSV rekap terlebih dahulu jika masih dibutuhkan."))) return;
+        st.textContent = "Membersihkan…";
+        try {
+          var r = await GalleryDB.purgeAttendanceRecordsBefore(d);
+          st.textContent = "Selesai: " + (r.deleted || 0) + " record dihapus" + (r.scanned != null ? " (scan " + r.scanned + ")" : "");
+        } catch (e) {
+          st.textContent = e.message || String(e);
+        }
+      });
+    }
+    document.addEventListener("DOMContentLoaded", function () {
+      setTimeout(ensurePurgeBar, 800);
+    });
+    // juga saat tab absensi dibuka
+    var obs = setInterval(function () {
+      if (document.getElementById("attSessionsList") || document.querySelector(".att-sess-list")) {
+        ensurePurgeBar();
+      }
+    }, 2000);
+    setTimeout(function () {
+      clearInterval(obs);
+    }, 30000);
+  })();
+
+
 })();

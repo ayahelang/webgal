@@ -3789,6 +3789,43 @@
     return data || [];
   }
 
+  
+  async function purgeAttendanceRecordsBefore(beforeDate, opts) {
+    opts = opts || {};
+    const sb = client();
+    if (!sb) throw new Error("DB belum siap");
+    if (!(await isCurrentUserAdmin())) {
+      throw new Error("Hanya admin yang dapat membersihkan data absensi");
+    }
+    if (!beforeDate) throw new Error("Tanggal batas wajib (YYYY-MM-DD)");
+    let q = sb
+      .from("gallery_attendance_records")
+      .select("id, checkin_at, session_id, gallery_attendance_sessions(session_date)")
+      .limit(opts.limit || 3000);
+    if (opts.sessionId) q = q.eq("session_id", opts.sessionId);
+    const { data, error } = await q;
+    if (error) throw error;
+    const cut = String(beforeDate).slice(0, 10);
+    const ids = (data || [])
+      .filter(function (r) {
+        const sd = r.gallery_attendance_sessions && r.gallery_attendance_sessions.session_date;
+        const d = (sd || (r.checkin_at || "")).toString().slice(0, 10);
+        return d && d < cut;
+      })
+      .map(function (r) {
+        return r.id;
+      });
+    if (!ids.length) return { deleted: 0 };
+    let deleted = 0;
+    for (let i = 0; i < ids.length; i += 80) {
+      const chunk = ids.slice(i, i + 80);
+      const { error: e2 } = await sb.from("gallery_attendance_records").delete().in("id", chunk);
+      if (e2) throw e2;
+      deleted += chunk.length;
+    }
+    return { deleted: deleted, scanned: (data || []).length };
+  }
+
   async function listAttendanceRecords(filters) {
     filters = filters || {};
     const sb = client();
@@ -4677,6 +4714,7 @@
     listActiveAttendanceSessions,
     myAttendanceRecords,
     listAttendanceRecords,
+    purgeAttendanceRecordsBefore,
     listDesigns,
     bulkImportWebsites,
     bulkImportVideos,
