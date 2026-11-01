@@ -664,3 +664,113 @@ html.sh-fab-on #shTourToggle,
 html.sh-fab-on .sh-tour-toggle{
   display:none!important;visibility:hidden!important;pointer-events:none!important;
 }
+
+/* ============================================================
+   TREE ONLY — label wajib terlihat; toggle di KANAN
+   Tidak mengubah komponen non-tree
+   ============================================================ */
+.pt-row,
+.sh-cb-row.pt-row,
+.privacy-tree .pt-row,
+.sh-cb-tree .pt-row {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Toggle collaps → pojok kanan */
+.pt-row > .pt-toggle,
+.pt-row > .sh-cb-toggle,
+.privacy-tree .pt-toggle,
+.sh-cb-tree .pt-toggle,
+.sh-cb-tree .sh-cb-toggle {
+  order: 30 !important;
+  flex: 0 0 auto !important;
+  margin-left: 4px !important;
+  margin-right: 0 !important;
+  position: static !important;
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Nama / label — selalu terlihat */
+.pt-row > strong,
+.pt-row > .sh-cb-name,
+.pt-row strong.sh-cb-name,
+.pt-row .sh-cb-label,
+.pt-row .sh-cb-label .sh-cb-name,
+.pt-row .sh-cb-label strong,
+.privacy-tree .pt-row > span,
+.privacy-tree .pt-row strong,
+.privacy-tree .pt-row .pt-label {
+  order: 10 !important;
+  flex: 1 1 auto !important;
+  min-width: 3rem !important;
+  max-width: none !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  white-space: normal !important;
+  color: var(--text, #eef7fb) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  width: auto !important;
+  height: auto !important;
+  position: static !important;
+}
+
+/* Checkbox di kiri (sebelum nama), jika ada di dalam label */
+.pt-row .sh-cb-label {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  order: 10 !important;
+}
+.pt-row .sh-cb-label input[type="checkbox"] {
+  flex: 0 0 auto !important;
+  order: 0 !important;
+}
+
+/* Count di tengah-kanan, sebelum toggle */
+.pt-row > small,
+.pt-row > .sh-cb-count,
+.pt-row > .pt-count,
+.pt-row > .muted,
+.pt-row .sh-cb-label > .sh-cb-count,
+.pt-row .sh-cb-label > small {
+  order: 20 !important;
+  flex: 0 0 auto !important;
+  margin-left: 0 !important;
+  white-space: nowrap !important;
+  font-size: 12px !important;
+  color: var(--muted, #8fa7b4) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Label tree di profile (privacy) */
+.privacy-tree .pt-row {
+  padding: 6px 4px !important;
+}
+.privacy-tree .pt-toggle.leaf {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
