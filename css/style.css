@@ -774,3 +774,12 @@ html.sh-fab-on .sh-tour-toggle{
   pointer-events: none;
 }
 
+
+/* Tree: tanpa child = tanpa tombol collaps */
+.pt-toggle.leaf{display:none!important}
+.pt-row > .pt-toggle,
+.pt-row > .sh-cb-toggle{
+  display:inline-flex!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
