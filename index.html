@@ -26,8 +26,7 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
   <link rel="dns-prefetch" href="https://silverhawk.web.id">
-  <link rel="preload" href="css/style.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="css/style.css"></noscript>
+  <link rel="stylesheet" href="css/style.css">
   <link rel="preload" href="assets/favicon.svg" as="image" type="image/svg+xml">
   <link rel="preload" href="https://silverhawk.web.id/lock/lock.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://silverhawk.web.id/lock/lock.css"></noscript>
@@ -38,6 +37,8 @@
         var t = localStorage.getItem("sh_theme") || "youth";
         if (["youth","light","adult","senior"].indexOf(t) < 0) t = "youth";
         document.documentElement.setAttribute("data-theme", t);
+        document.documentElement.style.backgroundColor = c[t] || "#081018";
+        document.documentElement.style.color = (t==="light") ? "#0a1a24" : "#eef7fb";
         var c = { youth: "#081018", light: "#e8f4fc", adult: "#161d26", senior: "#242018" };
         var m = document.querySelector('meta[name="theme-color"]');
         if (m) m.setAttribute("content", c[t] || "#081018");
