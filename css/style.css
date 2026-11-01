@@ -572,3 +572,64 @@ body.sh-fab-on .sh-health-btn{
 #shFabHub.is-dragging #shFabMain{cursor:grabbing;opacity:.92}
 #shFabMain[aria-expanded="true"]{background:linear-gradient(145deg,#0d3a52,#1a8fd1);color:#e8f4fa}
 
+/* FAB: panel menempel ke tombol; main tidak loncat */
+#shFabHub{
+  position:fixed;
+  right:14px;
+  bottom:18px;
+  z-index:60;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:0;
+  pointer-events:none;
+  touch-action:none;
+  width:56px;
+  height:56px;
+}
+#shFabHub > *{pointer-events:auto}
+#shFabMain{
+  position:absolute;
+  right:0;
+  bottom:0;
+  width:52px;height:52px;border-radius:50%;
+  border:1px solid rgba(125,227,255,.45);
+  background:linear-gradient(145deg,#1a8fd1,#5ec8ff);
+  color:#041018;font-weight:800;font-size:20px;
+  box-shadow:0 8px 28px rgba(0,0,0,.45);
+  cursor:grab;
+  display:grid;place-items:center;
+  user-select:none;-webkit-user-select:none;
+  z-index:2;
+}
+#shFabMain[aria-expanded="true"]{
+  background:linear-gradient(145deg,#0d3a52,#1a8fd1);color:#e8f4fa;
+}
+#shFabHub.is-dragging #shFabMain{cursor:grabbing;opacity:.92}
+#shFabPanel{
+  position:absolute;
+  right:0;
+  bottom:60px;
+  width:min(280px,calc(100vw - 24px));
+  padding:10px;
+  border-radius:16px;
+  border:1px solid rgba(125,227,255,.3);
+  background:rgba(8,16,24,.96);
+  box-shadow:0 16px 40px rgba(0,0,0,.5);
+  display:flex;flex-direction:column;gap:8px;
+  z-index:1;
+  pointer-events:auto;
+}
+#shFabPanel[hidden]{display:none!important}
+#shFabPanel.sh-fab-panel-below{
+  bottom:auto;
+}
+.sh-fab-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sh-fab-actions .sh-fab-tour{grid-column:1/-1}
+body.sh-fab-on #shTourToggle,
+body.sh-fab-on .sh-tour-toggle{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+
