@@ -2303,6 +2303,17 @@
     }
   }
 
+  /** Tambah menit ke string jam HH:MM / HH:MM:SS → HH:MM:SS */
+  function attAddMinutes(timeStr, minutes) {
+    var base = normTime(timeStr, "00:00:00");
+    var p = base.split(":").map(function (x) { return parseInt(x, 10) || 0; });
+    var total = p[0] * 60 + p[1] + (Number(minutes) || 0);
+    total = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
+    var hh = String(Math.floor(total / 60)).padStart(2, "0");
+    var mm = String(total % 60).padStart(2, "0");
+    return hh + ":" + mm + ":00";
+  }
+
   function normTime(v, fallback) {
     const s = String(v || "").trim();
     if (!s) return fallback;
@@ -2387,10 +2398,24 @@
         subject_label: (f.querySelector("[name=subject_label]") && f.querySelector("[name=subject_label]").value) || "Social Media Marketing",
         session_date: sessionDate || null,
         weekdays,
-        checkin_start: normTime(f.querySelector("[name=checkin_start]") && f.querySelector("[name=checkin_start]").value, "07:00:00"),
-        checkin_end: normTime(f.querySelector("[name=checkin_end]") && f.querySelector("[name=checkin_end]").value, "07:15:00"),
-        checkout_start: normTime(f.querySelector("[name=checkout_start]") && f.querySelector("[name=checkout_start]").value, "08:20:00"),
-        checkout_end: normTime(f.querySelector("[name=checkout_end]") && f.querySelector("[name=checkout_end]").value, "08:40:00"),
+        checkin_start: (function () {
+          return normTime(f.querySelector("[name=checkin_start]") && f.querySelector("[name=checkin_start]").value, "07:00:00");
+        })(),
+        checkin_end: (function () {
+          var ci0 = normTime(f.querySelector("[name=checkin_start]") && f.querySelector("[name=checkin_start]").value, "07:00:00");
+          var raw = f.querySelector("[name=checkin_end]") && f.querySelector("[name=checkin_end]").value;
+          if (raw && String(raw).trim()) return normTime(raw, attAddMinutes(ci0, 10));
+          return attAddMinutes(ci0, 10); // default: 10 menit setelah awal check-in
+        })(),
+        checkout_end: (function () {
+          return normTime(f.querySelector("[name=checkout_end]") && f.querySelector("[name=checkout_end]").value, "08:40:00");
+        })(),
+        checkout_start: (function () {
+          var co1 = normTime(f.querySelector("[name=checkout_end]") && f.querySelector("[name=checkout_end]").value, "08:40:00");
+          var raw = f.querySelector("[name=checkout_start]") && f.querySelector("[name=checkout_start]").value;
+          if (raw && String(raw).trim()) return normTime(raw, attAddMinutes(co1, -10));
+          return attAddMinutes(co1, -10); // default: 10 menit sebelum akhir check-out
+        })(),
         target_years: years,
         target_classes: classes,
         target_students: targets,
@@ -2583,7 +2608,7 @@
       const startM = toMin(jamMulai);
       const endM = toMin(jamSelesai);
       if (!mapel || !day || startM == null || endM == null) continue;
-      const winIn = Number.isFinite(ciM) && ciM > 0 ? ciM : 10;
+      const winIn = (isFinite(Number(r.batas_checkin_mnt)) && Number(r.batas_checkin_mnt) > 0) ? Number(r.batas_checkin_mnt) : 10;
       const winOut = Number.isFinite(coM) && coM > 0 ? coM : 10;
       const dayNames = { 1: "Sen", 2: "Sel", 3: "Rab", 4: "Kam", 5: "Jum", 6: "Sab", 7: "Min" };
       const titleParts = [mapel, kelas ? "K" + kelas : "", dayNames[day] || "", guru].filter(Boolean);
