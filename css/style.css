@@ -333,3 +333,17 @@ small.sh-cb-count {
   to{opacity:1;transform:translateY(0)}
 }
 .admin-inline-form-host[hidden]{display:none!important}
+
+.admin-inline-form-host.is-open,
+.admin-inline-form-host:not([hidden]){
+  display:block!important;
+}
+.admin-inline-form-host[hidden]{
+  display:none!important;
+}
+.att-sess-row + .admin-inline-form-host,
+.ann-sess-row + .admin-inline-form-host,
+.admin-row + .admin-inline-form-host{
+  margin-top:8px;
+}
+
