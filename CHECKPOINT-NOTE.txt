@@ -1,0 +1,1 @@
+CHECKPOINT-GOOD UI Nov 1 2026 ~15:00 WIB — mobile header + tree OK. Next: collapsible admin forms.

@@ -259,7 +259,13 @@
           <p id="attBulkSchedMsg" class="muted" style="font-size:13px;margin-top:8px"></p>
         </details>
 
-        <form id="attSessForm" class="ann-form">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 8px;align-items:center">
+          <button type="button" class="btn btn-primary" id="attSessAddBtn">+ Tambah jadwal manual</button>
+          <span class="muted" style="font-size:12px">Form tersembunyi sampai Anda menambah atau mengedit</span>
+        </div>
+        <div id="attSessFormDock">
+        <div id="attSessFormHost" class="admin-inline-form-host" hidden>
+        <form id="attSessForm" class="ann-form admin-inline-form">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul sesi</span><input name="title" required placeholder="SMM Minggu 7 — Domain"></label>
           <label class="field"><span>Kode mapel</span>
@@ -332,6 +338,8 @@
           </div>
         </form>
         <p id="attSessMsg" class="muted" style="font-size:14px;min-height:1.4em;font-weight:600" role="status" aria-live="polite"></p>
+        </div><!-- #attSessFormHost -->
+        </div><!-- #attSessFormDock -->
         <div id="attSessList" class="admin-list" style="margin-top:12px"></div>
         <hr style="border:0;border-top:1px solid rgba(125,227,255,.12);margin:18px 0">
         <h3 style="font-size:1.05rem">Rekap kehadiran</h3>
@@ -397,7 +405,13 @@
       <section data-panel="announce" class="summary-card admin-pane" hidden>
         <h3>Pengumuman</h3>
         <p class="muted one-line-desktop" style="font-size:13px;margin:0 0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Splash bisa ditutup · atur audiens, jadwal, dan konten (teks, link, gambar).</p>
-        <form id="annForm" class="ann-form" method="post" action="javascript:void(0)" onsubmit="return false;">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;align-items:center">
+          <button type="button" class="btn btn-primary" id="annAddBtn">+ Buat pengumuman</button>
+          <span class="muted" style="font-size:12px">Form hanya muncul saat buat / ubah</span>
+        </div>
+        <div id="annFormDock">
+        <div id="annFormHost" class="admin-inline-form-host" hidden>
+        <form id="annForm" class="ann-form admin-inline-form" method="post" action="javascript:void(0)" onsubmit="return false;">
           <input type="hidden" name="id" value="">
           <label class="field"><span>Judul</span><input name="title" required placeholder="Judul pengumuman"></label>
           <div class="field ann-body-field" style="grid-column:1/-1;text-align:left">
@@ -474,6 +488,9 @@
           </div>
         </form>
         <p id="annStatus" class="muted" style="font-size:13px"></p>
+        </div><!-- #annFormHost -->
+        </div><!-- #annFormDock -->
+
         <label class="field admin-search-wrap" style="margin:12px 0 8px">
           <span>Cari di list</span>
           <input type="search" id="annSearch" class="admin-list-search" placeholder="Cari judul pengumuman…" autocomplete="off">
