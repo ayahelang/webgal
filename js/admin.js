@@ -352,6 +352,137 @@
       }, 450);
     } catch (e) {}
   }
+  
+  /* ===== Collapsible admin forms (absensi + pengumuman) ===== */
+  function attFormHost() {
+    return document.getElementById("attSessFormHost");
+  }
+  function attFormDock() {
+    return document.getElementById("attSessFormDock");
+  }
+  function resetAttendanceFormFields() {
+    const f = document.getElementById("attSessForm");
+    if (!f) return;
+    try {
+      f.reset();
+    } catch (e) {}
+    const id = f.querySelector("[name=id]");
+    if (id) id.value = "";
+    const msg = document.getElementById("attSessMsg");
+    if (msg) {
+      msg.textContent = "";
+      msg.style.color = "";
+    }
+    try {
+      if (typeof buildStudentCheckTree === "function") buildStudentCheckTree("#attStudentTree");
+    } catch (e2) {}
+  }
+  function hideAttendanceForm() {
+    const host = attFormHost();
+    const dock = attFormDock();
+    if (host && dock && host.parentNode !== dock) dock.appendChild(host);
+    if (host) host.hidden = true;
+    resetAttendanceFormFields();
+  }
+  function showAttendanceFormCreate() {
+    const host = attFormHost();
+    const dock = attFormDock();
+    if (!host) return;
+    if (dock) dock.appendChild(host);
+    resetAttendanceFormFields();
+    host.hidden = false;
+    try {
+      host.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (e) {}
+    const t = host.querySelector("[name=title]");
+    if (t) setTimeout(function () {
+      try {
+        t.focus();
+      } catch (e) {}
+    }, 100);
+  }
+  function showAttendanceFormEdit(anchorEl) {
+    const host = attFormHost();
+    if (!host) return;
+    if (anchorEl && anchorEl.parentNode) {
+      anchorEl.insertAdjacentElement("afterend", host);
+    } else {
+      const dock = attFormDock();
+      if (dock) dock.appendChild(host);
+    }
+    host.hidden = false;
+    try {
+      host.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (e) {}
+  }
+
+  function annFormHost() {
+    return document.getElementById("annFormHost");
+  }
+  function annFormDock() {
+    return document.getElementById("annFormDock");
+  }
+  function resetAnnouncementFormFields() {
+    const f = document.getElementById("annForm");
+    if (!f) return;
+    try {
+      f.reset();
+    } catch (e) {}
+    const id = f.querySelector("[name=id]");
+    if (id) id.value = "";
+    const ed = document.getElementById("annEditor");
+    if (ed) ed.innerHTML = "";
+    const st = document.getElementById("annStatus");
+    if (st) st.textContent = "";
+    const tree = document.getElementById("annStudentTree");
+    if (tree) tree.classList.add("is-collapsed");
+    try {
+      if (typeof setAnnScheduleDays === "function") setAnnScheduleDays(f, []);
+    } catch (e2) {}
+    try {
+      if (typeof clearAnnVoiceSlot === "function") clearAnnVoiceSlot();
+    } catch (e3) {}
+  }
+  function hideAnnouncementForm() {
+    const host = annFormHost();
+    const dock = annFormDock();
+    if (host && dock && host.parentNode !== dock) dock.appendChild(host);
+    if (host) host.hidden = true;
+    resetAnnouncementFormFields();
+  }
+  function showAnnouncementFormCreate() {
+    const host = annFormHost();
+    const dock = annFormDock();
+    if (!host) return;
+    if (dock) dock.appendChild(host);
+    resetAnnouncementFormFields();
+    host.hidden = false;
+    try {
+      host.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (e) {}
+    const t = host.querySelector("[name=title]");
+    if (t) setTimeout(function () {
+      try {
+        t.focus();
+      } catch (e) {}
+    }, 100);
+  }
+  function showAnnouncementFormEdit(anchorEl) {
+    const host = annFormHost();
+    if (!host) return;
+    if (anchorEl && anchorEl.parentNode) {
+      anchorEl.insertAdjacentElement("afterend", host);
+    } else {
+      const dock = annFormDock();
+      if (dock) dock.appendChild(host);
+    }
+    host.hidden = false;
+    try {
+      host.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (e) {}
+  }
+
+
   function collapseTreeParents(root, depthKeepOpen) {
     if (!root) return;
     depthKeepOpen = depthKeepOpen || 0;
@@ -785,7 +916,8 @@
         b.addEventListener("click", async () => {
           if (!(await shConfirm("Hapus pengumuman?"))) return;
           await GalleryDB.deleteAnnouncement(b.dataset.delAnn);
-          await refreshAnnouncements();
+          hideAnnouncementForm();
+        await refreshAnnouncements();
         })
       );
 
@@ -793,6 +925,7 @@
         b.addEventListener("click", () => {
           const r = rows.find((x) => String(x.id) === String(b.dataset.dupAnn));
           if (!r) return;
+          const rowEl = b.closest(".admin-list-item, .ann-card, .summary-card, li, article") || b.parentElement;
           const f = $("#annForm");
 
           if (!f) return;
@@ -843,7 +976,7 @@
           if (box) box.style.display = alarmOn ? "grid" : "none";
           f.querySelector("[name=active]").checked = r.active !== false;
           $("#annStatus").textContent = "Mode duplikat — periksa setelan, lalu klik Simpan untuk membuat salinan.";
-          scrollToForm("#annForm");
+          showAnnouncementFormEdit(typeof rowEl !== "undefined" ? rowEl : null);
         })
       );
 
@@ -922,7 +1055,7 @@
           if (box) box.style.display = alarmOn ? "grid" : "none";
           f.querySelector("[name=active]").checked = r.active !== false;
           $("#annStatus").textContent = "Mode ubah — periksa setelan, lalu klik Simpan jika sudah yakin.";
-          scrollToForm("#annForm");
+          showAnnouncementFormEdit(typeof rowEl !== "undefined" ? rowEl : null);
         })
       );
     } catch (e) {
@@ -1217,14 +1350,16 @@
     const btnReset = $("#annReset");
     if (btnReset)
       btnReset.onclick = () => {
-        f.reset();
-        f.querySelector("[name=id]").value = "";
-        $("#annEditor").innerHTML = "";
-        $("#annStatus").textContent = "";
-        $("#annStudentTree").classList.add("is-collapsed");
-        setAnnScheduleDays(f, []);
-        if (typeof clearAnnVoiceSlot === "function") clearAnnVoiceSlot();
+        hideAnnouncementForm();
       };
+    (function bindAnnAddBtn() {
+      const b = document.getElementById("annAddBtn");
+      if (!b || b.dataset.bound) return;
+      b.dataset.bound = "1";
+      b.addEventListener("click", function () {
+        showAnnouncementFormCreate();
+      });
+    })();
     function buildAnnPreviewPayload() {
       const html =
         typeof buildAnnBodyHtml === "function"
@@ -2158,8 +2293,8 @@
         : "Mode edit: " + (r.title || "");
     }
     Promise.resolve(buildStudentCheckTree("#attStudentTree", { selected: r.target_students || [] }))
-      .then(() => scrollToForm("#attSessForm"))
-      .catch(() => scrollToForm("#attSessForm"));
+      .then(() => {})
+      .catch(() => {});
   }
 
   async function refreshAttendance() {
@@ -2220,14 +2355,18 @@
         b.addEventListener("click", () => {
           const r = rows.find((x) => String(x.id) === String(b.dataset.editAtt));
           if (!r) return;
+          const rowEl = b.closest(".admin-list-item, .att-sess-card, .summary-card, li, article") || b.parentElement;
           fillAttendanceForm(r, { asDuplicate: false });
+          showAttendanceFormEdit(rowEl);
         })
       );
       $$("#attSessList [data-dup-att]").forEach((b) =>
         b.addEventListener("click", () => {
           const r = rows.find((x) => String(x.id) === String(b.dataset.dupAtt));
           if (!r) return;
+          const rowElDup = b.closest(".admin-list-item, .att-sess-card, .summary-card, li, article") || b.parentElement;
           fillAttendanceForm(r, { asDuplicate: true });
+          showAttendanceFormEdit(rowElDup);
         })
       );
       $$("#attSessList [data-att-stats]").forEach((b) =>
@@ -2461,7 +2600,8 @@
         }
         f.querySelector("[name=id]").value = "";
         if (titleEl) titleEl.value = "";
-        await refreshAttendance();
+        hideAttendanceForm();
+      await refreshAttendance();
       } catch (e) {
         console.error("upsertAttendanceSession", e);
         const detail = (e && (e.message || e.details || e.hint || e.code)) || String(e);
@@ -2475,13 +2615,18 @@
         save.textContent = prevLabel;
       }
     });
-    $("#attSessReset") &&
+        $("#attSessReset") &&
       ($("#attSessReset").onclick = () => {
-        $("#attSessForm").reset();
-        $("#attSessForm [name=id]").value = "";
-        const msg = $("#attSessMsg");
-        if (msg) { msg.style.color = ""; msg.textContent = ""; }
+        hideAttendanceForm();
       });
+    (function bindAttAddBtn() {
+      const b = document.getElementById("attSessAddBtn");
+      if (!b || b.dataset.bound) return;
+      b.dataset.bound = "1";
+      b.addEventListener("click", function () {
+        showAttendanceFormCreate();
+      });
+    })();
     $("#attRecLoad") &&
       ($("#attRecLoad").onclick = async () => {
         const host = $("#attRecList");
