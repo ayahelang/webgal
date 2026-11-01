@@ -2403,30 +2403,66 @@
               const ci = esc(String(r.checkin_start || "").slice(0, 5)) + "–" + esc(String(r.checkin_end || "").slice(0, 5));
               const co = esc(String(r.checkout_start || "").slice(0, 5)) + "–" + esc(String(r.checkout_end || "").slice(0, 5));
               return `<div class="admin-row ann-sess-row att-sess-row" data-att-id="${r.id}">
-              <div class="ann-sess-top att-sess-top">
+              <div class="att-sess-head">
                 <div class="ann-sess-title">
                   <strong>${esc(r.title || "Sesi absensi")}</strong>
                   <small class="muted"> · ${r.active === false ? "nonaktif" : "aktif"}${r.allow_late ? " · izin terlambat" : ""}</small>
                   <span class="att-sess-creator">Dibuat oleh: ${esc(creator)}</span>
                 </div>
-                <div class="att-sess-times" title="Jendela absensi">
-                  <div class="att-time-line"><span class="att-time-lab">Check-in</span> <span>${ci}</span></div>
-                  <div class="att-time-line"><span class="att-time-lab">Check-out</span> <span>${co}</span></div>
+                <div class="att-sess-menu-wrap">
+                  <button type="button" class="att-menu-btn" data-att-menu="${r.id}" aria-label="Menu aksi" aria-expanded="false" title="Menu">⋮</button>
+                  <div class="att-menu-pop" id="attMenu-${r.id}" hidden role="menu">
+                    <button type="button" role="menuitem" class="att-menu-item" data-att-stats="${r.id}">Statistik</button>
+                    <button type="button" role="menuitem" class="att-menu-item" data-att-info="${r.id}">Info</button>
+                    <button type="button" role="menuitem" class="att-menu-item" data-att-dl="${r.id}">Unduh CSV</button>
+                    <button type="button" role="menuitem" class="att-menu-item" data-edit-att="${r.id}">Ubah</button>
+                    <button type="button" role="menuitem" class="att-menu-item" data-dup-att="${r.id}">Duplikat</button>
+                    <button type="button" role="menuitem" class="att-menu-item att-menu-danger" data-del-att="${r.id}">Hapus</button>
+                  </div>
                 </div>
-                <div class="ann-sess-actions att-sess-actions">
-                  <button type="button" class="btn btn-ghost btn-xs" data-att-stats="${r.id}">Statistik ▾</button>
-                  <button type="button" class="btn btn-ghost btn-xs" data-att-info="${r.id}">Info</button>
-                  <button type="button" class="btn btn-ghost btn-xs" data-att-dl="${r.id}">Unduh CSV</button>
-                  <button type="button" data-edit-att="${r.id}">Ubah</button>
-                  <button type="button" data-dup-att="${r.id}">Duplikat</button>
-                  <button type="button" data-del-att="${r.id}">Hapus</button>
-                </div>
+              </div>
+              <div class="att-sess-times" title="Jendela absensi">
+                <div class="att-time-line"><span class="att-time-lab">Check-in</span> <span>${ci}</span></div>
+                <div class="att-time-line"><span class="att-time-lab">Check-out</span> <span>${co}</span></div>
               </div>
               <div class="ann-sess-detail" id="attDetail-${r.id}" hidden></div>
             </div>`;
             }
           )
           .join("") || "<p class='muted'>Belum ada sesi absensi.</p>";
+
+      // Menu ⋮ per item
+      function closeAllAttMenus(exceptId) {
+        document.querySelectorAll("#attSessList .att-menu-pop").forEach(function (p) {
+          if (exceptId && p.id === "attMenu-" + exceptId) return;
+          p.hidden = true;
+        });
+        document.querySelectorAll("#attSessList .att-menu-btn").forEach(function (btn) {
+          if (exceptId && btn.getAttribute("data-att-menu") === String(exceptId)) return;
+          btn.setAttribute("aria-expanded", "false");
+        });
+      }
+      $$("#attSessList [data-att-menu]").forEach((b) =>
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const id = b.getAttribute("data-att-menu");
+          const pop = document.getElementById("attMenu-" + id);
+          if (!pop) return;
+          const open = pop.hidden;
+          closeAllAttMenus(open ? id : null);
+          pop.hidden = !open;
+          b.setAttribute("aria-expanded", open ? "true" : "false");
+        })
+      );
+      // Tutup menu setelah pilih aksi
+      $$("#attSessList .att-menu-item").forEach((b) =>
+        b.addEventListener("click", () => {
+          setTimeout(function () {
+            closeAllAttMenus(null);
+          }, 50);
+        })
+      );
 
       $$("#attSessList [data-del-att]").forEach((b) =>
         b.addEventListener("click", async () => {
@@ -4911,3 +4947,17 @@
     },
     false
   );
+
+  // Tutup menu absensi jika klik di luar
+  if (!window.__attMenuOutsideBound) {
+    window.__attMenuOutsideBound = true;
+    document.addEventListener("click", function (ev) {
+      if (ev.target.closest && ev.target.closest(".att-sess-menu-wrap")) return;
+      document.querySelectorAll("#attSessList .att-menu-pop").forEach(function (p) {
+        p.hidden = true;
+      });
+      document.querySelectorAll("#attSessList .att-menu-btn").forEach(function (btn) {
+        btn.setAttribute("aria-expanded", "false");
+      });
+    });
+  }
