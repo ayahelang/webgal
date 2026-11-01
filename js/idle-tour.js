@@ -205,6 +205,9 @@
     btn.textContent = enabled ? "Auto-scroll: ON" : "Auto-scroll: OFF";
     btn.title = "Start / stop auto-scroll idle tour";
     btn.onclick = () => setEnabled(!enabled);
+    // Disembunyikan lewat CSS body.sh-fab-on — kontrol digabung ke FAB
+    btn.setAttribute("aria-hidden", "true");
+    btn.style.display = "none";
     document.body.appendChild(btn);
   }
   const opts = { capture: true, passive: true };

@@ -118,8 +118,16 @@
       }
 
       function tick() {
-        if (paused || userActive || prefersReduce()) {
+        var holdUntil = 0;
+        try {
+          holdUntil = parseInt(nav.dataset.shNavUserUntil || "0", 10) || 0;
+        } catch (e) {}
+        if (paused || userActive || prefersReduce() || Date.now() < holdUntil) {
           raf = 0;
+          // tetap jadwalkan ulang jika hanya pause user
+          if (!paused && !userActive && !prefersReduce() && Date.now() < holdUntil) {
+            scheduleIdle();
+          }
           return;
         }
         var max = maxScroll();
@@ -321,17 +329,40 @@
 
 /* Saat tab/menu diklik, pastikan tombol tetap kelihatan di viewport (mobile) */
 (function () {
+  function ensureItemInNavView(nav, a) {
+    if (!nav || !a) return;
+    try {
+      var nr = nav.getBoundingClientRect();
+      var ar = a.getBoundingClientRect();
+      var pad = 12;
+      if (ar.left < nr.left + pad) {
+        nav.scrollLeft -= nr.left + pad - ar.left;
+      } else if (ar.right > nr.right - pad) {
+        nav.scrollLeft += ar.right - (nr.right - pad);
+      }
+    } catch (e) {}
+  }
   function bindNavFocus(root) {
     if (!root || root.dataset.navFocusBound) return;
     root.dataset.navFocusBound = "1";
     root.addEventListener("click", function (ev) {
       var a = ev.target.closest("a, button, [role='tab']");
       if (!a || !root.contains(a)) return;
+      // Jangan biarkan item hilang ke kanan/kiri setelah klik
+      ensureItemInNavView(root, a);
+      requestAnimationFrame(function () {
+        ensureItemInNavView(root, a);
+      });
+      setTimeout(function () {
+        ensureItemInNavView(root, a);
+      }, 50);
+      setTimeout(function () {
+        ensureItemInNavView(root, a);
+      }, 200);
+      // Pause auto-scroll horizontal lebih lama setelah interaksi
       try {
-        a.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-      } catch (e) {
-        try { a.scrollIntoView(true); } catch (e2) {}
-      }
+        root.dataset.shNavUserUntil = String(Date.now() + 12000);
+      } catch (e) {}
     }, true);
   }
   function scan() {
