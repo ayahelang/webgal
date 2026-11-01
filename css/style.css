@@ -846,3 +846,26 @@ html.sh-fab-on .sh-tour-toggle{
 .sh-select-opt:hover,.sh-select-opt.is-selected{
   background:rgba(26,143,209,.22);
 }
+
+/* Tree checkbox tri-state: biru = full, abu-abu = partial */
+.sh-cb-tree input[type="checkbox"][data-sh-cb],
+.pt-node input[type="checkbox"][data-sh-cb],
+input[type="checkbox"][data-sh-cb="group"],
+input[type="checkbox"][data-sh-cb="leaf"]{
+  width:1.05rem;
+  height:1.05rem;
+  min-width:1.05rem;
+  accent-color:#1a8fd1;
+  cursor:pointer;
+  flex-shrink:0;
+}
+input[type="checkbox"][data-sh-cb]:checked{
+  accent-color:#1a8fd1;
+}
+input[type="checkbox"][data-sh-cb]:indeterminate{
+  accent-color:#8b9bab !important;
+}
+/* fallback visual for indeterminate (WebKit) */
+input[type="checkbox"][data-sh-cb]:indeterminate{
+  background-color:#8b9bab;
+}
