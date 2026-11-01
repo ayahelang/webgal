@@ -350,7 +350,7 @@
       return `<div class="pt-node" data-id="${id}">
         <div class="pt-row">
           <label class="pt-label"><input type="checkbox" data-key="${opts.key}" ${checked}> <span class="pt-label-text">${label}</span></label>
-          <button type="button" class="pt-toggle ${hasKids ? "" : "leaf"}" data-toggle="${id}" aria-label="lipat">${hasKids ? "▾" : "•"}</button>
+          ${hasKids ? `<button type="button" class="pt-toggle" data-toggle="${id}" aria-label="lipat">▾</button>` : ""}
         </div>${kids}</div>`;
     }
 

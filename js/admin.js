@@ -3617,19 +3617,19 @@
                     })
                     .join("");
                   return `<div class="pt-node">
-                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}">▸</button><strong>Kelas ${esc(c)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y][c])})</small></div>
+                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}">▸</button><strong class="sh-cb-name">Kelas ${esc(c)}</strong><small class="sh-cb-count">(${countDeep(root[cat][y][c])})</small></div>
                     <div class="pt-children is-collapsed" data-parent="v-${esc(cat)}-${esc(y)}-${esc(c)}">${nHtml}</div>
                   </div>`;
                 })
                 .join("");
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted pt-count">(${countDeep(root[cat][y])})</small></div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}">▸</button><strong class="sh-cb-name">Angkatan ${esc(y)}</strong><small class="sh-cb-count">(${countDeep(root[cat][y])})</small></div>
                 <div class="pt-children is-collapsed" data-parent="v-${esc(cat)}-${esc(y)}">${cHtml}</div>
               </div>`;
             })
             .join("");
           return `<div class="pt-node" style="margin-bottom:12px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-cat-${esc(cat)}">▸</button><strong>${esc(cat)}</strong> <small class="muted pt-count">(${countDeep(root[cat])})</small></div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-cat-${esc(cat)}">▸</button><strong class="sh-cb-name">${esc(cat)}</strong><small class="sh-cb-count">(${countDeep(root[cat])})</small></div>
             <div class="pt-children is-collapsed" data-parent="v-cat-${esc(cat)}">${yHtml}</div>
           </div>`;
         })
@@ -4028,19 +4028,16 @@
       const st = statusLabel(a);
       const school = a.school ? " · " + esc(a.school) : "";
       const search = [a.name, a.class_code, y, a.role, a.school, st].filter(Boolean).join(" ");
-      return `<label class="admin-row user-leaf" data-search-row data-search="${esc(search)}" style="cursor:default">
-        <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
-          <input type="checkbox" data-sh-cb="leaf" data-user-id="${a.id}">
-          <div style="min-width:0">
-            <strong>${esc(a.name)}</strong>
-            <br><small class="muted">${esc(st)}${a.class_code ? " · Kelas " + esc(a.class_code) : ""}${y ? " · " + esc(y) : ""}${school}</small>
-          </div>
+      return `<div class="admin-row user-leaf" data-search-row data-search="${esc(search)}">
+        <div style="min-width:0;flex:1">
+          <strong>${esc(a.name)}</strong>
+          <br><small class="muted">${esc(st)}${a.class_code ? " · Kelas " + esc(a.class_code) : ""}${y ? " · " + esc(y) : ""}${school}</small>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
           <button type="button" data-edit-al="${a.id}">Ubah</button>
           <button type="button" data-del-al="${a.id}">Hapus</button>
         </div>
-      </label>`;
+      </div>`;
     }
 
     function classBranch(y, c, list) {
@@ -4051,11 +4048,12 @@
         .map(leafRow)
         .join("");
       return `<div class="pt-node">
-        <div class="pt-row sh-stu-row">
-          <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▸</button>
-          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><strong class="sh-cb-name">Kelas ${esc(c)}</strong><small class="sh-cb-count">(${list.length})</small></label>
+        <div class="pt-row">
+          <button type="button" class="pt-toggle" data-t="${esc(id)}">▸</button>
+          <strong class="sh-cb-name">Kelas ${esc(c)}</strong>
+          <small class="sh-cb-count">(${list.length})</small>
         </div>
-        <div class="pt-children is-collapsed" data-sh-children data-parent="${esc(id)}">${rows}</div>
+        <div class="pt-children is-collapsed" data-parent="${esc(id)}">${rows}</div>
       </div>`;
     }
 
@@ -4065,11 +4063,12 @@
       const id = "al-y-" + y;
       const cHtml = classes.map((c) => classBranch(y, c, classesObj[c])).join("");
       return `<div class="pt-node" style="margin-bottom:10px">
-        <div class="pt-row sh-stu-row">
-          <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▾</button>
-          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><strong class="sh-cb-name">Angkatan ${esc(y)}</strong><small class="sh-cb-count">(${total})</small></label>
+        <div class="pt-row">
+          <button type="button" class="pt-toggle" data-t="${esc(id)}">▾</button>
+          <strong class="sh-cb-name">Angkatan ${esc(y)}</strong>
+          <small class="sh-cb-count">(${total})</small>
         </div>
-        <div class="pt-children" data-sh-children data-parent="${esc(id)}">${cHtml}</div>
+        <div class="pt-children" data-parent="${esc(id)}">${cHtml}</div>
       </div>`;
     }
 
@@ -4085,11 +4084,12 @@
         .map(leafRow)
         .join("");
       html += `<div class="pt-node" style="margin-bottom:10px">
-        <div class="pt-row sh-stu-row">
-          <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▾</button>
-          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><strong class="sh-cb-name">Pengajar</strong><small class="sh-cb-count">(${pengajar.length})</small></label>
+        <div class="pt-row">
+          <button type="button" class="pt-toggle" data-t="${esc(id)}">▾</button>
+          <strong class="sh-cb-name">Pengajar</strong>
+          <small class="sh-cb-count">(${pengajar.length})</small>
         </div>
-        <div class="pt-children" data-sh-children data-parent="${esc(id)}">${rows}</div>
+        <div class="pt-children" data-parent="${esc(id)}">${rows}</div>
       </div>`;
     }
 
@@ -4110,7 +4110,7 @@
       html += `<div class="pt-node" style="margin-bottom:10px">
         <div class="pt-row sh-stu-row">
           <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▾</button>
-          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><strong class="sh-cb-name">Tanpa angkatan</strong><small class="sh-cb-count">(${noYear.length})</small></label>
+          <strong class="sh-cb-name">Tanpa angkatan</strong><small class="sh-cb-count">(${noYear.length})</small>
         </div>
         <div class="pt-children" data-sh-children data-parent="${esc(id)}">${rows}</div>
       </div>`;
@@ -4801,7 +4801,7 @@
           })
           .join("");
         return `<div class="pt-node" style="margin-bottom:10px">
-          <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-y-${esc(y)}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${Object.values(tree[y]).reduce((n,arr)=>n+arr.length,0)})</small></div>
+          <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-y-${esc(y)}">▸</button><strong class="sh-cb-name">Angkatan ${esc(y)}</strong><small class="sh-cb-count">(${Object.values(tree[y]).reduce((n,arr)=>n+arr.length,0)})</small></div>
           <div class="pt-children is-collapsed" data-parent="u-y-${esc(y)}">${cHtml}</div>
         </div>`;
       })
