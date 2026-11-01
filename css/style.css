@@ -535,3 +535,24 @@ body.sh-fab-on .sh-health-btn{
 @media (min-width:901px){
   /* desktop: hub tetap, hemat area */
 }
+
+/* FAB aktif: jangan tampilkan theme floating ganda + floater lama di SEMUA halaman */
+body.sh-fab-on .theme-toggle,
+body.sh-fab-on #themeToggle,
+body.sh-fab-on button.theme-toggle{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+  opacity:0!important;
+  position:fixed!important;
+  left:-9999px!important;
+}
+body.sh-fab-on #sh-share-bar,
+body.sh-fab-on #sh-float-stats,
+body.sh-fab-on #shHealthBtn,
+body.sh-fab-on .sh-health-btn{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+
