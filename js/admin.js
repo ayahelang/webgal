@@ -377,40 +377,85 @@
       if (typeof buildStudentCheckTree === "function") buildStudentCheckTree("#attStudentTree");
     } catch (e2) {}
   }
+  function revealFormHost(host) {
+    if (!host) return;
+    host.hidden = false;
+    try {
+      host.removeAttribute("hidden");
+    } catch (e) {}
+    host.style.display = "block";
+    host.classList.add("is-open");
+  }
+  function concealFormHost(host) {
+    if (!host) return;
+    host.hidden = true;
+    try {
+      host.setAttribute("hidden", "");
+    } catch (e) {}
+    host.style.display = "none";
+    host.classList.remove("is-open");
+  }
   function hideAttendanceForm() {
     const host = attFormHost();
     const dock = attFormDock();
-    if (host && dock && host.parentNode !== dock) dock.appendChild(host);
-    if (host) host.hidden = true;
+    if (host && dock && host.parentNode !== dock) {
+      try {
+        dock.appendChild(host);
+      } catch (e) {}
+    }
+    concealFormHost(host);
     resetAttendanceFormFields();
   }
   function showAttendanceFormCreate() {
     const host = attFormHost();
     const dock = attFormDock();
-    if (!host) return;
-    if (dock) dock.appendChild(host);
+    if (!host) {
+      console.warn("[att] form host #attSessFormHost tidak ada — upload admin.html terbaru");
+      try {
+        if (typeof shAlert === "function") shAlert("Form absensi belum siap. Pastikan admin.html terbaru ter-upload.");
+      } catch (e) {}
+      return;
+    }
+    if (dock) {
+      try {
+        dock.appendChild(host);
+      } catch (e) {}
+    }
     resetAttendanceFormFields();
-    host.hidden = false;
+    revealFormHost(host);
     try {
       host.scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (e) {}
     const t = host.querySelector("[name=title]");
-    if (t) setTimeout(function () {
-      try {
-        t.focus();
-      } catch (e) {}
-    }, 100);
+    if (t)
+      setTimeout(function () {
+        try {
+          t.focus();
+        } catch (e) {}
+      }, 120);
   }
   function showAttendanceFormEdit(anchorEl) {
     const host = attFormHost();
-    if (!host) return;
-    if (anchorEl && anchorEl.parentNode) {
-      anchorEl.insertAdjacentElement("afterend", host);
+    if (!host) {
+      console.warn("[att] form host missing");
+      return;
+    }
+    var row = anchorEl;
+    if (row && row.closest) {
+      row = row.closest(".att-sess-row, .admin-row, .ann-sess-row") || anchorEl;
+    }
+    if (row && row.parentNode) {
+      try {
+        row.insertAdjacentElement("afterend", host);
+      } catch (e) {
+        const dock = attFormDock();
+        if (dock) dock.appendChild(host);
+      }
     } else {
       const dock = attFormDock();
       if (dock) dock.appendChild(host);
     }
-    host.hidden = false;
+    revealFormHost(host);
     try {
       host.scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (e) {}
@@ -446,17 +491,25 @@
   function hideAnnouncementForm() {
     const host = annFormHost();
     const dock = annFormDock();
-    if (host && dock && host.parentNode !== dock) dock.appendChild(host);
-    if (host) host.hidden = true;
+    if (host && dock && host.parentNode !== dock) {
+      try {
+        dock.appendChild(host);
+      } catch (e) {}
+    }
+    concealFormHost(host);
     resetAnnouncementFormFields();
   }
   function showAnnouncementFormCreate() {
     const host = annFormHost();
     const dock = annFormDock();
     if (!host) return;
-    if (dock) dock.appendChild(host);
+    if (dock) {
+      try {
+        dock.appendChild(host);
+      } catch (e) {}
+    }
     resetAnnouncementFormFields();
-    host.hidden = false;
+    revealFormHost(host);
     try {
       host.scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (e) {}
@@ -470,13 +523,19 @@
   function showAnnouncementFormEdit(anchorEl) {
     const host = annFormHost();
     if (!host) return;
-    if (anchorEl && anchorEl.parentNode) {
-      anchorEl.insertAdjacentElement("afterend", host);
+    var row = anchorEl && anchorEl.closest ? anchorEl.closest(".ann-sess-row, .admin-row, .att-sess-row, [data-ann-id]") || anchorEl : anchorEl;
+    if (row && row.parentNode) {
+      try {
+        row.insertAdjacentElement("afterend", host);
+      } catch (e) {
+        const dock = annFormDock();
+        if (dock) dock.appendChild(host);
+      }
     } else {
       const dock = annFormDock();
       if (dock) dock.appendChild(host);
     }
-    host.hidden = false;
+    revealFormHost(host);
     try {
       host.scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (e) {}
@@ -2355,7 +2414,7 @@
         b.addEventListener("click", () => {
           const r = rows.find((x) => String(x.id) === String(b.dataset.editAtt));
           if (!r) return;
-          const rowEl = b.closest(".admin-list-item, .att-sess-card, .summary-card, li, article") || b.parentElement;
+          const rowEl = b.closest(".att-sess-row, .admin-row, .ann-sess-row, .admin-list-item") || b.closest("[data-att-id]") || b.parentElement;
           fillAttendanceForm(r, { asDuplicate: false });
           showAttendanceFormEdit(rowEl);
         })
@@ -2364,7 +2423,7 @@
         b.addEventListener("click", () => {
           const r = rows.find((x) => String(x.id) === String(b.dataset.dupAtt));
           if (!r) return;
-          const rowElDup = b.closest(".admin-list-item, .att-sess-card, .summary-card, li, article") || b.parentElement;
+          const rowElDup = b.closest(".att-sess-row, .admin-row, .ann-sess-row, .admin-list-item") || b.closest("[data-att-id]") || b.parentElement;
           fillAttendanceForm(r, { asDuplicate: true });
           showAttendanceFormEdit(rowElDup);
         })
@@ -2483,6 +2542,18 @@
       master.addEventListener("change", syncTreeVis);
       syncTreeVis();
     }
+    // Tombol + jadwal manual — selalu di-bind (terpisah dari save)
+    (function bindAttAddBtnAlways() {
+      const b = document.getElementById("attSessAddBtn");
+      if (!b) return;
+      if (b.dataset.bound === "1") return;
+      b.dataset.bound = "1";
+      b.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        showAttendanceFormCreate();
+      });
+    })();
     const save = $("#attSessSave");
     if (!save) return;
     if (save.dataset.boundAttSave === "1") return;
@@ -3015,7 +3086,20 @@
             }
           }).catch(console.warn);
         }
-        if (tab === "attendance") { refreshAttendance().catch(console.warn); buildStudentCheckTree("#attStudentTree"); }
+        if (tab === "attendance") {
+          refreshAttendance().catch(console.warn);
+          buildStudentCheckTree("#attStudentTree");
+          try {
+            var bAdd = document.getElementById("attSessAddBtn");
+            if (bAdd && bAdd.dataset.bound !== "1") {
+              bAdd.dataset.bound = "1";
+              bAdd.addEventListener("click", function (e) {
+                e.preventDefault();
+                showAttendanceFormCreate();
+              });
+            }
+          } catch (_e) {}
+        }
       })
     );
 
@@ -4747,3 +4831,32 @@
 
 
 })();
+  // Delegasi klik global — jaga-jaga jika bindAttendanceAdmin belum jalan
+  document.addEventListener(
+    "click",
+    function (ev) {
+      var t = ev.target && ev.target.closest && ev.target.closest("#attSessAddBtn");
+      if (!t) return;
+      ev.preventDefault();
+      try {
+        showAttendanceFormCreate();
+      } catch (e) {
+        console.warn(e);
+      }
+    },
+    false
+  );
+  document.addEventListener(
+    "click",
+    function (ev) {
+      var t = ev.target && ev.target.closest && ev.target.closest("#annAddBtn");
+      if (!t) return;
+      ev.preventDefault();
+      try {
+        showAnnouncementFormCreate();
+      } catch (e) {
+        console.warn(e);
+      }
+    },
+    false
+  );
