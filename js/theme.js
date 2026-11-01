@@ -1,4 +1,22 @@
 (function () {
+  /* Sembunyikan floater lama SEBELUM paint — cegah kedip sebelum FAB */
+  try {
+    var css =
+      "#themeToggle,.theme-toggle,#sh-share-bar,#sh-float-stats,#shHealthBtn,.sh-health-btn,#shTourToggle,.sh-tour-toggle{display:none!important;visibility:hidden!important;pointer-events:none!important;opacity:0!important;position:fixed!important;left:-9999px!important;width:0!important;height:0!important;overflow:hidden!important}";
+    var s = document.createElement("style");
+    s.setAttribute("data-sh-hide-floaters", "1");
+    s.textContent = css;
+    (document.head || document.documentElement).appendChild(s);
+    document.documentElement.classList.add("sh-fab-on");
+    if (document.body) document.body.classList.add("sh-fab-on");
+    else
+      document.addEventListener("DOMContentLoaded", function () {
+        document.body.classList.add("sh-fab-on");
+      });
+  } catch (e) {}
+})();
+
+(function () {
   var KEY = "sh_theme";
   var ORDER = ["youth", "light", "adult", "senior"];
   var LABEL = { youth: "Tema Muda", light: "Tema Terang", adult: "Tema Dewasa", senior: "Tema Lansia" };
