@@ -3634,6 +3634,8 @@
           </div>`;
         })
         .join("") || "<p class='muted'>Belum ada video.</p>";
+    collapseTreeParents($("#vidList"));
+    shTreeNormalizeRows($("#vidList"));
     treeToggleBind($("#vidList"));
     bindListSearch("#vidSearch", "#vidList");
     $$("#vidList [data-del-vid]").forEach((b) =>
@@ -3915,6 +3917,8 @@
           </div>`;
         })
         .join("") || "<p class='muted'>Belum ada website.</p>";
+    collapseTreeParents($("#webList"));
+    shTreeNormalizeRows($("#webList"));
     treeToggleBind($("#webList"));
     bindListSearch("#webSearch", "#webList");
     $$("#webList [data-del-web]").forEach((b) =>
@@ -4119,6 +4123,8 @@
     if (!totalAll) html = "<p class='muted'>Belum ada data pengguna. Tambah lewat form di atas atau bulk upload.</p>";
 
     $("#alumniList").innerHTML = html;
+    collapseTreeParents($("#alumniList"));
+    shTreeNormalizeRows($("#alumniList"));
     treeToggleBind($("#alumniList"));
     if (typeof bindTriStateTree === "function") bindTriStateTree($("#alumniList"));
     bindListSearch("#alumniSearch", "#alumniList");
@@ -4187,11 +4193,13 @@
             )
             .join("");
           return `<div class="pt-node" style="margin-bottom:10px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="ang-${esc(y)}">▾</button><strong class="sh-cb-name">Tahun ${esc(y)}</strong><small class="sh-cb-count">(${tree[y].length})</small></div>
-            <div class="pt-children" data-parent="ang-${esc(y)}">${list}</div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="ang-${esc(y)}">▸</button><strong class="sh-cb-name">Tahun ${esc(y)}</strong><small class="sh-cb-count">(${tree[y].length})</small></div>
+            <div class="pt-children is-collapsed" data-parent="ang-${esc(y)}">${list}</div>
           </div>`;
         })
         .join("") || "<p class='muted'>Belum ada angkatan.</p>";
+    collapseTreeParents($("#angList"));
+    shTreeNormalizeRows($("#angList"));
     treeToggleBind($("#angList"));
     bindListSearch("#angSearch", "#angList");
     $$("#angList [data-del-ang]").forEach((b) =>
@@ -4284,7 +4292,11 @@
             })
             .join("");
           return `<div class="pt-node" style="margin-bottom:10px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="y-${y}">▸</button><strong>Angkatan ${esc(y)}</strong> <small class="muted">(${Object.values(tree[y]).reduce((n,a)=>n+a.length,0)} tautan)</small></div>
+            <div class="pt-row">
+              <button type="button" class="pt-toggle" data-t="y-${y}">▸</button>
+              <strong class="sh-cb-name">Angkatan ${esc(y)}</strong>
+              <small class="sh-cb-count">(${Object.values(tree[y]).reduce((n,a)=>n+a.length,0)} tautan)</small>
+            </div>
             <div class="pt-children is-collapsed" data-parent="y-${y}">${classHtml}</div>
           </div>`;
         })
@@ -4357,7 +4369,7 @@
           const boxS = document.createElement("div");
           boxS.style.marginTop = "16px";
           boxS.innerHTML =
-            `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="link-siswa-belum">▸</button><strong class="sh-cb-name">Siswa belum tertaut akun Google</strong><small class="sh-cb-count">(${cov.unlinkedStudents.length})</small></div><div class="pt-children" data-parent="link-siswa-belum">` +
+            `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="link-siswa-belum">▸</button><strong class="sh-cb-name">Siswa belum tertaut akun Google</strong><small class="sh-cb-count">(${cov.unlinkedStudents.length})</small></div><div class="pt-children is-collapsed" data-parent="link-siswa-belum">` +
             Object.keys(byY)
               .sort()
               .reverse()
@@ -4366,7 +4378,7 @@
                   .sort()
                   .map((c) => {
                     const names = byY[y][c].sort((a, b) => a.localeCompare(b, "id"));
-                    return `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="sb-${y}-${c}">▾</button><strong class="sh-cb-name">Angkatan ${esc(y)} · Kelas ${esc(c)}</strong><small class="sh-cb-count">(${names.length})</small></div><div class="pt-children" data-parent="sb-${y}-${c}">${names
+                    return `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="sb-${y}-${c}">▸</button><strong class="sh-cb-name">Angkatan ${esc(y)} · Kelas ${esc(c)}</strong><small class="sh-cb-count">(${names.length})</small></div><div class="pt-children is-collapsed" data-parent="sb-${y}-${c}">${names
                       .map((n) => `<div class="admin-row"><div><strong>${esc(n)}</strong><br><small>Belum ada akun Google yang menautkan nama ini</small></div></div>`)
                       .join("")}</div></div>`;
                   })
@@ -4375,55 +4387,65 @@
               .join("") +
             `</div></div>`;
           host.appendChild(boxS);
+          collapseTreeParents(boxS);
           treeToggleBind(boxS);
         }
-        // 2) Akun Google yang login tapi belum pilih nama siswa
+        // 2) Akun Google belum menautkan siswa (pindah dari tab Roles)
         const noLink = cov.unlinkedAccounts || [];
         if (noLink.length) {
           const box = document.createElement("div");
           box.style.marginTop = "16px";
-          box.innerHTML = `<div class="pt-node">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="link-nolink">▸</button><strong class="sh-cb-name">Akun Google belum pilih nama siswa</strong><small class="sh-cb-count">(${noLink.length} akun · bukan daftar siswa)</small></div>
-            <div class="pt-children" data-parent="link-nolink">${noLink
-              .map(
-                (u) => `<div class="admin-row">
-                <div><strong>${esc(u.display_name || u.email)}</strong><br><small>${esc(u.email)}</small></div>
-                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:end">
-                  <label class="field" style="margin:0"><span>Angkatan</span>
-                    <select data-link-year="${u.id}"><option value="2025">2025</option><option value="2024">2024</option></select>
-                  </label>
-                  <label class="field" style="margin:0"><span>Kelas</span>
-                    <select data-link-class="${u.id}"><option value="51">51</option><option value="52">52</option></select>
-                  </label>
-                  <label class="field" style="margin:0;min-width:160px"><span>Nama siswa</span>
-                    <select data-link-name="${u.id}"></select>
-                  </label>
-                  <button type="button" class="btn btn-primary" data-admin-link="${u.id}" style="padding:8px 12px;font-size:12px">Tautkan</button>
-                </div>
-              </div>`
-              )
-              .join("")}</div>
-          </div>`;
+          box.innerHTML =
+            `<div class="pt-node">
+            <div class="pt-row">
+              <button type="button" class="pt-toggle" data-t="link-nolink">▸</button>
+              <strong class="sh-cb-name">Belum menautkan siswa</strong>
+              <small class="sh-cb-count">(${noLink.length})</small>
+            </div>
+            <div class="pt-children is-collapsed" data-parent="link-nolink">${noLink
+              .map(function (u) {
+                const who = esc(u.display_name || u.email || u.id);
+                const mail = esc(u.email || "");
+                return (
+                  '<div class="admin-row link-row" style="margin:4px 0;flex-direction:column;align-items:stretch">' +
+                  '<div><strong>' + who + '</strong><br><small>' + mail + '</small></div>' +
+                  '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:end">' +
+                  '<label class="field" style="margin:0"><span>Angkatan</span>' +
+                  '<select data-link-year="' + u.id + '"><option value="2025">2025</option><option value="2024">2024</option></select></label>' +
+                  '<label class="field" style="margin:0"><span>Kelas</span>' +
+                  '<select data-link-class="' + u.id + '"><option value="51">51</option><option value="52">52</option></select></label>' +
+                  '<label class="field" style="margin:0;min-width:140px"><span>Nama siswa</span>' +
+                  '<select data-link-name="' + u.id + '"></select></label>' +
+                  '<button type="button" class="btn btn-primary" data-admin-link="' + u.id + '" style="padding:8px 12px;font-size:12px">Tautkan</button>' +
+                  "</div></div>"
+                );
+              })
+              .join("")}</div></div>`;
           host.appendChild(box);
+          collapseTreeParents(box);
           treeToggleBind(box);
-          bindLinkNameSelects(box);
-          box.querySelectorAll("[data-admin-link]").forEach((btn) =>
-            btn.addEventListener("click", async () => {
-              const id = btn.getAttribute("data-admin-link");
+          // bind admin-link buttons
+          box.querySelectorAll("[data-admin-link]").forEach(function (b) {
+            b.addEventListener("click", async function () {
+              const id = b.getAttribute("data-admin-link");
               const year = (box.querySelector('[data-link-year="' + id + '"]') || {}).value;
               const kelas = (box.querySelector('[data-link-class="' + id + '"]') || {}).value;
               const name = ((box.querySelector('[data-link-name="' + id + '"]') || {}).value || "").trim();
               if (!name) return void shAlert("Pilih nama siswa");
               try {
-                await GalleryDB.adminForceLinkProfile(id, { studentName: name, angkatanYear: year, classCode: kelas });
+                await GalleryDB.adminForceLinkProfile(id, {
+                  studentName: name,
+                  angkatanYear: year,
+                  classCode: kelas,
+                });
                 if (msg) msg.textContent = "Tautan disimpan.";
                 await refreshLinks();
                 if (typeof refreshUsers === "function") await refreshUsers();
               } catch (e) {
                 void shAlert(e.message || e);
               }
-            })
-          );
+            });
+          });
         }
       } catch (e) {
         console.warn(e);
@@ -4581,24 +4603,26 @@
                     .join("");
                   const label = y === "Pengajar" ? esc(c) : "Kelas " + esc(c);
                   return `<div class="pt-node">
-                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-${esc(cat)}-${esc(y)}-${esc(c)}">▸</button><strong>${label}</strong> <small class="muted pt-count">(${countDeep(root[cat][y][c])})</small></div>
+                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-${esc(cat)}-${esc(y)}-${esc(c)}">▸</button><strong class="sh-cb-name">${label}</strong><small class="sh-cb-count">(${countDeep(root[cat][y][c])})</small></div>
                     <div class="pt-children is-collapsed" data-parent="d-${esc(cat)}-${esc(y)}-${esc(c)}">${nHtml}</div>
                   </div>`;
                 })
                 .join("");
               const yLabel = y === "Pengajar" ? "Pengajar" : "Angkatan " + esc(y);
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-${esc(cat)}-${esc(y)}">▸</button><strong>${yLabel}</strong> <small class="muted pt-count">(${countDeep(root[cat][y])})</small></div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-${esc(cat)}-${esc(y)}">▸</button><strong class="sh-cb-name">${yLabel}</strong><small class="sh-cb-count">(${countDeep(root[cat][y])})</small></div>
                 <div class="pt-children is-collapsed" data-parent="d-${esc(cat)}-${esc(y)}">${cHtml}</div>
               </div>`;
             })
             .join("");
           return `<div class="pt-node" style="margin-bottom:12px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-cat-${esc(cat)}">▸</button><strong>${esc(cat)}</strong> <small class="muted pt-count">(${countDeep(root[cat])})</small></div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-cat-${esc(cat)}">▸</button><strong class="sh-cb-name">${esc(cat)}</strong><small class="sh-cb-count">(${countDeep(root[cat])})</small></div>
             <div class="pt-children is-collapsed" data-parent="d-cat-${esc(cat)}">${yHtml}</div>
           </div>`;
         })
         .join("") || "<p class='muted'>Belum ada karya desain.</p>";
+    collapseTreeParents(host);
+    shTreeNormalizeRows(host);
     treeToggleBind(host);
     bindListSearch("#desSearch", "#designList");
     $$("#designList [data-del-design]").forEach((b) =>
@@ -4806,17 +4830,13 @@
         </div>`;
       })
       .join("");
-    if (unlinked) {
-      const noLink = rows.filter((u) => !(u.linked_student_name && String(u.linked_student_name).trim()));
-      html += `<div class="pt-node" style="margin-top:12px">
-        <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-nolink">▸</button><strong class="sh-cb-name">Belum menautkan siswa</strong><small class="sh-cb-count">(${unlinked})</small></div>
-        <div class="pt-children is-collapsed" data-parent="u-nolink">${noLink.map((u) => userRow(u) + adminLinkForm(u)).join("")}</div>
-      </div>`;
-    }
+    // "Belum menautkan siswa" dipindah ke tab Tautan Siswa
     $("#userList").innerHTML = html || "<p class='muted'>Belum ada user login Google.</p>";
     // hide global perm box
     const pb = $("#permBox");
     if (pb) pb.hidden = true;
+    collapseTreeParents($("#userList"));
+    shTreeNormalizeRows($("#userList"));
     treeToggleBind($("#userList"));
     bindListSearch("#userSearch", "#userList");
     bindLinkNameSelects($("#userList"));
