@@ -488,7 +488,7 @@
             return `<div class="pt-node">
               <div class="pt-row sh-cb-row">
                 <button type="button" class="pt-toggle sh-cb-toggle" data-t="stu-${esc(y)}-${esc(c)}">▸</button>
-                <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <span class="sh-cb-text"><strong>Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${names.length})</small></label>
+                <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong class="sh-cb-name">Kelas ${esc(c)}</strong><small class="sh-cb-count">(${names.length})</small></label>
               </div>
               <div class="pt-children is-collapsed" data-sh-children data-parent="stu-${esc(y)}-${esc(c)}">${nHtml}</div>
             </div>`;
@@ -497,7 +497,7 @@
         return `<div class="pt-node">
           <div class="pt-row sh-cb-row">
             <button type="button" class="pt-toggle sh-cb-toggle" data-t="stu-y-${esc(y)}">▾</button>
-            <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <span class="sh-cb-text"><strong>Angkatan ${esc(y)}</strong></span><small class="sh-cb-count muted">(${totalY})</small></label>
+            <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong class="sh-cb-name">Angkatan ${esc(y)}</strong><small class="sh-cb-count">(${totalY})</small></label>
           </div>
           <div class="pt-children" data-sh-children data-parent="stu-y-${esc(y)}">${cHtml}</div>
         </div>`;
@@ -555,7 +555,7 @@
             return `<div class="pt-node">
               <div class="pt-row sh-cb-row">
                 <button type="button" class="pt-toggle sh-cb-toggle" data-t="ann-${esc(y)}-${esc(c)}">▸</button>
-                <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <span class="sh-cb-text"><strong>Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${names.length})</small></label>
+                <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong class="sh-cb-name">Kelas ${esc(c)}</strong><small class="sh-cb-count">(${names.length})</small></label>
               </div>
               <div class="pt-children is-collapsed" data-sh-children data-parent="ann-${esc(y)}-${esc(c)}">${nHtml || "<p class='muted'>Kosong</p>"}</div>
             </div>`;
@@ -564,7 +564,7 @@
         return `<div class="pt-node">
           <div class="pt-row sh-cb-row">
             <button type="button" class="pt-toggle sh-cb-toggle" data-t="ann-y-${esc(y)}">▾</button>
-            <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <span class="sh-cb-text"><strong>Angkatan ${esc(y)}</strong></span><small class="sh-cb-count muted">(${totalY})</small></label>
+            <label class="sh-cb-label"><input type="checkbox" data-sh-cb="group"> <strong class="sh-cb-name">Angkatan ${esc(y)}</strong><small class="sh-cb-count">(${totalY})</small></label>
           </div>
           <div class="pt-children" data-sh-children data-parent="ann-y-${esc(y)}">${cHtml}</div>
         </div>`;
@@ -3267,7 +3267,7 @@
                     .map((nm) => {
                       const list = root[cat][y][c][nm].map(vidRow).join("");
                       return `<div class="pt-node">
-                        <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><span class="sh-cb-text"><strong>${esc(nm)}</strong></span><small class="sh-cb-count muted">(${root[cat][y][c][nm].length})</small></div>
+                        <div class="pt-row"><button type="button" class="pt-toggle" data-t="v-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><strong class="sh-cb-name">${esc(nm)}</strong><small class="sh-cb-count">(${root[cat][y][c][nm].length})</small></div>
                         <div class="pt-children is-collapsed" data-parent="v-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">${list}</div>
                       </div>`;
                     })
@@ -3550,14 +3550,14 @@
                     )
                     .join("");
                   return `<div class="pt-node">
-                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><span class="sh-cb-text"><strong>${esc(nm)}</strong></span><small class="sh-cb-count muted">(${tree[y][c][nm].length})</small></div>
+                    <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><strong class="sh-cb-name">${esc(nm)}</strong><small class="sh-cb-count">(${tree[y][c][nm].length})</small></div>
                     <div class="pt-children is-collapsed" data-parent="w-${esc(y)}-${esc(c)}-${esc(nm)}">${sites}</div>
                   </div>`;
                 })
                 .join("");
               const siteCount = names.reduce((n, nm) => n + tree[y][c][nm].length, 0);
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}">▸</button><span class="sh-cb-text"><strong>Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${siteCount})</small></div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-${esc(y)}-${esc(c)}">▸</button><strong class="sh-cb-name">Kelas ${esc(c)}</strong><small class="sh-cb-count">(${siteCount})</small></div>
                 <div class="pt-children is-collapsed" data-parent="w-${esc(y)}-${esc(c)}">${nHtml}</div>
               </div>`;
             })
@@ -3566,7 +3566,7 @@
             return n + Object.keys(tree[y][c] || {}).reduce((m, nm) => m + (tree[y][c][nm] || []).length, 0);
           }, 0);
           return `<div class="pt-node" style="margin-bottom:10px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-y-${esc(y)}">▸</button><span class="sh-cb-text"><strong>Angkatan ${esc(y)}</strong></span><small class="sh-cb-count muted">(${yearCount})</small></div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="w-y-${esc(y)}">▸</button><strong class="sh-cb-name">Angkatan ${esc(y)}</strong><small class="sh-cb-count">(${yearCount})</small></div>
             <div class="pt-children is-collapsed" data-parent="w-y-${esc(y)}">${cHtml}</div>
           </div>`;
         })
@@ -3709,7 +3709,7 @@
       return `<div class="pt-node">
         <div class="pt-row sh-stu-row">
           <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▸</button>
-          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><span class="sh-cb-text"><strong>Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${list.length})</small></label>
+          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><strong class="sh-cb-name">Kelas ${esc(c)}</strong><small class="sh-cb-count">(${list.length})</small></label>
         </div>
         <div class="pt-children is-collapsed" data-sh-children data-parent="${esc(id)}">${rows}</div>
       </div>`;
@@ -3723,7 +3723,7 @@
       return `<div class="pt-node" style="margin-bottom:10px">
         <div class="pt-row sh-stu-row">
           <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▾</button>
-          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><span class="sh-cb-text"><strong>Angkatan ${esc(y)}</strong></span><small class="sh-cb-count muted">(${total})</small></label>
+          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><strong class="sh-cb-name">Angkatan ${esc(y)}</strong><small class="sh-cb-count">(${total})</small></label>
         </div>
         <div class="pt-children" data-sh-children data-parent="${esc(id)}">${cHtml}</div>
       </div>`;
@@ -3743,7 +3743,7 @@
       html += `<div class="pt-node" style="margin-bottom:10px">
         <div class="pt-row sh-stu-row">
           <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▾</button>
-          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><span class="sh-cb-text"><strong>Pengajar</strong></span><small class="sh-cb-count muted">(${pengajar.length})</small></label>
+          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><strong class="sh-cb-name">Pengajar</strong><small class="sh-cb-count">(${pengajar.length})</small></label>
         </div>
         <div class="pt-children" data-sh-children data-parent="${esc(id)}">${rows}</div>
       </div>`;
@@ -3766,7 +3766,7 @@
       html += `<div class="pt-node" style="margin-bottom:10px">
         <div class="pt-row sh-stu-row">
           <button type="button" class="pt-toggle sh-cb-toggle" data-t="${esc(id)}">▾</button>
-          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><span class="sh-cb-text"><strong>Tanpa angkatan</strong></span><small class="sh-cb-count muted">(${noYear.length})</small></label>
+          <label class="sh-stu-group"><input type="checkbox" data-sh-cb="group"><strong class="sh-cb-name">Tanpa angkatan</strong><small class="sh-cb-count">(${noYear.length})</small></label>
         </div>
         <div class="pt-children" data-sh-children data-parent="${esc(id)}">${rows}</div>
       </div>`;
@@ -3843,7 +3843,7 @@
             )
             .join("");
           return `<div class="pt-node" style="margin-bottom:10px">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="ang-${esc(y)}">▾</button><span class="sh-cb-text"><strong>Tahun ${esc(y)}</strong></span><small class="sh-cb-count muted">(${tree[y].length})</small></div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="ang-${esc(y)}">▾</button><strong class="sh-cb-name">Tahun ${esc(y)}</strong><small class="sh-cb-count">(${tree[y].length})</small></div>
             <div class="pt-children" data-parent="ang-${esc(y)}">${list}</div>
           </div>`;
         })
@@ -3934,7 +3934,7 @@
                 })
                 .join("");
               return `<div class="pt-node">
-                <div class="pt-row"><button type="button" class="pt-toggle" data-t="c-${y}-${c}">▸</button><span class="sh-cb-text"><strong>Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${tree[y][c].length} tautan)</small></div>
+                <div class="pt-row"><button type="button" class="pt-toggle" data-t="c-${y}-${c}">▸</button><strong class="sh-cb-name">Kelas ${esc(c)}</strong><small class="sh-cb-count">(${tree[y][c].length} tautan)</small></div>
                 <div class="pt-children is-collapsed" data-parent="c-${y}-${c}">${list}</div>
               </div>`;
             })
@@ -4013,7 +4013,7 @@
           const boxS = document.createElement("div");
           boxS.style.marginTop = "16px";
           boxS.innerHTML =
-            `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="link-siswa-belum">▸</button><span class="sh-cb-text"><strong>Siswa belum tertaut akun Google</strong></span><small class="sh-cb-count muted">(${cov.unlinkedStudents.length})</small></div><div class="pt-children" data-parent="link-siswa-belum">` +
+            `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="link-siswa-belum">▸</button><strong class="sh-cb-name">Siswa belum tertaut akun Google</strong><small class="sh-cb-count">(${cov.unlinkedStudents.length})</small></div><div class="pt-children" data-parent="link-siswa-belum">` +
             Object.keys(byY)
               .sort()
               .reverse()
@@ -4022,7 +4022,7 @@
                   .sort()
                   .map((c) => {
                     const names = byY[y][c].sort((a, b) => a.localeCompare(b, "id"));
-                    return `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="sb-${y}-${c}">▾</button><span class="sh-cb-text"><strong>Angkatan ${esc(y)} · Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${names.length})</small></div><div class="pt-children" data-parent="sb-${y}-${c}">${names
+                    return `<div class="pt-node"><div class="pt-row"><button type="button" class="pt-toggle" data-t="sb-${y}-${c}">▾</button><strong class="sh-cb-name">Angkatan ${esc(y)} · Kelas ${esc(c)}</strong><small class="sh-cb-count">(${names.length})</small></div><div class="pt-children" data-parent="sb-${y}-${c}">${names
                       .map((n) => `<div class="admin-row"><div><strong>${esc(n)}</strong><br><small>Belum ada akun Google yang menautkan nama ini</small></div></div>`)
                       .join("")}</div></div>`;
                   })
@@ -4039,7 +4039,7 @@
           const box = document.createElement("div");
           box.style.marginTop = "16px";
           box.innerHTML = `<div class="pt-node">
-            <div class="pt-row"><button type="button" class="pt-toggle" data-t="link-nolink">▸</button><span class="sh-cb-text"><strong>Akun Google belum pilih nama siswa</strong></span><small class="sh-cb-count muted">(${noLink.length} akun · bukan daftar siswa)</small></div>
+            <div class="pt-row"><button type="button" class="pt-toggle" data-t="link-nolink">▸</button><strong class="sh-cb-name">Akun Google belum pilih nama siswa</strong><small class="sh-cb-count">(${noLink.length} akun · bukan daftar siswa)</small></div>
             <div class="pt-children" data-parent="link-nolink">${noLink
               .map(
                 (u) => `<div class="admin-row">
@@ -4230,7 +4230,7 @@
                     .map((nm) => {
                       const list = root[cat][y][c][nm].map(desRow).join("");
                       return `<div class="pt-node">
-                        <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><span class="sh-cb-text"><strong>${esc(nm)}</strong></span><small class="sh-cb-count muted">(${root[cat][y][c][nm].length})</small></div>
+                        <div class="pt-row"><button type="button" class="pt-toggle" data-t="d-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">▸</button><strong class="sh-cb-name">${esc(nm)}</strong><small class="sh-cb-count">(${root[cat][y][c][nm].length})</small></div>
                         <div class="pt-children is-collapsed" data-parent="d-${esc(cat)}-${esc(y)}-${esc(c)}-${esc(nm)}">${list}</div>
                       </div>`;
                     })
@@ -4451,7 +4451,7 @@
           .map((c) => {
             const list = tree[y][c].map(userRow).join("");
             return `<div class="pt-node">
-              <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-${esc(y)}-${esc(c)}">▸</button><span class="sh-cb-text"><strong>Kelas ${esc(c)}</strong></span><small class="sh-cb-count muted">(${tree[y][c].length})</small></div>
+              <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-${esc(y)}-${esc(c)}">▸</button><strong class="sh-cb-name">Kelas ${esc(c)}</strong><small class="sh-cb-count">(${tree[y][c].length})</small></div>
               <div class="pt-children is-collapsed" data-parent="u-${esc(y)}-${esc(c)}">${list}</div>
             </div>`;
           })
@@ -4465,7 +4465,7 @@
     if (unlinked) {
       const noLink = rows.filter((u) => !(u.linked_student_name && String(u.linked_student_name).trim()));
       html += `<div class="pt-node" style="margin-top:12px">
-        <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-nolink">▸</button><span class="sh-cb-text"><strong>Belum menautkan siswa</strong></span><small class="sh-cb-count muted">(${unlinked})</small></div>
+        <div class="pt-row"><button type="button" class="pt-toggle" data-t="u-nolink">▸</button><strong class="sh-cb-name">Belum menautkan siswa</strong><small class="sh-cb-count">(${unlinked})</small></div>
         <div class="pt-children is-collapsed" data-parent="u-nolink">${noLink.map((u) => userRow(u) + adminLinkForm(u)).join("")}</div>
       </div>`;
     }

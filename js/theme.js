@@ -317,3 +317,28 @@
     initNavPrefetch();
   }
 })();
+
+/* Saat tab/menu diklik, pastikan tombol tetap kelihatan di viewport (mobile) */
+(function () {
+  function bindNavFocus(root) {
+    if (!root || root.dataset.navFocusBound) return;
+    root.dataset.navFocusBound = "1";
+    root.addEventListener("click", function (ev) {
+      var a = ev.target.closest("a, button, [role='tab']");
+      if (!a || !root.contains(a)) return;
+      try {
+        a.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      } catch (e) {
+        try { a.scrollIntoView(true); } catch (e2) {}
+      }
+    }, true);
+  }
+  function scan() {
+    document.querySelectorAll(".topnav, .topnav-scroll, nav.tabs, .admin-tabs, .tabs, [data-tabs]").forEach(bindNavFocus);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", scan);
+  else scan();
+  setTimeout(scan, 500);
+  setTimeout(scan, 2000);
+})();
+
