@@ -653,3 +653,14 @@ body.sh-fab-on .sh-tour-toggle{
 }
 #shFabPanel .sh-fab-chip b{font-size:10px!important}
 
+
+html.sh-fab-on #themeToggle,
+html.sh-fab-on .theme-toggle,
+html.sh-fab-on #sh-share-bar,
+html.sh-fab-on #sh-float-stats,
+html.sh-fab-on #shHealthBtn,
+html.sh-fab-on .sh-health-btn,
+html.sh-fab-on #shTourToggle,
+html.sh-fab-on .sh-tour-toggle{
+  display:none!important;visibility:hidden!important;pointer-events:none!important;
+}
