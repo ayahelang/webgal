@@ -2441,6 +2441,11 @@
           if (exceptId && btn.getAttribute("data-att-menu") === String(exceptId)) return;
           btn.setAttribute("aria-expanded", "false");
         });
+        document.querySelectorAll("#attSessList .att-sess-row.is-menu-open").forEach(function (r) {
+          var mid = r.getAttribute("data-att-id");
+          if (exceptId && String(mid) === String(exceptId)) return;
+          r.classList.remove("is-menu-open");
+        });
       }
       $$("#attSessList [data-att-menu]").forEach((b) =>
         b.addEventListener("click", (ev) => {
@@ -2451,8 +2456,13 @@
           if (!pop) return;
           const open = pop.hidden;
           closeAllAttMenus(open ? id : null);
+          document.querySelectorAll("#attSessList .att-sess-row.is-menu-open").forEach(function (r) {
+            r.classList.remove("is-menu-open");
+          });
           pop.hidden = !open;
           b.setAttribute("aria-expanded", open ? "true" : "false");
+          var row = b.closest(".att-sess-row");
+          if (row && open) row.classList.add("is-menu-open");
         })
       );
       // Tutup menu setelah pilih aksi
