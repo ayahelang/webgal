@@ -3068,18 +3068,34 @@
     gate.hidden = true;
     gate.style.display = "none";
     panel.hidden = false;
+    // Kartu profil besar tidak dipakai — hemat baris; profil tetap di topbar
     const whoCard = $("#adminWhoCard");
-    if (whoCard) whoCard.hidden = false;
+    if (whoCard) {
+      whoCard.hidden = true;
+      whoCard.setAttribute("aria-hidden", "true");
+    }
+    const btnOut = $("#btnLogout");
+    if (btnOut) {
+      btnOut.hidden = false;
+      try {
+        btnOut.removeAttribute("hidden");
+      } catch (e) {}
+    }
 
     const session = auth.session;
     const meta = (session.user && session.user.user_metadata) || {};
-    $("#adminEmail").textContent = auth.email;
-    $("#adminName").textContent = meta.full_name || meta.name || "Admin";
-    if (meta.avatar_url || meta.picture) {
-      const img = $("#adminAvatar");
-      img.src = meta.avatar_url || meta.picture;
-      img.hidden = false;
-    }
+    try {
+      const em = $("#adminEmail");
+      if (em) em.textContent = auth.email || "";
+      const nm = $("#adminName");
+      if (nm) nm.textContent = meta.full_name || meta.name || "Admin";
+      if (meta.avatar_url || meta.picture) {
+        const img = $("#adminAvatar");
+        if (img) {
+          img.src = meta.avatar_url || meta.picture;
+        }
+      }
+    } catch (eMeta) {}
 
     $$("#adminTabs .filter").forEach((btn) =>
       btn.addEventListener("click", () => {
