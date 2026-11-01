@@ -139,3 +139,183 @@
 }
 .sh-stu-group .sh-cb-count{margin-left:auto;flex-shrink:0}
 
+
+/* ===== FIX Nov 2026: topbar mobile 1 baris + tree nama terlihat ===== */
+
+/* Topbar mobile: brand + profil SEBARIS (seperti screenshot Video) */
+@media (max-width: 900px) {
+  .topbar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: auto auto !important;
+    align-items: center !important;
+    column-gap: 8px !important;
+    row-gap: 6px !important;
+    flex-wrap: nowrap !important;
+    height: auto !important;
+    min-height: 52px !important;
+    padding: 8px 12px 6px !important;
+  }
+  .topbar > .brand {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    order: unset !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    flex: unset !important;
+  }
+  .topbar > .brand small {
+    font-size: 8px !important;
+    letter-spacing: 1px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100%;
+  }
+  .topbar > .brand b {
+    font-size: 14px !important;
+    white-space: nowrap;
+  }
+  .topbar > .sh-userbar,
+  .topbar > #shUserbar,
+  .topbar > .status,
+  .topbar > #shAuthSlot {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    order: unset !important;
+    margin-left: 0 !important;
+    justify-self: end !important;
+    max-width: 48vw !important;
+  }
+  .sh-profile-chip {
+    max-width: 48vw !important;
+    padding: 3px 8px 3px 3px !important;
+    gap: 6px !important;
+  }
+  .sh-profile-chip img {
+    width: 28px !important;
+    height: 28px !important;
+  }
+  .sh-profile-chip b,
+  .sh-profile-chip span.name {
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 28vw;
+  }
+  .sh-profile-chip small {
+    font-size: 9px !important;
+  }
+  .topbar > .topnav,
+  .topbar > nav.topnav,
+  .topnav.topnav-scroll {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    order: unset !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: unset !important;
+    margin: 0 !important;
+    padding: 4px 0 6px !important;
+  }
+}
+
+/* Desktop topbar: satu baris rapi */
+@media (min-width: 901px) {
+  .topbar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+  }
+  .topbar > .brand { flex: 0 1 auto; min-width: 0; }
+  .topbar > .topnav {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    max-width: none !important;
+    order: unset !important;
+    overflow-x: auto !important;
+  }
+  .topbar > .sh-userbar { flex: 0 0 auto; margin-left: 8px; }
+}
+
+/* Tree: NAMA kelas/angkatan WAJIB terlihat; jumlah rata kanan */
+.pt-row.sh-cb-row,
+.sh-cb-tree .pt-row,
+.sh-cb-tree .sh-cb-row {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+.pt-row .sh-cb-label,
+.sh-cb-tree .sh-cb-label,
+label.sh-cb-label {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  color: var(--text, #eef7fb) !important;
+  font-size: 13px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.pt-row .sh-cb-name,
+.sh-cb-tree .sh-cb-name,
+.sh-cb-label .sh-cb-name,
+.pt-row strong.sh-cb-name,
+.sh-cb-label strong,
+.pt-row .sh-cb-text,
+.sh-cb-tree .sh-cb-text,
+.pt-row .sh-cb-text strong {
+  display: inline !important;
+  flex: 1 1 auto !important;
+  min-width: 3rem !important;
+  max-width: none !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  white-space: normal !important;
+  color: var(--text, #eef7fb) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+}
+.pt-row .sh-cb-count,
+.sh-cb-tree .sh-cb-count,
+.sh-cb-label .sh-cb-count,
+small.sh-cb-count {
+  display: inline-block !important;
+  margin-left: auto !important;
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  font-size: 12px !important;
+  font-variant-numeric: tabular-nums !important;
+  color: var(--muted, #8fa7b4) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  padding-left: 8px !important;
+}
+/* jangan biarkan strong di dalam span ke-collapse */
+.sh-cb-text {
+  display: block !important;
+  flex: 1 1 auto !important;
+  min-width: 3rem !important;
+  color: inherit !important;
+  overflow: visible !important;
+}
+
