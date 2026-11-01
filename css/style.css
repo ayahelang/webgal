@@ -319,3 +319,17 @@ small.sh-cb-count {
   overflow: visible !important;
 }
 
+
+.admin-inline-form-host{
+  margin:10px 0 14px;
+  padding:12px 14px;
+  border-radius:14px;
+  border:1px solid rgba(125,227,255,.28);
+  background:rgba(0,0,0,.22);
+  animation:adminFormIn .25s ease;
+}
+@keyframes adminFormIn{
+  from{opacity:0;transform:translateY(-6px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.admin-inline-form-host[hidden]{display:none!important}
