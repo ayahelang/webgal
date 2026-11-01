@@ -61,6 +61,67 @@
   /**
    * Mobile topnav: selalu mulai dari kiri; usap native; auto hint idle
    */
+
+  function currentPageFile() {
+    var p = (location.pathname.split("/").pop() || "").toLowerCase();
+    if (!p || p === "/") p = "index.html";
+    return p;
+  }
+  function scrollNavToActive(nav) {
+    if (!nav) return;
+    var path = currentPageFile();
+    var active = null;
+    var links = nav.querySelectorAll("a[href]");
+    for (var i = 0; i < links.length; i++) {
+      var a = links[i];
+      var href = (a.getAttribute("href") || "").split("?")[0].split("#")[0];
+      var file = href.split("/").pop().toLowerCase();
+      if (!file) file = "index.html";
+      // match exact page file
+      if (file === path) {
+        active = a;
+        break;
+      }
+      // index aliases
+      if (path === "index.html" && (file === "index.html" || href === "./" || href === "/")) {
+        active = a;
+        break;
+      }
+    }
+    // partial match e.g. profile
+    if (!active) {
+      var base = path.replace(/\.html$/, "");
+      for (var j = 0; j < links.length; j++) {
+        var a2 = links[j];
+        var h2 = (a2.getAttribute("href") || "").toLowerCase();
+        if (h2.indexOf(base) >= 0) {
+          active = a2;
+          break;
+        }
+      }
+    }
+    if (!active) return;
+    try {
+      active.setAttribute("aria-current", "page");
+    } catch (e) {}
+    function place() {
+      try {
+        var nr = nav.getBoundingClientRect();
+        var ar = active.getBoundingClientRect();
+        // center active in nav viewport
+        var delta = ar.left + ar.width / 2 - (nr.left + nr.width / 2);
+        nav.scrollLeft += delta;
+        // clamp
+        nav.scrollLeft = Math.max(0, Math.min(nav.scrollLeft, nav.scrollWidth - nav.clientWidth));
+      } catch (e2) {}
+    }
+    place();
+    requestAnimationFrame(place);
+    setTimeout(place, 50);
+    setTimeout(place, 200);
+    setTimeout(place, 500);
+  }
+
   function initNavScroll() {
     // Hanya mobile/tablet — desktop jangan diubah
     try {
@@ -90,7 +151,9 @@
       nav.style.setProperty("overflow-x", "scroll", "important");
       nav.style.setProperty("touch-action", "pan-x", "important");
       nav.style.webkitOverflowScrolling = "touch";
-      nav.scrollLeft = 0;
+      // Jangan paksa kiri — tampilkan item halaman aktif
+      scrollNavToActive(nav);
+      setTimeout(function () { scrollNavToActive(nav); }, 300);
 
       var idleMs = 2000;
       var speed = 0.5;
@@ -374,6 +437,18 @@
   setTimeout(scan, 2000);
 })();
 
+
+
+  window.addEventListener("pageshow", function () {
+    try {
+      if (!window.matchMedia("(max-width: 900px)").matches) return;
+    } catch (e) {
+      return;
+    }
+    document.querySelectorAll(".topnav").forEach(function (nav) {
+      scrollNavToActive(nav);
+    });
+  });
 
   /** Muat FAB hub di setiap halaman yang memakai theme.js */
   function loadFabHub() {

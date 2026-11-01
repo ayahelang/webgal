@@ -203,7 +203,7 @@
       '<div id="shFabPanel" hidden role="dialog" aria-label="Menu cepat">' +
       '  <div class="sh-fab-row" id="shFabStats">' +
       '    <span class="sh-fab-chip">Online <b id="fab-online">—</b></span>' +
-      '    <span class="sh-fab-chip">Kunjung <b id="fab-visit">—</b></span>' +
+      '    <span class="sh-fab-chip">Visit <b id="fab-visit">—</b></span>' +
       '    <span class="sh-fab-chip">♥R <b id="fab-lr">0</b></span>' +
       '    <span class="sh-fab-chip">💬R <b id="fab-cr">0</b></span>' +
       "  </div>" +
