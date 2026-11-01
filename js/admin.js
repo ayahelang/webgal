@@ -437,23 +437,36 @@
   function showAttendanceFormEdit(anchorEl) {
     const host = attFormHost();
     if (!host) {
-      console.warn("[att] form host missing");
+      console.warn("[att] #attSessFormHost tidak ada");
       return;
     }
-    var row = anchorEl;
-    if (row && row.closest) {
-      row = row.closest(".att-sess-row, .admin-row, .ann-sess-row") || anchorEl;
+    var row = null;
+    if (anchorEl) {
+      if (anchorEl.getAttribute && anchorEl.getAttribute("data-att-id")) row = anchorEl;
+      else if (anchorEl.closest) row = anchorEl.closest("[data-att-id], .att-sess-row");
     }
-    if (row && row.parentNode) {
-      try {
-        row.insertAdjacentElement("afterend", host);
-      } catch (e) {
-        const dock = attFormDock();
-        if (dock) dock.appendChild(host);
+    // Cadangan: cari by id di list
+    if (!row && anchorEl && anchorEl.getAttribute) {
+      var eid = anchorEl.getAttribute("data-edit-att") || anchorEl.getAttribute("data-dup-att");
+      if (eid) {
+        row = document.querySelector('#attSessList [data-att-id="' + eid + '"]');
       }
-    } else {
-      const dock = attFormDock();
+    }
+    var list = document.getElementById("attSessList");
+    if (row && list && list.contains(row)) {
+      // Sisipkan langsung setelah kartu item (masih di dalam list)
+      if (host.parentNode) host.parentNode.removeChild(host);
+      if (row.nextSibling) row.parentNode.insertBefore(host, row.nextSibling);
+      else row.parentNode.appendChild(host);
+    } else if (row && row.parentNode) {
+      if (host.parentNode) host.parentNode.removeChild(host);
+      if (row.nextSibling) row.parentNode.insertBefore(host, row.nextSibling);
+      else row.parentNode.appendChild(host);
+    } else if (list) {
+      // fallback: di atas list, bukan di bawah rekap
+      var dock = attFormDock();
       if (dock) dock.appendChild(host);
+      else list.insertBefore(host, list.firstChild);
     }
     revealFormHost(host);
     try {
@@ -522,18 +535,34 @@
   }
   function showAnnouncementFormEdit(anchorEl) {
     const host = annFormHost();
-    if (!host) return;
-    var row = anchorEl && anchorEl.closest ? anchorEl.closest(".ann-sess-row, .admin-row, .att-sess-row, [data-ann-id]") || anchorEl : anchorEl;
-    if (row && row.parentNode) {
-      try {
-        row.insertAdjacentElement("afterend", host);
-      } catch (e) {
-        const dock = annFormDock();
-        if (dock) dock.appendChild(host);
+    if (!host) {
+      console.warn("[ann] #annFormHost tidak ada");
+      return;
+    }
+    var row = null;
+    if (anchorEl) {
+      if (anchorEl.getAttribute && anchorEl.getAttribute("data-ann-id")) row = anchorEl;
+      else if (anchorEl.closest) row = anchorEl.closest("[data-ann-id], .ann-sess-row");
+    }
+    if (!row && anchorEl && anchorEl.getAttribute) {
+      var eid = anchorEl.getAttribute("data-edit-ann") || anchorEl.getAttribute("data-dup-ann");
+      if (eid) {
+        row = document.querySelector('#annList [data-ann-id="' + eid + '"]');
       }
-    } else {
-      const dock = annFormDock();
+    }
+    var list = document.getElementById("annList");
+    if (row && list && list.contains(row)) {
+      if (host.parentNode) host.parentNode.removeChild(host);
+      if (row.nextSibling) row.parentNode.insertBefore(host, row.nextSibling);
+      else row.parentNode.appendChild(host);
+    } else if (row && row.parentNode) {
+      if (host.parentNode) host.parentNode.removeChild(host);
+      if (row.nextSibling) row.parentNode.insertBefore(host, row.nextSibling);
+      else row.parentNode.appendChild(host);
+    } else if (list) {
+      var dock = annFormDock();
       if (dock) dock.appendChild(host);
+      else list.insertBefore(host, list.firstChild);
     }
     revealFormHost(host);
     try {
@@ -984,7 +1013,10 @@
         b.addEventListener("click", () => {
           const r = rows.find((x) => String(x.id) === String(b.dataset.dupAnn));
           if (!r) return;
-          const rowEl = b.closest(".admin-list-item, .ann-card, .summary-card, li, article") || b.parentElement;
+          const id = b.getAttribute("data-dup-ann");
+          const rowEl =
+            document.querySelector('#annList [data-ann-id="' + id + '"]') ||
+            b.closest("[data-ann-id], .ann-sess-row");
           const f = $("#annForm");
 
           if (!f) return;
@@ -1035,7 +1067,7 @@
           if (box) box.style.display = alarmOn ? "grid" : "none";
           f.querySelector("[name=active]").checked = r.active !== false;
           $("#annStatus").textContent = "Mode duplikat — periksa setelan, lalu klik Simpan untuk membuat salinan.";
-          showAnnouncementFormEdit(typeof rowEl !== "undefined" ? rowEl : null);
+          showAnnouncementFormEdit(rowEl || b);
         })
       );
 
@@ -1062,59 +1094,52 @@
         })
       );
       $$("#annList [data-edit-ann]").forEach((b) =>
-        b.addEventListener("click", () => {
-          const r = rows.find((x) => String(x.id) === String(b.dataset.editAnn));
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const id = b.getAttribute("data-edit-ann");
+          const r = rows.find((x) => String(x.id) === String(id));
           if (!r) return;
+          const rowEl =
+            document.querySelector('#annList [data-ann-id="' + id + '"]') ||
+            b.closest("[data-ann-id], .ann-sess-row");
+          // fill form fields (reuse existing path via synthetic flow)
           const f = $("#annForm");
-          f.querySelector("[name=id]").value = r.id;
+          if (!f) return;
+          f.querySelector("[name=id]").value = r.id || "";
           f.querySelector("[name=title]").value = r.title || "";
-          {
-            const raw = r.body_html || "";
-            const tmp = document.createElement("div");
+          if ($("#annEditor")) {
+            var raw = r.body_html || "";
+            var tmp = document.createElement("div");
             tmp.innerHTML = raw;
-            const voiceEl = tmp.querySelector(".ann-voice-block, .ann-voice-slot-render, [data-voice-url]");
-            const slot = $("#annVoiceSlot");
-            const slotBody = $("#annVoiceSlotBody");
-            if (voiceEl && slot && slotBody) {
-              const url = voiceEl.getAttribute("data-voice-url") || (voiceEl.querySelector("audio") && voiceEl.querySelector("audio").src) || "";
-              const dur = voiceEl.getAttribute("data-duration") || "";
+            var voiceEl = tmp.querySelector(".ann-voice-block, .ann-voice-slot-render, [data-voice-url]");
+            if (voiceEl && typeof setAnnVoiceSlot === "function") {
+              var url = voiceEl.getAttribute("data-voice-url") || "";
+              var dur = voiceEl.getAttribute("data-duration") || "";
               voiceEl.remove();
-              if (url) {
-                setAnnVoiceSlot(url, dur ? parseFloat(dur) : null);
-              } else {
-                clearAnnVoiceSlot();
-              }
-            } else {
-              clearAnnVoiceSlot();
-            }
+              if (url) setAnnVoiceSlot(url, dur ? parseFloat(dur) : null);
+              else if (typeof clearAnnVoiceSlot === "function") clearAnnVoiceSlot();
+            } else if (typeof clearAnnVoiceSlot === "function") clearAnnVoiceSlot();
             $("#annEditor").innerHTML = tmp.innerHTML;
           }
-          f.querySelector("[name=show_home]").checked =
-            (r.show_on || "").indexOf("home") >= 0 || r.audience === "public" || r.show_on === "both";
-          f.querySelector("[name=show_logged]").checked =
-            (r.show_on || "").indexOf("user") >= 0 || r.audience === "logged_in" || r.show_on === "both";
-          f.querySelector("[name=show_students]").checked = r.audience === "students";
-          $("#annStudentTree").classList.toggle("is-collapsed", r.audience !== "students");
-          setAnnTargets(r.target_students || []);
-          f.querySelector("[name=starts_at]").value = toLocalInput(r.starts_at);
-                    f.querySelector("[name=duration_days]").value = r.duration_days || 1;
-                    f.querySelector("[name=times_per_day]").value = r.times_per_day || 1;
-                    setAnnScheduleDays(f, r.schedule_days || []);
-          f.querySelector("[name=splash_seconds]").value = r.splash_seconds || 15;
-          var alarmOn = r.is_alarm === true || r.is_alarm === "true" || r.is_alarm === 1 || r.is_alarm === "1" || r.is_alarm === "t";
-          var alarmCb = f.querySelector("[name=is_alarm]") || document.getElementById("annIsAlarm");
-          if (alarmCb) {
-            alarmCb.checked = !!alarmOn;
-            try { alarmCb.dispatchEvent(new Event("change", { bubbles: true })); } catch (eA) {}
+          try {
+            f.querySelector("[name=show_home]").checked =
+              (r.show_on || "").indexOf("home") >= 0 || r.audience === "public" || r.show_on === "both";
+            f.querySelector("[name=show_logged]").checked =
+              (r.show_on || "").indexOf("user") >= 0 || r.audience === "logged_in" || r.show_on === "both";
+            f.querySelector("[name=show_students]").checked = r.audience === "students";
+            $("#annStudentTree").classList.toggle("is-collapsed", r.audience !== "students");
+            if (typeof setAnnTargets === "function") setAnnTargets(r.target_students || []);
+            f.querySelector("[name=starts_at]").value = typeof toLocalInput === "function" ? toLocalInput(r.starts_at) : "";
+            f.querySelector("[name=duration_days]").value = r.duration_days || 1;
+            if (f.querySelector("[name=times_per_day]")) f.querySelector("[name=times_per_day]").value = r.times_per_day || 1;
+            if (typeof setAnnScheduleDays === "function") setAnnScheduleDays(f, r.schedule_days || []);
+            if (f.querySelector("[name=splash_seconds]")) f.querySelector("[name=splash_seconds]").value = r.splash_seconds || 15;
+            f.querySelector("[name=active]").checked = r.active !== false;
+          } catch (eFill) {
+            console.warn(eFill);
           }
-          var delay = Number(r.alarm_delay_sec) || 0;
-          if (f.querySelector("[name=alarm_min]")) f.querySelector("[name=alarm_min]").value = Math.floor(delay / 60);
-          if (f.querySelector("[name=alarm_sec]")) f.querySelector("[name=alarm_sec]").value = delay % 60;
-          var box = document.getElementById("annAlarmSettings");
-          if (box) box.style.display = alarmOn ? "grid" : "none";
-          f.querySelector("[name=active]").checked = r.active !== false;
-          $("#annStatus").textContent = "Mode ubah — periksa setelan, lalu klik Simpan jika sudah yakin.";
-          showAnnouncementFormEdit(typeof rowEl !== "undefined" ? rowEl : null);
+          showAnnouncementFormEdit(rowEl || b);
         })
       );
     } catch (e) {
@@ -2411,21 +2436,31 @@
         })
       );
       $$("#attSessList [data-edit-att]").forEach((b) =>
-        b.addEventListener("click", () => {
-          const r = rows.find((x) => String(x.id) === String(b.dataset.editAtt));
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const id = b.getAttribute("data-edit-att");
+          const r = rows.find((x) => String(x.id) === String(id));
           if (!r) return;
-          const rowEl = b.closest(".att-sess-row, .admin-row, .ann-sess-row, .admin-list-item") || b.closest("[data-att-id]") || b.parentElement;
+          const rowEl =
+            document.querySelector('#attSessList [data-att-id="' + id + '"]') ||
+            b.closest("[data-att-id], .att-sess-row");
           fillAttendanceForm(r, { asDuplicate: false });
-          showAttendanceFormEdit(rowEl);
+          showAttendanceFormEdit(rowEl || b);
         })
       );
       $$("#attSessList [data-dup-att]").forEach((b) =>
-        b.addEventListener("click", () => {
-          const r = rows.find((x) => String(x.id) === String(b.dataset.dupAtt));
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const id = b.getAttribute("data-dup-att");
+          const r = rows.find((x) => String(x.id) === String(id));
           if (!r) return;
-          const rowElDup = b.closest(".att-sess-row, .admin-row, .ann-sess-row, .admin-list-item") || b.closest("[data-att-id]") || b.parentElement;
+          const rowEl =
+            document.querySelector('#attSessList [data-att-id="' + id + '"]') ||
+            b.closest("[data-att-id], .att-sess-row");
           fillAttendanceForm(r, { asDuplicate: true });
-          showAttendanceFormEdit(rowElDup);
+          showAttendanceFormEdit(rowEl || b);
         })
       );
       $$("#attSessList [data-att-stats]").forEach((b) =>
