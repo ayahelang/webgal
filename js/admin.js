@@ -335,47 +335,98 @@
   function bindLinkNameSelects(root) {
     const scope = root || document;
 
+    function rosterNames(y, c) {
+      let names = [];
+      try {
+        names = ((rosterCache || {})[String(y)] || {})[String(c)] || [];
+      } catch (e) {
+        names = [];
+      }
+      if (!names.length) {
+        try {
+          const extra = typeof alumniAllCache !== "undefined" ? alumniAllCache : alumniCache || [];
+          (extra || []).forEach(function (al) {
+            const ang = al.gallery_angkatan || {};
+            const m = String(ang.label || "").match(/20\d{2}/);
+            const yy = m ? m[0] : "";
+            if (yy === String(y) && String(al.class_code || "") === String(c) && al.name && names.indexOf(al.name) < 0) {
+              names.push(al.name);
+            }
+          });
+        } catch (e2) {}
+      }
+      return names.slice().sort(function (a, b) {
+        return a.localeCompare(b, "id");
+      });
+    }
+
+    function placeMenu(menu, btn) {
+      if (!menu || !btn) return;
+      const r = btn.getBoundingClientRect();
+      const maxH = Math.min(260, Math.max(120, window.innerHeight - r.bottom - 12));
+      menu.style.position = "fixed";
+      menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 220)) + "px";
+      menu.style.top = r.bottom + 4 + "px";
+      menu.style.width = Math.max(r.width, 200) + "px";
+      menu.style.maxHeight = maxH + "px";
+      menu.style.zIndex = "10050";
+      menu.style.overflow = "auto";
+      // if not enough space below, open upward
+      if (r.bottom + 80 > window.innerHeight && r.top > 140) {
+        menu.style.top = "auto";
+        menu.style.bottom = window.innerHeight - r.top + 4 + "px";
+        menu.style.maxHeight = Math.min(260, r.top - 12) + "px";
+      } else {
+        menu.style.bottom = "auto";
+      }
+    }
+
+    function closeAllShMenus() {
+      document.querySelectorAll("[data-sh-select-menu]").forEach(function (m) {
+        m.hidden = true;
+        m.classList.remove("is-open");
+      });
+    }
+
     function fillShSelect(id, y, c, keepValue) {
-      const wrap = scope.querySelector('[data-sh-select="' + id + '"]');
       const hidden = scope.querySelector('input[data-link-name="' + id + '"]');
       const menu = scope.querySelector('[data-sh-select-menu="' + id + '"]');
       const btnLab = scope.querySelector('[data-sh-select-btn="' + id + '"] .sh-select-label');
       if (!hidden || !menu) return;
       const cur = keepValue != null ? keepValue : hidden.value || "";
-      let names = [];
-      try {
-        names = ((rosterCache || {})[y] || {})[c] || [];
-      } catch (e) {
-        names = [];
-      }
-      names = names.slice().sort(function (a, b) {
-        return a.localeCompare(b, "id");
-      });
+      const names = rosterNames(y, c);
       menu.innerHTML =
         '<button type="button" class="sh-select-opt" data-value="">— pilih nama —</button>' +
-        names
-          .map(function (n) {
-            const on = n === cur ? " is-selected" : "";
-            return '<button type="button" class="sh-select-opt' + on + '" data-value="' + esc(n) + '">' + esc(n) + "</button>";
-          })
-          .join("");
-      if (cur && names.indexOf(cur) < 0) {
-        // keep custom selected label
-      }
-      hidden.value = cur && names.indexOf(cur) >= 0 ? cur : cur || "";
+        (names.length
+          ? names
+              .map(function (n) {
+                const on = n === cur ? " is-selected" : "";
+                return (
+                  '<button type="button" class="sh-select-opt' +
+                  on +
+                  '" data-value="' +
+                  esc(n) +
+                  '">' +
+                  esc(n) +
+                  "</button>"
+                );
+              })
+              .join("")
+          : '<div class="sh-select-empty muted" style="padding:10px;font-size:12px">Tidak ada nama di roster untuk angkatan/kelas ini. Cek tab Users/Angkatan.</div>');
+      hidden.value = cur && names.indexOf(cur) >= 0 ? cur : "";
       if (btnLab) btnLab.textContent = hidden.value || "— pilih nama —";
       menu.querySelectorAll(".sh-select-opt").forEach(function (opt) {
-        opt.onclick = function (e) {
+        opt.addEventListener("click", function (e) {
           e.preventDefault();
           e.stopPropagation();
           const v = opt.getAttribute("data-value") || "";
           hidden.value = v;
           if (btnLab) btnLab.textContent = v || "— pilih nama —";
-          menu.hidden = true;
+          closeAllShMenus();
           menu.querySelectorAll(".sh-select-opt").forEach(function (o) {
             o.classList.toggle("is-selected", (o.getAttribute("data-value") || "") === v);
           });
-        };
+        });
       });
     }
 
@@ -388,11 +439,25 @@
         const id = btn.getAttribute("data-sh-select-btn");
         const menu = scope.querySelector('[data-sh-select-menu="' + id + '"]');
         if (!menu) return;
-        const open = menu.hidden;
-        scope.querySelectorAll("[data-sh-select-menu]").forEach(function (m) {
-          m.hidden = true;
-        });
-        menu.hidden = !open;
+        const willOpen = menu.hidden;
+        closeAllShMenus();
+        if (willOpen) {
+          // pastikan opsi terisi dari roster terbaru
+          const yearSel = scope.querySelector('[data-link-year="' + id + '"]');
+          const classSel = scope.querySelector('[data-link-class="' + id + '"]');
+          const y = yearSel ? yearSel.value : "2025";
+          const c = classSel ? classSel.value : "51";
+          const hidden = scope.querySelector('input[data-link-name="' + id + '"]');
+          fillShSelect(id, y, c, hidden ? hidden.value : "");
+          menu.hidden = false;
+          menu.classList.add("is-open");
+          // pindahkan ke body agar tidak terpotong overflow parent
+          if (menu.parentElement !== document.body) {
+            menu.dataset.shSelectHome = id;
+            document.body.appendChild(menu);
+          }
+          placeMenu(menu, btn);
+        }
       });
     });
 
@@ -417,15 +482,34 @@
     });
   }
 
-  // tutup custom select jika klik di luar
   if (!window.__shSelectDocBound) {
     window.__shSelectDocBound = true;
-    document.addEventListener("click", function () {
-      document.querySelectorAll("[data-sh-select-menu]").forEach(function (m) {
-        m.hidden = true;
-      });
-    });
+    document.addEventListener(
+      "click",
+      function (e) {
+        const t = e.target;
+        if (t && t.closest && (t.closest("[data-sh-select]") || t.closest("[data-sh-select-menu]") || t.closest("[data-sh-select-btn]"))) {
+          return;
+        }
+        document.querySelectorAll("[data-sh-select-menu]").forEach(function (m) {
+          m.hidden = true;
+          m.classList.remove("is-open");
+        });
+      },
+      true
+    );
+    window.addEventListener(
+      "resize",
+      function () {
+        document.querySelectorAll("[data-sh-select-menu].is-open").forEach(function (m) {
+          m.hidden = true;
+          m.classList.remove("is-open");
+        });
+      },
+      { passive: true }
+    );
   }
+
 
   function scrollToForm(sel) {
     const f = $(sel);
@@ -4413,6 +4497,7 @@
     if (!host) return;
     host.innerHTML = "Memuat…";
     try {
+      await loadRoster(true);
       const cov = await buildLinkCoverage();
       const rows = await GalleryDB.adminListLinks();
       const summary = coverageSummaryHtml(cov);
@@ -4615,6 +4700,7 @@
           host.appendChild(box);
           collapseTreeParents(box);
           treeToggleBind(box);
+          bindLinkNameSelects(box);
           // bind admin-link buttons
           box.querySelectorAll("[data-admin-link]").forEach(function (b) {
             b.addEventListener("click", async function () {

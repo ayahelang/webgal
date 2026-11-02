@@ -869,3 +869,21 @@ input[type="checkbox"][data-sh-cb]:indeterminate{
 input[type="checkbox"][data-sh-cb]:indeterminate{
   background-color:#8b9bab;
 }
+
+/* Custom name select — menu di body, tidak terpotong */
+.sh-select-menu,
+.sh-select-menu.is-open{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  padding:6px;
+  border-radius:12px;
+  border:1px solid rgba(125,227,255,.35);
+  background:rgba(8,16,24,.98) !important;
+  box-shadow:0 16px 40px rgba(0,0,0,.55);
+  -webkit-overflow-scrolling:touch;
+}
+.sh-select-menu[hidden]{display:none!important}
+.link-row, .pt-children, .pt-node, #linkTree, .admin-row.link-row{
+  overflow:visible !important;
+}
