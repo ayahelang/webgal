@@ -155,6 +155,102 @@
     return String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
+  function looksLikeCode(text) {
+    var t = String(text || "");
+    if (t.indexOf("```") >= 0) return false;
+    var lines = t.split(/\r?\n/);
+    if (lines.length < 3) return false;
+    if (/^#!\//m.test(t) || /^cat\s+>/m.test(t) || /<<\s*['"]?EOF/m.test(t)) return true;
+    if (/\b(function|const|let|var|import|export|class|def |SELECT |CREATE )\b/.test(t) && lines.length >= 4) return true;
+    var symbols = (t.match(/[{};<>|=]/g) || []).length;
+    return symbols >= 8 && lines.length >= 5;
+  }
+
+  function detectCodeLang(text) {
+    var t = String(text || "");
+    if (/^#!\/bin\/(bash|sh)/m.test(t) || /\bEOF\b/.test(t) || /\bchmod\b/.test(t) || /\bgit\s/.test(t)) return "bash";
+    if (/\b(function|const|let|=>|console\.)\b/.test(t)) return "javascript";
+    if (/\b(def |import |print\()/.test(t)) return "python";
+    if (/\b(SELECT|INSERT|UPDATE|FROM)\b/i.test(t)) return "sql";
+    if (/\b(package |public class |System\.out)\b/.test(t)) return "java";
+    if (/\{\s*[\"']/.test(t) && /:\s*/.test(t)) return "json";
+    return "text";
+  }
+
+  function highlightSource(code, lang) {
+    var s = esc(code);
+    // strings
+    s = s.replace(/(&quot;|&#39;|")([^"\n]*?)(\1)|(')([^'\n]*?)(')|(`)([^`]*?)(`)/g, function () {
+      var a = arguments;
+      // fallback simple
+      return arguments[0];
+    });
+    s = s.replace(/(&quot;[^&\n]*&quot;|&apos;[^&\n]*&apos;|&#39;[^&\n]*&#39;|&lsquo;.*?&rsquo;)/g, function (m) {
+      return '<span class="tok-str">' + m + "</span>";
+    });
+    // also plain quotes after esc became &quot; if we had " in source - esc keeps quotes as quotes actually
+    s = s.replace(/("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)/g, '<span class="tok-str">$1</span>');
+    // comments
+    if (lang === "bash" || lang === "sh" || lang === "shell") {
+      s = s.replace(/(^|\n)(\s*#.*?)$/gm, '$1<span class="tok-com">$2</span>');
+    } else if (lang === "python") {
+      s = s.replace(/(^|\n)(\s*#.*?)$/gm, '$1<span class="tok-com">$2</span>');
+    } else {
+      s = s.replace(/(\/\/.*?)$/gm, '<span class="tok-com">$1</span>');
+    }
+    // keywords by lang
+    var kw = [];
+    if (lang === "bash" || lang === "sh" || lang === "shell") {
+      kw = ["if", "then", "else", "fi", "for", "do", "done", "case", "esac", "in", "while", "function", "echo", "read", "exit", "return", "local", "export", "set", "shift"];
+    } else if (lang === "javascript" || lang === "js") {
+      kw = ["function", "const", "let", "var", "return", "if", "else", "for", "while", "class", "new", "await", "async", "import", "export", "from", "try", "catch"];
+    } else if (lang === "python") {
+      kw = ["def", "class", "return", "if", "elif", "else", "for", "while", "import", "from", "as", "try", "except", "with", "True", "False", "None"];
+    } else if (lang === "sql") {
+      kw = ["SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "JOIN", "CREATE", "TABLE", "AND", "OR", "NOT", "NULL"];
+    }
+    if (kw.length) {
+      var re = new RegExp("\\b(" + kw.join("|") + ")\\b", lang === "sql" ? "g" : "g");
+      s = s.replace(re, '<span class="tok-kw">$1</span>');
+    }
+    // numbers
+    s = s.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="tok-num">$1</span>');
+    return s;
+  }
+
+  function formatChatRichText(raw, q) {
+    var text = String(raw || "");
+    if (!text) return "";
+    var re = /```([\w+-]*)[ \t]*\r?\n?([\s\S]*?)```/g;
+    var out = "";
+    var last = 0;
+    var m;
+    while ((m = re.exec(text))) {
+      var before = text.slice(last, m.index);
+      if (before) out += linkifyAndMedia(highlight(esc(before), q || ""), q);
+      var lang = (m[1] || "text").toLowerCase() || "text";
+      var code = String(m[2] || "").replace(/\n$/, "");
+      out +=
+        '<pre class="chat-code" data-lang="' +
+        esc(lang) +
+        '"><div class="chat-code-bar"><span class="chat-code-lang">' +
+        esc(lang) +
+        '</span><button type="button" class="chat-code-copy" data-copy-code="1">Salin</button></div><code>' +
+        highlightSource(code, lang) +
+        "</code></pre>";
+      last = m.index + m[0].length;
+    }
+    var rest = text.slice(last);
+    // inline `code`
+    if (rest) {
+      var escRest = esc(rest);
+      escRest = escRest.replace(/`([^`\n]+)`/g, '<code class="chat-inline-code">$1</code>');
+      out += linkifyAndMedia(highlight(escRest, q || ""), q);
+    }
+    return out || linkifyAndMedia(highlight(esc(text), q || ""), q);
+  }
+
+
 
   const VOICE_PREFIX = "__voice__";
   // __voice__|ttl=3h|dur=12.5|name=Judul|https://...  (name opsional, legacy tanpa name tetap valid)
@@ -1243,7 +1339,7 @@
     if (parts.text) {
       bodyHtml +=
         '<div class="chat-text-main">' +
-        linkifyAndMedia(highlight(esc(parts.text), q || ""), q) +
+        formatChatRichText(parts.text, q) +
         "</div>";
     }
     if (parts.images && parts.images.length) {
@@ -1254,7 +1350,7 @@
     }
     if (!bodyHtml) {
       const bodyEsc = esc(m.body);
-      bodyHtml = linkifyAndMedia(highlight(bodyEsc, q || ""), q);
+      bodyHtml = formatChatRichText(parts && parts.text != null ? parts.text : (m && m.body) || "", q);
     }
     const hasVoice = !!parts.voice;
     let parentHtml = "";
@@ -2391,7 +2487,7 @@
     }
   }
 
-  const CHAT_BODY_MAX = 8000;
+  const CHAT_BODY_MAX = 20000;
 
   function closeAllInlineComposers(exceptBubble) {
     if (!log) return;
@@ -3295,6 +3391,31 @@
     });
     // Enter kirim, Shift+Enter baris baru
     chatInput.addEventListener("keydown", (ev) => {
+      if (ev.key === "Tab") {
+        ev.preventDefault();
+        const ta = chatInput;
+        const s = ta.selectionStart || 0;
+        const e = ta.selectionEnd || 0;
+        const v = ta.value || "";
+        if (ev.shiftKey) {
+          // unindent current line
+          const lineStart = v.lastIndexOf("\n", s - 1) + 1;
+          if (v.slice(lineStart, lineStart + 2) === "  ") {
+            ta.value = v.slice(0, lineStart) + v.slice(lineStart + 2);
+            ta.selectionStart = Math.max(lineStart, s - 2);
+            ta.selectionEnd = Math.max(lineStart, e - 2);
+          } else if (v.slice(lineStart, lineStart + 1) === "\t") {
+            ta.value = v.slice(0, lineStart) + v.slice(lineStart + 1);
+            ta.selectionStart = Math.max(lineStart, s - 1);
+            ta.selectionEnd = Math.max(lineStart, e - 1);
+          }
+        } else {
+          ta.value = v.slice(0, s) + "  " + v.slice(e);
+          ta.selectionStart = ta.selectionEnd = s + 2;
+        }
+        return;
+      }
+
       if (ev.key === "Enter" && !ev.shiftKey) {
         ev.preventDefault();
         if (chatForm) chatForm.requestSubmit();
@@ -3302,17 +3423,32 @@
     });
     chatInput.addEventListener("paste", (ev) => {
       const items = ev.clipboardData && ev.clipboardData.items;
-      if (!items) return;
-      for (let i = 0; i < items.length; i++) {
-        const it = items[i];
-        if (it.type && it.type.startsWith("image/")) {
-          ev.preventDefault();
-          const file = it.getAsFile();
-          if (file) sendImageFile(file);
-          return;
+      if (items) {
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i];
+          if (it.type && it.type.startsWith("image/")) {
+            ev.preventDefault();
+            const file = it.getAsFile();
+            if (file) sendImageFile(file);
+            return;
+          }
         }
       }
-      // after text paste, resize
+      const clip = (ev.clipboardData && ev.clipboardData.getData("text/plain")) || "";
+      if (clip && looksLikeCode(clip) && clip.indexOf("```") < 0) {
+        ev.preventDefault();
+        const lang = detectCodeLang(clip);
+        const block = "```" + lang + "\n" + clip.replace(/\s+$/, "") + "\n```";
+        const ta = chatInput;
+        const s = ta.selectionStart || 0;
+        const e = ta.selectionEnd || 0;
+        const v = ta.value || "";
+        ta.value = v.slice(0, s) + block + v.slice(e);
+        const pos = s + block.length;
+        ta.selectionStart = ta.selectionEnd = pos;
+        autoResizeInput();
+        return;
+      }
       setTimeout(autoResizeInput, 0);
     });
     // initial size
@@ -3700,12 +3836,45 @@
     if (allMessages.length !== before) renderMessages();
   }, 120000);
 
+
+  // Salin blok kode di chat
+  if (log && !log.dataset.codeCopyBound) {
+    log.dataset.codeCopyBound = "1";
+    log.addEventListener("click", function (ev) {
+      var btn = ev.target.closest && ev.target.closest("[data-copy-code]");
+      if (!btn) return;
+      ev.preventDefault();
+      var pre = btn.closest("pre.chat-code");
+      var code = pre && pre.querySelector("code");
+      var text = code ? code.innerText || code.textContent : "";
+      if (!text) return;
+      function done() {
+        var old = btn.textContent;
+        btn.textContent = "Tersalin";
+        setTimeout(function () {
+          btn.textContent = old || "Salin";
+        }, 1200);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function () {
+          done();
+        });
+      } else {
+        done();
+      }
+    });
+  }
+
   if (chatForm) {
     chatForm.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       saveProfile();
       const body = chatInput ? chatInput.value : "";
       if (!String(body || "").trim()) return;
+      if (String(body).length > CHAT_BODY_MAX) {
+        status.textContent = "Pesan terlalu panjang (maks " + CHAT_BODY_MAX + " karakter). Kurangi atau pecah jadi beberapa pesan.";
+        return;
+      }
       try {
         const row = await GalleryDB.sendChat({
           angkatanId: currentRoomContext().angkatanId, roomId: currentRoomContext().roomId,
