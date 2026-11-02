@@ -924,3 +924,35 @@ input[type="checkbox"][data-sh-cb]:indeterminate{
 .tok-str{color:#9dde8a}
 .tok-com{color:#7a8b9a;font-style:italic}
 .tok-num{color:#f0c674}
+
+/* Chat code highlight — warna tegas */
+pre.chat-code{
+  margin:8px 0!important;
+  background:#0a1018!important;
+  border:1px solid rgba(125,227,255,.28)!important;
+  border-radius:12px!important;
+  overflow:auto!important;
+  max-width:100%!important;
+}
+pre.chat-code code.chat-code-body,
+pre.chat-code code{
+  display:block!important;
+  padding:10px 12px!important;
+  white-space:pre!important;
+  tab-size:2;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace!important;
+  font-size:12.5px!important;
+  line-height:1.5!important;
+  color:#e6eef6!important;
+  background:transparent!important;
+}
+.tok-kw{color:#6cb6ff!important;font-weight:700!important}
+.tok-str{color:#9be48a!important}
+.tok-com{color:#8b9bb0!important;font-style:italic!important}
+.tok-num{color:#f5c26b!important}
+.chat-code-bar{
+  display:flex!important;justify-content:space-between;align-items:center;
+  padding:6px 10px!important;
+  border-bottom:1px solid rgba(125,227,255,.14)!important;
+  background:rgba(255,255,255,.04)!important;
+}

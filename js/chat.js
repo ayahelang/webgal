@@ -157,7 +157,7 @@
 
   function looksLikeCode(text) {
     var t = String(text || "");
-    if (t.indexOf("```") >= 0) return false;
+    if (t.indexOf("```") >= 0) return true;
     var lines = t.split(/\r?\n/);
     if (lines.length < 3) return false;
     if (/^#!\//m.test(t) || /^cat\s+>/m.test(t) || /<<\s*['"]?EOF/m.test(t)) return true;
@@ -168,80 +168,152 @@
 
   function detectCodeLang(text) {
     var t = String(text || "");
-    if (/^#!\/bin\/(bash|sh)/m.test(t) || /\bEOF\b/.test(t) || /\bchmod\b/.test(t) || /\bgit\s/.test(t)) return "bash";
+    if (/^#!\/bin\/(bash|sh)/m.test(t) || /\bEOF\b/.test(t) || /\bchmod\s?\+/.test(t) || /\bgit\s/.test(t) || /\becho\b/.test(t)) return "bash";
     if (/\b(function|const|let|=>|console\.)\b/.test(t)) return "javascript";
     if (/\b(def |import |print\()/.test(t)) return "python";
     if (/\b(SELECT|INSERT|UPDATE|FROM)\b/i.test(t)) return "sql";
     if (/\b(package |public class |System\.out)\b/.test(t)) return "java";
-    if (/\{\s*[\"']/.test(t) && /:\s*/.test(t)) return "json";
-    return "text";
+    if (/\{\s*["']/.test(t) && /:\s*/.test(t)) return "json";
+    return "bash";
   }
 
+  function reEscape(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  /** Highlighter sederhana tapi jelas (keyword / string / komentar / angka) */
   function highlightSource(code, lang) {
-    var s = esc(code);
-    // strings
-    s = s.replace(/(&quot;|&#39;|")([^"\n]*?)(\1)|(')([^'\n]*?)(')|(`)([^`]*?)(`)/g, function () {
-      var a = arguments;
-      // fallback simple
-      return arguments[0];
-    });
-    s = s.replace(/(&quot;[^&\n]*&quot;|&apos;[^&\n]*&apos;|&#39;[^&\n]*&#39;|&lsquo;.*?&rsquo;)/g, function (m) {
-      return '<span class="tok-str">' + m + "</span>";
-    });
-    // also plain quotes after esc became &quot; if we had " in source - esc keeps quotes as quotes actually
-    s = s.replace(/("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)/g, '<span class="tok-str">$1</span>');
-    // comments
-    if (lang === "bash" || lang === "sh" || lang === "shell") {
-      s = s.replace(/(^|\n)(\s*#.*?)$/gm, '$1<span class="tok-com">$2</span>');
-    } else if (lang === "python") {
-      s = s.replace(/(^|\n)(\s*#.*?)$/gm, '$1<span class="tok-com">$2</span>');
-    } else {
-      s = s.replace(/(\/\/.*?)$/gm, '<span class="tok-com">$1</span>');
+    lang = String(lang || "text").toLowerCase();
+    if (lang === "sh" || lang === "shell") lang = "bash";
+    if (lang === "js") lang = "javascript";
+    var lines = String(code || "").split("\n");
+    var kwMap = {
+      bash: "if then else elif fi for do done case esac in while function echo read exit return local export set shift cat chmod git sudo true false",
+      javascript: "function const let var return if else for while class new await async import export from try catch finally throw typeof of in",
+      python: "def class return if elif else for while import from as try except with True False None yield lambda",
+      sql: "SELECT FROM WHERE INSERT UPDATE DELETE JOIN CREATE TABLE AND OR NOT NULL AS ON INTO VALUES SET",
+      json: "",
+      text: "if then else fi for do done function const let return def",
+    };
+    var kw = (kwMap[lang] != null ? kwMap[lang] : kwMap.text).split(/\s+/).filter(Boolean);
+
+    function hiLine(line) {
+      // komentar full-line dulu
+      if ((lang === "bash" || lang === "python") && /^\s*#/.test(line)) {
+        return '<span class="tok-com">' + esc(line) + "</span>";
+      }
+      if ((lang === "javascript" || lang === "java") && /^\s*\/\//.test(line)) {
+        return '<span class="tok-com">' + esc(line) + "</span>";
+      }
+      // tokenisasi kasar: string | lain
+      var out = "";
+      var i = 0;
+      while (i < line.length) {
+        var ch = line.charAt(i);
+        if (ch === '"' || ch === "'" || ch === "`") {
+          var q = ch;
+          var j = i + 1;
+          while (j < line.length) {
+            if (line.charAt(j) === "\\") {
+              j += 2;
+              continue;
+            }
+            if (line.charAt(j) === q) {
+              j++;
+              break;
+            }
+            j++;
+          }
+          out += '<span class="tok-str">' + esc(line.slice(i, j)) + "</span>";
+          i = j;
+          continue;
+        }
+        // komentar inline
+        if ((lang === "bash" || lang === "python") && ch === "#") {
+          out += '<span class="tok-com">' + esc(line.slice(i)) + "</span>";
+          break;
+        }
+        if ((lang === "javascript" || lang === "java") && ch === "/" && line.charAt(i + 1) === "/") {
+          out += '<span class="tok-com">' + esc(line.slice(i)) + "</span>";
+          break;
+        }
+        // word token
+        if (/[A-Za-z_]/.test(ch)) {
+          var k = i + 1;
+          while (k < line.length && /[A-Za-z0-9_]/.test(line.charAt(k))) k++;
+          var word = line.slice(i, k);
+          if (kw.indexOf(word) >= 0 || (lang === "sql" && kw.indexOf(word.toUpperCase()) >= 0)) {
+            out += '<span class="tok-kw">' + esc(word) + "</span>";
+          } else {
+            out += esc(word);
+          }
+          i = k;
+          continue;
+        }
+        // number
+        if (/[0-9]/.test(ch)) {
+          var n = i + 1;
+          while (n < line.length && /[0-9.]/.test(line.charAt(n))) n++;
+          out += '<span class="tok-num">' + esc(line.slice(i, n)) + "</span>";
+          i = n;
+          continue;
+        }
+        out += esc(ch);
+        i++;
+      }
+      return out;
     }
-    // keywords by lang
-    var kw = [];
-    if (lang === "bash" || lang === "sh" || lang === "shell") {
-      kw = ["if", "then", "else", "fi", "for", "do", "done", "case", "esac", "in", "while", "function", "echo", "read", "exit", "return", "local", "export", "set", "shift"];
-    } else if (lang === "javascript" || lang === "js") {
-      kw = ["function", "const", "let", "var", "return", "if", "else", "for", "while", "class", "new", "await", "async", "import", "export", "from", "try", "catch"];
-    } else if (lang === "python") {
-      kw = ["def", "class", "return", "if", "elif", "else", "for", "while", "import", "from", "as", "try", "except", "with", "True", "False", "None"];
-    } else if (lang === "sql") {
-      kw = ["SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "JOIN", "CREATE", "TABLE", "AND", "OR", "NOT", "NULL"];
-    }
-    if (kw.length) {
-      var re = new RegExp("\\b(" + kw.join("|") + ")\\b", lang === "sql" ? "g" : "g");
-      s = s.replace(re, '<span class="tok-kw">$1</span>');
-    }
-    // numbers
-    s = s.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="tok-num">$1</span>');
-    return s;
+    return lines.map(hiLine).join("\n");
+  }
+
+  function isInsideCodeFence(value, caret) {
+    var v = String(value || "");
+    var pos = Math.max(0, Math.min(caret || 0, v.length));
+    var before = v.slice(0, pos);
+    var ticks = before.split("```").length - 1;
+    return ticks % 2 === 1;
   }
 
   function formatChatRichText(raw, q) {
     var text = String(raw || "");
     if (!text) return "";
-    var re = /```([\w+-]*)[ \t]*\r?\n?([\s\S]*?)```/g;
+    // dukung ```lang\ncode``` dan ```\ncode```
+    var re = /```([^\n`]*)\r?\n([\s\S]*?)```/g;
     var out = "";
     var last = 0;
     var m;
+    var found = false;
     while ((m = re.exec(text))) {
+      found = true;
       var before = text.slice(last, m.index);
       if (before) out += linkifyAndMedia(highlight(esc(before), q || ""), q);
-      var lang = (m[1] || "text").toLowerCase() || "text";
-      var code = String(m[2] || "").replace(/\n$/, "");
+      var lang = String(m[1] || "").trim().toLowerCase() || detectCodeLang(m[2] || "");
+      if (!lang) lang = "text";
+      var code = String(m[2] || "").replace(/\s+$/, "");
       out +=
         '<pre class="chat-code" data-lang="' +
         esc(lang) +
         '"><div class="chat-code-bar"><span class="chat-code-lang">' +
         esc(lang) +
-        '</span><button type="button" class="chat-code-copy" data-copy-code="1">Salin</button></div><code>' +
+        '</span><button type="button" class="chat-code-copy" data-copy-code="1">Salin</button></div><code class="chat-code-body">' +
         highlightSource(code, lang) +
         "</code></pre>";
       last = m.index + m[0].length;
     }
+    // fallback: seluruh pesan seperti kode tanpa fence
+    if (!found && looksLikeCode(text) && text.indexOf("```") < 0) {
+      var lang2 = detectCodeLang(text);
+      return (
+        '<pre class="chat-code" data-lang="' +
+        esc(lang2) +
+        '"><div class="chat-code-bar"><span class="chat-code-lang">' +
+        esc(lang2) +
+        '</span><button type="button" class="chat-code-copy" data-copy-code="1">Salin</button></div><code class="chat-code-body">' +
+        highlightSource(text.replace(/\s+$/, ""), lang2) +
+        "</code></pre>"
+      );
+    }
     var rest = text.slice(last);
-    // inline `code`
     if (rest) {
       var escRest = esc(rest);
       escRest = escRest.replace(/`([^`\n]+)`/g, '<code class="chat-inline-code">$1</code>');
@@ -249,8 +321,6 @@
     }
     return out || linkifyAndMedia(highlight(esc(text), q || ""), q);
   }
-
-
 
   const VOICE_PREFIX = "__voice__";
   // __voice__|ttl=3h|dur=12.5|name=Judul|https://...  (name opsional, legacy tanpa name tetap valid)
@@ -3391,14 +3461,16 @@
     });
     // Enter kirim, Shift+Enter baris baru
     chatInput.addEventListener("keydown", (ev) => {
+      const ta = chatInput;
+      const v = ta.value || "";
+      const s = ta.selectionStart || 0;
+      const e = ta.selectionEnd || 0;
+
+      // TAB / Shift+TAB → indent (desktop)
       if (ev.key === "Tab") {
         ev.preventDefault();
-        const ta = chatInput;
-        const s = ta.selectionStart || 0;
-        const e = ta.selectionEnd || 0;
-        const v = ta.value || "";
+        ev.stopPropagation();
         if (ev.shiftKey) {
-          // unindent current line
           const lineStart = v.lastIndexOf("\n", s - 1) + 1;
           if (v.slice(lineStart, lineStart + 2) === "  ") {
             ta.value = v.slice(0, lineStart) + v.slice(lineStart + 2);
@@ -3416,9 +3488,33 @@
         return;
       }
 
-      if (ev.key === "Enter" && !ev.shiftKey) {
-        ev.preventDefault();
-        if (chatForm) chatForm.requestSubmit();
+      // ENTER di dalam blok kode / pesan kode → baris baru + auto-indent
+      // Kirim pesan: Ctrl/Cmd+Enter, atau Enter biasa jika BUKAN mode kode
+      if (ev.key === "Enter") {
+        const codeMode =
+          isInsideCodeFence(v, s) ||
+          v.indexOf("```") >= 0 ||
+          looksLikeCode(v);
+        if (codeMode && !ev.ctrlKey && !ev.metaKey) {
+          ev.preventDefault();
+          const lineStart = v.lastIndexOf("\n", s - 1) + 1;
+          const prevLine = v.slice(lineStart, s);
+          let indent = (prevLine.match(/^[ \t]*/) || [""])[0];
+          if (/[{\[(:]\s*$/.test(prevLine) || /\b(then|do|else|elif)\s*$/.test(prevLine)) {
+            indent = indent + "  ";
+          }
+          const ins = "\n" + indent;
+          ta.value = v.slice(0, s) + ins + v.slice(e);
+          ta.selectionStart = ta.selectionEnd = s + ins.length;
+          autoResizeInput();
+          return;
+        }
+        if (!ev.shiftKey && !codeMode) {
+          ev.preventDefault();
+          if (chatForm) chatForm.requestSubmit();
+        }
+        // Shift+Enter → newline native
+        return;
       }
     });
     chatInput.addEventListener("paste", (ev) => {
