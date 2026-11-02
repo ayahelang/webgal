@@ -168,12 +168,14 @@
 
   function detectCodeLang(text) {
     var t = String(text || "");
+    if (/<\/?[a-zA-Z][\w:-]*[\s>]/.test(t) && /<\/?[a-zA-Z]/.test(t)) return "html";
+    if (/[{;]\s*$/m.test(t) && /[.#]?[\w-]+\s*\{/.test(t) && /:\s*[^;]+;/.test(t)) return "css";
     if (/^#!\/bin\/(bash|sh)/m.test(t) || /\bEOF\b/.test(t) || /\bchmod\s?\+/.test(t) || /\bgit\s/.test(t) || /\becho\b/.test(t)) return "bash";
     if (/\b(function|const|let|=>|console\.)\b/.test(t)) return "javascript";
     if (/\b(def |import |print\()/.test(t)) return "python";
     if (/\b(SELECT|INSERT|UPDATE|FROM)\b/i.test(t)) return "sql";
     if (/\b(package |public class |System\.out)\b/.test(t)) return "java";
-    if (/\{\s*["']/.test(t) && /:\s*/.test(t)) return "json";
+    if (/^\s*[\[\{]/.test(t) && /:\s*/.test(t) && /["']/.test(t)) return "json";
     return "bash";
   }
 
@@ -184,28 +186,135 @@
   /** Highlighter sederhana tapi jelas (keyword / string / komentar / angka) */
   function highlightSource(code, lang) {
     lang = String(lang || "text").toLowerCase();
-    if (lang === "sh" || lang === "shell") lang = "bash";
-    if (lang === "js") lang = "javascript";
+    if (lang === "sh" || lang === "shell" || lang === "zsh" || lang === "git") lang = "bash";
+    if (lang === "js" || lang === "jsx" || lang === "ts" || lang === "typescript") lang = "javascript";
+    if (lang === "htm" || lang === "xml") lang = "html";
+    if (lang === "py") lang = "python";
     var lines = String(code || "").split("\n");
     var kwMap = {
       bash: "if then else elif fi for do done case esac in while function echo read exit return local export set shift cat chmod git sudo true false",
       javascript: "function const let var return if else for while class new await async import export from try catch finally throw typeof of in",
       python: "def class return if elif else for while import from as try except with True False None yield lambda",
       sql: "SELECT FROM WHERE INSERT UPDATE DELETE JOIN CREATE TABLE AND OR NOT NULL AS ON INTO VALUES SET",
+      css: "important media keyframes from to root supports charset import layer",
+      html: "html head body div span script style link meta title class id href src alt type rel",
       json: "",
+      java: "public private protected class static void return if else for while new try catch finally import package",
       text: "if then else fi for do done function const let return def",
     };
     var kw = (kwMap[lang] != null ? kwMap[lang] : kwMap.text).split(/\s+/).filter(Boolean);
 
     function hiLine(line) {
-      // komentar full-line dulu
       if ((lang === "bash" || lang === "python") && /^\s*#/.test(line)) {
         return '<span class="tok-com">' + esc(line) + "</span>";
       }
-      if ((lang === "javascript" || lang === "java") && /^\s*\/\//.test(line)) {
+      if ((lang === "javascript" || lang === "java" || lang === "css") && /^\s*\/\//.test(line)) {
         return '<span class="tok-com">' + esc(line) + "</span>";
       }
-      // tokenisasi kasar: string | lain
+      if ((lang === "css" || lang === "javascript" || lang === "java") && /^\s*\/\*/.test(line)) {
+        return '<span class="tok-com">' + esc(line) + "</span>";
+      }
+      // HTML: tokenizer sederhana di teks mentah
+      if (lang === "html") {
+        var outH = "";
+        var p = 0;
+        while (p < line.length) {
+          if (line.indexOf("<!--", p) === p) {
+            var ce = line.indexOf("-->", p + 4);
+            if (ce < 0) ce = line.length;
+            else ce += 3;
+            outH += '<span class="tok-com">' + esc(line.slice(p, ce)) + "</span>";
+            p = ce;
+            continue;
+          }
+          if (line.charAt(p) === "<") {
+            var q = p + 1;
+            var isClose = line.charAt(q) === "/";
+            if (isClose) q++;
+            var nameStart = q;
+            while (q < line.length && /[A-Za-z0-9:_-]/.test(line.charAt(q))) q++;
+            outH += '<span class="tok-kw">' + esc(line.slice(p, q)) + "</span>";
+            p = q;
+            while (p < line.length && line.charAt(p) !== ">") {
+              if (line.charAt(p) === '"' || line.charAt(p) === "'") {
+                var qq = line.charAt(p);
+                var r = p + 1;
+                while (r < line.length && line.charAt(r) !== qq) r++;
+                if (r < line.length) r++;
+                outH += '<span class="tok-str">' + esc(line.slice(p, r)) + "</span>";
+                p = r;
+                continue;
+              }
+              if (/[A-Za-z_]/.test(line.charAt(p))) {
+                var a0 = p;
+                p++;
+                while (p < line.length && /[A-Za-z0-9:_-]/.test(line.charAt(p))) p++;
+                outH += '<span class="tok-num">' + esc(line.slice(a0, p)) + "</span>";
+                continue;
+              }
+              outH += esc(line.charAt(p));
+              p++;
+            }
+            if (p < line.length && line.charAt(p) === ">") {
+              outH += '<span class="tok-kw">&gt;</span>';
+              p++;
+            }
+            continue;
+          }
+          outH += esc(line.charAt(p));
+          p++;
+        }
+        return outH;
+      }
+      // CSS: selector / property / value
+      if (lang === "css") {
+        if (/^\s*\/\*/.test(line) || /\/\*/.test(line) && /\*\//.test(line)) {
+          return '<span class="tok-com">' + esc(line) + "</span>";
+        }
+        var outC = "";
+        var i2 = 0;
+        // property line: name: value;
+        var prop = line.match(/^(\s*)([a-zA-Z-]+)(\s*:\s*)(.*)$/);
+        if (prop && line.indexOf("{") < 0) {
+          outC =
+            esc(prop[1]) +
+            '<span class="tok-num">' +
+            esc(prop[2]) +
+            "</span>" +
+            esc(prop[3]);
+          var val = prop[4];
+          var vi = 0;
+          while (vi < val.length) {
+            var chv = val.charAt(vi);
+            if (chv === '"' || chv === "'") {
+              var qv = chv;
+              var jv = vi + 1;
+              while (jv < val.length && val.charAt(jv) !== qv) jv++;
+              if (jv < val.length) jv++;
+              outC += '<span class="tok-str">' + esc(val.slice(vi, jv)) + "</span>";
+              vi = jv;
+              continue;
+            }
+            if (/[0-9]/.test(chv)) {
+              var nv = vi + 1;
+              while (nv < val.length && /[0-9.a-z%]/.test(val.charAt(nv))) nv++;
+              outC += '<span class="tok-num">' + esc(val.slice(vi, nv)) + "</span>";
+              vi = nv;
+              continue;
+            }
+            outC += esc(chv);
+            vi++;
+          }
+          return outC;
+        }
+        // selector { 
+        var sel = line.match(/^(\s*)([^{]+)(\{\s*)$/);
+        if (sel) {
+          return esc(sel[1]) + '<span class="tok-kw">' + esc(sel[2].trim()) + "</span> " + esc(sel[3] || "{");
+        }
+        // fallback token
+      }
+
       var out = "";
       var i = 0;
       while (i < line.length) {
@@ -228,7 +337,6 @@
           i = j;
           continue;
         }
-        // komentar inline
         if ((lang === "bash" || lang === "python") && ch === "#") {
           out += '<span class="tok-com">' + esc(line.slice(i)) + "</span>";
           break;
@@ -237,7 +345,6 @@
           out += '<span class="tok-com">' + esc(line.slice(i)) + "</span>";
           break;
         }
-        // word token
         if (/[A-Za-z_]/.test(ch)) {
           var k = i + 1;
           while (k < line.length && /[A-Za-z0-9_]/.test(line.charAt(k))) k++;
@@ -250,7 +357,6 @@
           i = k;
           continue;
         }
-        // number
         if (/[0-9]/.test(ch)) {
           var n = i + 1;
           while (n < line.length && /[0-9.]/.test(line.charAt(n))) n++;
