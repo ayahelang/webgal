@@ -2,6 +2,13 @@
   const $ = (s) => document.querySelector(s);
   let roster = { "2024": { "51": [], "52": [] }, "2025": { "51": [], "52": [] } };
 
+  // Ambil mode hemat/normal dari DB (best-effort)
+  try {
+    if (window.SHQuotaMode && SHQuotaMode.hydrateFromDb) {
+      SHQuotaMode.hydrateFromDb().catch(function () {});
+    }
+  } catch (eHyd) {}
+
   function returnTarget() {
     try {
       const q = new URLSearchParams(location.search).get("return");
@@ -126,10 +133,24 @@
     });
 
     $("#btnLogin").onclick = async () => {
-      GalleryDB.signInWithGoogle({
-        redirectTo: location.origin + location.pathname.replace(/[^/]+$/, "") + "profile.html",
-        returnTo: returnTarget() !== "index.html" ? returnTarget() : sessionStorage.getItem("sh_return") || location.href,
-      }).catch((e) => (window.SHDialog ? SHDialog.alert(e.message || e) : alert(e.message || e)));
+      try {
+        await GalleryDB.signInWithGoogle({
+          redirectTo: location.origin + location.pathname.replace(/[^/]+$/, "") + "profile.html",
+          returnTo: returnTarget() !== "index.html" ? returnTarget() : sessionStorage.getItem("sh_return") || location.href,
+        });
+      } catch (e) {
+        var host = $("#out") || document.body;
+        if (window.SHQuotaMode && SHQuotaMode.isQuotaError(e)) {
+          SHQuotaMode.showQuotaInfoBox(host, e, {
+            title: "Login sementara tidak tersedia",
+            body: "Ada kendala dengan plan langganan database. Pengunjung diminta menunggu atau mencoba lagi di lain kesempatan. Fitur login Google bergantung pada layanan database.",
+          });
+        } else if (window.SHDialog) {
+          SHDialog.alert((e && e.message) || e);
+        } else {
+          alert((e && e.message) || e);
+        }
+      }
     };
     $("#btnOut").onclick = async () => {
       await GalleryDB.signOut();

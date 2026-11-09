@@ -3369,7 +3369,17 @@
       GalleryDB.signInWithGoogle({
         redirectTo: location.origin + location.pathname.replace(/[^/]+$/, "") + "admin.html",
         returnTo: location.href,
-      }).catch((e) => void shAlert(e.message || e));
+      }).catch((e) => {
+        if (window.SHQuotaMode && SHQuotaMode.isQuotaError(e)) {
+          var gate = $("#gate") || $("#gateMsg") || document.body;
+          SHQuotaMode.showQuotaInfoBox(gate, e, {
+            title: "Login admin sementara tidak tersedia",
+            body: "Ada kendala dengan plan langganan database (kuota egress). Tunggu siklus kuota atau upgrade plan, lalu coba lagi.",
+          });
+        } else {
+          void shAlert(e.message || e);
+        }
+      });
     $("#btnLogout").onclick = async () => {
       await GalleryDB.signOut();
       location.href = "admin.html";
@@ -5186,6 +5196,69 @@
 
 
   boot();
+
+
+  // ===== Mode Kuota (Hemat / Normal) =====
+  (function bindQuotaModePanel() {
+    function paint() {
+      var mode = (window.SHQuotaMode && SHQuotaMode.getMode()) || "normal";
+      var isHemat = mode === "hemat";
+      var tog = document.getElementById("quotaModeToggle");
+      var label = document.getElementById("quotaModeLabel");
+      var desc = document.getElementById("quotaModeDesc");
+      var txt = document.getElementById("quotaModeToggleText");
+      if (tog) tog.checked = isHemat;
+      if (label) label.textContent = isHemat ? "Mode: Hemat" : "Mode: Normal";
+      if (desc) {
+        desc.textContent = isHemat
+          ? "Realtime dimatikan · cache panjang · polling jarang"
+          : "Realtime aktif · cache standar";
+      }
+      if (txt) txt.textContent = isHemat ? "Hemat" : "Normal";
+    }
+
+    async function init() {
+      try {
+        if (window.SHQuotaMode && SHQuotaMode.hydrateFromDb) {
+          await SHQuotaMode.hydrateFromDb();
+        }
+      } catch (e) {}
+      paint();
+      var tog = document.getElementById("quotaModeToggle");
+      if (!tog || tog.dataset.bound) return;
+      tog.dataset.bound = "1";
+      tog.addEventListener("change", async function () {
+        var st = document.getElementById("quotaModeStatus");
+        var next = tog.checked ? "hemat" : "normal";
+        if (st) st.textContent = "Menyimpan…";
+        try {
+          if (!window.SHQuotaMode) throw new Error("quota-mode.js belum dimuat");
+          await SHQuotaMode.setMode(next, { syncDb: true });
+          paint();
+          if (st) {
+            st.textContent =
+              next === "hemat"
+                ? "Mode Hemat aktif. Muat ulang halaman publik agar semua klien menerapkan penghematan."
+                : "Mode Normal aktif. Muat ulang halaman publik bila perlu.";
+          }
+        } catch (e) {
+          if (st) st.textContent = (e && e.message) || String(e);
+          paint();
+        }
+      });
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", function () { setTimeout(init, 400); });
+    } else {
+      setTimeout(init, 400);
+    }
+    // refresh paint saat tab diklik
+    document.addEventListener("click", function (ev) {
+      var t = ev.target && ev.target.closest && ev.target.closest('#adminTabs [data-tab="kuota"]');
+      if (t) setTimeout(paint, 50);
+    });
+  })();
 
   // Pembersihan data absensi lama (hemat kuota Supabase free)
   (function bindAttPurge() {

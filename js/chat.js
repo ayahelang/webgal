@@ -2656,7 +2656,43 @@
             u && u();
           } catch (e) {}
         });
+        if (window.__shChatPollTimer) {
+          try { clearInterval(window.__shChatPollTimer); } catch (e2) {}
+          window.__shChatPollTimer = null;
+        }
       };
+
+      // Mode hemat: ganti realtime dengan polling jarang
+      try {
+        var qm = window.SHQuotaMode && SHQuotaMode.config ? SHQuotaMode.config() : null;
+        if (qm && !qm.chatRealtime) {
+          if (status) {
+            status.textContent = (allMessages.length ? allMessages.length + " pesan" : "Belum ada pesan") + " · mode hemat (poll)";
+          }
+          var pollMs = qm.chatPollMs || 45000;
+          if (window.__shChatPollTimer) clearInterval(window.__shChatPollTimer);
+          window.__shChatPollTimer = setInterval(async function () {
+            try {
+              if (!roomId && !angkatanId) return;
+              var fresh = [];
+              if (roomId && GalleryDB.listChat) {
+                fresh = await GalleryDB.listChat({ roomId: roomId, limit: 80 });
+              } else if (angkatanId && GalleryDB.listChat) {
+                fresh = await GalleryDB.listChat({ angkatanId: angkatanId, limit: 80 });
+              }
+              if (fresh && fresh.length) {
+                allMessages = fresh;
+                renderMessages();
+              }
+            } catch (ePoll) {
+              if (window.SHQuotaMode && SHQuotaMode.isQuotaError(ePoll)) {
+                if (status) status.textContent = "Database terbatas (kuota) · mode hemat";
+              }
+            }
+          }, pollMs);
+        }
+      } catch (eQm) {}
+
       bindTyping();
     } catch (e) {
       status.textContent = "Gagal: " + (e.message || e);

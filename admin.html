@@ -74,6 +74,7 @@
         <button class="filter" data-tab="announce">Pengumuman</button>
         <button class="filter" data-tab="chatrooms">Ruang Chat</button>
         <button class="filter" data-tab="sync">Sync Docs</button>
+        <button class="filter" data-tab="kuota">Mode Kuota</button>
       </div>
 
       <section data-panel="videos" class="summary-card admin-pane">
@@ -521,6 +522,34 @@
         <pre id="syncLog" class="muted" style="font-size:11px;white-space:pre-wrap;max-height:200px;overflow:auto"></pre>
       </section>
       
+
+      <section data-panel="kuota" class="summary-card admin-pane" hidden>
+        <h3>Mode Kuota Supabase</h3>
+        <p class="muted" style="font-size:13px;margin:0 0 12px">
+          Mode <b>Hemat</b> mengurangi beban egress Free Plan: cache lebih lama, realtime chat/pengumuman/absensi dimatikan,
+          diganti polling jarang. Mode <b>Normal</b> mengembalikan perilaku penuh seperti biasa.
+        </p>
+        <div class="sh-quota-switch-card">
+          <div class="sh-quota-switch-row">
+            <div>
+              <div style="font-weight:700" id="quotaModeLabel">Mode: Normal</div>
+              <div class="muted" style="font-size:12px" id="quotaModeDesc">Realtime aktif · cache standar</div>
+            </div>
+            <label class="sh-switch" title="Alihkan mode hemat / normal">
+              <input type="checkbox" id="quotaModeToggle" />
+              <span class="sh-switch-slider"></span>
+              <span class="sh-switch-text" id="quotaModeToggleText">Normal</span>
+            </label>
+          </div>
+          <ul class="muted" style="font-size:12px;margin:12px 0 0;padding-left:18px;line-height:1.55">
+            <li><b>Hemat</b>: cache galeri 15 menit · chat poll ~45 dtk · tanpa typing/presence realtime · pengumuman & absensi tanpa realtime</li>
+            <li><b>Normal</b>: perilaku aplikasi seperti sebelumnya</li>
+            <li>Preferensi disimpan di browser admin dan disinkron ke database bila memungkinkan</li>
+          </ul>
+          <p id="quotaModeStatus" class="muted" style="font-size:12px;margin:10px 0 0"></p>
+        </div>
+      </section>
+
       <section data-panel="designs" class="summary-card admin-pane" hidden>
         <h3>Desain — siswa &amp; pengajar</h3>
         <p class="muted" style="font-size:13px;margin:0 0 8px">Kelola karya desain grafis siswa dan pengajar (hotlink URL gambar).</p>
@@ -581,6 +610,7 @@
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="data/supabase-config.js"></script>
+  <script src="js/quota-mode.js"></script>
   <script src="js/db.js"></script>
   <script src="js/ui-dialog.js"></script>
   <script src="js/preview-card.js"></script>

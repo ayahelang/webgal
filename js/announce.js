@@ -1157,6 +1157,12 @@
   // Realtime: admin Simpan → semua browser langsung dapat event (tanpa tunggu 10 dtk)
   (function bindAnnRealtime() {
     function tryBind() {
+      try {
+        if (window.SHQuotaMode && SHQuotaMode.isHemat && SHQuotaMode.isHemat()) {
+          // Mode hemat: tanpa realtime pengumuman
+          return;
+        }
+      } catch (eH) {}
       if (!window.GalleryDB || !GalleryDB.subscribeActiveAnnouncements) {
         setTimeout(tryBind, 800);
         return;

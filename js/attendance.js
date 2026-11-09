@@ -592,7 +592,9 @@
     }, 15000);
     // Realtime: perubahan sesi/record dari guru langsung ke layar siswa
     try {
-      if (window.GalleryDB && typeof GalleryDB.subscribeAttendanceLive === "function") {
+      if (window.SHQuotaMode && SHQuotaMode.isHemat && SHQuotaMode.isHemat()) {
+        // Mode hemat: skip realtime absensi
+      } else if (window.GalleryDB && typeof GalleryDB.subscribeAttendanceLive === "function") {
         GalleryDB.subscribeAttendanceLive(function () {
           if (isTypingNote()) {
             // tunda sebentar agar tidak ganggu ketik

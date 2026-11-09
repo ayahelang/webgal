@@ -1,0 +1,53 @@
+Revisi Mode Hemat / Normal + error handling kuota Supabase
+============================================================
+
+File yang diubah / ditambah (timpa ke root repo webgal):
+
+BARU:
+  js/quota-mode.js
+
+DIUBAH:
+  js/db.js
+  js/admin.js
+  js/profile.js
+  js/auth-ui.js
+  js/chat.js
+  js/announce.js
+  js/attendance.js
+  css/style.css
+  admin.html
+  profile.html
+  index.html
+  chat.html
+  absensi.html
+  videos.html
+  designs.html
+  stats.html
+
+Cara pasang
+-----------
+1. Backup dulu repo / folder deploy kamu.
+2. Salin semua file di atas ke lokasi yang sama di project.
+3. Commit & push ke GitHub (GitHub Pages akan rebuild).
+4. Buka admin.html → login admin → tab **Mode Kuota**.
+5. Aktifkan saklar **Hemat** bila ingin menghemat egress Free Plan.
+
+Catatan penting
+---------------
+- Mode Hemat disimpan di localStorage browser + (bila memungkinkan) ke
+  tabel gallery_app_settings key "quota_mode".
+- Saat project Supabase sedang di-restrict (exceed_egress_quota), login
+  Google tetap gagal di sisi Supabase — itu batasan platform, bukan bug UI.
+  UI sekarang menampilkan info box ramah + detail teknis yang bisa dilipat.
+- Mode Hemat membantu *mencegah* kuota cepat habis setelah layanan pulih:
+  cache lebih lama, realtime dimatikan, polling lebih jarang.
+- Untuk memulihkan layanan yang sudah di-restrict: upgrade plan / tunggu
+  reset billing cycle di dashboard Supabase.
+
+Pengujian cepat
+---------------
+1. Admin → Mode Kuota → saklar ke Hemat → status "Mode Hemat aktif".
+2. Buka chat.html: status mengarah ke "mode hemat (poll)", bukan realtime.
+3. Simulasikan error: di console
+   SHQuotaMode.showQuotaInfoBox(document.body, {message:'{"message":"Service for this project is restricted due to the following violations: exceed_egress_quota. ..."}'})
+   → harus muncul info box, detail tersembunyi sampai diklik.

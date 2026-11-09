@@ -956,3 +956,117 @@ pre.chat-code code{
   border-bottom:1px solid rgba(125,227,255,.14)!important;
   background:rgba(255,255,255,.04)!important;
 }
+
+
+/* ===== Mode Kuota / Info box error database ===== */
+.sh-quota-infobox {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 180, 80, 0.45);
+  background: rgba(255, 160, 40, 0.08);
+  color: inherit;
+  max-width: 520px;
+}
+.sh-quota-infobox__icon {
+  font-size: 22px;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+.sh-quota-infobox__body {
+  flex: 1;
+  min-width: 0;
+}
+.sh-quota-infobox__body strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 15px;
+}
+.sh-quota-infobox__body p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.92;
+}
+.sh-quota-infobox__toggle {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #7de3ff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+.sh-quota-infobox__detail {
+  margin: 10px 0 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 180px;
+  overflow: auto;
+}
+.sh-quota-switch-card {
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(125, 227, 255, 0.2);
+  background: rgba(125, 227, 255, 0.04);
+}
+.sh-quota-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.sh-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.sh-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.sh-switch-slider {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.sh-switch-slider::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+.sh-switch input:checked + .sh-switch-slider {
+  background: #2bb673;
+}
+.sh-switch input:checked + .sh-switch-slider::after {
+  transform: translateX(22px);
+}
+.sh-switch-text {
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 3.5em;
+}

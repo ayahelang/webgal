@@ -106,6 +106,11 @@
         `</span></a>`;
     } catch (e) {
       console.warn(e);
+      if (window.SHQuotaMode && SHQuotaMode.isQuotaError(e)) {
+        bar.innerHTML =
+          '<span class="sh-profile-meta" title="Database terbatas">' +
+          '<b>DB terbatas</b><small>coba lagi nanti</small></span>';
+      }
     }
   }
 

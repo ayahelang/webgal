@@ -171,9 +171,18 @@
   let __galleryCacheAt = 0;
   const GALLERY_CACHE_MS = 60 * 1000;
 
+  function galleryCacheMs() {
+    try {
+      if (global.SHQuotaMode && typeof global.SHQuotaMode.config === "function") {
+        return global.SHQuotaMode.config().galleryCacheMs || GALLERY_CACHE_MS;
+      }
+    } catch (e) {}
+    return GALLERY_CACHE_MS;
+  }
+
   async function fetchGalleryFromDb(opts) {
     opts = opts || {};
-    if (!opts.force && __galleryCache && Date.now() - __galleryCacheAt < GALLERY_CACHE_MS) {
+    if (!opts.force && __galleryCache && Date.now() - __galleryCacheAt < galleryCacheMs()) {
       return __galleryCache;
     }
     const sb = client();
@@ -1652,6 +1661,12 @@
   }
 
   function subscribeChat({ angkatanId, roomId, onInsert, onUpdate, onDelete }) {
+    try {
+      if (global.SHQuotaMode && global.SHQuotaMode.isHemat && global.SHQuotaMode.isHemat()) {
+        // Mode hemat: nonaktifkan realtime (hemat egress)
+        return () => {};
+      }
+    } catch (e) {}
     const sb = client();
     if (!sb) return () => {};
     let filter;
@@ -1918,6 +1933,11 @@
     }
   }
   function joinTypingChannel({ roomKey, userName, avatarEmoji, onSync }) {
+    try {
+      if (global.SHQuotaMode && global.SHQuotaMode.isHemat && global.SHQuotaMode.isHemat()) {
+        return { setTyping() {}, leave() {} };
+      }
+    } catch (e) {}
     const sb = client();
     if (!sb) return { setTyping() {}, leave() {} };
     const channel = sb.channel("typing-" + (roomKey || "global"), {
@@ -4757,5 +4777,21 @@
     sumReactionsForUrls,
     listChatReactions,
     toggleChatReaction,
+    isQuotaError: function (err) {
+      try {
+        return global.SHQuotaMode && global.SHQuotaMode.isQuotaError
+          ? global.SHQuotaMode.isQuotaError(err)
+          : false;
+      } catch (e) {
+        return false;
+      }
+    },
+    getQuotaMode: function () {
+      try {
+        return global.SHQuotaMode ? global.SHQuotaMode.getMode() : "normal";
+      } catch (e) {
+        return "normal";
+      }
+    },
   };
 })(window);
