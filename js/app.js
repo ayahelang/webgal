@@ -368,8 +368,7 @@
         data-tip-title="${escapeAttr(w.title)}"
         data-tip-desc="${escapeAttr((s.name) + (w.description ? " — " + w.description : ""))}"
         data-tip-url="${escapeAttr(w.url)}">
-      <div class="cover">
-        <img class="thumb" src="${(w.thumb && String(w.thumb).trim()) ? w.thumb : autoThumb(w.title, w.url)}" data-site="${w.url}" alt="Thumbnail ${w.title}" loading="lazy">
+      <div class="cover cover-no-thumb">
         <div class="cover-overlay"></div>
         <div class="cover-top"><span class="pill">${w.category}</span><span class="cover-number">${String(index+1).padStart(2,"0")}</span></div>
         <div class="cover-title"><h3 title="${escapeAttr(w.title)}">${w.title}</h3><span>${s.works.length} karya</span></div>
@@ -424,7 +423,7 @@
     $("#galleryGrid").innerHTML=list.map(card).join("");
     $("#resultInfo").textContent=`${list.length} santriwati ditampilkan • ${worksShown} karya (filter aktif) · total ${allWorks().length} di database`;
     $("#emptyState").hidden=list.length!==0;
-    document.querySelectorAll(".thumb").forEach(loadScreenshot);
+    /* thumbnails disabled */
     if (window.SHSocial) { SHSocial.bind(document); SHSocial.hydrate(document); }
     document.querySelectorAll("a.work-choice, a.card-link").forEach(a=>{
       a.addEventListener("click",()=>{ try{ GalleryDB.trackEvent("click",{url:a.href}); }catch(e){} });
