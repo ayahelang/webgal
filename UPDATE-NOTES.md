@@ -1,3 +1,1 @@
-- Brand "Student Web Gallery" one line
-- Profil + nama admin hidden; show on avatar click menu
-- Chat room password session cleared on logout; key tied to user id
+Hide Profil+Admin topnav when guest; Login stays. Avatar menu when logged in.

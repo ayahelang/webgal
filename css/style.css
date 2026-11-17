@@ -1155,9 +1155,12 @@ html.sh-economy #shServerFab{opacity:.35}
   background: rgba(125,227,255,.14);
 }
 /* Sembunyikan link Profil di topnav saat user login (ada di menu avatar) */
-body.sh-user-logged .topnav a[href="profile.html"],
-body.sh-user-logged .topnav a[href="./profile.html"],
-body.sh-user-logged .topnav a[href="/profile.html"] {
+/* Profil & Admin di topnav: selalu disembunyikan (akses lewat Login / menu avatar) */
+.topnav a[href="profile.html"],
+.topnav a[href="./profile.html"],
+.topnav a[href="/profile.html"],
+.topnav a.nav-admin,
+nav.topnav a.nav-admin {
   display: none !important;
 }
 @media (max-width: 900px) {

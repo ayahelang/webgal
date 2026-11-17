@@ -97,7 +97,8 @@
       const session = await GalleryDB.getSession();
       if (!session || !session.user) {
         document.body.classList.remove("sh-user-logged");
-        hideAdminNavLinks(false);
+        document.body.classList.add("sh-user-guest");
+        hideAdminNavLinks(true); // sembunyikan Admin+Profil topnav saat belum login
         try {
           window.__shChatUid = "anon";
         } catch (e0) {}
@@ -116,6 +117,7 @@
         return;
       }
       document.body.classList.add("sh-user-logged");
+      document.body.classList.remove("sh-user-guest");
       const u = session.user;
       try {
         window.__shChatUid = String(u.id || u.email || "user");
@@ -138,7 +140,7 @@
         isAdm = await GalleryDB.isCurrentUserAdmin();
       } catch (e) {}
 
-      hideAdminNavLinks(!!isAdm);
+      hideAdminNavLinks(true); // topnav Admin selalu off; admin pakai menu avatar
 
       const sub = isAdm ? "Admin" : statusLabel;
       const avHtml = avatar
