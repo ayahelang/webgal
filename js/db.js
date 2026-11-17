@@ -544,6 +544,19 @@
   }
 
   async function signOut() {
+    try {
+      var keys = [];
+      for (var i = 0; i < sessionStorage.length; i++) {
+        var k = sessionStorage.key(i);
+        if (k && k.indexOf("sh_chat_room_ok_") === 0) keys.push(k);
+      }
+      keys.forEach(function (k) { sessionStorage.removeItem(k); });
+      window.__shChatUid = "anon";
+    } catch (eClr) {}
+    if (window.SHAuthUI && typeof SHAuthUI.clearChatRoomSessions === "function") {
+      try { SHAuthUI.clearChatRoomSessions(); } catch (e2) {}
+    }
+
     const sb = client();
     if (sb) await sb.auth.signOut();
   }

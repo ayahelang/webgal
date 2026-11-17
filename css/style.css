@@ -1043,3 +1043,131 @@ html.sh-economy #shServerFab{opacity:.35}
   .sh-pw-toggle{width:44px;height:44px;min-width:44px;min-height:44px;right:2px}
   .sh-pw-wrap > input{padding-right:3rem !important}
 }
+
+
+/* Brand subtitle selalu SEBARIS */
+.topbar .brand small,
+.brand small {
+  display: block !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: min(220px, 42vw) !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0.08em !important;
+  font-size: 9px !important;
+}
+@media (min-width: 901px) {
+  .topbar .brand small,
+  .brand small {
+    max-width: 280px !important;
+    letter-spacing: 1.2px !important;
+  }
+}
+
+/* Chip akun: default hanya avatar; meta + menu muncul saat dibuka */
+.sh-userbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.sh-profile-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+  padding: 2px !important;
+  border-radius: 999px !important;
+  max-width: none !important;
+  cursor: pointer;
+  text-decoration: none !important;
+  border: 1px solid rgba(125,227,255,.2);
+  background: rgba(15,27,36,.55);
+}
+.sh-profile-chip img,
+.sh-profile-chip .sh-av-fallback {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 50% !important;
+  object-fit: cover;
+  display: block;
+  flex-shrink: 0;
+}
+.sh-profile-chip .sh-av-fallback {
+  display: grid !important;
+  place-items: center;
+  font-size: 16px;
+  background: rgba(125,227,255,.12);
+}
+/* sembunyikan nama di chip — hemat ruang */
+.sh-profile-chip .sh-profile-meta {
+  display: none !important;
+}
+.sh-user-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 200px;
+  max-width: min(280px, 92vw);
+  z-index: 10050;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(125,227,255,.22);
+  background: linear-gradient(165deg, rgba(18,30,40,.98), rgba(10,18,26,.98));
+  box-shadow: 0 16px 40px rgba(0,0,0,.45);
+  color: var(--text, #eef7fb);
+}
+.sh-userbar.is-open .sh-user-menu {
+  display: block;
+}
+.sh-user-menu .sh-um-name {
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.3;
+  margin: 0 0 2px;
+  word-break: break-word;
+}
+.sh-user-menu .sh-um-role {
+  font-size: 11px;
+  color: var(--muted, #8fa7b4);
+  margin: 0 0 10px;
+}
+.sh-user-menu a,
+.sh-user-menu button.sh-um-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  margin: 0 0 4px;
+  border-radius: 10px;
+  border: 0;
+  background: rgba(125,227,255,.06);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+.sh-user-menu a:hover,
+.sh-user-menu button.sh-um-btn:hover {
+  background: rgba(125,227,255,.14);
+}
+/* Sembunyikan link Profil di topnav saat user login (ada di menu avatar) */
+body.sh-user-logged .topnav a[href="profile.html"],
+body.sh-user-logged .topnav a[href="./profile.html"],
+body.sh-user-logged .topnav a[href="/profile.html"] {
+  display: none !important;
+}
+@media (max-width: 900px) {
+  .sh-profile-chip img,
+  .sh-profile-chip .sh-av-fallback {
+    width: 32px !important;
+    height: 32px !important;
+  }
+  .sh-user-menu {
+    right: 0;
+    left: auto;
+  }
+}

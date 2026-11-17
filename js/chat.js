@@ -2223,11 +2223,35 @@
   }
 
   function roomSessionKey(roomId) {
-    return "sh_chat_room_ok_" + roomId;
+    var uid = "anon";
+    try {
+      if (window.__shChatUid) uid = String(window.__shChatUid);
+    } catch (e) {}
+    return "sh_chat_room_ok_" + uid + "_" + roomId;
+  }
+
+  function clearAllChatRoomSessions() {
+    try {
+      var keys = [];
+      for (var i = 0; i < sessionStorage.length; i++) {
+        var k = sessionStorage.key(i);
+        if (k && k.indexOf("sh_chat_room_ok_") === 0) keys.push(k);
+      }
+      keys.forEach(function (k) {
+        sessionStorage.removeItem(k);
+      });
+    } catch (e) {}
   }
 
   async function ensureRoomAccess(roomId, needsPasswordHint) {
     if (!roomId || !GalleryDB.verifyChatRoomAccess) return true;
+    // sinkronkan uid dari sesi aktif (logout → anon; login → user id)
+    try {
+      var sess = await GalleryDB.getSession();
+      window.__shChatUid = sess && sess.user ? String(sess.user.id || sess.user.email || "user") : "anon";
+    } catch (eS) {
+      window.__shChatUid = "anon";
+    }
     if (sessionStorage.getItem(roomSessionKey(roomId)) === "1") return true;
     let password = null;
     // selalu cek server-side (batasan angkatan/kelas + password)
@@ -2264,11 +2288,14 @@
       });
     }
     let ok = await tryVerify(null);
-    // Hanya minta password jika ruang memang berpassword
+    // Password: minta jika hint bilang berpassword, atau verifikasi gagal & user belum kirim password
     if (!ok && needsPasswordHint) {
       var pwMsg = "Ruang ini memakai password. Masukkan password untuk masuk:";
       if (window.SHDialog && SHDialog.prompt) {
-        password = await SHDialog.prompt(pwMsg, "", "Password ruang", { password: true, autocomplete: "current-password" });
+        password = await SHDialog.prompt(pwMsg, "", "Password ruang", {
+          password: true,
+          autocomplete: "current-password",
+        });
       } else {
         password = window.prompt(pwMsg);
       }
