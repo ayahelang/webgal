@@ -985,3 +985,61 @@ pre.chat-code code{
 html.sh-economy .stats-float,
 html.sh-economy .sh-share-bar,
 html.sh-economy #shServerFab{opacity:.35}
+
+
+/* Password visibility toggle — tidak mengubah layout field lain */
+.sh-pw-wrap{
+  position:relative;
+  display:block;
+  width:100%;
+  max-width:100%;
+}
+.sh-pw-wrap > input[type="password"],
+.sh-pw-wrap > input[type="text"].sh-pw-input,
+.sh-pw-wrap > input.sh-dialog-input{
+  width:100%;
+  box-sizing:border-box;
+  padding-right:2.75rem !important;
+}
+.sh-pw-toggle{
+  position:absolute;
+  right:4px;
+  top:50%;
+  transform:translateY(-50%);
+  z-index:2;
+  width:40px;
+  height:40px;
+  min-width:40px;
+  min-height:40px;
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:10px;
+  background:transparent;
+  color:var(--muted,#8fa7b4);
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+.sh-pw-toggle:hover,
+.sh-pw-toggle:focus-visible{
+  color:var(--cyan,#7de3ff);
+  background:rgba(125,227,255,.08);
+  outline:none;
+}
+.sh-pw-toggle svg{
+  width:20px;
+  height:20px;
+  display:block;
+  pointer-events:none;
+}
+.sh-pw-toggle .sh-pw-ico-hide{display:none}
+.sh-pw-toggle.is-shown .sh-pw-ico-show{display:none}
+.sh-pw-toggle.is-shown .sh-pw-ico-hide{display:block}
+@media (max-width:640px){
+  .sh-pw-toggle{width:44px;height:44px;min-width:44px;min-height:44px;right:2px}
+  .sh-pw-wrap > input{padding-right:3rem !important}
+}

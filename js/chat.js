@@ -2268,7 +2268,7 @@
     if (!ok && needsPasswordHint) {
       var pwMsg = "Ruang ini memakai password. Masukkan password untuk masuk:";
       if (window.SHDialog && SHDialog.prompt) {
-        password = await SHDialog.prompt(pwMsg, "", "Password ruang");
+        password = await SHDialog.prompt(pwMsg, "", "Password ruang", { password: true, autocomplete: "current-password" });
       } else {
         password = window.prompt(pwMsg);
       }
