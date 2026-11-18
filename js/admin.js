@@ -3386,18 +3386,25 @@
       location.href = "admin.html";
     };
 
-    let auth = await GalleryDB.requireAdmin();
-    // Cadangan: sesi darurat Apps Script (saat Supabase Auth gagal)
+    let auth = null;
+    try {
+      auth = await GalleryDB.requireAdmin();
+    } catch (eReq) {
+      console.warn("requireAdmin", eReq);
+      auth = { ok: false, reason: "error", message: (eReq && eReq.message) || String(eReq) };
+    }
+    // Cadangan: sesi darurat Apps Script (saat Supabase Auth gagal / kuota)
     if ((!auth || !auth.ok) && window.SHAdminEmergency && SHAdminEmergency.isActive()) {
       auth = SHAdminEmergency.asAuthResult();
     }
-    if (!auth.ok) {
+    if (!auth || !auth.ok) {
       panel.hidden = true;
       gate.hidden = false;
+      gate.style.display = "";
       try {
         if (window.SHAdminEmergency) SHAdminEmergency.bindGateUI();
       } catch (eBind) {}
-      if (auth.reason === "forbidden") {
+      if (auth && auth.reason === "forbidden") {
         $("#gateMsg").textContent =
           "Akun " + (auth.email || "") + " berhasil login Google tetapi belum punya hak admin. Minta admin utama mengundang dari tab Users.";
         const b = document.createElement("button");
@@ -3409,13 +3416,41 @@
           location.reload();
         };
         gate.appendChild(b);
+      } else if (auth && auth.reason === "error") {
+        $("#gateMsg").textContent =
+          "Gagal cek login (" + (auth.message || "error") + "). Coba Login darurat (password) di bawah.";
       }
       return;
     }
 
+    // Tampilkan panel penuh (mode normal atau darurat)
     gate.hidden = true;
     gate.style.display = "none";
     panel.hidden = false;
+    try {
+      panel.removeAttribute("hidden");
+      panel.style.display = "";
+      panel.style.visibility = "visible";
+    } catch (eVis) {}
+    document.body.classList.add("sh-admin-ready");
+    if (auth.emergency) {
+      document.body.classList.add("sh-admin-emergency");
+      try {
+        sessionStorage.removeItem("sh_admin_emergency_boot");
+      } catch (eFl) {}
+      // Banner mode darurat
+      if (!$("#shEmergencyBanner")) {
+        const ban = document.createElement("div");
+        ban.id = "shEmergencyBanner";
+        ban.className = "sh-emergency-banner";
+        ban.innerHTML =
+          "<strong>Mode admin darurat</strong> — sesi password aktif. " +
+          "Beberapa data/tab bergantung Supabase; bila kuota habis isi tab bisa kosong, tapi panel tetap terbuka.";
+        const tabs = $("#adminTabs");
+        if (tabs && tabs.parentNode) tabs.parentNode.insertBefore(ban, tabs);
+        else panel.insertBefore(ban, panel.firstChild);
+      }
+    }
     // Kartu profil besar tidak dipakai — hemat baris; profil tetap di topbar
     const whoCard = $("#adminWhoCard");
     if (whoCard) {
@@ -3571,15 +3606,26 @@
     }
 
     // Muat ringan dulu; list berat (video/web) lazy saat tab dibuka
+    // Mode darurat/kuota: jangan biarkan error menutup panel
     try {
-      await Promise.all([refreshCats(), refreshAngkatan()]);
+      await Promise.all([
+        refreshCats().catch(function (e) { console.warn("cats", e); }),
+        refreshAngkatan().catch(function (e) { console.warn("angkatan", e); }),
+      ]);
     } catch (e) {
       console.warn(e);
     }
-    // preload tab aktif (video) di background + isi datalist pemilik
     fillMediaOwnerSelects().catch((e) => console.warn("owners", e));
     refreshVideos().catch((e) => console.warn("videos", e));
-    // sisanya on-demand
+    // pastikan tab video pane terlihat
+    try {
+      var vidPane = document.querySelector('.admin-pane[data-panel="videos"]');
+      if (vidPane) vidPane.hidden = false;
+      var tabs = document.querySelectorAll("#adminTabs .filter");
+      if (tabs && tabs.length && !document.querySelector("#adminTabs .filter.active")) {
+        tabs[0].classList.add("active");
+      }
+    } catch (eTab) {}
   }
 
   function bindForms(session) {
@@ -5204,7 +5250,23 @@
   }
 
 
-  boot();
+  boot().catch(function (e) {
+    console.error("admin boot", e);
+    try {
+      var g = document.getElementById("gate");
+      var p = document.getElementById("panel");
+      if (window.SHAdminEmergency && SHAdminEmergency.isActive() && p) {
+        if (g) { g.hidden = true; g.style.display = "none"; }
+        p.hidden = false;
+        p.removeAttribute("hidden");
+        document.body.classList.add("sh-admin-ready", "sh-admin-emergency");
+      } else if (g) {
+        g.hidden = false;
+        var gm = document.getElementById("gateMsg");
+        if (gm) gm.textContent = "Gagal membuka panel: " + (e && e.message ? e.message : e);
+      }
+    } catch (e2) {}
+  });
 
 
   // ===== Mode Kuota (Hemat / Normal) =====

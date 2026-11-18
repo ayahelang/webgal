@@ -38,6 +38,9 @@
     try {
       localStorage.setItem(LS, JSON.stringify(o));
     } catch (e) {}
+    try {
+      sessionStorage.setItem("sh_admin_emergency_boot", "1");
+    } catch (e2) {}
     return o;
   }
 
@@ -54,10 +57,20 @@
   function asAuthResult() {
     var s = readSession();
     if (!s) return { ok: false, reason: "not_logged_in" };
+    var email = s.label || "admin-darurat@local";
     return {
       ok: true,
-      email: s.label || "admin-darurat@local",
-      session: { user: { email: s.label || "admin-darurat@local", id: "emergency-admin" } },
+      email: email,
+      session: {
+        user: {
+          id: "emergency-admin",
+          email: email,
+          user_metadata: {
+            full_name: email,
+            name: "Admin darurat",
+          },
+        },
+      },
       main: true,
       emergency: true,
       via: "gas",
