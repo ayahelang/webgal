@@ -3436,6 +3436,14 @@
     if (auth.emergency) {
       document.body.classList.add("sh-admin-emergency");
       try {
+        // Di mode darurat, buka tab Mode Kuota agar kontrol backend terlihat
+        setTimeout(function () {
+          var kt = document.querySelector('#adminTabs [data-tab="kuota"]');
+          if (kt) kt.click();
+        }, 300);
+      } catch (eK) {}
+
+      try {
         sessionStorage.removeItem("sh_admin_emergency_boot");
       } catch (eFl) {}
       // Banner mode darurat
@@ -3485,8 +3493,23 @@
         $$("#adminTabs .filter").forEach((x) => x.classList.remove("active"));
         btn.classList.add("active");
         $$(".admin-pane").forEach((p) => {
-          p.hidden = p.getAttribute("data-panel") !== btn.dataset.tab;
+          var on = p.getAttribute("data-panel") === btn.dataset.tab;
+          p.hidden = !on;
+          if (on) {
+            try {
+              p.removeAttribute("hidden");
+              p.style.display = "";
+            } catch (eP) {}
+          }
         });
+        try {
+          var pan = document.getElementById("panel");
+          if (pan) {
+            pan.hidden = false;
+            pan.removeAttribute("hidden");
+            pan.style.display = "";
+          }
+        } catch (ePanel) {}
         const tab = btn.dataset.tab;
         if (tab === "videos") {
           fillMediaOwnerSelects().catch(console.warn);
@@ -5270,7 +5293,7 @@
 
 
   // ===== Mode Kuota (Hemat / Normal) =====
-  (function bindQuotaModePanel() {
+    (function bindQuotaModePanel() {
     function paint() {
       var mode = (window.SHQuotaMode && SHQuotaMode.getMode()) || "normal";
       var isHemat = mode === "hemat";
@@ -5279,52 +5302,174 @@
       var desc = document.getElementById("quotaModeDesc");
       var txt = document.getElementById("quotaModeToggleText");
       if (tog) tog.checked = isHemat;
-      if (label) label.textContent = isHemat ? "Mode: Hemat" : "Mode: Normal";
-      if (desc) {
+      if (label) label.textContent = "Mode: " + (isHemat ? "Hemat" : "Normal");
+      if (desc)
         desc.textContent = isHemat
-          ? "Realtime dimatikan · cache panjang · polling jarang"
+          ? "Realtime off · cache panjang · polling jarang"
           : "Realtime aktif · cache standar";
-      }
       if (txt) txt.textContent = isHemat ? "Hemat" : "Normal";
-    }
 
-    async function init() {
+      var backend = "supabase";
       try {
-        if (window.SHQuotaMode && SHQuotaMode.hydrateFromDb) {
-          await SHQuotaMode.hydrateFromDb();
-        }
-      } catch (e) {}
-      paint();
-      var tog = document.getElementById("quotaModeToggle");
-      if (!tog || tog.dataset.bound) return;
-      tog.dataset.bound = "1";
-      tog.addEventListener("change", async function () {
-        var st = document.getElementById("quotaModeStatus");
-        var next = tog.checked ? "hemat" : "normal";
-        if (st) st.textContent = "Menyimpan…";
-        try {
-          if (!window.SHQuotaMode) throw new Error("quota-mode.js belum dimuat");
-          await SHQuotaMode.setMode(next, { syncDb: true });
-          paint();
-          if (st) {
-            st.textContent =
-              next === "hemat"
-                ? "Mode Hemat aktif. Muat ulang halaman publik agar semua klien menerapkan penghematan."
-                : "Mode Normal aktif. Muat ulang halaman publik bila perlu.";
-          }
-        } catch (e) {
-          if (st) st.textContent = (e && e.message) || String(e);
-          paint();
+        if (window.SHDbFailover && SHDbFailover.getPreferred) backend = SHDbFailover.getPreferred();
+        else if (window.SH_DB_BACKEND) backend = SH_DB_BACKEND;
+      } catch (e0) {}
+      try {
+        if (localStorage.getItem("sh_db_backend") === "sheet") backend = "sheet";
+      } catch (e1) {}
+      ["supabase", "firebase", "sheet"].forEach(function (b) {
+        var btn = document.getElementById(
+          b === "supabase" ? "btnBackendSupabase" : b === "firebase" ? "btnBackendFirebase" : "btnBackendSheet"
+        );
+        if (!btn) return;
+        if (backend === b) {
+          btn.classList.remove("btn-ghost");
+          btn.classList.add("btn-primary");
+        } else {
+          btn.classList.add("btn-ghost");
+          btn.classList.remove("btn-primary");
         }
       });
+      var bdesc = document.getElementById("backendModeDesc");
+      if (bdesc) {
+        bdesc.textContent =
+          backend === "firebase"
+            ? "Preferensi: Firebase (meta/mode & cadangan)."
+            : backend === "sheet"
+              ? "Preferensi: Google Sheet (impor/baca roster via tab Sync)."
+              : "Preferensi: Supabase (database utama).";
+      }
+    }
+
+    async function setBackend(next) {
+      var st = document.getElementById("backendModeStatus");
+      if (st) st.textContent = "Menyimpan preferensi…";
+      try {
+        if (next === "sheet") {
+          try {
+            localStorage.setItem("sh_db_backend", "sheet");
+          } catch (e) {}
+          window.SH_DB_BACKEND = "sheet";
+          if (window.SHDbFailover && SHDbFailover.setPreferred) SHDbFailover.setPreferred("sheet");
+        } else if (next === "firebase") {
+          if (!window.SH_FIREBASE_ENABLED || !window.FIREBASE_CONFIG) {
+            throw new Error("Firebase belum di-enable di js/firebase-config.js");
+          }
+          if (window.SHDbFailover && SHDbFailover.ensureFirebase) {
+            await SHDbFailover.ensureFirebase();
+          }
+          if (window.SHDbFailover && SHDbFailover.setPreferred) SHDbFailover.setPreferred("firebase");
+          else {
+            localStorage.setItem("sh_db_backend", "firebase");
+            window.SH_DB_BACKEND = "firebase";
+          }
+          try {
+            if (SHDbFailover.writeMeta) await SHDbFailover.writeMeta("backend", "firebase");
+          } catch (eW) {}
+        } else {
+          if (window.SHDbFailover && SHDbFailover.setPreferred) SHDbFailover.setPreferred("supabase");
+          else {
+            localStorage.setItem("sh_db_backend", "supabase");
+            window.SH_DB_BACKEND = "supabase";
+          }
+          try {
+            if (window.SHDbFailover && SHDbFailover.writeMeta) await SHDbFailover.writeMeta("backend", "supabase");
+          } catch (eW2) {}
+        }
+        paint();
+        if (st) st.textContent = "Backend diset ke: " + next + ". Muat ulang halaman publik bila perlu.";
+      } catch (e) {
+        if (st) st.textContent = (e && e.message) || String(e);
+        paint();
+      }
+    }
+
+    async function pingAll() {
+      var log = document.getElementById("backendPingLog");
+      if (log) log.textContent = "Mengecek…";
+      var lines = [];
+      // Supabase
+      try {
+        var t0 = Date.now();
+        if (window.GalleryDB && GalleryDB.listAngkatan) {
+          await GalleryDB.listAngkatan();
+          lines.push("Supabase: OK (" + (Date.now() - t0) + " ms)");
+        } else {
+          lines.push("Supabase: GalleryDB.listAngkatan tidak ada");
+        }
+      } catch (e) {
+        lines.push("Supabase: GAGAL — " + ((e && e.message) || e));
+      }
+      // Firebase
+      try {
+        if (window.SHDbFailover && SHDbFailover.pingFirebase) {
+          var pf = await SHDbFailover.pingFirebase();
+          lines.push("Firebase: " + (pf.ok ? "OK · " + (pf.projectId || "") : "GAGAL — " + (pf.reason || "")));
+        } else {
+          lines.push("Firebase: modul failover belum ada");
+        }
+      } catch (e2) {
+        lines.push("Firebase: GAGAL — " + ((e2 && e2.message) || e2));
+      }
+      // Sheet hint
+      lines.push("Google Sheet: uji lewat tab Sync Docs (import roster / sync).");
+      if (log) log.textContent = lines.join("\n");
+    }
+
+    function init() {
+      paint();
+      var tog = document.getElementById("quotaModeToggle");
+      if (tog && !tog.dataset.bound) {
+        tog.dataset.bound = "1";
+        tog.addEventListener("change", async function () {
+          var st = document.getElementById("quotaModeStatus");
+          var next = tog.checked ? "hemat" : "normal";
+          if (st) st.textContent = "Menyimpan…";
+          try {
+            if (!window.SHQuotaMode) throw new Error("quota-mode.js belum dimuat");
+            await SHQuotaMode.setMode(next, { syncDb: true });
+            // mirror ke Firebase bila memungkinkan
+            try {
+              if (window.SHDbFailover && SHDbFailover.writeMeta) await SHDbFailover.writeMeta("quotaMode", next);
+            } catch (eM) {}
+            paint();
+            if (st) {
+              st.textContent =
+                next === "hemat"
+                  ? "Mode Hemat aktif. Muat ulang halaman publik agar semua klien menerapkan penghematan."
+                  : "Mode Normal aktif. Muat ulang halaman publik bila perlu.";
+            }
+          } catch (e) {
+            if (st) st.textContent = (e && e.message) || String(e);
+            paint();
+          }
+        });
+      }
+      ["supabase", "firebase", "sheet"].forEach(function (b) {
+        var id = b === "supabase" ? "btnBackendSupabase" : b === "firebase" ? "btnBackendFirebase" : "btnBackendSheet";
+        var btn = document.getElementById(id);
+        if (!btn || btn.dataset.bound) return;
+        btn.dataset.bound = "1";
+        btn.addEventListener("click", function () {
+          setBackend(b);
+        });
+      });
+      var ping = document.getElementById("btnPingBackend");
+      if (ping && !ping.dataset.bound) {
+        ping.dataset.bound = "1";
+        ping.addEventListener("click", function () {
+          pingAll();
+        });
+      }
     }
 
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", function () { setTimeout(init, 400); });
+      document.addEventListener("DOMContentLoaded", function () {
+        setTimeout(init, 400);
+      });
     } else {
       setTimeout(init, 400);
     }
-    // refresh paint saat tab diklik
     document.addEventListener("click", function (ev) {
       var t = ev.target && ev.target.closest && ev.target.closest('#adminTabs [data-tab="kuota"]');
       if (t) setTimeout(paint, 50);

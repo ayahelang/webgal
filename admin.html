@@ -536,12 +536,12 @@
       
 
       <section data-panel="kuota" class="summary-card admin-pane" hidden>
-        <h3>Mode Kuota Supabase</h3>
+        <h3>Mode Kuota &amp; Backend</h3>
         <p class="muted" style="font-size:13px;margin:0 0 12px">
-          Mode <b>Hemat</b> mengurangi beban egress Free Plan: cache lebih lama, realtime chat/pengumuman/absensi dimatikan,
-          diganti polling jarang. Mode <b>Normal</b> mengembalikan perilaku penuh seperti biasa.
+          Atur <b>mode hemat</b> dan <b>backend data</b> saat Supabase kena batas. Tab ini tetap bisa dipakai di login darurat.
         </p>
-        <div class="sh-quota-switch-card">
+
+        <div class="sh-quota-switch-card" style="margin-bottom:14px">
           <div class="sh-quota-switch-row">
             <div>
               <div style="font-weight:700" id="quotaModeLabel">Mode: Normal</div>
@@ -554,11 +554,34 @@
             </label>
           </div>
           <ul class="muted" style="font-size:12px;margin:12px 0 0;padding-left:18px;line-height:1.55">
-            <li><b>Hemat</b>: cache galeri 15 menit · chat poll ~45 dtk · tanpa typing/presence realtime · pengumuman & absensi tanpa realtime</li>
-            <li><b>Normal</b>: perilaku aplikasi seperti sebelumnya</li>
-            <li>Preferensi disimpan di browser admin dan disinkron ke database bila memungkinkan</li>
+            <li><b>Hemat</b>: cache lebih lama · realtime dimatikan · polling jarang (hemat kuota Supabase)</li>
+            <li><b>Normal</b>: perilaku penuh</li>
           </ul>
           <p id="quotaModeStatus" class="muted" style="font-size:12px;margin:10px 0 0"></p>
+        </div>
+
+        <div class="sh-quota-switch-card" style="margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:8px">Backend data aktif</div>
+          <div class="muted" style="font-size:12px;margin-bottom:10px" id="backendModeDesc">Memilih preferensi klien. Firebase membantu meta/mode saat Supabase down.</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <button type="button" class="btn btn-ghost" data-backend="supabase" id="btnBackendSupabase">Supabase</button>
+            <button type="button" class="btn btn-ghost" data-backend="firebase" id="btnBackendFirebase">Firebase</button>
+            <button type="button" class="btn btn-ghost" data-backend="sheet" id="btnBackendSheet">Google Sheet (baca)</button>
+          </div>
+          <p id="backendModeStatus" class="muted" style="font-size:12px;margin:10px 0 0"></p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+            <button type="button" class="btn btn-primary" id="btnPingBackend">Cek koneksi backend</button>
+          </div>
+          <pre id="backendPingLog" class="muted" style="font-size:11px;margin:10px 0 0;max-height:140px;overflow:auto;white-space:pre-wrap;background:rgba(0,0,0,.25);padding:8px;border-radius:8px"></pre>
+        </div>
+
+        <div class="sh-quota-switch-card">
+          <div style="font-weight:700;margin-bottom:6px">Yang perlu Anda siapkan</div>
+          <ul class="muted" style="font-size:12px;margin:0;padding-left:18px;line-height:1.55">
+            <li><b>Firebase</b>: Firestore database + rules (lihat <code>docs/FIREBASE-BACKEND.md</code>)</li>
+            <li><b>Google Sheet</b>: tetap dipakai lewat tab Sync Docs / import roster (URL Sheet sudah ada di form sync)</li>
+            <li>Saat Supabase penuh, aktifkan <b>Hemat</b> + backend <b>Firebase</b> untuk meta/mode; data gallery penuh masih butuh Supabase atau impor Sheet bertahap</li>
+          </ul>
         </div>
       </section>
 
