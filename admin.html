@@ -59,6 +59,18 @@
         Login with Google
       </button>
       <p class="muted" style="font-size:12px">Akun utama: admin@silverhawk.web.id · teddyskom63@guru.sma.belajar.id · ted834r@gmail.com</p>
+      <hr style="border:0;border-top:1px solid rgba(125,227,255,.12);margin:4px 0">
+      <details id="adminEmergencyBox" style="font-size:13px">
+        <summary style="cursor:pointer;color:var(--cyan,#7de3ff)">Login darurat (cadangan kuota / Auth gagal)</summary>
+        <p class="muted" style="font-size:12px;margin:8px 0">Password diverifikasi lewat Google Apps Script (Script Properties). Lihat <code>docs/ADMIN-EMERGENCY-LOGIN.md</code>.</p>
+        <form id="adminEmergencyForm" style="display:grid;gap:8px;margin-top:6px">
+          <label class="field"><span>Password admin darurat</span>
+            <input type="password" id="adminEmergencyPass" name="admin_emergency_pass" autocomplete="current-password" placeholder="Password cadangan">
+          </label>
+          <button type="submit" class="btn btn-primary" id="adminEmergencyBtn">Masuk darurat</button>
+          <p id="adminEmergencyMsg" class="muted" style="font-size:12px;margin:0"></p>
+        </form>
+      </details>
     </div>
 
     <div id="panel" hidden>
@@ -666,6 +678,8 @@
 </script>
 
   <script src="js/firebase-config.js"></script>
+  <script src="data/admin-emergency-config.js"></script>
+  <script src="js/admin-emergency.js"></script>
   <script src="js/db-failover.js"></script>
   <script src="js/economy-mode.js"></script>
 </body>

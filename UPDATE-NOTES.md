@@ -1,1 +1,1 @@
-Hide Profil+Admin topnav when guest; Login stays. Avatar menu when logged in.
+Admin emergency login via Apps Script; Firebase status documented.

@@ -3381,14 +3381,22 @@
         }
       });
     $("#btnLogout").onclick = async () => {
-      await GalleryDB.signOut();
+      try { if (window.SHAdminEmergency) SHAdminEmergency.clearSession(); } catch (eEm) {}
+          await GalleryDB.signOut();
       location.href = "admin.html";
     };
 
-    const auth = await GalleryDB.requireAdmin();
+    let auth = await GalleryDB.requireAdmin();
+    // Cadangan: sesi darurat Apps Script (saat Supabase Auth gagal)
+    if ((!auth || !auth.ok) && window.SHAdminEmergency && SHAdminEmergency.isActive()) {
+      auth = SHAdminEmergency.asAuthResult();
+    }
     if (!auth.ok) {
       panel.hidden = true;
       gate.hidden = false;
+      try {
+        if (window.SHAdminEmergency) SHAdminEmergency.bindGateUI();
+      } catch (eBind) {}
       if (auth.reason === "forbidden") {
         $("#gateMsg").textContent =
           "Akun " + (auth.email || "") + " berhasil login Google tetapi belum punya hak admin. Minta admin utama mengundang dari tab Users.";
@@ -3396,6 +3404,7 @@
         b.className = "btn btn-ghost";
         b.textContent = "Keluar";
         b.onclick = async () => {
+          try { if (window.SHAdminEmergency) SHAdminEmergency.clearSession(); } catch (eEm) {}
           await GalleryDB.signOut();
           location.reload();
         };

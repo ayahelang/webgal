@@ -97,3 +97,8 @@ Gunakan **mode hemat** + kurangi realtime/polling agar jarang menabrak kuota.
 
 - Kunci Firebase API di **App Check** / restriksi HTTP referrer domain `webgal.silverhawk.web.id`
 - Jangan biarkan rules `allow write: if true` di produksi
+
+
+## Login admin saat Supabase Auth gagal
+
+Lihat **`docs/ADMIN-EMERGENCY-LOGIN.md`**: password cadangan lewat Google Apps Script (Script Properties), tanpa menyimpan secret di repo.

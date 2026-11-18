@@ -545,6 +545,10 @@
 
   async function signOut() {
     try {
+      if (typeof window !== "undefined" && window.SHAdminEmergency) SHAdminEmergency.clearSession();
+    } catch (eEm0) {}
+
+    try {
       var keys = [];
       for (var i = 0; i < sessionStorage.length; i++) {
         var k = sessionStorage.key(i);
@@ -562,6 +566,9 @@
   }
 
   async function requireAdmin() {
+    if (typeof window !== "undefined" && window.SHAdminEmergency && SHAdminEmergency.isActive()) {
+      return SHAdminEmergency.asAuthResult();
+    }
     const session = await getSession();
     if (!session || !session.user) return { ok: false, reason: "not_logged_in" };
     const email = session.user.email || "";
@@ -2342,6 +2349,9 @@
 
   // override requireAdmin to also accept is_admin profiles
   async function requireAdmin() {
+    if (typeof window !== "undefined" && window.SHAdminEmergency && SHAdminEmergency.isActive()) {
+      return SHAdminEmergency.asAuthResult();
+    }
     const session = await getSession();
     if (!session || !session.user) return { ok: false, reason: "not_logged_in" };
     const email = session.user.email || "";
