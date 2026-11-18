@@ -5,7 +5,7 @@
  */
 window.SH_ADMIN_EMERGENCY = {
   /** URL Web App GAS, contoh: https://script.google.com/macros/s/XXXX/exec */
-  gasUrl: "",
+  gasUrl: "https://script.google.com/macros/s/AKfycbzxvCRonC79ZvxV9jOz-Ol6nqtofgZZ-LlqvyO7YaqiQ6LnDlCTH1vOIZvNPmR06NUvwA/exec",
   /** Lama sesi darurat (jam) setelah login berhasil */
   sessionHours: 4,
   /** Label di panel */
