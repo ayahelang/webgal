@@ -82,6 +82,120 @@
     });
   }
 
+
+  function loadScriptOnce(src) {
+    return new Promise(function (resolve, reject) {
+      var existing = document.querySelector('script[src="' + src + '"]');
+      if (existing) {
+        if (existing.dataset.loaded === "1" || existing.getAttribute("data-loaded") === "1") {
+          resolve();
+          return;
+        }
+        existing.addEventListener("load", function () {
+          resolve();
+        });
+        existing.addEventListener("error", reject);
+        // fallback bila sudah selesai
+        setTimeout(resolve, 50);
+        return;
+      }
+      var s = document.createElement("script");
+      s.src = src;
+      s.async = true;
+      s.onload = function () {
+        s.dataset.loaded = "1";
+        resolve();
+      };
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  async function ensureEmergencyLibs() {
+    if (window.SHAdminEmergency && SHAdminEmergency.loginWithPassword) return true;
+    try {
+      await loadScriptOnce("data/admin-emergency-config.js");
+    } catch (e1) {}
+    try {
+      await loadScriptOnce("js/admin-emergency.js");
+    } catch (e2) {
+      return false;
+    }
+    return !!(window.SHAdminEmergency && SHAdminEmergency.loginWithPassword);
+  }
+
+  function openPasswordLogin() {
+    var existing = document.getElementById("shPassLoginModal");
+    if (existing) {
+      existing.hidden = false;
+      var inp0 = existing.querySelector("#shPassLoginInput");
+      if (inp0) inp0.focus();
+      return;
+    }
+    var modal = document.createElement("div");
+    modal.id = "shPassLoginModal";
+    modal.className = "sh-pass-modal";
+    modal.innerHTML =
+      '<div class="sh-pass-backdrop" data-pass-close="1"></div>' +
+      '<div class="sh-pass-card" role="dialog" aria-label="Login password admin">' +
+      "<h3>Login dengan password</h3>" +
+      '<p class="sh-pass-hint">Cadangan admin saat login Google / Supabase bermasalah.</p>' +
+      '<form id="shPassLoginForm">' +
+      '<label class="sh-pass-label">Password' +
+      '<input type="password" id="shPassLoginInput" autocomplete="current-password" required></label>' +
+      '<p class="sh-pass-msg" id="shPassLoginMsg"></p>' +
+      '<div class="sh-pass-actions">' +
+      '<button type="button" class="btn btn-ghost" data-pass-close="1">Batal</button>' +
+      '<button type="submit" class="btn btn-primary" id="shPassLoginBtn">Masuk</button>' +
+      "</div></form></div>";
+    document.body.appendChild(modal);
+    modal.addEventListener("click", function (ev) {
+      if (ev.target && ev.target.getAttribute("data-pass-close")) {
+        modal.hidden = true;
+      }
+    });
+    var form = modal.querySelector("#shPassLoginForm");
+    form.addEventListener("submit", async function (ev) {
+      ev.preventDefault();
+      var msg = modal.querySelector("#shPassLoginMsg");
+      var btn = modal.querySelector("#shPassLoginBtn");
+      var input = modal.querySelector("#shPassLoginInput");
+      if (msg) {
+        msg.style.color = "";
+        msg.textContent = "Memverifikasi…";
+      }
+      if (btn) btn.disabled = true;
+      try {
+        var okLib = await ensureEmergencyLibs();
+        if (!okLib) throw new Error("Modul login password belum tersedia.");
+        await SHAdminEmergency.loginWithPassword(input && input.value);
+        if (msg) {
+          msg.style.color = "#8ff5bd";
+          msg.textContent = "Berhasil. Membuka…";
+        }
+        try {
+          sessionStorage.setItem("sh_return", location.href);
+        } catch (e0) {}
+        // ke admin bila bukan di admin
+        if (!/admin\.html/i.test(location.pathname)) {
+          location.href = "admin.html";
+        } else {
+          location.reload();
+        }
+      } catch (err) {
+        if (msg) {
+          msg.style.color = "#ff8a8a";
+          msg.textContent = (err && err.message) || String(err);
+        }
+        if (btn) btn.disabled = false;
+      }
+    });
+    var inp = modal.querySelector("#shPassLoginInput");
+    if (inp) setTimeout(function () {
+      inp.focus();
+    }, 50);
+  }
+
   async function ensureProfileBar() {
     if (!window.GalleryDB || !GalleryDB.enabled()) return;
     let bar = $(".sh-userbar");
@@ -94,7 +208,20 @@
     }
 
     try {
-      const session = await GalleryDB.getSession();
+      let session = await GalleryDB.getSession();
+      // Sesi darurat password (Apps Script) — cadangan saat Supabase Auth down
+      if ((!session || !session.user) && window.SHAdminEmergency && SHAdminEmergency.isActive()) {
+        try {
+          var em = SHAdminEmergency.asAuthResult();
+          if (em && em.ok && em.session) session = em.session;
+        } catch (eEm) {}
+      }
+      if ((!session || !session.user) && !window.SHAdminEmergency) {
+        // coba muat lib darurat sekali (non-blocking untuk UI guest)
+        ensureEmergencyLibs().then(function (ok) {
+          if (ok && SHAdminEmergency.isActive()) ensureProfileBar();
+        });
+      }
       if (!session || !session.user) {
         document.body.classList.remove("sh-user-logged");
         document.body.classList.add("sh-user-guest");
@@ -104,14 +231,77 @@
         } catch (e0) {}
         bar.classList.remove("is-open");
         bar.innerHTML =
-          `<a class="btn-google-sm" href="profile.html?login=1" title="Login Google" id="shTopLogin">` +
-          `<span class="g-icon" aria-hidden="true"></span> Login</a>`;
-        const btn = bar.querySelector("#shTopLogin");
-        if (btn) {
-          btn.addEventListener("click", function () {
+          `<div class="sh-login-wrap">` +
+          `<button type="button" class="btn-google-sm sh-login-main" id="shTopLogin" aria-expanded="false" aria-haspopup="true">` +
+          `<span class="g-icon" aria-hidden="true"></span> Login` +
+          `<span class="sh-login-caret" aria-hidden="true">▾</span></button>` +
+          `<div class="sh-login-menu" id="shLoginMenu" hidden role="menu">` +
+          `<a class="sh-login-item" role="menuitem" id="shLoginGoogle" href="profile.html?login=1">` +
+          `<span class="g-icon" aria-hidden="true"></span> Login dengan Google</a>` +
+          `<button type="button" class="sh-login-item" role="menuitem" id="shLoginPassword">` +
+          `Login dengan password</button>` +
+          `</div></div>`;
+
+        function closeLoginMenu() {
+          var menu = bar.querySelector("#shLoginMenu");
+          var main = bar.querySelector("#shTopLogin");
+          if (menu) menu.hidden = true;
+          if (main) main.setAttribute("aria-expanded", "false");
+          bar.classList.remove("is-login-open");
+        }
+
+        var mainBtn = bar.querySelector("#shTopLogin");
+        if (mainBtn) {
+          mainBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var menu = bar.querySelector("#shLoginMenu");
+            if (!menu) return;
+            var open = menu.hidden;
+            // tutup menu user lain
+            closeUserMenu();
+            if (open) {
+              menu.hidden = false;
+              mainBtn.setAttribute("aria-expanded", "true");
+              bar.classList.add("is-login-open");
+            } else {
+              closeLoginMenu();
+            }
+          });
+        }
+
+        var gBtn = bar.querySelector("#shLoginGoogle");
+        if (gBtn) {
+          gBtn.addEventListener("click", function () {
             try {
               sessionStorage.setItem("sh_return", location.href);
             } catch (err) {}
+            closeLoginMenu();
+          });
+        }
+
+        var pBtn = bar.querySelector("#shLoginPassword");
+        if (pBtn) {
+          pBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeLoginMenu();
+            openPasswordLogin();
+          });
+        }
+
+        // klik di luar menutup
+        if (bar.dataset.loginOutside !== "1") {
+          bar.dataset.loginOutside = "1";
+          document.addEventListener(
+            "click",
+            function (ev) {
+              if (!bar.contains(ev.target)) closeLoginMenu();
+            },
+            true
+          );
+          document.addEventListener("keydown", function (ev) {
+            if (ev.key === "Escape") closeLoginMenu();
           });
         }
         return;
@@ -139,6 +329,9 @@
       try {
         isAdm = await GalleryDB.isCurrentUserAdmin();
       } catch (e) {}
+      try {
+        if (!isAdm && window.SHAdminEmergency && SHAdminEmergency.isActive()) isAdm = true;
+      } catch (e2) {}
 
       hideAdminNavLinks(true); // topnav Admin selalu off; admin pakai menu avatar
 
@@ -175,6 +368,9 @@
           try {
             await GalleryDB.signOut();
           } catch (err) {}
+          try {
+            if (window.SHAdminEmergency && SHAdminEmergency.clearSession) SHAdminEmergency.clearSession();
+          } catch (err2) {}
           closeUserMenu();
           location.reload();
         });

@@ -1174,3 +1174,34 @@ nav.topnav a.nav-admin {
     left: auto;
   }
 }
+
+
+/* Login header: collapsible Google + password */
+.sh-login-wrap{position:relative;display:inline-flex;flex-direction:column;align-items:flex-end}
+.sh-login-main{gap:8px}
+.sh-login-caret{font-size:10px;opacity:.7;margin-left:2px}
+.sh-login-menu{
+  position:absolute;top:calc(100% + 6px);right:0;z-index:80;
+  min-width:200px;padding:6px;
+  border-radius:12px;border:1px solid rgba(125,227,255,.28);
+  background:rgba(10,18,28,.98);box-shadow:0 12px 32px rgba(0,0,0,.45);
+  display:flex;flex-direction:column;gap:4px;
+}
+.sh-login-menu[hidden]{display:none!important}
+.sh-login-item{
+  display:flex;align-items:center;gap:8px;width:100%;
+  text-align:left;padding:10px 12px;border:0;border-radius:10px;
+  background:transparent;color:var(--text,#e8f4fa);font-size:13px;font-weight:600;
+  cursor:pointer;text-decoration:none;
+}
+.sh-login-item:hover{background:rgba(26,143,209,.2)}
+.sh-pass-modal{position:fixed;inset:0;z-index:100100;display:flex;align-items:center;justify-content:center}
+.sh-pass-modal[hidden]{display:none!important}
+.sh-pass-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.sh-pass-card{position:relative;z-index:1;width:min(360px,92vw);background:#0c1520;border:1px solid rgba(125,227,255,.3);border-radius:16px;padding:18px 18px 16px;color:#e8f4fa;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.sh-pass-card h3{margin:0 0 6px;font-size:16px}
+.sh-pass-hint{margin:0 0 12px;font-size:12px;opacity:.8}
+.sh-pass-label{display:flex;flex-direction:column;gap:6px;font-size:12px;margin-bottom:10px}
+.sh-pass-label input{padding:10px 12px;border-radius:10px;border:1px solid rgba(125,227,255,.28);background:rgba(0,0,0,.25);color:inherit}
+.sh-pass-msg{min-height:1.2em;font-size:12px;margin:0 0 10px}
+.sh-pass-actions{display:flex;justify-content:flex-end;gap:8px}
